@@ -1,5 +1,15 @@
 ; claude: the program: Chrome's window -- the tabs, the omnibox, the
 ; developer tools -- around the tabs of src/chrome (MiniChrome.ml).
+;
+; Drawn by the Playground, on one of its native platforms, SDL for the
+; window either way: Cairo's (elm_playground_native) or its own
+; rasterizer (elm_playground_software). The platform is a virtual
+; library, one implementation linked into an executable, so the choice
+; is made when linking: mini-chrome takes Cairo's when it is installed,
+; else the software one (the select below, which links the libraries of
+; the first alternative available; Platform_choice says which), and
+; software/'s mini-chrome-software is always the software one.
+; ./configure --software, or no Cairo, leaves elm_playground_native out.
 (executable
  (name MiniChrome)
  (public_name mini-chrome)
@@ -9,4 +19,6 @@
    lang_html lang_css browser_layout
    browser_url browser_display browser_www browser_viewers browser_protocols browser_chrome
    elm_playground
-   elm_playground_native)) ; implem of virtual elm_playground: SDL and Cairo
+   (select Platform_choice.ml from
+     (elm_playground_native -> Platform_choice.cairo.ml) ; SDL and Cairo
+     (elm_playground_software -> Platform_choice.software.ml)))) ; SDL and our own rasterizer

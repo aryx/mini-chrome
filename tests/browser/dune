@@ -7,4 +7,4 @@
    alcotest testo
    lang_html javascript browser_layout
    browser_url browser_www browser_chrome
-   elm_playground_native)) ; an implem of virtual elm_playground, to link
+   elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

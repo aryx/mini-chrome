@@ -27,6 +27,10 @@
 - ./configure (after elm-playground's): checks for SDL2 and Cairo,
   finds elm-playground's packages (from opam, or a 'make install' in an
   elm-playground checkout, or else pinned from the 0.3.0 tag)
+- no Cairo needed: two programs, mini-chrome (Cairo's platform when
+  installed, else the Playground's own rasterizer, by dune's select)
+  and mini-chrome-software (always the rasterizer); ./configure
+  --software leaves Cairo out, as it does by itself without Cairo
 - bin/ symlink to _build/install/default/bin: ./bin/mini-chrome
 
 ** test infra

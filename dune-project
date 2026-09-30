@@ -37,8 +37,13 @@
     (caps (>= "0.1.0"))
     (tiny_libs (>= "0.3.0"))
     (elm_playground (>= "0.3.0"))
-    (elm_playground_native (>= "0.3.0"))
+    ; claude: the software platform, SDL only: mini-chrome-software
+    (elm_playground_software (>= "0.3.0"))
     (testo :with-test)
     (alcotest :with-test)
   )
+  ; claude: the native platform, SDL and Cairo: mini-chrome, built when
+  ; it is installed (src/main/dune's (optional))
+  (depopts
+    elm_playground_native)
 )

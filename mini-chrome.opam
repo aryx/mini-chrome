@@ -19,11 +19,12 @@ depends: [
   "caps" {>= "0.1.0"}
   "tiny_libs" {>= "0.3.0"}
   "elm_playground" {>= "0.3.0"}
-  "elm_playground_native" {>= "0.3.0"}
+  "elm_playground_software" {>= "0.3.0"}
   "testo" {with-test}
   "alcotest" {with-test}
   "odoc" {with-doc}
 ]
+depopts: ["elm_playground_native"]
 build: [
   ["dune" "subst"] {dev}
   [

@@ -7,6 +7,24 @@ set -eu # to debug this script add '-x'
 # The goal of this script is to automate the configuration and installation
 # of packages that are needed to then compile mini-chrome itself.
 # coupling: adapted from ~/github/ocaml-elm-playground/configure
+#
+# Usage: ./configure [--software]
+#
+# mini-chrome is drawn by the Playground, on one of its two native
+# platforms (src/main/dune): Cairo's (elm_playground_native, the program
+# mini-chrome) or its own rasterizer (elm_playground_software,
+# mini-chrome-software), SDL for the window either way. Both are built
+# by default; --software leaves Cairo out altogether: no check for it,
+# no elm_playground_native, and only mini-chrome-software is built --
+# as happens anyway, with a warning, when Cairo is not found.
+
+software=0
+for arg in "$@"; do
+    case "$arg" in
+    --software) software=1 ;;
+    *) echo "usage: ./configure [--software]" >&2; exit 1 ;;
+    esac
+done
 
 ###############################################################################
 # Helper functions
@@ -31,6 +49,7 @@ check_c_lib() {
     name="$1"
     pkg="$2"
     header="$3"
+    what="$4"
 
     if command -v pkg-config >/dev/null 2>&1 \
        && pkg-config --exists "$pkg" 2>/dev/null; then
@@ -50,7 +69,8 @@ check_c_lib() {
         fi
     done
 
-    warn "$name not found (pkg-config module '$pkg', header '$header'); the Playground's native platform won't build without it"
+    warn "$name not found (pkg-config module '$pkg', header '$header'); $what won't build without it"
+    return 1
 }
 
 # On macOS, extend PKG_CONFIG_PATH for Homebrew
@@ -81,14 +101,21 @@ fi
 echo ""
 
 ###############################################################################
-# Check C libraries needed by the Playground's native platform
+# Check C libraries needed by the Playground's native platforms
 ###############################################################################
-# coupling: elm_playground_native.opam (tsdl, cairo2)
+# coupling: elm_playground_software.opam (tsdl), elm_playground_native.opam
+# (tsdl, cairo2)
 
-echo "Checking C libraries for the Playground's native platform..."
+echo "Checking C libraries for the Playground's native platforms..."
 
-check_c_lib "SDL2"  "sdl2"  "SDL2/SDL.h"
-check_c_lib "cairo" "cairo" "cairo.h"
+check_c_lib "SDL2"  "sdl2"  "SDL2/SDL.h" "mini-chrome" || true
+if [ "$software" -eq 1 ]; then
+    ok "cairo (not needed: --software)"
+elif ! check_c_lib "cairo" "cairo" "cairo.h" "mini-chrome (Cairo's; mini-chrome-software will)"; then
+    # claude: no Cairo, no Cairo platform to install: as --software
+    warn "going on as with --software: only mini-chrome-software will be built"
+    software=1
+fi
 
 echo ""
 
@@ -96,18 +123,25 @@ echo ""
 # elm-playground's packages
 ###############################################################################
 # mini-chrome stands on elm-playground's packages (tiny_libs, the
-# Playground and its native platform), 0.3.0 or later. Until 0.3.0 is
+# Playground and its native platforms), 0.3.0 or later. Until 0.3.0 is
 # on opam, they are pinned from the tag: opam builds them from
 # elm-playground's sources. Not when opam already knows them (from
 # opam-repository, or a 'make install' in an elm-playground checkout,
 # the way to work on both at once: see README.md).
-# coupling: the (depends ...) of dune-project
+# coupling: the (depends ...) and (depopts ...) of dune-project
 
 ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#0.3.0
-PACKAGES="tiny_libs tiny_languages tiny_appkits elm_playground elm_playground_software elm_playground_native"
+# what mini-chrome uses (its own languages/ replace tiny_languages')
+PACKAGES="tiny_libs elm_playground elm_playground_software"
+[ "$software" -eq 1 ] || PACKAGES="$PACKAGES elm_playground_native"
+# and what opam needs to install those, when they are pinned: the
+# packages elm_playground's opam file depends on (its own kits use
+# tiny_languages and tiny_appkits), which mini-chrome never links
+PINNED_TOO="tiny_languages tiny_appkits"
 
 echo "Checking elm-playground's packages..."
 outside_opam=0
+pinned=0
 for p in $PACKAGES; do
     if opam show "$p" --field=all-versions 2>/dev/null | grep -q '0\.3\.0'; then
         ok "$p (known to opam)"
@@ -117,8 +151,15 @@ for p in $PACKAGES; do
     else
         warn "$p not on opam yet: pinned from $ELM_PLAYGROUND"
         opam pin add --no-action -y "$p" "$ELM_PLAYGROUND"
+        pinned=1
     fi
 done
+if [ "$pinned" -eq 1 ]; then
+    for p in $PINNED_TOO; do
+        opam show "$p" --field=all-versions 2>/dev/null | grep -q '0\.3\.0' \
+          || opam pin add --no-action -y "$p" "$ELM_PLAYGROUND"
+    done
+fi
 
 echo ""
 
@@ -137,6 +178,11 @@ if [ "$outside_opam" -eq 1 ]; then
 else
     # --with-test for what 'make test' needs (testo, alcotest)
     opam install --confirm-level=unsafe-yes --deps-only --with-test -y ./mini-chrome.opam
+    # the Cairo platform, an optional dependency (depopts), which
+    # --deps-only leaves out
+    if [ "$software" -eq 0 ]; then
+        opam install --confirm-level=unsafe-yes -y elm_playground_native
+    fi
 fi
 
 echo ""

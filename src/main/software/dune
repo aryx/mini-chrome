@@ -1,0 +1,16 @@
+; claude: the same program (../MiniChrome.ml, copied at build time, not
+; a second source) on the Playground's software platform: every pixel
+; computed by its own rasterizer, SDL only for the window -- no Cairo.
+; See ../dune.
+(copy_files# ../MiniChrome.ml)
+
+(executable
+ (name MiniChrome)
+ (public_name mini-chrome-software)
+ (libraries
+   caps
+   tiny_libs.core tiny_libs.networking_protocols
+   lang_html lang_css browser_layout
+   browser_url browser_display browser_www browser_viewers browser_protocols browser_chrome
+   elm_playground
+   elm_playground_software)) ; implem of virtual elm_playground: SDL and our own rasterizer
