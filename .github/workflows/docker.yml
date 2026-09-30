@@ -1,0 +1,23 @@
+# Build mini-chrome via docker.
+# See also Dockerfile at the root of the project.
+# coupling: very similar to the docker.yml in ocaml-elm-playground
+
+name: docker
+
+on:
+  pull_request_target: {}
+  workflow_dispatch: null
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ocaml:
+          - 4.14.4
+          - 5.5.1
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t "mini-chrome" --build-arg OCAML_VERSION=${{matrix.ocaml}} .

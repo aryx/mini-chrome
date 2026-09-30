@@ -1,0 +1,13 @@
+; claude: bin is a symlink to _build/install/default/bin, where dune
+; installs the executables (their public_name): ./bin/mini-chrome after
+; a make. Dune must not follow it: it points into _build, and is dead
+; before the first build.
+(dirs :standard \ bin)
+
+; claude: the warnings elm-playground's code was written under, where it
+; comes from: 6 (labels omitted), 32 (an unused value: a program's
+; `let main = Program.main ...`, a test's helper), 37 (an unused
+; constructor), 69 (an unused field)
+(env
+  (dev
+      (flags (:standard -w -6-32-37-69))))

@@ -1,0 +1,14 @@
+; claude: a page drawn as Playground shapes: its letters in Hershey's
+; strokes in a look (Stroke_text, Browser_text), its pictures decoded
+; (Browser_picture: PNG, GIF, JPEG, SVG), Mosaic's way (Browser_draw) and
+; CSS's boxes (Browser_boxes).
+(library
+ (name browser_display)
+ (wrapped false)
+ (libraries
+   elm_playground ; the shapes it draws
+   lang_html lang_css browser_layout
+   appkit_richtext ; Style, the pen's look
+   tiny_libs.graphics_font ; Hershey
+   tiny_libs.graphics_rgba tiny_libs.graphics_png tiny_libs.graphics_gif
+   tiny_libs.graphics_jpeg tiny_libs.graphics_svg))

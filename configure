@@ -1,0 +1,146 @@
+#!/bin/sh
+set -eu # to debug this script add '-x'
+
+###############################################################################
+# Prelude
+###############################################################################
+# The goal of this script is to automate the configuration and installation
+# of packages that are needed to then compile mini-chrome itself.
+# coupling: adapted from ~/github/ocaml-elm-playground/configure
+
+###############################################################################
+# Helper functions
+###############################################################################
+
+ok()   { echo "  [OK]   $1"; }
+warn() { echo "  [WARN] $1"; }
+err()  { echo "  [ERR]  $1" >&2; }
+
+errors=0
+
+need_command() {
+    if command -v "$1" >/dev/null 2>&1; then
+        ok "$1 ($(command -v "$1"))"
+    else
+        err "$1 not found in PATH"
+        errors=$((errors + 1))
+    fi
+}
+
+check_c_lib() {
+    name="$1"
+    pkg="$2"
+    header="$3"
+
+    if command -v pkg-config >/dev/null 2>&1 \
+       && pkg-config --exists "$pkg" 2>/dev/null; then
+        ok "$name (pkg-config: $pkg)"
+        return 0
+    fi
+
+    search_dirs="/usr/include /usr/local/include"
+    if command -v brew >/dev/null 2>&1; then
+        search_dirs="$search_dirs $(brew --prefix 2>/dev/null)/include"
+    fi
+
+    for dir in $search_dirs; do
+        if [ -f "$dir/$header" ]; then
+            ok "$name (header: $dir/$header)"
+            return 0
+        fi
+    done
+
+    warn "$name not found (pkg-config module '$pkg', header '$header'); the Playground's native platform won't build without it"
+}
+
+# On macOS, extend PKG_CONFIG_PATH for Homebrew
+if command -v brew >/dev/null 2>&1; then
+    _brew_prefix="$(brew --prefix 2>/dev/null || true)"
+    if [ -n "$_brew_prefix" ]; then
+        PKG_CONFIG_PATH="${_brew_prefix}/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+        export PKG_CONFIG_PATH
+    fi
+fi
+
+###############################################################################
+# Check required tools
+###############################################################################
+
+echo "Checking required tools..."
+
+need_command ocaml
+need_command opam
+need_command make
+need_command git
+
+if [ "$errors" -ne 0 ]; then
+    echo "$errors error(s) found. Please fix the issues above and re-run ./configure."
+    exit 1
+fi
+
+echo ""
+
+###############################################################################
+# Check C libraries needed by the Playground's native platform
+###############################################################################
+# coupling: elm_playground_native.opam (tsdl, cairo2)
+
+echo "Checking C libraries for the Playground's native platform..."
+
+check_c_lib "SDL2"  "sdl2"  "SDL2/SDL.h"
+check_c_lib "cairo" "cairo" "cairo.h"
+
+echo ""
+
+###############################################################################
+# elm-playground's packages
+###############################################################################
+# mini-chrome stands on elm-playground's packages (tiny_libs, the
+# Playground and its native platform), 0.3.0 or later. Until 0.3.0 is
+# on opam, they are pinned from the tag: opam builds them from
+# elm-playground's sources. Not when opam already knows them (from
+# opam-repository, or a 'make install' in an elm-playground checkout,
+# the way to work on both at once: see README.md).
+# coupling: the (depends ...) of dune-project
+
+ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#0.3.0
+PACKAGES="tiny_libs tiny_languages tiny_appkits elm_playground elm_playground_software elm_playground_native"
+
+echo "Checking elm-playground's packages..."
+outside_opam=0
+for p in $PACKAGES; do
+    if opam show "$p" --field=all-versions 2>/dev/null | grep -q '0\.3\.0'; then
+        ok "$p (known to opam)"
+    elif ocamlfind query "$p" >/dev/null 2>&1; then
+        ok "$p (installed outside opam: $(ocamlfind query "$p"))"
+        outside_opam=1
+    else
+        warn "$p not on opam yet: pinned from $ELM_PLAYGROUND"
+        opam pin add --no-action -y "$p" "$ELM_PLAYGROUND"
+    fi
+done
+
+echo ""
+
+###############################################################################
+# Install opam dependencies
+###############################################################################
+
+echo "Installing opam dependencies..."
+if [ "$outside_opam" -eq 1 ]; then
+    # elm-playground's packages installed by its 'make install' (dune
+    # install) are unknown to opam, which then cannot solve
+    # mini-chrome.opam: the other dependencies are installed by name
+    # (theirs came with them)
+    # coupling: the (depends ...) of dune-project
+    opam install --confirm-level=unsafe-yes -y caps testo alcotest
+else
+    # --with-test for what 'make test' needs (testo, alcotest)
+    opam install --confirm-level=unsafe-yes --deps-only --with-test -y ./mini-chrome.opam
+fi
+
+echo ""
+echo "Everything looks fine. You can now run:"
+echo ""
+echo "   $ make"
+echo "   $ make test"

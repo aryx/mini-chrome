@@ -1,0 +1,11 @@
+; claude: the page as a document: read, styled and laid out, every stage
+; kept (Browser_page), its scripts and the DOM they see (Browser_script),
+; its forms' clicks and keys (Browser_forms).
+(library
+ (name browser_www)
+ (wrapped false)
+ (libraries
+   lang_html lang_css javascript browser_layout
+   appkit_typeset ; Linebreak, for wrap=pretty
+   browser_url browser_display
+   tiny_libs.networking_protocols)) ; Urlencoded, a form's query

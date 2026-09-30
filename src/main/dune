@@ -1,0 +1,12 @@
+; claude: the program: Chrome's window -- the tabs, the omnibox, the
+; developer tools -- around the tabs of src/chrome (MiniChrome.ml).
+(executable
+ (name MiniChrome)
+ (public_name mini-chrome)
+ (libraries
+   caps ; the authority to reach the network
+   tiny_libs.core tiny_libs.networking_protocols
+   lang_html lang_css browser_layout
+   browser_url browser_display browser_www browser_viewers browser_protocols browser_chrome
+   elm_playground
+   elm_playground_native)) ; implem of virtual elm_playground: SDL and Cairo

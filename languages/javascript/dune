@@ -1,0 +1,16 @@
+; claude: a small JavaScript: Js_lexer (the text to tokens), Js_ast (the
+; tree), Js_parse (statements by recursive descent, expressions by Pratt
+; -- and why not yacc), Js_value (values, objects, the conversions),
+; Js_eval (the tree walked: scopes, closures, this, the errors) and
+; Js_builtins (console, Math, strings' and arrays' methods). The
+; language only: what a script can touch outside itself is its host's,
+; a record of functions, so the browser gives it a page
+; (src/browser/Browser_script) and a test gives it nothing.
+;
+; Pure OCaml, no Playground; the modules are Js_ because the libraries
+; are unwrapped and js_of_ocaml's own module is Js.
+(library
+ (name javascript)
+ (wrapped false)
+ (libraries tiny_libs.random) ; Lehmer, Math.random's seeded numbers
+)

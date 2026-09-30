@@ -1,0 +1,91 @@
+; claude: the about: pages, the browser's built-in site (Site.mli): its
+; files embedded as strings, pages/home.html becoming Site_pages.home at
+; build time, so the browser has something to show with no network; and
+; the video site of our own, about:tube (Tube, Tube_clips).
+(library
+ (name browser_protocols)
+ (wrapped false)
+ (modules Site Site_pages Site_pictures Tube Tube_clips Tube_files)
+ (libraries
+   tiny_libs.graphics_core tiny_libs.graphics_2d ; the clip's frames, drawn
+   tiny_libs.graphics_rgba tiny_libs.graphics_y4m tiny_libs.graphics_fli
+   tiny_libs.graphics_avi tiny_libs.graphics_mpeg1
+   tiny_libs.audio tiny_libs.audio_signal ; the clip's sound
+   tiny_libs.compression))
+
+(rule
+ (targets Site_pages.ml)
+ (deps pages/home.html pages/history.html pages/form.html pages/netscape.html pages/css.html
+       pages/firefox.html pages/counter.html pages/todo.html pages/timer.html pages/tictactoe.html
+       pages/chrome.html pages/chrome.css pages/chrome-colours.css pages/threads.html pages/threads.js)
+ (action
+  (with-stdout-to
+   %{targets}
+   (progn
+    (echo "(* generated from pages/*.html by src/protocols/dune *)\n")
+    (echo "let home = {|")
+    (cat pages/home.html)
+    (echo "|}\n")
+    (echo "let history = {|")
+    (cat pages/history.html)
+    (echo "|}\n")
+    (echo "let form = {|")
+    (cat pages/form.html)
+    (echo "|}\n")
+    (echo "let netscape = {|")
+    (cat pages/netscape.html)
+    (echo "|}\n")
+    (echo "let css = {|")
+    (cat pages/css.html)
+    (echo "|}\n")
+    (echo "let firefox = {|")
+    (cat pages/firefox.html)
+    (echo "|}\n")
+    (echo "let counter = {|")
+    (cat pages/counter.html)
+    (echo "|}\n")
+    (echo "let todo = {|")
+    (cat pages/todo.html)
+    (echo "|}\n")
+    (echo "let timer = {|")
+    (cat pages/timer.html)
+    (echo "|}\n")
+    (echo "let tictactoe = {|")
+    (cat pages/tictactoe.html)
+    (echo "|}\n")
+    (echo "let chrome = {|")
+    (cat pages/chrome.html)
+    (echo "|}\n")
+    (echo "let chrome_css = {|")
+    (cat pages/chrome.css)
+    (echo "|}\n")
+    (echo "let chrome_colours_css = {|")
+    (cat pages/chrome-colours.css)
+    (echo "|}\n")
+    (echo "let threads = {|")
+    (cat pages/threads.html)
+    (echo "|}\n")
+    (echo "let threads_js = {|")
+    (cat pages/threads.js)
+    (echo "|}\n")))))
+
+; claude: bytes that are not text, embedded escaped
+; (scripts/files_to_string_ml.ml): pages/picture.gif becomes
+; Site_pictures.picture_gif, the same picture in the three formats the
+; browser decodes; and about:tube's two files made elsewhere (the .mpg by
+; ffmpeg, the .mp3 by LAME), Tube_files
+(rule
+ (targets Site_pictures.ml)
+ (deps pages/picture.gif pages/picture.png pages/picture.jpg %{project_root}/scripts/files_to_string_ml.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ocaml %{project_root}/scripts/files_to_string_ml.ml pages/picture.gif pages/picture.png pages/picture.jpg))))
+
+(rule
+ (targets Tube_files.ml)
+ (deps ball_and_square.mpg stereo.mp3 %{project_root}/scripts/files_to_string_ml.ml)
+ (action
+  (with-stdout-to
+   %{targets}
+   (run ocaml %{project_root}/scripts/files_to_string_ml.ml ball_and_square.mpg stereo.mp3))))
