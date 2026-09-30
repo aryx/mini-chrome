@@ -9,7 +9,6 @@
  *)
 
 (* See Browser_tab.mli *)
-open Playground
 
 type state = Loading of string | Shown of Browser_page.t
 type view = Page | Source
@@ -44,8 +43,9 @@ type t = {
 type 'msg config = {
   settings : t -> Browser_page.settings;
   about : string -> (string * string) option;
-  got : string -> (Http.response, Http.error) result -> 'msg;
-  got_picture : string -> (Http.response, Http.error) result -> 'msg;
+  got : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  fetch : 'msg Fetch.request -> 'msg;
   connections : int;
   visible : int;
   line_height : float;
@@ -223,7 +223,7 @@ let rec fetch_more (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, c
         let tab = logged ~status:(if pic = Browser_picture.Broken then 404 else 200) ~bytes Picture url tab in
         fetch_more cfg network (with_arrived cfg tab url pic, cmd)
       else
-        let get = Http.get network ~url ~expect:(Http.expect_response (cfg.got_picture url)) in
+        let get = Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got_picture url))) in
         fetch_more cfg network (logged (kind_of tab url) url { tab with in_flight = url :: tab.in_flight }, Cmd.batch [ cmd; get ]))
   | _ -> (tab, cmd)
 
@@ -263,7 +263,7 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       | [] -> (tab, cmd)
       | urls ->
           let tab = List.fold_left (fun tab u -> logged ~status:0 Fetch u tab) tab urls in
-          (tab, Cmd.batch (cmd :: List.map (fun url -> Http.get network ~url ~expect:(Http.expect_response (cfg.got_picture url))) urls)))
+          (tab, Cmd.batch (cmd :: List.map (fun url -> Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got_picture url)))) urls)))
   | None -> (tab, cmd)
 
 let load_images cfg network tab = with_pictures cfg network ({ tab with images = true }, Cmd.none)
@@ -288,11 +288,10 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
         | Some (bytes, content_type) -> show bytes content_type
         | None -> (failed cfg tab url "There is no such page in the built-in site.", Cmd.none))
   else
-    let expect = Http.expect_response (cfg.got url) in
     let tab = logged Document url { tab with state = Loading url } in
     match post with
-    | None -> (tab, Http.get network ~url ~expect)
-    | Some (content_type, body) -> (tab, Http.post network ~url ~content_type ~body ~expect)
+    | None -> (tab, Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got url))))
+    | Some (content_type, body) -> (tab, Cmd.Msg (cfg.fetch (Fetch.post network url ~content_type ~body (cfg.got url))))
 
 let entry_of (tab : t) : entry =
   match tab.state with
@@ -377,7 +376,7 @@ let refresh (cfg : 'msg config) (tab : t) : string option =
       in
       find false p.tree
 
-let got (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (result : (Http.response, Http.error) result) (tab : t) :
+let got (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (result : (Fetch.response, Fetch.error) result) (tab : t) :
     t * 'msg Cmd.t =
   match result with
   | Ok r -> (
@@ -391,9 +390,9 @@ let got (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (res
       match refresh cfg tab with
       | Some target when target <> r.url && target <> url -> load cfg network target tab
       | _ -> (tab, cmd))
-  | Error e -> (failed cfg (logged ~status:0 Document url tab) url (String.capitalize_ascii (Http.error_to_string e) ^ "."), Cmd.none)
+  | Error e -> (failed cfg (logged ~status:0 Document url tab) url (String.capitalize_ascii (Fetch.error_to_string e) ^ "."), Cmd.none)
 
-let got_picture (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (result : (Http.response, Http.error) result)
+let got_picture (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (result : (Fetch.response, Fetch.error) result)
     (tab : t) : t * 'msg Cmd.t =
   if not (List.mem url tab.in_flight) then (* one Stop said not to wait for, or a script's GET *) (tab, Cmd.none)
   else if List.mem url tab.pending_scripts then

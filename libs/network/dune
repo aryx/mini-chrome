@@ -1,0 +1,26 @@
+; claude: the browser's networking, from elm-playground's libs/networking
+; (its tiny_libs.networking_* libraries), the part a browser needs:
+; protocols/ (Url, Urlencoded, Http: RFC 3986, forms' queries, HTTP/1.1
+; messages), tls/ (Asn1, Pem, X509, Tls13: a TLS 1.3 client, pure, bytes
+; in and bytes out) and unix/ (Tcp, Worker, Tls_client, Http_client,
+; Http_request: the sockets, the GET, and the same GET as a non-blocking
+; machine stepped each frame). Its own copy, to grow (cookies,
+; compression, keep-alive); the cryptography stays tiny_libs.crypto.
+;
+; Wrapped, as Network: the Playground links tiny_libs' networking (its
+; Http and Multiplayer APIs, and the native platforms' Http.get), whose
+; unwrapped modules have the same names -- two modules Url in one program
+; would not link. Never written, though: the libraries using it say
+; (flags (:standard -open Network)), and their code Url.parse,
+; Http_request.start, ours rather than the Playground's.
+(include_subdirs unqualified)
+
+(library
+ (name network)
+ (wrapped true)
+ (libraries
+   unix
+   threads.posix ; Worker's pool
+   caps ; Cap.network, which every function opening a socket takes
+   tiny_libs.crypto ; the hashes, ciphers and signatures of TLS
+   tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)

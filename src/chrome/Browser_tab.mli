@@ -98,8 +98,11 @@ val media_sources : Browser_page.t -> string list
 type 'msg config = {
   settings : t -> Browser_page.settings; (* the page's looks: the browser's, the tab's visited links and pictures *)
   about : string -> (string * string) option; (* the built-in site: about:NAME's bytes and type *)
-  got : string -> (Playground.Http.response, Playground.Http.error) result -> 'msg;
-  got_picture : string -> (Playground.Http.response, Playground.Http.error) result -> 'msg;
+  got : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  (* a request for the program to carry out (Fetch): the tab asks for
+   * what it needs by a message, never touching a socket *)
+  fetch : 'msg Fetch.request -> 'msg;
   connections : int; (* pictures at a time *)
   visible : int; (* the page area's lines *)
   line_height : float;
@@ -130,11 +133,11 @@ val stop : 'msg config -> t -> t
 val load_images : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
 
 (* a page's answer: read and shown, or the page saying why not *)
-val got : 'msg config -> < Cap.network ; .. > -> string -> (Playground.Http.response, Playground.Http.error) result -> t -> t * 'msg Cmd.t
+val got : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
 
 (* a picture's answer: decoded (or broken), the page laid out again, the
  * next one asked for *)
-val got_picture : 'msg config -> < Cap.network ; .. > -> string -> (Playground.Http.response, Playground.Http.error) result -> t -> t * 'msg Cmd.t
+val got_picture : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
 
 (* what a form's click or key did (Browser_forms): the focus moved, the
  * page's values changed (its script told, if it has one), or the form

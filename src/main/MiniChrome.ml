@@ -110,11 +110,13 @@ type model = {
   selected : Dom.element option;
   engine : string; (* the omnibox's searches: search_url *)
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
+  fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
 }
 
-type msg =
-  | Got of int * string * (Http.response, Http.error) result
-  | Got_picture of int * string * (Http.response, Http.error) result
+and msg =
+  | Got of int * string * (Fetch.response, Fetch.error) result
+  | Got_picture of int * string * (Fetch.response, Fetch.error) result
+  | Start_fetch of msg Fetch.request (* a tab's request, to start *)
   | Tick of float
   | Key of string
   | Typed of string
@@ -195,6 +197,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     about = (fun name -> match Tube.about name with Some x -> Some x | None -> Site.about name);
     got = (fun url r -> Got (id, url, r));
     got_picture = (fun url r -> Got_picture (id, url, r));
+    fetch = (fun r -> Start_fetch r);
     connections = 6;
     visible = int_of_float (area_height m /. line_height);
     line_height;
@@ -335,7 +338,11 @@ let init (network : < Cap.network ; .. >) (flags : flags) : model * msg Cmd.t =
     { tabs = []; current = 0; next_id = 0; omnibox = url; editing = false; fresh = false; mouse = (1000., 1000.); time = 0.;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
-      allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed) }
+      allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);
+      (* threads on, as in TinyNetscape (N2): a name resolved, an
+       * https:// page fetched, on threads of their own; threads=off,
+       * the frame waits *)
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") () }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -400,11 +407,17 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
   match msg with
   | Got (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
   | Got_picture (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_picture cfg network url r tab)
+  | Start_fetch r ->
+      Fetch.perform m.fetches r;
+      (m, Cmd.none)
   | Tick time ->
       (* the shown tab's timers on the frame clock (the others wait, as
        * Chrome slows a hidden tab's) *)
       let m, cmd, _ = task network { m with time } (fun s -> Browser_script.advance s (1000. /. 60.); false) in
-      (m, cmd)
+      (* the requests in flight stepped: the answers, Got and
+       * Got_picture, as the next messages *)
+      let answered = Fetch.step m.fetches in
+      (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) answered))
   | Wheel notches -> (scrolled (3 * int_of_float (Float.round notches)) m, Cmd.none)
   | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
   | Click -> (

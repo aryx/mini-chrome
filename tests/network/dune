@@ -1,0 +1,10 @@
+; claude: unit tests for libs/network's protocols and TLS, run by 'make
+; test' (dune runtest): the .mlis' worked examples (RFC 3986's own table
+; of resolved references, a chunked body, RFC 8448's TLS 1.3 trace), on
+; bytes, no network needed. From elm-playground's networking tests;
+; -open Network as the browser's libraries.
+(test
+ (name Test)
+ (flags (:standard -open Network))
+ (libraries str alcotest testo network tiny_libs.crypto) ; str: appendix B's regexp, to check Url.parse against
+ (deps (glob_files tls/*.pem))) ; real certificates and chains (Unit_x509)

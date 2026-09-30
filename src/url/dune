@@ -1,6 +1,8 @@
 ; claude: a page's links: an address resolved against the page's
-; (Browser_url), over tiny_libs' Url (RFC 3986).
+; (Browser_url), over libs/network's Url (RFC 3986); -open Network: ours,
+; not the Playground's (libs/network/dune).
 (library
  (name browser_url)
  (wrapped false)
- (libraries tiny_libs.core tiny_libs.networking_protocols))
+ (flags (:standard -open Network))
+ (libraries tiny_libs.core network))

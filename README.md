@@ -56,6 +56,8 @@ languages/css         style sheets read and cascaded, computed styles
 languages/javascript  a small JavaScript
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
+libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that
+                      never blocks, stepped each frame (Http_request)
 src/url/              links resolved (Browser_url)
 src/layout/           where everything goes: CSS's box model, flexbox,
                       tables, Mosaic's flow; a point back to a link (Hit)
@@ -65,9 +67,10 @@ src/www/              the page as a document (Browser_page), its scripts
                       and DOM (Browser_script), its forms
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/protocols/        the about: pages, the built-in site and about:tube
-src/chrome/           a tab (Browser_tab), the history, the developer tools
+src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
+                      the history, the developer tools
 src/main/             the window: tabs, omnibox, panels (MiniChrome.ml)
-tests/                html, css, js, layout, browser
+tests/                html, css, js, layout, browser, network, network_unix
 ```
 
 ## License

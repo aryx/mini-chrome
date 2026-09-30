@@ -13,9 +13,10 @@
 (executable
  (name MiniChrome)
  (public_name mini-chrome)
+ (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
  (libraries
    caps ; the authority to reach the network
-   tiny_libs.core tiny_libs.networking_protocols
+   tiny_libs.core network
    lang_html lang_css browser_layout
    browser_url browser_display browser_www browser_viewers browser_protocols browser_chrome
    elm_playground

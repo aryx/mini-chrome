@@ -1,0 +1,10 @@
+; claude: libs/network's sockets over localhost: a tiny HTTP server
+; forked by the test itself (Testutil_server), so a real GET (DNS,
+; connect, redirections, the non-blocking machine) runs without the
+; Internet; TLS against a local `openssl s_server` when openssl is
+; installed. From elm-playground's networking tests; -open Network as
+; the browser's libraries.
+(test
+ (name Test)
+ (flags (:standard -open Network))
+ (libraries unix caps alcotest testo network))

@@ -22,8 +22,9 @@
 
 ;; claude: one package, the browser; the libraries of languages/, libs/
 ;; and src/ are private (see README.md). It stands on elm-playground's
-;; packages: the Playground for its window and drawing, tiny_libs for
-;; what is not a browser's own yet (networking, pictures, sound).
+;; packages: the Playground for its window and drawing, tiny_libs for the
+;; pictures, sound and video decoders and the cryptography; its
+;; networking is its own (libs/network).
 (package (name mini-chrome)
   (synopsis "A web browser from scratch in OCaml, after Google Chrome")
   (description "\
