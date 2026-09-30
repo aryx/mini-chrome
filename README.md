@@ -66,11 +66,13 @@ src/display/          a page drawn as shapes: Hershey's letters, pictures,
 src/www/              the page as a document (Browser_page), its scripts
                       and DOM (Browser_script), its forms
 src/viewers/          <video> and <audio> (Browser_media, Media)
-src/protocols/        the about: pages, the built-in site and about:tube
+src/about/            the about: pages, the built-in site and about:tube
 src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
                       the history, the developer tools
 src/main/             the window: tabs, omnibox, panels (MiniChrome.ml)
 tests/                html, css, js, layout, browser, network, network_unix
+data/about/           the built-in site's pages, sheets, scripts, pictures
+data/tube/            about:tube's two clips made elsewhere (ffmpeg, LAME)
 ```
 
 ## License

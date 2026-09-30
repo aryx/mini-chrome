@@ -1,9 +1,16 @@
 ; claude: the about: pages, the browser's built-in site (Site.mli): its
-; files embedded as strings, pages/home.html becoming Site_pages.home at
-; build time, so the browser has something to show with no network; and
-; the video site of our own, about:tube (Tube, Tube_clips).
+; files embedded as strings, data/about/home.html becoming
+; Site_pages.home at build time, so the browser has something to show
+; with no network; and the video site of our own, about:tube (Tube,
+; Tube_clips), its two clips made elsewhere in data/tube/.
+;
+; The files are data, kept in data/ at the top; copied here at build
+; time (copy_files), so that the rules below name them plainly.
+(copy_files ../../data/about/*)
+(copy_files ../../data/tube/*)
+
 (library
- (name browser_protocols)
+ (name browser_about)
  (wrapped false)
  (modules Site Site_pages Site_pictures Tube Tube_clips Tube_files)
  (libraries
@@ -15,72 +22,72 @@
 
 (rule
  (targets Site_pages.ml)
- (deps pages/home.html pages/history.html pages/form.html pages/netscape.html pages/css.html
-       pages/firefox.html pages/counter.html pages/todo.html pages/timer.html pages/tictactoe.html
-       pages/chrome.html pages/chrome.css pages/chrome-colours.css pages/threads.html pages/threads.js)
+ (deps home.html history.html form.html netscape.html css.html
+       firefox.html counter.html todo.html timer.html tictactoe.html
+       chrome.html chrome.css chrome-colours.css threads.html threads.js)
  (action
   (with-stdout-to
    %{targets}
    (progn
-    (echo "(* generated from pages/*.html by src/protocols/dune *)\n")
+    (echo "(* generated from data/about/*.html by src/about/dune *)\n")
     (echo "let home = {|")
-    (cat pages/home.html)
+    (cat home.html)
     (echo "|}\n")
     (echo "let history = {|")
-    (cat pages/history.html)
+    (cat history.html)
     (echo "|}\n")
     (echo "let form = {|")
-    (cat pages/form.html)
+    (cat form.html)
     (echo "|}\n")
     (echo "let netscape = {|")
-    (cat pages/netscape.html)
+    (cat netscape.html)
     (echo "|}\n")
     (echo "let css = {|")
-    (cat pages/css.html)
+    (cat css.html)
     (echo "|}\n")
     (echo "let firefox = {|")
-    (cat pages/firefox.html)
+    (cat firefox.html)
     (echo "|}\n")
     (echo "let counter = {|")
-    (cat pages/counter.html)
+    (cat counter.html)
     (echo "|}\n")
     (echo "let todo = {|")
-    (cat pages/todo.html)
+    (cat todo.html)
     (echo "|}\n")
     (echo "let timer = {|")
-    (cat pages/timer.html)
+    (cat timer.html)
     (echo "|}\n")
     (echo "let tictactoe = {|")
-    (cat pages/tictactoe.html)
+    (cat tictactoe.html)
     (echo "|}\n")
     (echo "let chrome = {|")
-    (cat pages/chrome.html)
+    (cat chrome.html)
     (echo "|}\n")
     (echo "let chrome_css = {|")
-    (cat pages/chrome.css)
+    (cat chrome.css)
     (echo "|}\n")
     (echo "let chrome_colours_css = {|")
-    (cat pages/chrome-colours.css)
+    (cat chrome-colours.css)
     (echo "|}\n")
     (echo "let threads = {|")
-    (cat pages/threads.html)
+    (cat threads.html)
     (echo "|}\n")
     (echo "let threads_js = {|")
-    (cat pages/threads.js)
+    (cat threads.js)
     (echo "|}\n")))))
 
 ; claude: bytes that are not text, embedded escaped
-; (scripts/files_to_string_ml.ml): pages/picture.gif becomes
+; (scripts/files_to_string_ml.ml): picture.gif becomes
 ; Site_pictures.picture_gif, the same picture in the three formats the
 ; browser decodes; and about:tube's two files made elsewhere (the .mpg by
 ; ffmpeg, the .mp3 by LAME), Tube_files
 (rule
  (targets Site_pictures.ml)
- (deps pages/picture.gif pages/picture.png pages/picture.jpg %{project_root}/scripts/files_to_string_ml.ml)
+ (deps picture.gif picture.png picture.jpg %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
-   (run ocaml %{project_root}/scripts/files_to_string_ml.ml pages/picture.gif pages/picture.png pages/picture.jpg))))
+   (run ocaml %{project_root}/scripts/files_to_string_ml.ml picture.gif picture.png picture.jpg))))
 
 (rule
  (targets Tube_files.ml)

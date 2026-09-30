@@ -60,4 +60,5 @@
 - the layout of mmm: languages/ (html, css, javascript), libs/
   (richtext, typeset), src/ by role, each folder a library in the
   order they depend on each other (url, layout, display, www, viewers,
-  protocols, chrome, main), tests/
+  about, chrome, main), tests/, and data/ (the built-in site's files,
+  about:tube's clips), embedded at build time

@@ -12,6 +12,6 @@
    caps
    tiny_libs.core network
    lang_html lang_css browser_layout
-   browser_url browser_display browser_www browser_viewers browser_protocols browser_chrome
+   browser_url browser_display browser_www browser_viewers browser_about browser_chrome
    elm_playground
    elm_playground_software)) ; implem of virtual elm_playground: SDL and our own rasterizer
