@@ -1,0 +1,42 @@
+# -*- org -*-
+
+* 0.1 (Q4 2026) (fork of elm-playground's TinyChrome)
+# unless mentioned otherwise, everything below was done by Claude Code
+# (with direction from me)
+
+** Features
+- everything TinyChrome had in elm-playground 0.3.0: HTML read as
+  the WHATWG's tokenizer and tree builder do, CSS's cascade (@media,
+  var(), calc(), the attributes' hints) and computed styles, CSS 2.1's
+  box model (floats, inline-blocks, positioning, tables, lists) and
+  flexbox, SVG pictures, PNG/GIF/JPEG, a small JavaScript (ES5 core)
+  and its DOM, <video> and <audio> (MPEG-1 and MP2, MP3, AVI, FLC,
+  Y4M, GIF), tabs, the omnibox (an address, or words searched on
+  Wikipedia or DuckDuckGo), developer tools (Elements, Network)
+- the built-in site: about:chrome, the earlier browsers' pages, and
+  about:tube, a video site of our own (its clips in Tube_clips,
+  from TinyMediaPlayer's Our_media)
+- renamed MiniChrome (the window's title, about:chrome), no longer
+  held to TinyChrome's budget of 5,000 lines
+
+** build infra
+- one opam package, mini-chrome, standing on elm-playground's packages
+  (0.3.0): the Playground for its window and drawing
+  (elm_playground, elm_playground_native: SDL and Cairo), tiny_libs for
+  the pictures, sound and video decoders
+- ./configure (after elm-playground's): checks for SDL2 and Cairo,
+  finds elm-playground's packages (from opam, or a 'make install' in an
+  elm-playground checkout, or else pinned from the 0.3.0 tag)
+- bin/ symlink to _build/install/default/bin: ./bin/mini-chrome
+
+** test infra
+- the tests of what was copied: tests/html, css, js, layout and
+  browser (188)
+- Dockerfile and docker.yml Github Actions CI check (OCaml 4.14.4 and
+  5.5.1), make build-docker
+
+** internals
+- the layout of mmm: languages/ (html, css, javascript), libs/
+  (richtext, typeset), src/ by role, each folder a library in the
+  order they depend on each other (url, layout, display, www, viewers,
+  protocols, chrome, main), tests/
