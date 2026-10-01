@@ -13,4 +13,4 @@
 let () =
   Cap.main (fun caps ->
       Testo.interpret_argv ~project_name:"browser" (fun _env ->
-          List.concat [ Unit_browser.tests; Unit_browser_script.tests; Unit_browser_zoom.tests; Unit_browser_profile.tests caps ]))
+          List.concat [ Unit_browser.tests; Unit_browser_script.tests; Unit_browser_zoom.tests; Unit_browser_menu.tests; Unit_browser_profile.tests caps ]))

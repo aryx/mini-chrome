@@ -52,6 +52,9 @@ Flags: `url=` the first page (`about:chrome`), `css=off`,
 `profile=DIR` or `profile=off`. With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing).
 
+A right click on the page opens a menu: on a link, Open link in new
+tab; elsewhere Back, Forward, Reload; Inspect in both.
+
 Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
 100%; each site keeps its zoom, saved with the window's size in the
 profile (`~/.config/mini-chrome/Preferences`, JSON).
@@ -69,6 +72,8 @@ languages/javascript  a small JavaScript
 languages/json        JSON read and written, over JavaScript's lexer
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
+libs/gui              the chrome's pieces that know no browser: text in
+                      cells, a menu opened at a point
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that
                       never blocks, stepped each frame (Http_request)
 src/url/              links resolved (Browser_url)

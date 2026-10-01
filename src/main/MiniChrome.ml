@@ -53,6 +53,11 @@
  * laid out at the window's width divided by the zoom, and drawn
  * scaled; the zoom shows in the omnibox when not 100%.
  *
+ * claude: a **right click** on the page opens Chrome's context menu
+ * (Browser_menu, drawn by libs/gui's Gui_menu): on a link, Open link in new tab (a tab behind the
+ * one shown) and Inspect; elsewhere Back, Forward, Reload, Inspect.
+ * A click on an item does it; any click, Escape, the wheel close it.
+ *
  * claude: the **profile** (Browser_profile) is what is kept from one
  * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the
  * window's size and the sites' zooms, read at the start and written a
@@ -133,6 +138,7 @@ type model = {
   profile_dir : string option; (* claude: where it is saved; None, it is not *)
   saved : Browser_profile.t; (* claude: the profile as it is on disk *)
   changed : float; (* claude: when the profile last changed (time) *)
+  menu : Browser_menu.action Gui_menu.t option; (* claude: the right click's menu, while it is open *)
 }
 
 and msg =
@@ -146,6 +152,7 @@ and msg =
   | Wheel of float
   | Mouse_move of float * float
   | Click
+  | Right_click
   | Resized of int * int (* the window's new size *)
 
 let home = "about:chrome"
@@ -171,7 +178,7 @@ let top (m : model) : float = height m /. 2.
 let panel_height (m : model) : float = Float.min 370. (0.4 *. height m)
 let panel_top (m : model) : float = panel_height m -. top m
 let panel_header_y (m : model) : float = panel_top m -. 12.
-let cell = 6.
+let cell = Gui_text.cell
 
 (* the page area, below the toolbar, above the panel if it is open *)
 let area_top (m : model) : float = top m -. 86.
@@ -353,12 +360,14 @@ let typed_url (engine : string) (s : string) : string =
 (* The pointer *)
 (*****************************************************************************)
 
-let page_point (m : model) : (float * float) option =
-  let mx, my = m.mouse in
+(* claude: a point of the window in the page's units, if it is on the page *)
+let page_point_at (m : model) ((mx, my) : float * float) : (float * float) option =
   let z = zoom_of m (current_tab m) in
   if my <= area_top m && my >= area_bottom m then
     Some ((mx -. area_left m) /. z, ((area_top m -. my) /. z) +. (float_of_int (current_tab m).scroll *. line_height))
   else None
+
+let page_point (m : model) : (float * float) option = page_point_at m m.mouse
 
 let hovered (m : model) : string option =
   match ((current_tab m).state, page_point m) with Shown p, Some (x, y) -> Hit.link_at p.layout ~x ~y | _ -> None
@@ -435,7 +444,7 @@ let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_prof
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0. }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -495,8 +504,26 @@ let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) -
 
 let toggle_panel (m : model) : model = { m with panel = (if m.panel = Closed then Elements else Closed); inspecting = false }
 
+(* claude: what an item of the right click's menu does *)
+let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui_menu.t) (action : Browser_menu.action) (m : model) : model * msg Cmd.t =
+  match action with
+  | Open_in_new_tab url ->
+      (* behind the tab shown, which stays the current one *)
+      let opened, cmd = open_tab network url m in
+      ({ opened with current = m.current; selected = m.selected }, cmd)
+  | Back -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
+  | Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
+  | Reload -> load network (current_url m) m
+  | Inspect ->
+      (* the element that was under the right click, in the tools *)
+      let selected = match ((current_tab m).state, page_point_at m menu.at) with Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y | _ -> None in
+      ({ m with panel = Elements; inspecting = false; selected }, Cmd.none)
+
 let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
+  (* claude: the menu is over a page that stays as it is: closed by what
+   * moves the page, and by Escape *)
+  let m = match msg with Wheel _ | Resized _ | Key ("Escape" | "escape") -> { m with menu = None } | _ -> m in
   Browser_media.install ();
   match msg with
   | Got (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
@@ -524,6 +551,21 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Resized (w, h) when (float_of_int w, float_of_int h) = m.screen -> (m, Cmd.none)
   | Resized (w, h) ->
       (relaid_all (with_profile { m.profile with window = (w, h) } { m with screen = (float_of_int w, float_of_int h) }), Cmd.none)
+  (* claude: a right click on the page: its menu, for what is under the
+   * pointer; elsewhere, an open menu closed *)
+  | Right_click -> (
+      let tab = current_tab m in
+      match (tab.state, page_point m) with
+      | Shown p, Some _ ->
+          let items = Browser_menu.items ~link:(Option.map (resolve p.url) (hovered m)) ~back:(tab.history.behind <> []) ~forward:(tab.history.ahead <> []) in
+          ({ m with menu = Some (Gui_menu.opened ~screen:m.screen ~at:m.mouse items); editing = false }, Cmd.none)
+      | _ -> ({ m with menu = None }, Cmd.none))
+  (* claude: a click with the menu open is the menu's: on an item, done;
+   * anywhere, the menu closed, the page under it not clicked *)
+  | Click when m.menu <> None -> (
+      let menu = Option.get m.menu in
+      let m = { m with menu = None } in
+      match Gui_menu.chosen menu m.mouse with Some action -> menu_action network menu action m | None -> (m, Cmd.none))
   | Click -> (
       let m = { m with editing = false } in
       if on_omnibox m then
@@ -588,11 +630,8 @@ let ink = rgb 32 33 36
 let muted = rgb 120 124 130
 let inspector_blue = rgb 66 133 244
 
-let monospace ?(max = 160) (x : number) (y : number) (color : color) (s : string) : shape list =
-  characters s
-  |> List.mapi (fun i c -> (i, c))
-  |> List.filter (fun (i, c) -> c <> " " && i < max)
-  |> List.map (fun (i, c) -> words color c |> move (x +. (cell *. float_of_int i) +. (cell /. 2.)) y)
+(* claude: the chrome's text, in cells (libs/gui) *)
+let monospace = Gui_text.monospace
 
 (* the toolbar's pictures, Chrome's flat arrows *)
 let icon (name : string) (active : bool) (x : number) (y : number) : shape list =
@@ -745,6 +784,7 @@ let view (m : model) : shape list =
       circle (if m.panel <> Closed then inspector_blue else rgb 70 90 120) 5. |> move (wrench_x m -. 5.) (toolbar_y m +. 5.) ]
   @ (if m.panel <> Closed then panel m else [])
   @ bubble m
+  @ (match m.menu with Some menu -> Gui_menu.shapes menu ~pointer:m.mouse | None -> [])
 
 (*****************************************************************************)
 (* The app *)
@@ -770,7 +810,7 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
         Sub.batch
           [ Sub.on_animation_frame (fun t -> Tick t); Sub.on_key_down (fun key -> Key key); Sub.on_key_up (fun key -> Key_up key);
             Sub.on_typed (fun s -> Typed s); Sub.on_mouse_wheel (fun n -> Wheel n);
-            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click);
+            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click); Sub.on_right_mouse_down (fun () -> Right_click);
             Sub.on_resize (fun w h -> Resized (w, h)) ]);
   }
 

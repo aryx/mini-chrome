@@ -1,0 +1,16 @@
+; claude: the pieces of a window that the browser's chrome is made of
+; but that know nothing of a browser: text in fixed cells (Gui_text), a
+; menu opened at a point (Gui_menu). Geometry and shapes; what an item
+; means, and when a menu opens, is the program's.
+;
+; Not tiny_libs' gui (Widget, Immediate, Mvu, ...), whose widgets read
+; the mouse as a record a frame and keep their own state: these are
+; values a Model-View-Update program keeps in its model and draws in
+; its view. Their modules are Gui_, that library's being linked too
+; (libs/richtext) and the Playground's own being Gui.
+(library
+ (name mini_gui)
+ (wrapped false)
+ (libraries
+   elm_playground ; the shapes
+   tiny_libs.gui)) ; Text.chars, a string's characters

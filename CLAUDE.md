@@ -90,7 +90,7 @@ platforms is presented as a plan and agreed on before it is made.
 ## Architecture
 
 Each folder is one dune library, listed in the README in dependency
-order: `languages/` (html, css, javascript, json) → `libs/` (richtext,
+order: `languages/` (html, css, javascript, json) → `libs/` (gui, richtext,
 typeset, network) → `src/` (url, layout, display, www, viewers, about,
 chrome, main). `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the
