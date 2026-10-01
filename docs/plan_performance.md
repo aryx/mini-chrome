@@ -133,7 +133,29 @@ it (nothing yet). `opti=off` sets it, on mini-chrome's command line
 (`-v` says so) and on `Page_bench`'s. It does not set the Playground's
 `Opti.enabled`.
 
-### 2. A line's shapes when it is shown
+### 2. A line's shapes when it is shown (done)
+
+Done as said below, but smaller: no `draw_simple` and `draw_opti`, one
+helper, `Browser_draw.later`, a promise of a shape with the switch on
+and the shape built at once with it off; `Browser_draw.between` is the
+view's culling, and where a promise is asked for. The explanation and
+its picture are in `Browser_draw.mli`. Measured on the same page:
+
+| | opti=off | now |
+|---|---|---|
+| `laid_out` again (styles memoized) | 450 ms | 28 ms |
+| `Browser_page.read`, no sheet yet | 796 ms | 239 ms |
+| `laid_out`, the sheets come | 803 ms | 347 ms |
+| the first window's shapes (`between`) | - | 6 ms, once |
+| the load, to its last answer | 14.8 s | 6.2 s |
+| to frame 400 (clock) | 28.0 s | 16.2 s |
+| a frame at rest | 30 ms | 31 ms |
+
+The program is still computing all the while (16.2 s of clock, 15.6 of
+CPU): the frame at rest, step 4, is now most of it, 400 frames of 30
+ms being 12 s.
+
+What was planned:
 
 `Browser_draw.drawn` is a list of (top, bottom, shape), one entry for
 a line of text, a box's background, a marker. The entries are cheap
@@ -164,7 +186,9 @@ once: `with_arrived` and `with_sheet` only record what came, and a
 relayout follows the last. Whether the old way is kept behind the
 switch or in a comment depends on how much the new one adds: to judge
 when it is written. After step 2 this buys less; measure before doing it, and drop it if a
-relayout is then 30 ms.
+relayout is then 30 ms. (It is 28: what a burst of four answers costs
+is now 0.1 s. Likely dropped, unless the cascade's 270 ms run several
+times a frame: to count, with step 5.)
 
 ### 4. The frame at rest
 
@@ -212,4 +236,4 @@ the optimized one does, before and after):
 
 | Module | Simple | Optimized | Before | After |
 |---|---|---|---|---|
-| | | | | |
+| `Browser_draw.later` | a line's shapes built at each relayout | built when the line is first shown, kept | a relayout 450 ms | 28 ms |

@@ -31,6 +31,11 @@
   elm-playground's Opti); opti=off on the command line, and on
   scripts/perf/Page_bench.exe's. Nothing checks it yet
   (docs/plan_performance.md, step 1)
+- a line's shapes built when it is first shown, not the whole page's
+  at each relayout (Browser_draw.later, between; opti=off: as before).
+  Wikipedia's article on OCaml, 16,000 pixels high: a relayout 450 ms
+  to 28, the page first shown in 239 ms instead of 796, its load
+  settled in 6.2 s instead of 14.8 (docs/plan_performance.md, step 2)
 - scripts/perf: Page_bench.exe (a page's stages timed) and
   load_timeline.sh (the real program's load in time)
 

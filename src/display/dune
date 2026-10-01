@@ -7,6 +7,7 @@
  (wrapped false)
  (libraries
    elm_playground ; the shapes it draws
+   mini_opti ; a line's shapes built when shown (Browser_draw.later)
    lang_html lang_css browser_layout
    appkit_richtext ; Style, the pen's look
    tiny_libs.graphics_font ; Hershey

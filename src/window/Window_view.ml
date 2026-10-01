@@ -50,7 +50,7 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
     | Elements, Some e -> (
         match Browser_devtools.box_of p e with
         | Some (x, y, w, h) ->
-            [ (y, y +. h, group [ rectangle inspector_blue w h |> fade 0.18 |> move (x +. (w /. 2.)) (-.(y +. (h /. 2.))); Browser_draw.frame inspector_blue x y w h ]) ]
+            Browser_draw.ready [ (y, y +. h, group [ rectangle inspector_blue w h |> fade 0.18 |> move (x +. (w /. 2.)) (-.(y +. (h /. 2.))); Browser_draw.frame inspector_blue x y w h ]) ]
         | None -> [])
     | _ -> []
   in
@@ -59,8 +59,9 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
   (* what plays in its <video>s and <audio>s, drawn at each frame *)
   @ Browser_media.draw ~now:m.time ~media:(fun u -> List.assoc_opt u tab.media) p
   @ outline)
-  |> List.filter (fun (top, bottom, _) -> bottom > scroll && top < scroll +. (area_height m /. z))
-  |> List.map (fun (_, _, s) -> s)
+  (* claude: what the window shows of the page; a line's shapes are built
+   * here, the first time it is shown (Browser_draw.later) *)
+  |> Browser_draw.between ~top:scroll ~bottom:(scroll +. (area_height m /. z))
   |> group
   (* claude: the page's units made the window's: zoomed, about its top left *)
   |> scale z

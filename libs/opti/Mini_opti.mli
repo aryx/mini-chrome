@@ -28,7 +28,10 @@
    measured with and without is our code alone.
 
    Code checking [enabled] (search for "Mini_opti.enabled"):
-   - none yet. *)
+   - Browser_draw.later: a line's shapes built when it is first shown,
+     not all the page's at each relayout (the simple way: built at
+     once). A relayout of a long page 450 ms to 28; the explanation
+     and its picture are in Browser_draw.mli. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref

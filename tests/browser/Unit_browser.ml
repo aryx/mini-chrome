@@ -61,6 +61,23 @@ let tests =
           Alcotest.(check (float 0.01)) "the settings' height" 768. p.layout.height;
           let p = Browser_page.laid_out { s with height = 400. } p in
           Alcotest.(check (float 0.01)) "laid out again in a lower window" 400. p.layout.height);
+      Testo.create "a line's shapes are built when it is shown; opti=off, at once: the same shapes" (fun () ->
+          let html = "<!doctype html><style>p { margin: 0; line-height: 20px; background: #eee } b { color: red }</style>" ^ String.concat "" (List.init 50 (fun i -> Printf.sprintf "<p>line <b>%d</b> of a <a href=/x>page</a></p>" i)) in
+          let drawn optimized =
+            Mini_opti.enabled := optimized;
+            Fun.protect ~finally:(fun () -> Mini_opti.enabled := true) (fun () -> (fst (styled [] html)).drawn)
+          in
+          let built (d : Browser_draw.drawn) = List.length (List.filter (fun (_, _, s) -> Lazy.is_val s) d) in
+          let lazy_ = drawn true and simple = drawn false in
+          Alcotest.(check int) "as many things drawn" (List.length simple) (List.length lazy_);
+          Alcotest.(check int) "opti=off: every shape built" (List.length simple) (built simple);
+          (* the 50 backgrounds are built, the 50 lines are not *)
+          Alcotest.(check int) "no line built yet" 50 (List.length lazy_ - built lazy_);
+          let shown = Browser_draw.between ~top:0. ~bottom:100. lazy_ in
+          Alcotest.(check int) "5 lines of 20 shown: 5 built" 45 (List.length lazy_ - built lazy_);
+          Alcotest.(check bool) "the same as the simple way's" true (shown = Browser_draw.between ~top:0. ~bottom:100. simple);
+          Alcotest.(check bool) "the whole page: the same shapes" true
+            (Browser_draw.between ~top:0. ~bottom:infinity lazy_ = Browser_draw.between ~top:0. ~bottom:infinity simple));
       Testo.create "the network panel's lines" (fun () ->
           let requests : Browser_tab.request list =
             [ { url = "http://x.org/a.png"; kind = Picture; status = None; bytes = 0 };

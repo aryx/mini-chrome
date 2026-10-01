@@ -11,7 +11,20 @@
 (* See Browser_draw.mli *)
 open Playground
 
-type drawn = (float * float * shape) list
+type drawn = (float * float * shape Lazy.t) list
+
+let ready (things : (float * float * shape) list) : drawn = List.map (fun (top, bottom, s) -> (top, bottom, Lazy.from_val s)) things
+
+(* claude: opti: a line's shapes built when the line is first shown
+ * (between, below), not all the page's at each relayout: 450 ms to 28
+ * on a long page. The whole story, with its picture, is in
+ * Browser_draw.mli. The simple way is the other branch: the shape
+ * built now, a value like any other (Lazy.from_val). *)
+let later (shape : unit -> shape) : shape Lazy.t = if !Mini_opti.enabled then Lazy.from_fun shape else Lazy.from_val (shape ())
+
+(* the culling; and the one place a promised shape is asked for *)
+let between ~(top : float) ~(bottom : float) (things : drawn) : shape list =
+  List.filter_map (fun (t, b, s) -> if b > top && t < bottom then Some (Lazy.force s) else None) things
 
 let characters = Browser_text.characters
 let metrics = Browser_text.metrics
@@ -109,7 +122,7 @@ let table_frame (table : Dom.element) (b : Html_layout.box) : drawn =
     | None -> 0.
   in
   if t <= 0. then []
-  else
+  else ready @@
     let light = rgb 240 240 240 and dark = rgb 110 110 110 in
     (* below its caption *)
     let top = match b.children with { kind = Block c; y; height; _ } :: _ when c.name = "caption" -> y +. height | _ -> b.y in
@@ -128,7 +141,7 @@ let rec draw ?(extensions = false) ~(visited : string -> bool) ~(picture_of : st
   let lines =
     List.map
       (fun (l : Html_layout.line) ->
-        (l.top, l.top +. l.height, group (List.concat_map (glyphs ~visited ~picture_of) l.fragments)))
+        (l.top, l.top +. l.height, later (fun () -> group (List.concat_map (glyphs ~visited ~picture_of) l.fragments))))
       b.lines
   in
   (* a box's floats, each drawn over its own height, not its line's *)
@@ -183,7 +196,7 @@ let rec draw ?(extensions = false) ~(visited : string -> bool) ~(picture_of : st
         [ (b.y, b.y +. b.height, rectangle (rgb r g bl) b.width b.height |> move (b.x +. (b.width /. 2.)) (-.(b.y +. (b.height /. 2.)))) ]
     | None -> []
   in
-  background @ lines @ floats @ rule @ marker @ frame @ List.concat_map (draw ~extensions ~visited ~picture_of) b.children
+  ready background @ lines @ ready (floats @ rule @ marker) @ frame @ List.concat_map (draw ~extensions ~visited ~picture_of) b.children
 
 (*****************************************************************************)
 (* Form controls *)
@@ -256,6 +269,7 @@ let controls_drawn ~(value : Dom.element -> Forms.value) ~(focus : Dom.element o
              let focused = match focus with Some e -> e == c.element | None -> false in
              Some (f.baseline -. c.control_height, f.baseline +. c.control_height, group (control_shapes ~value ~focused f c))
          | None -> None)
+  |> ready
 
 (*****************************************************************************)
 (* The inspector *)
@@ -263,6 +277,7 @@ let controls_drawn ~(value : Dom.element -> Forms.value) ~(focus : Dom.element o
 
 let rec outlines (b : Html_layout.box) : drawn =
   let color = match b.kind with Anonymous -> rgb 0 150 0 | _ -> rgb 0 0 220 in
-  ((b.y, b.y +. b.height, frame color b.x b.y b.width b.height)
-  :: List.map (fun (l : Html_layout.line) -> (l.top, l.top +. l.height, frame (rgb 150 150 150) b.x l.top b.width l.height)) b.lines)
+  ready
+    ((b.y, b.y +. b.height, frame color b.x b.y b.width b.height)
+    :: List.map (fun (l : Html_layout.line) -> (l.top, l.top +. l.height, frame (rgb 150 150 150) b.x l.top b.width l.height)) b.lines)
   @ List.concat_map outlines b.children

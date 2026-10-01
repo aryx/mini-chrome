@@ -17,7 +17,9 @@
      the whole     Browser_page.read with no sheet yet (what shows
                    first), laid_out when the sheets have come (the
                    cascade run), laid_out again (the styles memoized:
-                   what a picture's arrival costs)
+                   what a picture's arrival costs), then what the view
+                   asks of it: the shapes of the window's lines
+                   (Browser_draw.between), and of every line
 
    A stage on the CPU is run three times and its best time kept; the
    network once, as it comes. No picture is fetched: a page's pictures
@@ -34,4 +36,11 @@
      Computed.styles             290 ms
      Box_layout.layout            33 ms
      Browser_boxes.draw          557 ms
-     laid_out, styles memoized   520 ms *)
+     laid_out, styles memoized   520 ms
+
+   and after the plan's step 2 (a line's shapes built when shown,
+   Browser_draw.later; opti=off gives the lines above again):
+
+     Browser_boxes.draw            3 ms
+     laid_out, styles memoized    28 ms
+     the first window's shapes     6 ms *)

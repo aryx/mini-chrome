@@ -30,7 +30,8 @@
  * shadows, gradients. *)
 
 (* the page's shapes, each with its top and bottom on the page (y down,
- * turned over: Browser_draw.drawn) *)
+ * turned over: Browser_draw.drawn); a line of text's are built when it
+ * is first shown (Browser_draw.later) *)
 val draw :
   visited:(string -> bool) -> picture_of:(string -> Browser_picture.t option) -> Box_types.box -> Browser_draw.drawn
 

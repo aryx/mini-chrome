@@ -74,7 +74,12 @@ let () =
       fetch_sheets ();
       let p = timed "Browser_page.laid_out, the sheets come" (fun () -> Browser_page.laid_out (settings ()) p) in
       said "the page %.0f high, %d things drawn" p.layout.height (List.length p.drawn);
-      ignore (timed ~runs:3 "Browser_page.laid_out again (styles memoized)" (fun () -> Browser_page.laid_out (settings ()) p));
+      let p = timed ~runs:3 "Browser_page.laid_out again (styles memoized)" (fun () -> Browser_page.laid_out (settings ()) p) in
+      (* what the view asks for: the window's lines, then (scrolled to
+       * the end) all of them *)
+      ignore (timed "Browser_draw.between: the first window's shapes" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn));
+      ignore (timed "Browser_draw.between: the same again" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn));
+      ignore (timed "Browser_draw.between: the whole page's" (fun () -> Browser_draw.between ~top:0. ~bottom:infinity p.drawn));
       (* the pieces of that relayout; the sheets parsed here as
        * Browser_page does (their order is not the page's: the same work) *)
       print_newline ();

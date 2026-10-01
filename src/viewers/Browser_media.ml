@@ -144,6 +144,7 @@ let label (text : string) ~(x : float) ~(baseline : float) (color : int * int * 
 let fill_rect (c : color) (x : float) (y : float) (w : float) (h : float) : shape = rectangle c w h |> move (x +. (w /. 2.)) (-.(y +. (h /. 2.)))
 
 let draw ~(now : float) ~(media : string -> string option) (page : Browser_page.t) : Browser_draw.drawn =
+  Browser_draw.ready @@
   List.concat_map
     (fun ((f : Html_layout.fragment), (e : Dom.element)) ->
       match (source page e, f.picture) with

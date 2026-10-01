@@ -5,7 +5,7 @@
 (test
  (name Test)
  (libraries
-   unix caps alcotest testo
+   unix caps alcotest testo mini_opti browser_display
    lang_html javascript browser_layout
    browser_url browser_www browser_chrome browser_window
    elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

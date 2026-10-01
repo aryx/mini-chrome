@@ -148,7 +148,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         @ side bl cl (fun c -> fill c b.x b.y bl b.height)
         @ side br cr (fun c -> fill c (b.x +. b.width -. br) b.y br b.height)
       in
-      match background @ borders with [] -> [] | shapes -> [ (b.y, b.y +. b.height, group shapes) ]
+      match background @ borders with [] -> [] | shapes -> Browser_draw.ready [ (b.y, b.y +. b.height, group shapes) ]
   in
   let lines =
     List.filter_map
@@ -157,7 +157,13 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         if l.top < t -. 0.5 || l.top +. l.height > bottom +. 0.5 then None
         else
           let shown = List.filter (fun (f : Html_layout.fragment) -> inside clip f.x l.top f.width 0.) l.fragments in
-          Some (l.top, l.top +. l.height, group (List.concat_map (glyphs ~visited ~picture_of) shown)))
+          (* claude: opti: the line's place is known now (its top, its
+           * height: the layout's), its letters' shapes built when a
+           * frame first shows it (Browser_draw.later): they were
+           * nearly all of a relayout's time, for lines mostly off
+           * screen. [shown], [visited] and [picture_of] are this
+           * layout's, and do not change after it *)
+          Some (l.top, l.top +. l.height, Browser_draw.later (fun () -> group (List.concat_map (glyphs ~visited ~picture_of) shown))))
       b.lines
   in
   (* a list item's marker, left of its first line, in the list's colour *)
@@ -178,7 +184,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
                    { text; look; x = b.x -. (0.4 *. s.font_size) -. width; width; baseline = line.baseline; picture = None; control = None;
                      element = Dom.element "li" [] })
         in
-        [ (line.top, line.top +. line.height, shape) ]
+        Browser_draw.ready [ (line.top, line.top +. line.height, shape) ]
     | _ -> []
   in
   (* what it holds cut to it, if it clips *)
