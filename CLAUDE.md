@@ -243,6 +243,24 @@ unless it is specific to a browser (then `src/chrome`, as
   dune by the root `dune` file.
 - The root `dune` disables warnings 6, 32, 37 and 69 in dev.
 
+## Performance
+
+`docs/plan_performance.md` says where a page's load goes and the steps
+to take. Measure before and after with `scripts/perf/` (`Page_bench.exe`:
+each stage timed on a real page; `load_timeline.sh`: the real program's
+load, a time on each line of `-v`).
+
+The simple code should still be there to read first, the optimized one
+later: a matter of judgment, not a hard rule, as in elm-playground's
+`libs/`. A small optimization is just made. Simple lines replaced by a
+few others can stay in a comment beside them. Simple lines replaced by
+an algorithm (a memo, a laziness, an index) stay runnable: the simple
+function as `xxx_simple`, the fast one as `xxx_opti`, and `xxx`
+choosing on `Mini_opti.enabled` (our own switch, `libs/opti`, set by
+`opti=off`; not `tiny_libs`' `Opti`, whose name it cannot share), with
+a test that the two agree. The comments start `claude: opti:` and give
+the numbers measured.
+
 ## Conventions
 
 - Every module has an `.mli`, including tests. The `.mli` opens with a

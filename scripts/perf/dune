@@ -1,0 +1,11 @@
+; claude: where a page's load goes, stage by stage (docs/plan_performance.md;
+; the technique in docs/notes_debugging_techniques.txt, session 2): not a
+; test, run by hand, from the repository's root:
+;   dune build scripts/perf/Page_bench.exe
+;   ./_build/default/scripts/perf/Page_bench.exe https://en.wikipedia.org/wiki/OCaml
+; -open Network as the browser's libraries; the software platform, as
+; the tests: browser_display's shapes are the Playground's.
+(executable
+ (name Page_bench)
+ (flags (:standard -open Network))
+ (libraries unix caps network lang_html lang_css browser_layout browser_url browser_display browser_www elm_playground elm_playground_software))

@@ -122,7 +122,11 @@ docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
                       threads next to Chrome's); history.md: how it came
                       to be; notes_debugging_techniques.txt: how a
-                      page that looks wrong was looked into
+                      page that looks wrong, or slow, was looked into;
+                      plan_performance.md: where a load's time goes,
+                      what to change
+scripts/              perf/: a page's stages timed (Page_bench), a load
+                      in time (load_timeline.sh)
 data/about/           the built-in site's pages, sheets, scripts, pictures
 data/tube/            about:tube's two clips made elsewhere (ffmpeg, LAME)
 ```

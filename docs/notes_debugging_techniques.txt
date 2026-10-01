@@ -101,3 +101,81 @@ Lessons
 - Real sites change. A check against one (history.md's "example.com
   rendered pixel for pixel") is true of the day it was made; a page
   that must stay the same belongs in data/ or in a test's string.
+
+
+Session 2 (2026-10-01): "a Wikipedia article is slow"
+------------------------------------------------------
+
+docs/history.md said the layout was slow, and proposed to measure
+first. The network was suspected too (a TLS handshake per request).
+Neither was it: the page's shapes are. No profiler was at hand (no
+perf; ptrace_scope 1, so no gdb on a running program), and three
+cheap measures were enough.
+
+1. real against user: is it waiting, or computing?
+--------------------------------------------------
+  time ./bin/mini-chrome -dump-frame 400 /tmp/t.png url=... profile=off
+
+  real 27.2 s   user 26.5 s
+
+A program waiting for the network has a user time far under its real
+time. Here they are the same: one core is busy from the first frame to
+the last, and no faster network (gzip, keep-alive) would change much.
+
+2. A time on each line of -v
+----------------------------
+-v says each request and each answer. A time before each line (a
+filter of five lines of Python on stderr: time.time() - t0, then the
+line; scripts/perf/load_timeline.sh, kept) shows the shape of the
+load:
+
+   0.04 GET  the page
+   0.71 200  the page                     (the network: 0.7 s)
+   1.56 GET  two sheets, four pictures    (read and laid out: 0.85 s)
+   2.18 200  ...
+   3.26 200  ... (four answers at once)
+   5.90 200  ...
+   7.19 200  ... (four at once)
+   ...
+  14.82 200  the last
+  27.10 quitting                          (frame 400)
+
+The answers come in bursts one to 2.6 s apart. Fetch.step hands the
+answers at each Tick, so a burst is a frame, and a frame of 2 s is a
+page laid out again once per answer in it: four answers, four times.
+
+And the frames after the last answer: 600 frames take 33.6 s, 1200
+take 51.8, so 30 ms of CPU a frame for a page nobody touches.
+
+3. A harness that times the stages
+----------------------------------
+An executable linking the libraries (scripts/perf/Page_bench.ml, kept:
+Http_client.get for the page and its sheets, then each stage between
+two Unix.gettimeofday), on the same page:
+
+  Charset, Html_lexer, Html_tree           12 + 33 + 28 ms
+  Computed.styles (cascade, computed)     290 ms
+  Box_layout.layout                        33 ms
+  Browser_boxes.draw                      557 ms
+  Browser_page.laid_out, styles memoized  520 ms
+  the page over TLS, gzip                 457 ms (1246 the first time)
+
+The layout is 33 ms. A relayout is 520 ms because of what follows it:
+the shapes of every letter of a page 16,000 pixels high, a rectangle
+for each segment of each stroke and a dot at each point (the round
+pen), built though 713 pixels show. 24 answers, 24 times.
+
+To time a stage that the module does not export (the cascade inside
+lay_out), time the whole twice: once with a memo missed, once with it
+hit; or rebuild its input with what is exported (Css_syntax.
+parse_stylesheet and Computed.styles here).
+
+Lessons
+-------
+- real = user: do not optimize the network.
+- A name in a list of things to do ("the layout is slow") is a guess
+  until each stage has its number: the layout was 6% of a relayout.
+- Count how many times, not only how long: 0.5 s is slow, 24 times
+  0.5 s is the 14 s.
+
+What to do about it is docs/plan_performance.md.

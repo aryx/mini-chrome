@@ -124,7 +124,9 @@ Discussed but not started when this was written, in the order proposed:
 2. CSS grid, at least what Wikipedia uses: its contents column is laid
    out above the article instead of beside it.
 3. Speed: a Wikipedia article is slow to lay out, and a resize lays
-   every tab out again. Measure first.
+   every tab out again. Measure first. Measured: the layout is 22 ms,
+   the page's shapes built whole at each relayout are the half second,
+   24 times a load: `plan_performance.md`.
 4. Networking: gzip (the Inflate decoder is in `tiny_libs`, and the HTTP
    code refuses compressed bodies), then keep-alive, then cookies.
    gzip is done: `Gzip` added to `tiny_libs.compression` (it is no
