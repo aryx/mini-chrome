@@ -37,11 +37,11 @@ let shapes (m : 'a t) ~(pointer : float * float) : shape list =
   let w = width m and h = height m in
   let x = m.left +. (w /. 2.) and y = m.top -. (h /. 2.) in
   let pointed = index_at m pointer in
-  [ rectangle black w h |> fade 0.15 |> move (x +. 3.) (y -. 3.); rectangle (rgb 160 176 204) (w +. 2.) (h +. 2.) |> move x y;
-    rectangle white w h |> move x y ]
+  [ rectangle black w h |> fade 0.15 |> move (x +. 3.) (y -. 3.); rectangle Gui_kit.edge (w +. 2.) (h +. 2.) |> move x y;
+    rectangle Gui_kit.white w h |> move x y ]
   @ List.concat
       (List.mapi
          (fun i (item : 'a item) ->
-           (if pointed = Some i && item.enabled then [ rectangle (rgb 232 240 254) w item_height |> move x (row m i) ] else [])
-           @ Gui_text.monospace (m.left +. 14.) (row m i) (if item.enabled then rgb 32 33 36 else rgb 180 186 196) item.label)
+           (if pointed = Some i && item.enabled then [ rectangle Gui_kit.lit w item_height |> move x (row m i) ] else [])
+           @ Gui_text.monospace (m.left +. 14.) (row m i) (if item.enabled then Gui_kit.ink else Gui_kit.disabled) item.label)
          m.items)

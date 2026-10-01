@@ -11,7 +11,11 @@ TinyChrome. It still stands on elm-playground's opam packages (0.3.1+):
 `elm_playground` (the Elm-architecture runtime, window and drawing) and
 `tiny_libs` (picture/sound/video decoders, cryptography, Hershey fonts).
 The only C is SDL (and Cairo, optionally). `docs/history.md` says how
-it came to be, the decisions taken on the way, and what was next.
+it came to be, the decisions taken on the way, and what was next;
+`docs/architecture.md` the shape of the running program (the
+Model-View-Update loop, the chrome's pieces in `libs/gui` and their
+style, the one process and its threads next to Chrome's, the
+capabilities). Keep it true when one of those changes.
 
 ## Commands
 
@@ -160,6 +164,17 @@ asks the object for the path (`caps#open_in path`) before opening it.
 `< Cap.network >` for the tabs. New code touching a file or the
 environment follows this; `Tls_client` (the roots' file, /dev/urandom)
 predates it.
+
+### The chrome's pieces
+
+What the window's chrome is made of and that is not a browser's goes in
+`libs/gui` (`Gui_text`, `Gui_tabs`, `Gui_toolbar`, `Gui_menu`, the
+colours in `Gui_kit`), as values built from the model: `shapes` for the
+view, a hit test (`at`, `chosen`) for update, no state, callback or
+message of their own. `MiniChrome.ml` builds them (`strip m`, `buttons
+m`) and decides what a hit means. A new piece of chrome goes there
+unless it is specific to a browser (then `src/chrome`, as
+`Browser_menu`).
 
 ### Build wiring worth knowing
 

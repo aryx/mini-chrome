@@ -199,9 +199,6 @@ let omnibox_w (m : model) : float = width m -. 180.
 let js_x (m : model) : float = omnibox_x m +. omnibox_w m -. 30.
 let wrench_x (m : model) : float = -.left m -. 22.
 
-(* the tabs' width, sharing the strip *)
-let tab_width (m : model) : float = Float.min 220. ((width m -. 100.) /. float_of_int (max 1 (List.length m.tabs)))
-let tab_x (m : model) (i : int) : float = tab_left m +. (float_of_int i *. (tab_width m +. 2.))
 
 (*****************************************************************************)
 (* The tabs: Chrome's settings *)
@@ -379,32 +376,21 @@ let pointed_control (m : model) : Dom.element option =
 
 let loading (tab : Browser_tab.t) : bool = (match tab.state with Loading _ -> true | Shown _ -> false) || tab.in_flight <> [] || tab.queue <> []
 
-let buttons (m : model) : (string * bool) list =
+(* claude: the chrome's pieces (libs/gui), built from the model: the
+ * toolbar's buttons, the strip of tabs *)
+let buttons (m : model) : Gui_toolbar.t =
   let tab = current_tab m in
-  [ ("Back", tab.history.behind <> []); ("Forward", tab.history.ahead <> []); ((if loading tab then "Stop" else "Reload"), true) ]
+  { left = button_x m 0; y = toolbar_y m;
+    buttons = [ (Back, tab.history.behind <> []); (Forward, tab.history.ahead <> []); ((if loading tab then Stop else Reload), true) ] }
 
-let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool =
-  let mx, my = m.mouse in
-  mx >= x0 && mx <= x0 +. w && Float.abs (my -. y0) <= h /. 2.
+let strip (m : model) : int Gui_tabs.t =
+  let title (t : Browser_tab.t) = match t.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in
+  { left = tab_left m; y = tab_y m; room = width m -. 100.; current = m.current;
+    tabs = List.map (fun t -> { Gui_tabs.value = t.id; title = title t.tab; busy = loading t.tab }) m.tabs }
 
-let button_at (m : model) : string option =
-  List.mapi (fun i b -> (i, b)) (buttons m)
-  |> List.find_map (fun (i, (text, active)) -> if active && near (button_x m i -. 16.) (toolbar_y m) 32. 32. m then Some text else None)
+let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool = Gui_kit.near x0 y0 w h m.mouse
 
 let on_omnibox (m : model) : bool = near (omnibox_x m) (toolbar_y m) (omnibox_w m) 28. m
-
-(* the tab strip: a tab's close box, a tab, the + *)
-type strip = Close_tab of int | Show_tab of int | New_tab
-
-let strip_at (m : model) : strip option =
-  let w = tab_width m in
-  let on_tab =
-    List.mapi (fun i t -> (i, t)) m.tabs
-    |> List.find_map (fun (i, t) ->
-           let x = tab_x m i in
-           if near (x +. w -. 26.) (tab_y m) 18. 20. m then Some (Close_tab t.id) else if near x (tab_y m) w 28. m then Some (Show_tab t.id) else None)
-  in
-  match on_tab with Some _ -> on_tab | None -> if near (tab_x m (List.length m.tabs)) (tab_y m) 26. 26. m then Some New_tab else None
 
 (* the panel's header: its views' names and Inspect *)
 let panel_button (m : model) : string option =
@@ -577,17 +563,17 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
         let allowed = if List.mem host m.allowed then List.filter (( <> ) host) m.allowed else host :: m.allowed in
         load network (current_url m) { m with allowed }
       else
-        match (strip_at m, panel_button m, button_at m) with
-        | Some (Close_tab id), _, _ -> close_tab network id m
-        | Some (Show_tab id), _, _ -> ({ m with current = id; selected = None; inspecting = false }, Cmd.none)
-        | Some New_tab, _, _ -> open_tab network home m
+        match (Gui_tabs.at (strip m) m.mouse, panel_button m, Gui_toolbar.at (buttons m) m.mouse) with
+        | Some (Close id), _, _ -> close_tab network id m
+        | Some (Show id), _, _ -> ({ m with current = id; selected = None; inspecting = false }, Cmd.none)
+        | Some New, _, _ -> open_tab network home m
         | None, Some "Inspect", _ -> ({ m with inspecting = not m.inspecting }, Cmd.none)
         | None, Some "Elements", _ -> ({ m with panel = Elements }, Cmd.none)
         | None, Some "Network", _ -> ({ m with panel = Network; inspecting = false }, Cmd.none)
-        | None, _, Some "Back" -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
-        | None, _, Some "Forward" -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
-        | None, _, Some "Reload" -> load network (current_url m) m
-        | None, _, Some "Stop" -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
+        | None, _, Some Gui_toolbar.Back -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
+        | None, _, Some Gui_toolbar.Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
+        | None, _, Some Gui_toolbar.Reload -> load network (current_url m) m
+        | None, _, Some Gui_toolbar.Stop -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
         | _ -> if page_point m <> None then click_page network m else (m, Cmd.none))
   (* claude: Ctrl held (SDL's names, or the web's), and the page zoomed;
    * the character such a key may also type is not the omnibox's *)
@@ -622,50 +608,16 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
 (*****************************************************************************)
 
 (* Chrome 1.0 on Windows: the blue frame, the tab and toolbar light *)
-let frame = rgb 91 132 196
-let toolbar = rgb 234 240 250
-let edge = rgb 160 176 204
-let white = rgb 255 255 255
-let ink = rgb 32 33 36
-let muted = rgb 120 124 130
-let inspector_blue = rgb 66 133 244
+let frame = Gui_kit.frame
+let toolbar = Gui_kit.surface
+let edge = Gui_kit.edge
+let white = Gui_kit.white
+let ink = Gui_kit.ink
+let muted = Gui_kit.muted
+let inspector_blue = Gui_kit.accent
 
 (* claude: the chrome's text, in cells (libs/gui) *)
 let monospace = Gui_text.monospace
-
-(* the toolbar's pictures, Chrome's flat arrows *)
-let icon (name : string) (active : bool) (x : number) (y : number) : shape list =
-  let c = if active then rgb 70 90 120 else rgb 180 186 196 in
-  let at shapes = List.map (fun s -> s |> move x y) shapes in
-  match name with
-  | "Back" -> at [ polygon c [ (-9., 0.); (1., 9.); (1., -9.) ]; rectangle c 8. 5. |> move 4. 0. ]
-  | "Forward" -> at [ polygon c [ (9., 0.); (-1., 9.); (-1., -9.) ]; rectangle c 8. 5. |> move (-4.) 0. ]
-  | "Reload" -> at [ circle c 9.; circle toolbar 5.; rectangle toolbar 6. 6. |> move 5. 5.; polygon c [ (2., 3.); (10., 3.); (6., 10.) ] ]
-  | "Stop" -> at [ rectangle c 16. 3. |> rotate 45.; rectangle c 16. 3. |> rotate (-45.) ]
-  | _ -> []
-
-(* the tabs: trapezoids with their pages' titles, the one shown light,
- * a spinner while one loads; then + *)
-let tabs (m : model) : shape list =
-  let w = tab_width m in
-  let chars = int_of_float ((w -. 60.) /. cell) in
-  List.concat
-    (List.mapi
-       (fun i t ->
-         let x = tab_x m i in
-         let shown = t.id = m.current in
-         let title = match t.tab.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in
-         let title = if List.length (characters title) > chars then Browser_text.tail chars title else title in
-         let angle = if loading t.tab then m.time *. 360. else 0. in
-         [ polygon (if shown then toolbar else rgb 168 192 228) [ (x, tab_y m -. 15.); (x +. 12., tab_y m +. 13.); (x +. w -. 12., tab_y m +. 13.); (x +. w, tab_y m -. 15.) ];
-           group [ circle (rgb 66 133 244) 7.; rectangle (if shown then toolbar else rgb 168 192 228) 3. 8. |> move 0. 4. ] |> rotate angle |> move (x +. 26.) (tab_y m) ]
-         @ monospace (x +. 38.) (tab_y m) ink title
-         @ [ rectangle muted 9. 2. |> rotate 45. |> move (x +. w -. 17.) (tab_y m); rectangle muted 9. 2. |> rotate (-45.) |> move (x +. w -. 17.) (tab_y m) ])
-       m.tabs)
-  @
-  let x = tab_x m (List.length m.tabs) in
-  [ rectangle (rgb 120 155 210) 22. 18. |> move (x +. 13.) (tab_y m -. 2.); rectangle white 10. 2. |> move (x +. 13.) (tab_y m -. 2.);
-    rectangle white 2. 10. |> move (x +. 13.) (tab_y m -. 2.) ]
 
 (* the status bubble: a link's address, or what is loading *)
 let bubble (m : model) : shape list =
@@ -679,14 +631,7 @@ let bubble (m : model) : shape list =
     | Shown _, None when tab.in_flight <> [] -> Some "Loading pictures..."
     | _ -> None
   in
-  let y = area_bottom m +. 11. in
-  match text with
-  | Some t ->
-      let t = Browser_text.tail 100 t in
-      let w = (cell *. float_of_int (List.length (characters t))) +. 12. in
-      [ rectangle edge (w +. 2.) 20. |> move (left m +. ((w +. 2.) /. 2.)) y; rectangle toolbar w 18. |> move (left m +. (w /. 2.)) y ]
-      @ monospace (left m +. 6.) y ink t
-  | None -> []
+  match text with Some t -> Gui_text.bubble ~left:(left m) ~y:(area_bottom m +. 11.) t | None -> []
 
 (* the page, and the element inspected outlined on it *)
 let page_shapes (m : model) (p : Browser_page.t) : shape list =
@@ -769,8 +714,8 @@ let view (m : model) : shape list =
   @ [ rectangle frame (width m) 44. |> move_y (top m -. 22.);
       rectangle toolbar (width m) 42. |> move_y (area_top m +. 21.);
       rectangle edge (width m) 1. |> move_y (area_top m) ]
-  @ tabs m
-  @ List.concat (List.mapi (fun i (name, active) -> icon name active (button_x m i) (toolbar_y m)) (buttons m))
+  @ Gui_tabs.shapes (strip m) ~time:m.time
+  @ Gui_toolbar.shapes (buttons m)
   @ [ rectangle edge (omnibox_w m +. 2.) 30. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m);
       rectangle white (omnibox_w m) 28. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m) ]
   @ monospace (omnibox_x m +. 10.) (toolbar_y m) muted shown

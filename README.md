@@ -70,10 +70,13 @@ languages/html        HTML read: bytes to text, tokens, the tree (Dom)
 languages/css         style sheets read and cascaded, computed styles
 languages/javascript  a small JavaScript
 languages/json        JSON read and written, over JavaScript's lexer
+libs/gui              the chrome's pieces that know no browser, as values
+                      drawn and asked what is under a point: text in
+                      cells (Gui_text), the tabs' strip (Gui_tabs), the
+                      toolbar's buttons (Gui_toolbar), a menu opened at
+                      a point (Gui_menu)
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
-libs/gui              the chrome's pieces that know no browser: text in
-                      cells, a menu opened at a point
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that
                       never blocks, stepped each frame (Http_request)
 src/url/              links resolved (Browser_url)
@@ -86,9 +89,18 @@ src/www/              the page as a document (Browser_page), its scripts
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube
 src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
-                      the history, the developer tools
-src/main/             the window: tabs, omnibox, panels (MiniChrome.ml)
+                      the history, the developer tools, each site's zoom
+                      (Browser_zoom), what the right click's menu offers
+                      (Browser_menu), what is kept between runs
+                      (Browser_profile)
+src/main/             the window: the program's model, update and view
+                      over those and libs/gui's pieces; the omnibox, the
+                      panels (MiniChrome.ml)
 tests/                html, css, js, layout, browser, network, network_unix
+docs/                 architecture.md: the running program's shape (the
+                      loop, the chrome's pieces, its one process and
+                      threads next to Chrome's); history.md: how it came
+                      to be
 data/about/           the built-in site's pages, sheets, scripts, pictures
 data/tube/            about:tube's two clips made elsewhere (ffmpeg, LAME)
 ```

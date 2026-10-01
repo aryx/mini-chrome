@@ -19,3 +19,12 @@ val width : string -> float
 (* [monospace ?max x y color s]: [s] from [x], its characters' middles
  * at [y]; no more than [max] characters (160) *)
 val monospace : ?max:int -> Playground.number -> Playground.number -> Playground.color -> string -> Playground.shape list
+
+(* the last [n] characters of a text, or all of it: what shows of a
+ * title or an address too long for its place *)
+val tail : int -> string -> string
+
+(* [bubble ~left ~y s]: [s] (its last 100 characters) on a small card
+ * starting at [left], its middle at [y] -- Chrome's status bubble, at
+ * the bottom of the window: a link's address, what is loading *)
+val bubble : left:float -> y:float -> string -> Playground.shape list

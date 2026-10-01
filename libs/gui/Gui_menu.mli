@@ -18,7 +18,7 @@
  *           at (400, -335): the second; at (300, -310): none
  *
  * An item that cannot be chosen now is shown grey, and a click on it
- * chooses nothing. *)
+ * chooses nothing. A piece in Gui_kit's style. *)
 
 type 'a item = { label : string; value : 'a; enabled : bool }
 

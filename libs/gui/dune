@@ -1,7 +1,9 @@
 ; claude: the pieces of a window that the browser's chrome is made of
-; but that know nothing of a browser: text in fixed cells (Gui_text), a
-; menu opened at a point (Gui_menu). Geometry and shapes; what an item
-; means, and when a menu opens, is the program's.
+; but that know nothing of a browser: text in fixed cells and the
+; status bubble (Gui_text), a menu opened at a point (Gui_menu), the
+; strip of tabs (Gui_tabs), a row of picture buttons (Gui_toolbar);
+; their colours and their style (Gui_kit). Geometry and shapes; what a
+; hit means, and when a menu opens, is the program's.
 ;
 ; Not tiny_libs' gui (Widget, Immediate, Mvu, ...), whose widgets read
 ; the mouse as a record a frame and keep their own state: these are

@@ -53,7 +53,13 @@
   as values a Model-View-Update program keeps and draws: Gui_menu (a
   menu opened at a point: its place, its shapes, the item under a
   click) and Gui_text (text in cells); Browser_menu says only what the
-  menu offers
+  menu offers. Then, moved out of MiniChrome.ml, the same pixels:
+  Gui_tabs (the strip of tabs), Gui_toolbar (Back, Forward, Reload,
+  Stop), the status bubble (Gui_text), the colours (Gui_kit)
+- docs/architecture.md: the Model-View-Update loop, the pieces of
+  libs/gui and their style among the four of elm-playground's
+  notes_gui.md, the one process and its pool of four threads next to
+  Chrome's processes, the capabilities, what is kept between runs
 - the profile (Browser_profile), what is kept from one run to the
   next: ~/.config/mini-chrome/Preferences, JSON as Chrome's, for now
   the window's size (it opens as it was left) and each site's zoom,
