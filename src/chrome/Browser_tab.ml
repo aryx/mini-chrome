@@ -145,6 +145,9 @@ let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   | _ -> tab
 
 let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
+  (* claude: the settings of the page that came, not of the one asked for
+   * (a redirect to another host, whose zoom is its own) *)
+  let tab = { tab with state = Loading url } in
   let p = Browser_page.read (cfg.settings tab) url status content_type bytes in
   if not (cfg.scripts url) then { tab with state = Shown p; script = None; pending_scripts = [] }
   else

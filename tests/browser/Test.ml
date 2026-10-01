@@ -9,4 +9,4 @@
  *)
 
 let () =
-  Testo.interpret_argv ~project_name:"browser" (fun _env -> List.concat [ Unit_browser.tests; Unit_browser_script.tests ])
+  Testo.interpret_argv ~project_name:"browser" (fun _env -> List.concat [ Unit_browser.tests; Unit_browser_script.tests; Unit_browser_zoom.tests ])

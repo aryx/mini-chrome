@@ -40,6 +40,11 @@
   instead of a 1000 by 1000 picture scaled with black bars (both
   programs, over the Playground's run_app ~screen_follows_window, of
   0.3.1); the window starts at 1280 by 900
+- the page zoomed, as in Chrome: Ctrl and + (or =), Ctrl and -, Ctrl
+  and the wheel, Ctrl and 0 back to 100%, by Chrome's steps (25% to
+  500%); the whole page, laid out at the window's width divided by the
+  zoom and drawn scaled; a zoom is its site's (every page and tab of
+  that host) and shows in the omnibox; kept while the program runs
 
 ** Bug fixes
 - the wheel scrolled the wrong way

@@ -47,6 +47,12 @@
  * The arrows, Page Up and Down, Space and the wheel scroll, Backspace
  * goes back.
  *
+ * claude: Ctrl and + (or =), Ctrl and -, Ctrl and the wheel **zoom**
+ * the page, Ctrl and 0 back to 100% (Browser_zoom: Chrome's steps,
+ * each site its own zoom). The whole page grows, not its fonts alone:
+ * laid out at the window's width divided by the zoom, and drawn
+ * scaled; the zoom shows in the omnibox when not 100%.
+ *
  * The **developer tools** (F12, or the wrench), after Chrome's Web
  * Inspector: Elements -- click Inspect, then an element of the page:
  * its place in the tree, its box (outlined on the page), its children,
@@ -112,6 +118,8 @@ type model = {
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
   screen : float * float; (* claude: the window's size, the page's width *)
+  ctrl : bool; (* claude: a Ctrl key held *)
+  zooms : Browser_zoom.t; (* claude: the sites zoomed *)
 }
 
 and msg =
@@ -120,6 +128,7 @@ and msg =
   | Start_fetch of msg Fetch.request (* a tab's request, to start *)
   | Tick of float
   | Key of string
+  | Key_up of string
   | Typed of string
   | Wheel of float
   | Mouse_move of float * float
@@ -178,19 +187,6 @@ let tab_x (m : model) (i : int) : float = tab_left m +. (float_of_int i *. (tab_
 (* The tabs: Chrome's settings *)
 (*****************************************************************************)
 
-let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
-  {
-    extensions = true;
-    css = m.css;
-    (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
-    boxes = true;
-    width = page_width m;
-    breaker = Html_layout.greedy;
-    visited = (fun url -> List.mem url tab.visited);
-    picture = (fun url -> List.assoc_opt url tab.pictures);
-    sheet = (fun url -> List.assoc_opt url tab.sheets);
-  }
-
 (* "news.ycombinator.com" of https://news.ycombinator.com/item?id=1 *)
 let host_of (url : string) : string =
   match String.index_opt url ':' with
@@ -199,6 +195,25 @@ let host_of (url : string) : string =
       let stop = List.fold_left (fun m c -> match String.index_opt rest c with Some j -> min m j | None -> m) (String.length rest) [ '/'; '?'; '#'; ':' ] in
       String.sub rest 0 stop
   | _ -> ""
+
+(* claude: a tab's zoom, its site's *)
+let zoom_of (m : model) (tab : Browser_tab.t) : float = Browser_zoom.of_host m.zooms (host_of (Browser_tab.current_url tab))
+
+(* claude: the lines of the page that the area shows *)
+let visible_lines (m : model) (tab : Browser_tab.t) : int = int_of_float (area_height m /. (line_height *. zoom_of m tab))
+
+let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
+  {
+    extensions = true;
+    css = m.css;
+    (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
+    boxes = true;
+    width = page_width m /. zoom_of m tab;
+    breaker = Html_layout.greedy;
+    visited = (fun url -> List.mem url tab.visited);
+    picture = (fun url -> List.assoc_opt url tab.pictures);
+    sheet = (fun url -> List.assoc_opt url tab.sheets);
+  }
 
 (* the sites whose scripts are small and old enough for our engine
  * (plan_tiny_chrome.md, "Famous sites with simple scripts") *)
@@ -213,7 +228,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     got_picture = (fun url r -> Got_picture (id, url, r));
     fetch = (fun r -> Start_fetch r);
     connections = 6;
-    visible = int_of_float (area_height m /. line_height);
+    visible = (match List.find_opt (fun t -> t.id = id) m.tabs with Some t -> visible_lines m t.tab | None -> 0);
     line_height;
     (* the built-in pages' scripts, and the allowed sites' *)
     scripts = (fun url -> Browser_url.starts_with "about:" url || List.mem (host_of url) m.allowed);
@@ -251,6 +266,24 @@ let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -
 let on_current m f = on_tab m m.current f
 let current_url (m : model) : string = Browser_tab.current_url (current_tab m)
 let scrolled (by : int) (m : model) : model = fst (on_current m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))
+
+(* claude: every tab's page laid out again (the window resized, a site
+ * zoomed), its scroll moved with the page's new height, to stay near
+ * what was read *)
+let relaid_all (m : model) : model =
+  let height (tab : Browser_tab.t) = match tab.state with Shown p -> p.layout.height | Loading _ -> 0. in
+  let relaid (t : tab) =
+    let cfg = config m t.id in
+    let tab = Browser_tab.relaid cfg t.tab in
+    let scroll = if height t.tab > 0. then int_of_float (float_of_int tab.scroll *. height tab /. height t.tab) else tab.scroll in
+    { t with tab = Browser_tab.scrolled cfg 0 { tab with scroll } }
+  in
+  { m with tabs = List.map relaid m.tabs }
+
+(* claude: the shown page's site at the zoom [f] gives from its own *)
+let zoomed (f : float -> float) (m : model) : model =
+  relaid_all { m with zooms = Browser_zoom.with_host m.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) }
+
 let visit network url m = on_current { m with editing = false; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
 let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
 
@@ -293,7 +326,9 @@ let typed_url (engine : string) (s : string) : string =
 
 let page_point (m : model) : (float * float) option =
   let mx, my = m.mouse in
-  if my <= area_top m && my >= area_bottom m then Some (mx -. area_left m, area_top m -. my +. (float_of_int (current_tab m).scroll *. line_height))
+  let z = zoom_of m (current_tab m) in
+  if my <= area_top m && my >= area_bottom m then
+    Some ((mx -. area_left m) /. z, ((area_top m -. my) /. z) +. (float_of_int (current_tab m).scroll *. line_height))
   else None
 
 let hovered (m : model) : string option =
@@ -358,7 +393,7 @@ let init (network : < Cap.network ; .. >) (flags : flags) : model * msg Cmd.t =
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height) }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; zooms = Browser_zoom.empty }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -414,7 +449,7 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
         (m, Cmd.batch [ cmd; cmd2 ]))
   | _ -> (m, Cmd.none)
 
-let pages (m : model) (by : int) : int = by * (int_of_float (area_height m /. line_height) - 2)
+let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) - 2)
 
 let toggle_panel (m : model) : model = { m with panel = (if m.panel = Closed then Elements else Closed); inspecting = false }
 
@@ -438,15 +473,14 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
    * meaning): the page goes up, so its scroll down the page decreases.
    * The system's natural scrolling, where it is the driver's (X11,
    * libinput), is in the notches already *)
+  | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
   | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
   (* claude: the window's size changed: every tab's page laid out again
    * at its new width, its scroll kept within the new page *)
   | Resized (w, h) when (float_of_int w, float_of_int h) = m.screen -> (m, Cmd.none)
   | Resized (w, h) ->
-      let m = { m with screen = (float_of_int w, float_of_int h) } in
-      let relaid (t : tab) = let cfg = config m t.id in { t with tab = Browser_tab.scrolled cfg 0 (Browser_tab.relaid cfg t.tab) } in
-      ({ m with tabs = List.map relaid m.tabs }, Cmd.none)
+      (relaid_all { m with screen = (float_of_int w, float_of_int h) }, Cmd.none)
   | Click -> (
       let m = { m with editing = false } in
       if on_omnibox m then
@@ -470,6 +504,12 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
         | None, _, Some "Reload" -> load network (current_url m) m
         | None, _, Some "Stop" -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
         | _ -> if page_point m <> None then click_page network m else (m, Cmd.none))
+  (* claude: Ctrl held (SDL's names, or the web's), and the page zoomed;
+   * the character such a key may also type is not the omnibox's *)
+  | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)
+  | Key_up key -> ({ m with ctrl = m.ctrl && not (List.mem (String.lowercase_ascii key) [ "left ctrl"; "right ctrl"; "control" ]) }, Cmd.none)
+  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Option.get (Browser_zoom.key key)) m, Cmd.none)
+  | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
   | Typed s when m.editing -> ({ m with omnibox = (if m.fresh then s else m.omnibox ^ s); fresh = false }, Cmd.none)
   | Key key when m.editing -> edit_omnibox network (String.lowercase_ascii key) m
   | Typed s when (current_tab m).focus <> None -> (
@@ -569,7 +609,7 @@ let bubble (m : model) : shape list =
 (* the page, and the element inspected outlined on it *)
 let page_shapes (m : model) (p : Browser_page.t) : shape list =
   let tab = current_tab m in
-  let scroll = float_of_int tab.scroll *. line_height in
+  let scroll = float_of_int tab.scroll *. line_height and z = zoom_of m tab in
   let outline =
     match (m.panel, m.selected) with
     | Elements, Some e -> (
@@ -584,10 +624,12 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
   (* what plays in its <video>s and <audio>s, drawn at each frame *)
   @ Browser_media.draw ~now:m.time ~media:(fun u -> List.assoc_opt u tab.media) p
   @ outline)
-  |> List.filter (fun (top, bottom, _) -> bottom > scroll && top < scroll +. area_height m)
+  |> List.filter (fun (top, bottom, _) -> bottom > scroll && top < scroll +. (area_height m /. z))
   |> List.map (fun (_, _, s) -> s)
   |> group
-  |> move (area_left m) (area_top m +. scroll)
+  (* claude: the page's units made the window's: zoomed, about its top left *)
+  |> scale z
+  |> move (area_left m) (area_top m +. (scroll *. z))
   |> fun s -> [ s ]
 
 (* the developer tools: the header, then the view's lines *)
@@ -635,7 +677,9 @@ let view (m : model) : shape list =
     | Some i when not m.editing -> i
     | _ -> String.length omnibox
   in
-  let shown = Browser_text.tail (int_of_float ((omnibox_w m -. 52.) /. cell)) omnibox in
+  (* claude: the zoom, when not 100%, left of "JS" *)
+  let percent = Browser_zoom.label (zoom_of m tab) in
+  let shown = Browser_text.tail (int_of_float ((omnibox_w m -. 52. -. (cell *. float_of_int (String.length percent + 1))) /. cell)) omnibox in
   let dark = String.sub shown 0 (min (String.length shown) host_end) in
   [ rectangle background (width m) (height m) ]
   @ body
@@ -649,6 +693,7 @@ let view (m : model) : shape list =
       rectangle white (omnibox_w m) 28. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m) ]
   @ monospace (omnibox_x m +. 10.) (toolbar_y m) muted shown
   @ monospace (omnibox_x m +. 10.) (toolbar_y m) ink dark
+  @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
   @ (let on = tab.script <> None in
      [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x m +. 11.) (toolbar_y m) ]
      @ monospace (js_x m +. 5.) (toolbar_y m) white "JS")
@@ -670,7 +715,7 @@ let app (network : < Cap.network ; .. >) =
     subscriptions =
       (fun _ ->
         Sub.batch
-          [ Sub.on_animation_frame (fun t -> Tick t); Sub.on_key_down (fun key -> Key key);
+          [ Sub.on_animation_frame (fun t -> Tick t); Sub.on_key_down (fun key -> Key key); Sub.on_key_up (fun key -> Key_up key);
             Sub.on_typed (fun s -> Typed s); Sub.on_mouse_wheel (fun n -> Wheel n);
             Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click);
             Sub.on_resize (fun w h -> Resized (w, h)) ]);
