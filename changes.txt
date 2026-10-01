@@ -37,9 +37,9 @@
   held to TinyChrome's budget of 5,000 lines
 - the window resized (dragged, full screen, -size WxH): the page laid
   out again at its width, the chrome placed from the window's edges,
-  instead of a 1000 by 1000 picture scaled with black bars (Cairo's
-  platform, over the Playground's run_app ~screen_follows_window, after
-  0.3.0; the software one keeps 1000 by 1000)
+  instead of a 1000 by 1000 picture scaled with black bars (both
+  programs, over the Playground's run_app ~screen_follows_window, after
+  0.3.0); the window starts at 1280 by 900
 
 ** Bug fixes
 - the wheel scrolled the wrong way
