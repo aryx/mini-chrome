@@ -29,7 +29,8 @@
    **Colours**: #rgb, #rgba, #rrggbb, #rrggbbaa, rgb() and rgba() (with
    commas or spaces, numbers or percentages, an alpha), hsl() and
    hsla(), the 148 names of CSS Color Level 4, transparent, and
-   currentcolor (the element's colour).
+   currentcolor (the element's colour); light-dark(#eee, #222) is its
+   first colour, the browser being a light one.
 
    Reference: W3C, CSS Custom Properties for Cascading Variables Level
    1 (sections 2, 3: var() and its substitution); CSS Values and Units

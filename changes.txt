@@ -63,6 +63,8 @@
   768; the pages laid out again when the panel opens or closes. A page
   exactly as high as that part (a body of min-height: 100vh,
   example.com's) has no scrollbar
+- CSS's light-dark(a, b): a, the browser being a light one
+  (example.com's grey)
 - the command line's words that are not flags are pages to open, a tab
   each: mini-chrome news.ycombinator.com (an address, or words searched)
 - libs/gui: Gui_field, the omnibox's text while it is typed into (a

@@ -74,8 +74,9 @@ With the bytes known, read the page's own <style> and ask of each
 declaration whether we honour it. On example.com's one rule that gave
 the real differences, none of them about a heading:
 
-- `background: light-dark(#eee, #222)`: the function is not known, the
-  declaration is dropped, the page is white instead of grey.
+- `background: light-dark(#eee, #222)`: the function was not known, the
+  declaration dropped, the page white instead of grey. Fixed
+  (Css_values.color).
 - `min-height: 100vh`: a scrollbar on a page of five lines. The
   viewport's height was the constant 768 (Browser_page.viewport_height),
   not the window's, so 100vh was taller than the page's part of a window

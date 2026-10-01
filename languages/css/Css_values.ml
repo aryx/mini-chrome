@@ -218,7 +218,7 @@ let hsl (h : float) (s : float) (l : float) : int * int * int =
   let m1 = (l *. 2.) -. m2 in
   (clamp255 (255. *. hue m1 m2 (h +. (1. /. 3.))), clamp255 (255. *. hue m1 m2 h), clamp255 (255. *. hue m1 m2 (h -. (1. /. 3.))))
 
-let color ~(current : color) (cs : component list) : color option =
+let rec color ~(current : color) (cs : component list) : color option =
   match parts cs with
   | [ Token (Hash h) ] -> hex h
   | [ Token (Ident n) ] -> (
@@ -226,6 +226,10 @@ let color ~(current : color) (cs : component list) : color option =
       | "transparent" -> Some transparent
       | "currentcolor" -> Some current
       | n -> Option.map of_rgb (List.assoc_opt n named))
+  (* claude: light-dark(a, b): a, ours is a light browser (Cascade's
+   * prefers-color-scheme: light) *)
+  | [ Func (f, args) ] when String.lowercase_ascii f = "light-dark" -> (
+      match split_on Comma args with [ light; _dark ] -> color ~current light | _ -> None)
   | [ Func (f, args) ] -> (
       (* the arguments, commas or not, and an alpha after a / or a fourth *)
       let items = List.filter (fun c -> match c with Token Comma | Token (Delim '/') -> false | _ -> true) (parts args) in

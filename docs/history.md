@@ -118,8 +118,8 @@ Discussed but not started when this was written, in the order proposed:
 1. A missing `<h1>` (seen on example.com), a bug shared with TinyChrome.
    Not a bug, found the day it was to be fixed: example.com's page was
    rewritten and has no `<h1>` any more; the older page's heading is
-   drawn. What that page did show (`light-dark()`, `100vh` of a
-   constant 768, fixed since, the grid) is in
+   drawn. What that page did show (`light-dark()` and `100vh` of a
+   constant 768, both fixed since; the grid) is in
    `notes_debugging_techniques.txt`.
 2. CSS grid, at least what Wikipedia uses: its contents column is laid
    out above the article instead of beside it.

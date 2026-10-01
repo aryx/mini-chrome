@@ -38,6 +38,12 @@ let tests =
           Alcotest.check color "green: !important beats a higher specificity" (0, 128, 0)
             (rgb (style "p { color: black } .x { color: green !important } #a { color: red }" "<p id=a class=x>" "a").color);
           Alcotest.check color "style= beats #a" (0, 0, 255) (rgb (style "#a { color: red }" "<p id=a style=\"color: blue\">" "a").color));
+      Testo.create "light-dark(): the light colour" (fun () ->
+          Alcotest.check color "example.com's background" (0xee, 0xee, 0xee)
+            (rgb (style "p { background: light-dark(#eee, #222) }" "<p id=p>" "p").background);
+          Alcotest.check color "a function and a name" (255, 0, 0)
+            (rgb (style "p { color: light-dark(rgb(255 0 0), white) }" "<p id=p>" "p").color);
+          Alcotest.check color "one colour only: not a value" (0, 0, 0) (rgb (style "p { color: light-dark(red) }" "<p id=p>" "p").color));
       Testo.create "the worked example: var()" (fun () ->
           let css = ":root { --accent: #36c; --gap: 8px } a { color: var(--accent); margin: 0 var(--gap) } .dark { --accent: #9cf }" in
           let html = "<p><a id=x href=/>x</a></p><div class=dark><a id=y href=/>y</a></div>" in
