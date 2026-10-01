@@ -97,7 +97,8 @@
  * panel=network, the tools open; search=duckduckgo, the omnibox's
  * engine (wikipedia); profile=DIR, the profile's directory, or
  * profile=off, nothing read nor kept; scale=N, everything drawn N
- * times bigger. And the Playground's, with a
+ * times bigger; opti=off, the simple code where an optimized one
+ * replaced it (Mini_opti). And the Playground's, with a
  * dash: -v (or -verbose) says on the terminal each file and URL
  * opened, -debug more (the keys pressed), -quiet nothing (Logs).
  *
@@ -180,6 +181,12 @@ let main = Program.main __MODULE__ (fun () ->
       Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
+      (* claude: opti=off: the simple code, where an optimized one
+       * replaced it (Mini_opti.mli) *)
+      if List.assoc_opt "opti" flags = Some "off" then begin
+        Mini_opti.enabled := false;
+        Logs.info (fun m -> m "opti=off: the simple code paths")
+      end;
       (* claude: an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled. It starts
        * at the size it was last, the profile's (-size WxH, the

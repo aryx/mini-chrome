@@ -37,9 +37,10 @@ let () =
     | Some size -> size
     | None -> (1400., 713.)
   in
+  if List.mem "opti=off" args then Mini_opti.enabled := false;
   Cap.main (fun caps ->
       let get u = match Http_client.get caps u with Ok r -> r.body | Error e -> failwith e in
-      Printf.printf "%s, %.0f by %.0f\n\n" url width height;
+      Printf.printf "%s, %.0f by %.0f%s\n\n" url width height (if !Mini_opti.enabled then "" else ", opti=off");
       let bytes = timed "network: the page (roots read, name resolved)" (fun () -> get url) in
       ignore (timed "network: the page again" (fun () -> get url));
       said "%d bytes" (String.length bytes);

@@ -9,7 +9,7 @@ use it; the techniques behind them are in
   - `Page_bench.exe`: where a page's load goes: the network, then each
     stage of the pipeline timed on the page fetched (`Page_bench.mli`;
     `dune build scripts/perf/Page_bench.exe`, then
-    `./_build/default/scripts/perf/Page_bench.exe [URL] [WxH]`)
+    `./_build/default/scripts/perf/Page_bench.exe [URL] [WxH] [opti=off]`)
   - `load_timeline.sh`: the real program's load without a screen, a
     time before each line of `-v`, then the clock's time against the
     CPU's (`FRAMES=n` for the frame to stop at)

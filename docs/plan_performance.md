@@ -97,11 +97,11 @@ no dependency, so that `languages/` and `src/layout`, which link no
 graphics library, can read it as `src/` does. Not named `Opti`:
 `tiny_libs.graphics_core` has an unwrapped module of that name, linked
 with the Playground, and two would not link. `opti=off` on the command
-line sets it (to add to `flag_names`), and `OPTI=off` for `Page_bench`;
-the optimized path is the default. Its `.mli` lists the code that
-checks it, as elm-playground's `Opti.mli` does. (The Playground's own
-`Opti.enabled`, its rasterizer's, is another switch: `opti=off` could
-set both, to decide in step 1.)
+line sets it, and on `Page_bench`'s; the optimized path is the default.
+Its `.mli` lists the code that checks it, as elm-playground's
+`Opti.mli` does. The Playground's own `Opti.enabled`, its rasterizer's,
+is another switch, which `opti=off` does not touch: what is measured
+with and without is then our code alone.
 
 With the switch come:
 
@@ -126,12 +126,12 @@ commit.
 `scripts/perf/load_timeline.sh` (the real program's load in time, the
 clock against the CPU); `scripts/README.md`.
 
-### 1. The switch
+### 1. The switch (done)
 
 `libs/opti`: `Mini_opti.enabled`, its `.mli` the list of what checks
-it. `opti=off` (MiniChrome's flags) and `OPTI=off` (`Page_bench`) set
-it; whether `opti=off` also sets the Playground's `Opti.enabled` (the
-rasterizer's) is decided here.
+it (nothing yet). `opti=off` sets it, on mini-chrome's command line
+(`-v` says so) and on `Page_bench`'s. It does not set the Playground's
+`Opti.enabled`.
 
 ### 2. A line's shapes when it is shown
 

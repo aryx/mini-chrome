@@ -31,5 +31,5 @@ let tests =
             [ "about:tube"; "about:history"; "https://x.org/?a=b" ]
             (pages [ ("about:history", ""); ("url", "about:tube"); ("https://x.org/?a", "b") ]);
           Alcotest.(check bool) "every flag read is named" true
-            (List.for_all (fun f -> List.mem f Window_update.flag_names) [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale" ]));
+            (List.for_all (fun f -> List.mem f Window_update.flag_names) [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti" ]));
     ]

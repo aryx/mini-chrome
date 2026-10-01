@@ -51,7 +51,8 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
-`profile=DIR` or `profile=off`, `scale=N`. With `-v` the terminal shows each
+`profile=DIR` or `profile=off`, `scale=N`, `opti=off` (the simple code
+where an optimized one replaced it). With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
 (with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
 it is typed).
@@ -89,6 +90,8 @@ libs/gui              the chrome's pieces that know no browser, as values
                       a point (Gui_menu), a line typed into (Gui_field),
                       a scrollbar (Gui_scrollbar), the desktop's scale
                       (Gui_scale)
+libs/opti             the switch between an optimized function and the
+                      simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that

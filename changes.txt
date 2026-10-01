@@ -25,6 +25,15 @@
 - tests/network, tests/network_unix: 49 tests (RFC 3986's table, RFC
   8448's TLS 1.3 trace, real certificate chains, a GET over localhost)
 
+** speed
+- libs/opti: Mini_opti.enabled, the switch between an optimized
+  function and the simple one kept runnable beside it (after
+  elm-playground's Opti); opti=off on the command line, and on
+  scripts/perf/Page_bench.exe's. Nothing checks it yet
+  (docs/plan_performance.md, step 1)
+- scripts/perf: Page_bench.exe (a page's stages timed) and
+  load_timeline.sh (the real program's load in time)
+
 ** Features
 - everything TinyChrome had in elm-playground 0.3.0: HTML read as
   the WHATWG's tokenizer and tree builder do, CSS's cascade (@media,

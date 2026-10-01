@@ -17,6 +17,7 @@
  (libraries
    caps ; the authority to reach the network, and the profile's files
    logs ; a profile that cannot be read, said
+   mini_opti ; opti=off
    tiny_libs.core network
    mini_gui ; Gui_text, Gui_menu
    lang_html lang_css browser_layout

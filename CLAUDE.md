@@ -43,7 +43,8 @@ several: a tab each). Program flags are `key=value` words
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`;
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
-`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`.
+`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
+`opti=off`.
 
 Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
