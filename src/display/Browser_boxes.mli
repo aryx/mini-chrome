@@ -32,7 +32,7 @@
 (* the page's shapes, each with its top and bottom on the page (y down,
  * turned over: Browser_draw.drawn) *)
 val draw :
-  visited:(string -> bool) -> picture_of:(string -> Browser_picture.t option) -> Box_layout.box -> Browser_draw.drawn
+  visited:(string -> bool) -> picture_of:(string -> Browser_picture.t option) -> Box_types.box -> Browser_draw.drawn
 
 (* a CSS colour as the playground's, its transparency mixed with white;
  * None if fully transparent *)

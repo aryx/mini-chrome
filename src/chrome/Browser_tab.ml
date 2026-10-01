@@ -241,7 +241,7 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let fresh = List.fold_left (fun acc u -> if List.mem u acc || List.mem u tab.in_flight then acc else acc @ [ u ]) [] in
       let sheets = fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
       let pictures =
-        (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_layout.picture_src e)))
+        (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_tree.picture_src e)))
         @ p.backgrounds
         |> List.filter (fun u -> not (had u))
         |> fresh

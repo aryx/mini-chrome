@@ -137,26 +137,25 @@
             collapsed); "ab" at x 43 + 2 + 5 = 50, its line from 15, 12
             high: the div 12 + 14 = 26 high
 
+   **The code** is four modules over Box_types' types, each using only
+   those before it; this one is the recursion, which cannot be cut --
+   a block lays out its children, a flex container its items, a table
+   its cells, each of them a block again:
+
+     Box_tree     a box read: its fragments, its edges, moved
+     Box_inline   words set on lines, beside floats
+     Box_flow     a block being laid out: its width and margins, its
+                  words gathered, its inline content set
+     Box_layout   blocks, flex containers, shrink-to-fit, positioned
+                  and floated boxes, pictures, tables: the page's tree
+                  walked
+
    Reference: W3C, CSS 2.1, chapters 8 (the box model, collapsing
    margins), 9 (the visual formatting model: block and inline
    formatting contexts, floats, positioning), 10 (widths and heights:
    10.3.3's equation, shrink-to-fit in 10.3.5, line height in 10.8) and
    17 (tables); Web Browser Engineering, chapters 5 and 6;
    notes_css_engine.md section 7. *)
-
-type box = {
-  element : Dom.element option; (* None: an anonymous box of lines *)
-  style : Computed.t; (* its element's; an anonymous box's, its block's *)
-  x : float; (* the border box, page's coordinates (y down) *)
-  y : float;
-  width : float;
-  height : float;
-  border : float * float * float * float; (* its widths: top, right, bottom, left *)
-  children : box list; (* its blocks; an anonymous box's inline-blocks and floats *)
-  lines : Html_layout.line list; (* an anonymous box's *)
-  backdrops : box list; (* an anonymous box's: its inline elements' boxes, a piece per line, drawn under its words *)
-  marker : Html_layout.marker option; (* a list item's *)
-}
 
 (* [layout metrics ?picture_size ~viewport styles root]: the page laid
  * out in a window [viewport] (width, height), [styles e] each element's
@@ -168,21 +167,4 @@ val layout :
   viewport:float * float ->
   (Dom.element -> Computed.t) ->
   Dom.element ->
-  box
-
-(* a picture's address: its src=, or else the first of its srcset=
- * (the pages that give only srcset=, the sizes chosen by the browser) *)
-val picture_src : Dom.element -> string option
-
-(* the look a fragment of text in this style is drawn with (Browser_draw
- * draws looks): its size, weight, slant, face, colour, decoration;
- * [link] the href around it *)
-val look_of : Computed.t -> link:string option -> Looks.t
-
-(* the same page as Html_layout's boxes (their borders and styles
- * dropped): for Hit, the form controls, the anchors *)
-val as_html_layout : box -> Html_layout.box
-
-(* every fragment of the page: each box's lines, then its children's
- * (an inline-block's words after its line's) *)
-val fragments : box -> Html_layout.fragment list
+  Box_types.box

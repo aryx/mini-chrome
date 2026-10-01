@@ -100,7 +100,7 @@ let fill ?(clip = everywhere) (c : color) (x : float) (y : float) (w : float) (h
   let l, t, r, b = meet clip (x, y, x +. w, y +. h) in
   if r <= l || b <= t then [] else [ rectangle c (r -. l) (b -. t) |> move ((l +. r) /. 2.) (-.((t +. b) /. 2.)) ]
 
-let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string -> Browser_picture.t option) (b : Box_layout.box) :
+let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string -> Browser_picture.t option) (b : Box_types.box) :
     Browser_draw.drawn =
   let s = b.style in
   let own =
@@ -162,10 +162,10 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
   in
   (* a list item's marker, left of its first line, in the list's colour *)
   let marker =
-    let first = List.find_map (fun (c : Box_layout.box) -> match c.lines with l :: _ -> Some l | [] -> None) b.children in
+    let first = List.find_map (fun (c : Box_types.box) -> match c.lines with l :: _ -> Some l | [] -> None) b.children in
     match (b.marker, first) with
     | Some m, Some line when inside clip b.x line.top 0. line.height ->
-        let look = Box_layout.look_of s ~link:None in
+        let look = Box_inline.look_of s ~link:None in
         let text = match m with Bullet -> "\xe2\x80\xa2" | Number n -> string_of_int n ^ "." in
         let ink = rgb s.color.r s.color.g s.color.b in
         let shape =
@@ -189,4 +189,4 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
   @ lines @ marker
   @ List.concat_map (draw_in inner ~visited ~picture_of) b.children
 
-let draw ~visited ~picture_of (b : Box_layout.box) : Browser_draw.drawn = draw_in everywhere ~visited ~picture_of b
+let draw ~visited ~picture_of (b : Box_types.box) : Browser_draw.drawn = draw_in everywhere ~visited ~picture_of b

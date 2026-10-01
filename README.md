@@ -94,7 +94,8 @@ libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that
                       never blocks, stepped each frame (Http_request)
 src/url/              links resolved (Browser_url)
-src/layout/           where everything goes: CSS's box model, flexbox,
+src/layout/           where everything goes: CSS's box model (Box_layout,
+                      over Box_tree, Box_inline and Box_flow), flexbox,
                       tables, Mosaic's flow; a point back to a link (Hit)
 src/display/          a page drawn as shapes: Hershey's letters, pictures,
                       boxes (Browser_draw, Browser_boxes)

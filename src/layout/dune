@@ -1,11 +1,14 @@
 ; claude: where everything on a page goes: Html_layout,
 ; blocks stacked and inline content on lines, and Hit, the way back,
 ; from a point to a link; Table_layout; and Box_layout, CSS 2.1's box
-; model over Computed's styles, with Flex_layout, flexbox's arithmetic.
+; model over Computed's styles (its types in Box_types, a box read in
+; Box_tree, lines in Box_inline, a block's width, margins and content
+; in Box_flow), with Flex_layout, flexbox's arithmetic.
 ; Pure OCaml, no shapes and no font: boxes and fragments with
 ; positions, the widths the caller's (src/browser draws them).
 (library
  (name browser_layout)
  (wrapped false)
+ (modules_without_implementation box_types) ; types alone
  (libraries lang_html lang_css)
 )

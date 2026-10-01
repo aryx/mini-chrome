@@ -257,13 +257,13 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
         (tree :: Dom.find_all "body" tree)
     in
     (* the backgrounds' pictures, to fetch: the boxes' that are shown *)
-    let rec backgrounds (b : Box_layout.box) =
+    let rec backgrounds (b : Box_types.box) =
       List.filter_map
         (fun u -> match u with Some u when b.style.visible && b.element <> None -> Some (Browser_url.resolve base u) | _ -> None)
         [ b.style.background_image; b.style.mask_image ]
       @ List.concat_map backgrounds b.children @ List.concat_map backgrounds b.backdrops
     in
-    (Box_layout.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, Some canvas, List.sort_uniq compare (backgrounds boxes))
+    (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, Some canvas, List.sort_uniq compare (backgrounds boxes))
   else
     let root = { Browser_text.root_look with extensions = s.extensions } in
     let style = if s.css then Css.cascade (Css.parse (Css.page_sheet tree)) tree else fun _ -> [] in

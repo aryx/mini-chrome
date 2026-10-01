@@ -78,6 +78,11 @@
   Window_layout (the model read: the geometry, the pointer),
   Window_tabs (the model changed: tabs, scroll, zoom, the profile),
   Window_update, Window_view; src/main's MiniChrome.ml is the main
+- src/layout: Box_layout.ml (1,268 lines) split by concern, the same
+  pixels (52 frames of the built-in pages compared): Box_types (the
+  box, a line's items, a block being laid out), Box_tree (a box read),
+  Box_inline (words on lines beside floats), Box_flow (a block's width,
+  margins and content), and Box_layout, the recursion (680 lines)
 - docs/architecture.md: the Model-View-Update loop, the pieces of
   libs/gui and their style among the four of elm-playground's
   notes_gui.md, the one process and its pool of four threads next to

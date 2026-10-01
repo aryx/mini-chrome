@@ -134,8 +134,15 @@ came from. `Html_layout` + `Looks` + `Css` + `Browser_draw` are Mosaic's
 fixed looks; `Box_layout` + `Cascade` + `Computed` + `Browser_boxes` are
 CSS 2.1's box model. MiniChrome always sets `settings.boxes = true`, so
 the second is the live path. `Box_layout` still produces `Html_layout`'s
-lines and fragments (`as_html_layout`), because `Hit`, the form controls
-and the drawing of words work on those.
+lines and fragments (`Box_tree.as_html_layout`), because `Hit`, the form
+controls and the drawing of words work on those.
+
+`Box_layout` is four modules over `Box_types`' types (the box, a line's
+words and floats, a block being laid out): `Box_tree` (a box read),
+`Box_inline` (words set on lines beside floats), `Box_flow` (a block's
+width, margins and content), and `Box_layout` itself, the recursion
+over the page's tree (blocks, flex, shrink-to-fit, positioned boxes,
+tables) that cannot be cut. `Box_layout.mli` tells the whole.
 
 The `Dom` tree is an immutable value. `Browser_script` gives a page's
 scripts a mutable copy (thaw), and freezes it back when it changed; the

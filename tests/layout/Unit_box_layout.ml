@@ -15,14 +15,14 @@ let metrics (l : Looks.t) (s : string) : float = l.size *. float_of_int (String.
 
 (* the page laid out in a window [width] wide, the root's font 10 (a
  * line 12 high), [css] the page's sheet *)
-let page ?(width = 200.) ?(css = "") (html : string) : Box_layout.box =
+let page ?(width = 200.) ?(css = "") (html : string) : Box_types.box =
   let root = Html_tree.of_string html in
   let media : Cascade.media = { width; height = 600. } in
   let sheet : Cascade.sheet = { origin = Author; rules = Css_syntax.parse_stylesheet ("html { font-size: 10px } " ^ css) } in
   Box_layout.layout metrics ~viewport:(width, 600.) (Computed.styles media [ sheet ] root) root
 
 (* the box of the element of id [id] *)
-let rec find (id : string) (b : Box_layout.box) : Box_layout.box option =
+let rec find (id : string) (b : Box_types.box) : Box_types.box option =
   match b.element with
   | Some e when Dom.attribute "id" e = Some id -> Some b
   | _ -> List.find_map (find id) b.children
@@ -31,11 +31,11 @@ let box id p = match find id p with Some b -> b | None -> Alcotest.fail ("no box
 let near = Alcotest.float 1e-6
 
 (* x, y, width, height *)
-let geometry (b : Box_layout.box) = [ b.x; b.y; b.width; b.height ]
+let geometry (b : Box_types.box) = [ b.x; b.y; b.width; b.height ]
 
 (* the words, left to right *)
-let words (b : Box_layout.box) : (string * float) list =
-  List.filter_map (fun (f : Html_layout.fragment) -> if f.text = "" then None else Some (f.text, f.x)) (Box_layout.fragments b)
+let words (b : Box_types.box) : (string * float) list =
+  List.filter_map (fun (f : Html_layout.fragment) -> if f.text = "" then None else Some (f.text, f.x)) (Box_tree.fragments b)
   |> List.stable_sort (fun (_, a) (_, b) -> compare a b)
 
 let word = Alcotest.(pair string near)
@@ -106,13 +106,13 @@ let tests =
       Testo.create "an inline element's padding and background" (fun () ->
           let p = page {|<body style="margin: 0">a <span id=s style="padding: 0 5px; background: yellow">b</span> c|} in
           Alcotest.(check (list word)) "room made for its padding" [ ("a", 0.); ("b", 25.); ("c", 50.) ] (words p);
-          let rec backdrops (b : Box_layout.box) = b.backdrops @ List.concat_map backdrops b.children in
+          let rec backdrops (b : Box_types.box) = b.backdrops @ List.concat_map backdrops b.children in
           match backdrops p with
           | [ d ] -> Alcotest.(check (list near)) "its box: x, width, height" [ 20.; 20.; 10. ] [ d.x; d.width; d.height ]
           | _ -> Alcotest.fail "one box");
       Testo.create "srcset: its first address" (fun () ->
           Alcotest.(check (option string)) "no src" (Some "a.png")
-            (Box_layout.picture_src (Dom.element ~attributes:[ ("srcset", "a.png 1x, b.png 2x") ] "img" [])));
+            (Box_tree.picture_src (Dom.element ~attributes:[ ("srcset", "a.png 1x, b.png 2x") ] "img" [])));
       Testo.create "flex: a row, an auto margin" (fun () ->
           let p = page {|<body style="margin: 0"><div style="display: flex; width: 200px"><div id=a style="width: 50px">a</div><div id=b style="margin-left: auto">bb</div></div>|} in
           Alcotest.(check (list near)) "a: x, width" [ 0.; 50. ] (let a = box "a" p in [ a.x; a.width ]);
@@ -136,7 +136,33 @@ let tests =
           Alcotest.check near "e below d and the gap" (24. +. 12. +. 5.) (box "e" p).y);
       Testo.create "a picture: its size, max-width" (fun () ->
           let p = page {|<body style="margin: 0"><img src=a.png width=400 height=100 style="max-width: 100%">|} in
-          match List.filter_map (fun (f : Html_layout.fragment) -> Option.map (fun (pic : Html_layout.picture) -> (f.width, pic.height)) f.picture) (Box_layout.fragments p) with
+          match List.filter_map (fun (f : Html_layout.fragment) -> Option.map (fun (pic : Html_layout.picture) -> (f.width, pic.height)) f.picture) (Box_tree.fragments p) with
           | [ (w, h) ] -> Alcotest.(check (list near)) "scaled to the page" [ 200.; 50. ] [ w; h ]
           | _ -> Alcotest.fail "one picture");
+      Testo.create "Box_flow's worked examples: the horizontal equation, two margins one" (fun () ->
+          let p = page ~width:976. {|<body style="margin: 0"><div id=d style="width: 400px; padding: 10px; border: 1px solid; margin: 0 auto">x</div><div id=a style="padding: 10px; border: 1px solid">y</div>|} in
+          let ml, w, mr = Box_flow.horizontal (box "d" p).style ~cb_width:976. () in
+          Alcotest.(check (list near)) "margins auto share the rest" [ 277.; 400.; 277. ] [ ml; w; mr ];
+          let ml, w, mr = Box_flow.horizontal (box "a" p).style ~cb_width:976. () in
+          Alcotest.(check (list near)) "width auto takes what is left" [ 0.; 954.; 0. ] [ ml; w; mr ];
+          let ml, w, mr = Box_flow.horizontal (box "a" p).style ~cb_width:976. ~content:100. () in
+          Alcotest.(check (list near)) "a width already decided" [ 0.; 100.; 854. ] [ ml; w; mr ];
+          Alcotest.(check near) "the larger" 21.4 (Box_flow.collapse 8. 21.4);
+          Alcotest.(check near) "a negative one subtracted" 6. (Box_flow.collapse 10. (-4.));
+          Alcotest.(check near) "two negative: the lower" (-4.) (Box_flow.collapse (-1.) (-4.)));
+      Testo.create "Box_tree's worked example: a box moved, all it holds with it" (fun () ->
+          let p = page {|<body style="margin: 8px"><div id=d style="padding: 2px">ab</div>|} in
+          let d = box "d" p in
+          let m = Box_tree.moved 5. 100. d in
+          Alcotest.(check (list near)) "the box" [ d.x +. 5.; d.y +. 100.; d.width; d.height ] (geometry m);
+          Alcotest.(check (list word)) "its word" [ ("ab", 15.) ] (words m);
+          Alcotest.(check (option near)) "its baseline" (Option.map (fun b -> b +. 100.) (Box_tree.last_baseline d)) (Box_tree.last_baseline m);
+          Alcotest.(check bool) "not moved: the same box" true (Box_tree.moved 0. 0. d == d);
+          Alcotest.(check near) "how far right its content reaches" 30. (Box_tree.inner_right d));
+      Testo.create "Box_inline's worked example: the room beside a float" (fun () ->
+          let floats : Box_types.placed list = [ { pside = On_left; left = 8.; right = 48.; ptop = 8.; pbottom = 38. } ] in
+          Alcotest.(check (pair near near)) "beside it" (48., 144.) (Box_inline.room floats ~x:8. ~width:184. ~top:8. ~height:12.);
+          Alcotest.(check (pair near near)) "under it" (8., 184.) (Box_inline.room floats ~x:8. ~width:184. ~top:38. ~height:12.);
+          Alcotest.(check near) "cleared: below it" 38. (Box_inline.cleared floats [ On_left ] 8.);
+          Alcotest.(check near) "cleared of the other side: where it was" 8. (Box_inline.cleared floats [ On_right ] 8.));
     ]
