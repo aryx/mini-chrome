@@ -143,4 +143,44 @@ let view_unscaled (m : model) : shape list =
   @ (match m.menu with Some menu -> Gui_menu.shapes menu ~pointer:m.mouse | None -> [])
 
 (* claude: the window, its units made the screen's dots *)
-let view (m : model) : shape list = [ group (view_unscaled m) |> scale (scale_of m) ]
+let view_simple (m : model) : shape list = [ group (view_unscaled m) |> scale (scale_of m) ]
+
+(*****************************************************************************)
+(* The same view for the same model *)
+(*****************************************************************************)
+
+(* claude: opti: see Window_view.mli. Whether the window moves by itself:
+ * a tab's wheel turning while it loads, a video playing -- what the
+ * view draws from the model's [time] *)
+let animated (m : model) : bool =
+  List.exists (fun (t : tab) -> loading t.tab) m.tabs
+  || match (current_tab m).state with Shown p -> Browser_media.plays p | Loading _ -> false
+
+(* the two models draw the same window: each field is the very value it
+ * was (==), but the time. Every field is named, so that a new one is a
+ * warning here until it is said whether the view reads it *)
+let same_but_time
+    ({ tabs; current; next_id; omnibox; mouse; time = _; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
+       profile_dir; saved; changed; menu; window; desktop; shift; grab } :
+      model) (m : model) : bool =
+  tabs == m.tabs && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
+  && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
+  && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
+  && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && shift == m.shift
+  && grab == m.grab
+
+(* the last model drawn, its shapes, and whether it moves by itself
+ * (asked once a model, not once a frame: it reads the page's every
+ * fragment, 3 ms on a long one) *)
+let last : (model * shape list * bool) option ref = ref None
+
+let view_opti (m : model) : shape list =
+  match !last with
+  | Some (m', shapes, false) when same_but_time m' m -> shapes
+  | Some (m', _, true) when same_but_time m' m -> view_simple m
+  | _ ->
+      let shapes = view_simple m in
+      last := Some (m, shapes, animated m);
+      shapes
+
+let view (m : model) : shape list = if !Mini_opti.enabled then view_opti m else view_simple m

@@ -44,8 +44,8 @@ let loading (tab : Browser_tab.t) : bool = (match tab.state with Loading _ -> tr
 (* The window's geometry *)
 (*****************************************************************************)
 
-(* claude: the screen is the window, whatever its size (run_app's
- * screen_follows_window), the origin at its centre: everything is placed
+(* claude: the screen is the window, whatever its size (run_app
+ * ~window's follows_window), the origin at its centre: everything is placed
  * from its edges -- the tabs and the toolbar hang from the top, the
  * panel sits on the bottom, the page takes what is left, the omnibox
  * stretches between the buttons and the wrench *)

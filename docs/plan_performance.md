@@ -192,15 +192,109 @@ times a frame: to count, with step 5.)
 
 ### 4. The frame at rest
 
-Measure first: `FRAMES=600` and `FRAMES=1200` on about:blank, on
-about:chrome and on the article, with `-uncapped` if the Playground's
-cap hides it. Then, by what is found:
+Measured (2026-10-01, after step 2). What a frame costs once the page
+is shown and nothing moves, from two runs to frames 600 and 1,200:
 
-- the visible shapes built once and kept while the scroll, the zoom,
-  the window and the page are the same (ours);
-- nothing drawn when the model did not change (the Playground's: a
-  change to its platforms, to present as a plan and agree on first, as
-  CLAUDE.md says).
+| Page | Shapes in the window | Cairo | Software |
+|---|---|---|---|
+| about:blank (the chrome alone) | | 12 ms | 19 ms |
+| Wikipedia's article on OCaml | 7,577 | 30 ms | 51 ms |
+| about:history | 15,813 | 56 ms | 81 ms |
+| about:chrome | 20,416 | 72 ms | 117 ms |
+
+It is the drawing, not the view. `Window_view` asking for the window's
+shapes again is 0.0 ms (they are kept, step 2); the Playground's loop
+(`Native_loop_2d`) then draws every shape and presents the window, at
+every frame, changed or not. `Page_bench` draws about:chrome's 20,416
+shapes with the software rasterizer in 110 ms, which is the 117
+measured on the program: about 5 microseconds a shape there, 3.5 with
+Cairo (a save, a colour, a transform, a path, a fill and a restore
+each).
+
+And the shapes are the letters': ten to twenty a letter (a rectangle a
+segment of a stroke and a dot a point, `Stroke_text.glyph`), so a
+window of 1,400 letters is 20,000 shapes. Two different things follow,
+and they do not replace each other:
+
+**a. Nothing changed: nothing drawn.** For the page at rest (a core
+busy for as long as a page is shown, the fan of a laptop). The platform
+cannot know: the view gives it a new list each frame. So two halves:
+
+- ours: `Window_view.view` gives back the same list (`==`) when what it
+  reads of the model is the same. The model changes at every Tick (its
+  `time`), so the view must say what it reads: not `time`, unless a
+  video plays or a caret blinks.
+- the Playground's: the loop skips the drawing and the present when
+  the shapes are the list of the frame before (`==`). A few lines of
+  `Native_loop_2d`, but a change of the platforms: to present as a
+  plan and agree on first (CLAUDE.md).
+
+Buys: the frame at rest from 12-72 ms to the view's check. Does
+nothing for a frame that does change: a scroll, a pointer moved over a
+link, a letter typed in the omnibox still draw everything, at 14
+frames a second on about:chrome.
+
+**b. Fewer shapes a letter.** For every frame. Three ways, the first
+two ours alone:
+
+- *a letter a picture*: each glyph (its character, size, weight,
+  slant, colour) rasterized once into a small `Rgba_image` and drawn as
+  one `Bitmap`, the Playground's existing shape: 15 times fewer shapes.
+  But the letters are then pixels, made for one scale: the device's
+  scale times the zoom has to reach `src/display`, and the frame is no
+  longer the same pixel for pixel as the simple way's (the test becomes
+  "looks the same"). Needs a rasterizer in `src/display`
+  (`tiny_libs.graphics_2d` has the fills).
+- *a line a picture*: the same with one `Bitmap` a line: fewer shapes
+  still, more memory (a line of 1,400 by 22 is 123 KB; 700 lines kept
+  would be 86 MB: an eviction to write).
+- *a stroke a shape*, in the Playground: a new form, a pen's path with
+  round ends and joints, one a glyph. Cairo draws that natively (one
+  path, one stroke), the web's SVG too (`stroke-linecap: round`); the
+  software rasterizer needs it written. The letters stay geometry, at
+  any scale, and the same on every platform. A change of the
+  Playground's interface and of its three 2D platforms: a plan of its
+  own there, and a release.
+
+Not measured: what Cairo makes of a stroked path against fifteen
+filled shapes. A guess from the count of shapes alone: about:chrome's
+72 ms to 10-15.
+
+To decide: (a) first, small and sure, if the Playground's half is
+agreed; then which of (b), after a trial of "a stroke a shape" on
+Cairo alone to have its number.
+
+**(a) is done.** Ours: `Window_view.view` keeps the last model drawn
+and its shapes, and gives them back when the model is the same but
+for its time (`same_but_time`: every field `==`) and the window does
+not move by itself (`animated`: a tab loading, a page with a player);
+`Window_tabs.on_tab` gives the model back when the tab did not change.
+The Playground's: `skip_same_view` (a field of `Playground.window`,
+given to `run_app ~window`), an option and not
+the rule -- a program's picture may change without its view (an
+animated GIF's frames are the platform's): the frame is skipped when
+the view is the list drawn last and no event came to the window;
+`-uncapped` and `-debug-keys` draw every frame. The explanation and
+its picture are in `Window_view.mli`.
+
+A frame at rest, CPU (Cairo):
+
+| Page | opti=off | now |
+|---|---|---|
+| about:blank | 12.0 ms | 0.2 ms |
+| about:chrome | 70.5 ms | 0.3 ms |
+| Wikipedia's article on OCaml | 26.7 ms | under 0.1 ms |
+| about:tube (a player: always drawn) | 28 ms | 28 ms |
+
+Checked: a test runs the program by hand (init, update, the commands'
+messages) and finds the very list a Tick later, a new one after the
+pointer moved or the page scrolled, equal to `view_simple`'s; and ten
+scripted sessions (scroll, the panel, the pointer over a link, a
+click, a zoom, the right click's menu, about:timer, about:counter,
+about:tube, the elements' view) dump the same frame with opti=off.
+
+Left of (a): a page with a player is drawn at each frame even paused
+(about:tube); `animated` could ask the player.
 
 ### 5. The cascade
 
@@ -237,3 +331,4 @@ the optimized one does, before and after):
 | Module | Simple | Optimized | Before | After |
 |---|---|---|---|---|
 | `Browser_draw.later` | a line's shapes built at each relayout | built when the line is first shown, kept | a relayout 450 ms | 28 ms |
+| `Window_view.view` | a new list of shapes and a frame drawn, sixty times a second | the list of the frame before for the same model: the platform draws nothing | a frame at rest 12-72 ms | 0.3 ms |

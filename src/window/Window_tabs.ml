@@ -73,8 +73,15 @@ let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -
   | None -> (m, Cmd.none)
   | Some t ->
       let tab, cmd = f (config m id) t.tab in
-      let t = stamp m.time { t with tab } in
-      ({ m with tabs = List.map (fun t' -> if t'.id = id then t else t') m.tabs }, cmd)
+      let stamped = stamp m.time { t with tab } in
+      (* claude: opti: [f] left the tab as it was (a Tick's task of a
+       * page whose scripts did nothing): the model is the one given,
+       * not a copy of it, and the view of a page at rest can be seen
+       * to be the same (Window_view.view).
+       * Before: always
+       *   ({ m with tabs = List.map (fun t' -> if t'.id = id then t else t') m.tabs }, cmd) *)
+      if tab == t.tab && stamped.times = t.times then (m, cmd)
+      else ({ m with tabs = List.map (fun t' -> if t'.id = id then stamped else t') m.tabs }, cmd)
 
 let on_current m f = on_tab m m.current f
 let scrolled (by : int) (m : model) : model = fst (on_current m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))

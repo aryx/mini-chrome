@@ -20,6 +20,11 @@
                    what a picture's arrival costs), then what the view
                    asks of it: the shapes of the window's lines
                    (Browser_draw.between), and of every line
+     a frame       how many shapes the window holds, and what drawing
+                   them costs (the Playground's software rasterizer;
+                   Cairo's platform is not linked here)
+
+   The URL may be a built-in page's (about:chrome): no network then.
 
    A stage on the CPU is run three times and its best time kept; the
    network once, as it comes. No picture is fetched: a page's pictures

@@ -73,7 +73,17 @@ that opens a file or a URL, or runs a program, says so with
 `Logs.info`; a thread of `Worker`'s pool
 may log too (the reporter has a mutex, set in MiniChrome's `main`).
 
-Ctrl+Q quits: the Playground's key (its `run_app ~platform_keys:false`
+The program is run with `skip_same_view = true` (a field of
+`Playground.window`, what `run_app ~window` takes; elm-playground
+after 0.3.3): a frame is not drawn when `view` gives
+back the very list (`==`) of the frame before, which `Window_view.view`
+does for a model that is the same but for its `time`. So a change
+that the view must show has to be in the model (a new value of one of
+its fields), not in a mutable thing beside it; and a new field of the
+model is named in `Window_view.same_but_time`. What moves by itself
+(a loading tab's wheel, a player) is `Window_view.animated`'s.
+
+Ctrl+Q quits: the Playground's key (its window's `platform_keys = false`
 would give the program every key; not used here). That is
 elm-playground after 0.3.1; in 0.3.1 it was a plain `q`, which no
 program could then receive.
@@ -174,8 +184,8 @@ the capabilities handed down, `run_app`. No module should pass about
 700 lines: when one nears it, look for a split along a concern as
 this one, and leave it whole if there is none.
 
-The program's screen is the window itself (`run_app
-~screen_follows_window:true`), not the Playground's usual 1000 by 1000
+The program's screen is the window itself (`run_app ~window`, with
+`follows_window = true`), not the Playground's usual 1000 by 1000
 picture scaled to fit: the model keeps the window's size (`screen`,
 from `Sub.on_resize`), the origin is the window's centre with y up, and
 every position is a function of the model anchored to an edge (`top m`,

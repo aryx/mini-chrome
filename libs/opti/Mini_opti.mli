@@ -31,7 +31,11 @@
    - Browser_draw.later: a line's shapes built when it is first shown,
      not all the page's at each relayout (the simple way: built at
      once). A relayout of a long page 450 ms to 28; the explanation
-     and its picture are in Browser_draw.mli. *)
+     and its picture are in Browser_draw.mli.
+   - Window_view.view: the shapes of the frame before given back when
+     the model is the same but for its time, so that the platform does
+     not draw a window at rest (the simple way, view_simple: a new list
+     and a frame drawn, sixty times a second). In Window_view.mli. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref

@@ -207,4 +207,8 @@ let main = Program.main __MODULE__ (fun () ->
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
           Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
-      Playground_platform.run_app ~screen:window ~screen_follows_window:true ~flags (app caps (profile, profile_dir) ~desktop ~window)))
+      (* claude: opti: a frame whose view is the list of the frame before
+       * is not drawn again (Window_view.view gives it back when the
+       * window has nothing new to show) *)
+      Playground_platform.run_app ~flags
+        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~desktop ~window)))

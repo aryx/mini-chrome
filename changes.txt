@@ -36,6 +36,13 @@
   Wikipedia's article on OCaml, 16,000 pixels high: a relayout 450 ms
   to 28, the page first shown in 239 ms instead of 796, its load
   settled in 6.2 s instead of 14.8 (docs/plan_performance.md, step 2)
+- a window at rest is not drawn again: Window_view.view gives back
+  the frame before's list of shapes when the model is the same but
+  for its time, and the platform skips the frame (run_app
+  ~window's skip_same_view, elm-playground after 0.3.3). A frame at rest: 12 ms
+  of CPU (about:blank) to 72 (about:chrome) before, 0.3 now; a page
+  with a player is still drawn at each (docs/plan_performance.md,
+  step 4a)
 - scripts/perf: Page_bench.exe (a page's stages timed) and
   load_timeline.sh (the real program's load in time)
 

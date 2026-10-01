@@ -139,7 +139,9 @@ Known loose ends:
 
 - Until 0.3.1 is in opam-repository, `./configure` pins elm-playground's
   packages from the tag.
-- gzip needs `tiny_libs`' `Gzip`, in elm-playground after 0.3.3 and in
+- gzip needs `tiny_libs`' `Gzip`, and the window at rest
+  `run_app ~window` (`skip_same_view`), both in elm-playground after
+  0.3.3 and in
   no release yet: the bounds (`dune-project`, 0.3.1) and the tag
   `./configure` pins are behind, and the CI fails until a release has
   it.

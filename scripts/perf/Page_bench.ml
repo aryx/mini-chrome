@@ -29,6 +29,10 @@ let said fmt = Printf.printf ("    " ^^ fmt ^^ "\n%!")
 let rec elements (e : Dom.element) : int =
   1 + List.fold_left (fun n (c : Dom.node) -> match c with Element c -> n + elements c | Text _ -> n) 0 e.children
 
+(* the rectangles, circles, pictures... a frame draws, the groups opened *)
+let rec primitives (shapes : Playground.shape list) : int =
+  List.fold_left (fun n (s : Playground.shape) -> match s.form with Group inside -> n + primitives inside | _ -> n + 1) 0 shapes
+
 let () =
   let args = List.tl (Array.to_list Sys.argv) in
   let url = match List.filter (fun a -> String.contains a ':') args with u :: _ -> u | [] -> "https://en.wikipedia.org/wiki/OCaml" in
@@ -39,7 +43,12 @@ let () =
   in
   if List.mem "opti=off" args then Mini_opti.enabled := false;
   Cap.main (fun caps ->
-      let get u = match Http_client.get caps u with Ok r -> r.body | Error e -> failwith e in
+      (* a built-in page (about:chrome), or the network *)
+      let get u =
+        match if Browser_url.starts_with "about:" u then Site.about (String.sub u 6 (String.length u - 6)) else None with
+        | Some (body, _) -> body
+        | None -> ( match Http_client.get caps u with Ok r -> r.body | Error e -> failwith e)
+      in
       Printf.printf "%s, %.0f by %.0f%s\n\n" url width height (if !Mini_opti.enabled then "" else ", opti=off");
       let bytes = timed "network: the page (roots read, name resolved)" (fun () -> get url) in
       ignore (timed "network: the page again" (fun () -> get url));
@@ -78,7 +87,14 @@ let () =
       (* what the view asks for: the window's lines, then (scrolled to
        * the end) all of them *)
       ignore (timed "Browser_draw.between: the first window's shapes" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn));
-      ignore (timed "Browser_draw.between: the same again" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn));
+      let window = timed "Browser_draw.between: the same again" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn) in
+      said "%d shapes in the window" (primitives window);
+      (* a frame: those shapes drawn, by the Playground's own rasterizer
+       * (Cairo's platform is not linked here), the page's top left at
+       * the window's *)
+      let fb = Framebuffer.create ~width:(int_of_float width) ~height:(int_of_float height) in
+      let placed = [ Playground.group window |> Playground.move (-.width /. 2.) (height /. 2.) ] in
+      timed ~runs:3 "a frame: the window's shapes rasterized (software)" (fun () -> Shape_render_software.render fb placed);
       ignore (timed "Browser_draw.between: the whole page's" (fun () -> Browser_draw.between ~top:0. ~bottom:infinity p.drawn));
       (* the pieces of that relayout; the sheets parsed here as
        * Browser_page does (their order is not the page's: the same work) *)

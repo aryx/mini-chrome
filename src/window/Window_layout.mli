@@ -2,7 +2,7 @@
  * and what is under the pointer.
  *
  * The screen is the window, whatever its size (run_app's
- * screen_follows_window), the origin at its centre and y up, so every
+ * ~window's follows_window), the origin at its centre and y up, so every
  * place is computed from the model's [screen], from an edge:
  *
  *    top m    +------------------------------------------------+
