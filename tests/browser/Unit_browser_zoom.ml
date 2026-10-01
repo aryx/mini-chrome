@@ -10,7 +10,7 @@
 
 (* See Unit_browser_zoom.mli *)
 
-let pressed (name : string) (z : float) : float = (Option.get (Browser_zoom.key name)) z
+let pressed (name : string) (z : float) : float = Browser_zoom.apply (Option.get (Browser_zoom.key name)) z
 let zoom = Alcotest.float 0.0001
 
 let tests =

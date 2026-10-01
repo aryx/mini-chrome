@@ -56,6 +56,26 @@ let tests =
           Alcotest.(check string) "characters, not bytes" "f\xc3\xa9" (Gui_text.tail 2 "caf\xc3\xa9");
           (* the edge, the card, the letters *)
           Alcotest.(check int) "bubble" 5 (List.length (Gui_text.bubble ~left:(-500.) ~y:(-339.) "a b c")));
+      Testo.create "Gui_field, the worked example: a fresh field's text is replaced" (fun () ->
+          let shown f = Gui_field.shown f in
+          let f = Gui_field.focused "about:chrome" in
+          Alcotest.(check string) "focused" "about:chrome_" (shown f);
+          let f = Gui_field.typed "n" (Gui_field.typed "h" f) in
+          Alcotest.(check string) "typed h, n" "hn_" (shown f);
+          Alcotest.(check string) "backspace" "h_" (shown (Gui_field.backspace f));
+          Alcotest.(check string) "a fresh field emptied" "_" (shown (Gui_field.backspace (Gui_field.focused "x")));
+          Alcotest.(check string) "a character, not a byte" "caf_" (shown (Gui_field.backspace (Gui_field.typed "caf\xc3\xa9" (Gui_field.focused ""))));
+          Alcotest.(check string) "nothing left to take" "_" (shown (Gui_field.backspace (Gui_field.backspace (Gui_field.typed "a" (Gui_field.focused "")))));
+          Alcotest.(check int) "its box: the edge, the white" 2 (List.length (Gui_field.box ~x:0. ~y:0. ~w:100.)));
+      Testo.create "Gui_scale, the worked example: xrdb's Xft.dpi" (fun () ->
+          let scale = Alcotest.(option (float 0.0001)) in
+          Alcotest.(check scale) "192: twice" (Some 2.) (Gui_scale.of_xrdb "Xft.dpi:\t192\nXft.antialias:\t1\n");
+          Alcotest.(check scale) "144" (Some 1.5) (Gui_scale.of_xrdb "Xcursor.size:\t24\nXft.dpi:\t144\n");
+          Alcotest.(check scale) "96: no scaling" (Some 1.) (Gui_scale.of_xrdb "Xft.dpi: 96");
+          Alcotest.(check scale) "no Xft.dpi" None (Gui_scale.of_xrdb "Xft.antialias:\t1\n");
+          Alcotest.(check scale) "not a number" None (Gui_scale.of_xrdb "Xft.dpi:\tbig\n");
+          Alcotest.(check scale) "not believed" None (Gui_scale.of_xrdb "Xft.dpi:\t9600\n");
+          Alcotest.(check scale) "nothing" None (Gui_scale.of_xrdb ""));
       Testo.create "Gui_kit.near: a box from x, around the line y" (fun () ->
           Alcotest.(check bool) "inside" true (Gui_kit.near 10. 0. 20. 10. (15., 4.));
           Alcotest.(check bool) "left of it" false (Gui_kit.near 10. 0. 20. 10. (9., 0.));

@@ -10,32 +10,31 @@
 
 (* See Browser_profile.mli *)
 
-type t = { window : int * int; zooms : Browser_zoom.t }
+type t = { window : (int * int) option; scale : float option; zooms : Browser_zoom.t }
 
-let empty : t = { window = (1280, 900); zooms = Browser_zoom.empty }
+let empty : t = { window = None; scale = None; zooms = Browser_zoom.empty }
 
 (*****************************************************************************)
 (* The Preferences file's text *)
 (*****************************************************************************)
 
 let to_string (p : t) : string =
-  let w, h = p.window in
-  Json.to_string
-    (Object
-       [ ("window", Object [ ("width", Number (float_of_int w)); ("height", Number (float_of_int h)) ]);
-         ("zoom", Object (List.map (fun (host, z) -> (host, Json.Number z)) p.zooms)) ])
-  ^ "\n"
+  let window = match p.window with Some (w, h) -> [ ("window", Json.Object [ ("width", Number (float_of_int w)); ("height", Number (float_of_int h)) ]) ] | None -> [] in
+  let scale = match p.scale with Some s -> [ ("scale", Json.Number s) ] | None -> [] in
+  Json.to_string (Object (window @ scale @ [ ("zoom", Object (List.map (fun (host, z) -> (host, Json.Number z)) p.zooms)) ])) ^ "\n"
 
 let of_string (s : string) : (t, string) result =
   let first = List.hd Browser_zoom.levels and last = List.nth Browser_zoom.levels (List.length Browser_zoom.levels - 1) in
-  let zoom ((host, z) : string * Json.t) = match z with Number z when z >= first && z <= last && z <> 1. -> Some (host, z) | _ -> None in
+  let level (z : Json.t option) = match z with Some (Number z) when z >= first && z <= last -> Some z | _ -> None in
+  let zoom ((host, z) : string * Json.t) = match level (Some z) with Some z when z <> 1. -> Some (host, z) | _ -> None in
   let side (name : string) (window : Json.t option) : int option =
     match Option.bind window (Json.member name) with Some (Number n) when n >= 100. && n <= 10000. -> Some (int_of_float n) | _ -> None
   in
   Result.map
     (fun json ->
       let window = Json.member "window" json in
-      { window = (match (side "width" window, side "height" window) with Some w, Some h -> (w, h) | _ -> empty.window);
+      { window = (match (side "width" window, side "height" window) with Some w, Some h -> Some (w, h) | _ -> None);
+        scale = level (Json.member "scale" json);
         zooms = (match Json.member "zoom" json with Some (Object fields) -> List.filter_map zoom fields | _ -> []) })
     (Json.parse s)
 

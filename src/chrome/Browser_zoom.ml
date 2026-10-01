@@ -24,11 +24,15 @@ let of_host (zooms : t) (host : string) : float = Option.value (List.assoc_opt h
 let with_host (zooms : t) (host : string) (z : float) : t =
   (if z = 1. then [] else [ (host, z) ]) @ List.remove_assoc host zooms
 
-let key (name : string) : (float -> float) option =
+type change = Up | Down | Reset
+
+let key (name : string) : change option =
   match String.lowercase_ascii name with
-  | "=" | "+" | "keypad +" -> Some (step true)
-  | "-" | "keypad -" -> Some (step false)
-  | "0" | "keypad 0" -> Some (fun _ -> 1.)
+  | "=" | "+" | "keypad +" -> Some Up
+  | "-" | "keypad -" -> Some Down
+  | "0" | "keypad 0" -> Some Reset
   | _ -> None
+
+let apply (change : change) (z : float) : float = match change with Up -> step true z | Down -> step false z | Reset -> 1.
 
 let label (z : float) : string = if z = 1. then "" else Printf.sprintf "%.0f%%" (100. *. z)

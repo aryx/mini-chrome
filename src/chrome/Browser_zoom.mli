@@ -34,11 +34,16 @@ val of_host : t -> string -> float
 
 val with_host : t -> string -> float -> t
 
-(* what a key pressed with Ctrl does to the zoom, by the key's name
- * (SDL's or the web's, any case) or the character it types: "=", "+",
- * "Keypad +" a step up; "-", "Keypad -" a step down; "0", "Keypad 0"
- * back to 1.; None for any other *)
-val key : string -> (float -> float) option
+(* what a key pressed with Ctrl asks, by the key's name (SDL's or the
+ * web's, any case) or the character it types: "=", "+", "Keypad +" a
+ * step up; "-", "Keypad -" a step down; "0", "Keypad 0" the size
+ * things have by themselves again; None for any other *)
+type change = Up | Down | Reset
+
+val key : string -> change option
+
+(* a zoom after a change: a step, or 1. *)
+val apply : change -> float -> float
 
 (* "125%"; "" at 100% *)
 val label : float -> string

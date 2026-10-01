@@ -49,13 +49,18 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
-`profile=DIR` or `profile=off`. With `-v` the terminal shows each
+`profile=DIR` or `profile=off`, `scale=N`. With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
 (with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
 it is typed).
 
 A right click on the page opens a menu: on a link, Open link in new
 tab; elsewhere Back, Forward, Reload; Inspect in both.
+
+On a screen of many dots everything is drawn bigger, at the desktop's
+scale (`Xft.dpi`, GNOME's setting: twice at 192); Ctrl+Shift and `+` or
+`-` change it, Ctrl+Shift+`0` goes back to the desktop's, `scale=N`
+sets it.
 
 Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
 100%; each site keeps its zoom, saved with the window's size in the
@@ -76,7 +81,8 @@ libs/gui              the chrome's pieces that know no browser, as values
                       drawn and asked what is under a point: text in
                       cells (Gui_text), the tabs' strip (Gui_tabs), the
                       toolbar's buttons (Gui_toolbar), a menu opened at
-                      a point (Gui_menu)
+                      a point (Gui_menu), a line typed into (Gui_field),
+                      the desktop's scale (Gui_scale)
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that

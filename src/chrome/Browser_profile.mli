@@ -1,7 +1,7 @@
 (* Browser_profile: what the browser remembers from one run to the
  * next, as Chrome's profile (its "user data directory",
- * ~/.config/google-chrome): for now the window's size and each site's
- * zoom (Browser_zoom).
+ * ~/.config/google-chrome): for now the window's size, its scale and
+ * each site's zoom (Browser_zoom).
  *
  * One file, Preferences, in the profile's directory, JSON as Chrome's
  * (which keeps its zooms under partition.per_host_zoom_levels):
@@ -11,6 +11,7 @@
  *       "width": 1280,
  *       "height": 900
  *     },
+ *     "scale": 1.5,
  *     "zoom": {
  *       "news.ycombinator.com": 1.5,
  *       "en.wikipedia.org": 0.9,
@@ -18,12 +19,15 @@
  *     }
  *   }
  *
- * the window as it was last (1280 by 900 the first time), and each
- * site's zoom by its host; the last, without a host, is the built-in
- * pages' (about:chrome has none). What is not understood is skipped (a
- * newer version's field, a zoom out of Browser_zoom's levels, a window
- * smaller than 100 or larger than 10000) -- and not written back: the file is the program's, written
- * whole at each change. But a file that is not JSON (a brace lost
+ * the window as it was last, in the screen's dots; the scale
+ * everything is drawn at, if the person chose one (without, the
+ * desktop's: Gui_scale); and each site's zoom by its host, the last,
+ * without a host, the built-in pages' (about:chrome has none). A
+ * window never resized and a scale never chosen are not written. What
+ * is not understood is skipped (a newer version's field, a zoom or a
+ * scale out of Browser_zoom's levels, a window smaller than 100 or
+ * larger than 10000) -- and not written back: the file is the
+ * program's, written whole at each change. But a file that is not JSON (a brace lost
  * fixing it by hand) is an error, so that the program can leave it
  * alone rather than write over it.
  *
@@ -41,11 +45,12 @@
  * https://specifications.freedesktop.org/basedir-spec/latest/ *)
 
 type t = {
-  window : int * int; (* the window's width and height *)
+  window : (int * int) option; (* the window's width and height, once it was resized *)
+  scale : float option; (* the scale chosen; None, the desktop's *)
   zooms : Browser_zoom.t;
 }
 
-(* a first run's: a window of 1280 by 900, no site zoomed *)
+(* a first run's: nothing chosen yet *)
 val empty : t
 
 (* the Preferences file's text, the example above; and back, or what is

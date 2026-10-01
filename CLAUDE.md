@@ -40,7 +40,16 @@ dune exec tests/css/Test.exe -- run -s specificity   # tests whose name contains
 Program flags are `key=value` words on the command line
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
-`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`.
+`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`.
+
+Everything is drawn at a scale (`scale_of` in MiniChrome.ml): the one
+chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
+`"scale"`), else the desktop's, which `Gui_scale` reads from `xrdb`'s
+`Xft.dpi` (2 on a screen GNOME scales twice). The model's `screen` and
+`mouse` are in the program's units, the window's dots divided by the
+scale (`window` has the dots), and `view` scales the whole picture. With
+SDL's dummy driver the desktop's scale is 1, so a dumped frame is the
+same on every machine.
 
 The profile (`Browser_profile`: the window's size and each site's
 zoom, for now) is `~/.config/mini-chrome/Preferences`, JSON, read at
@@ -55,8 +64,9 @@ nothing.
 The Playground's own flags start with a dash. `-v` (or `-verbose`),
 `-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
 `-v` the terminal shows each file and URL opened (the profile's file,
-the TLS roots, every request and its answer). New code that opens a
-file or a URL says so with `Logs.info`; a thread of `Worker`'s pool
+the TLS roots, every request and its answer, a program run). New code
+that opens a file or a URL, or runs a program, says so with
+`Logs.info`; a thread of `Worker`'s pool
 may log too (the reporter has a mutex, set in MiniChrome's `main`).
 
 Ctrl+Q quits: the Playground's key (its `run_app ~platform_keys:false`
@@ -166,15 +176,18 @@ threaded from `Cap.main` in MiniChrome.ml through `Browser_tab` and
 read, `Cap.open_out` to write, `Cap.env` to find the directory, and
 asks the object for the path (`caps#open_in path`) before opening it.
 `init` and `update` get the capabilities they need and narrow them to
-`< Cap.network >` for the tabs. New code touching a file or the
+`< Cap.network >` for the tabs. Running a program takes `Cap.forkew`
+(fork, exec and wait): `Gui_scale.desktop` asks `xrdb` for the
+desktop's scale. New code touching a file or the
 environment follows this; `Tls_client` (the roots' file, /dev/urandom)
 predates it.
 
 ### The chrome's pieces
 
 What the window's chrome is made of and that is not a browser's goes in
-`libs/gui` (`Gui_text`, `Gui_tabs`, `Gui_toolbar`, `Gui_menu`, the
-colours in `Gui_kit`), as values built from the model: `shapes` for the
+`libs/gui` (`Gui_text`, `Gui_tabs`, `Gui_toolbar`, `Gui_menu`,
+`Gui_field`, the colours in `Gui_kit`, the desktop's scale in
+`Gui_scale`), as values built from the model: `shapes` for the
 view, a hit test (`at`, `chosen`) for update, no state, callback or
 message of their own. `MiniChrome.ml` builds them (`strip m`, `buttons
 m`) and decides what a hit means. A new piece of chrome goes there

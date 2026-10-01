@@ -53,6 +53,15 @@
  * laid out at the window's width divided by the zoom, and drawn
  * scaled; the zoom shows in the omnibox when not 100%.
  *
+ * claude: the whole window is drawn at a **scale**, a browser's device
+ * scale factor: the desktop's (Gui_scale: 2 where GNOME says a screen
+ * has twice the dots, and the chrome's letters of 6 could not be read),
+ * or the one chosen with Ctrl, Shift and + or - (Ctrl Shift 0: the
+ * desktop's again), kept in the profile. The program still works in
+ * its own units, the window being that many times fewer of them: the
+ * view is scaled whole, the pointer and the window's size divided. A
+ * site's zoom (Ctrl +) multiplies it, for that site's pages.
+ *
  * claude: a **right click** on the page opens Chrome's context menu
  * (Browser_menu, drawn by libs/gui's Gui_menu): on a link, Open link in new tab (a tab behind the
  * one shown) and Inspect; elsewhere Back, Forward, Reload, Inspect.
@@ -79,7 +88,8 @@
  * own sheet alone (what a page looks like unstyled); panel=elements or
  * panel=network, the tools open; search=duckduckgo, the omnibox's
  * engine (wikipedia); profile=DIR, the profile's directory, or
- * profile=off, nothing read nor kept. And the Playground's, with a
+ * profile=off, nothing read nor kept; scale=N, everything drawn N
+ * times bigger. And the Playground's, with a
  * dash: -v (or -verbose) says on the terminal each file and URL
  * opened, -debug more (the keys pressed), -quiet nothing (Logs).
  *
@@ -120,9 +130,7 @@ type model = {
   tabs : tab list;
   current : int; (* the id of the tab shown *)
   next_id : int;
-  omnibox : string; (* its text, while it is typed into *)
-  editing : bool;
-  fresh : bool; (* just clicked: typing replaces what is there *)
+  omnibox : Gui_field.t option; (* claude: its text, while it is typed into (libs/gui); None, it shows the page's address *)
   mouse : float * float;
   time : float;
   css : bool; (* the page's style sheets honoured *)
@@ -132,13 +140,16 @@ type model = {
   engine : string; (* the omnibox's searches: search_url *)
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
-  screen : float * float; (* claude: the window's size, the page's width *)
+  screen : float * float; (* claude: the window's size in the program's units (its dots, divided by the scale): the page's width *)
   ctrl : bool; (* claude: a Ctrl key held *)
   profile : Browser_profile.t; (* claude: what is kept between runs: the window's size, the sites zoomed *)
   profile_dir : string option; (* claude: where it is saved; None, it is not *)
   saved : Browser_profile.t; (* claude: the profile as it is on disk *)
   changed : float; (* claude: when the profile last changed (time) *)
   menu : Browser_menu.action Gui_menu.t option; (* claude: the right click's menu, while it is open *)
+  window : int * int; (* claude: the window's size, in the screen's dots; [screen] is in the program's units *)
+  desktop : float; (* claude: the desktop's scale (Gui_scale), when none is chosen *)
+  shift : bool; (* claude: a Shift key held *)
 }
 
 and msg =
@@ -312,12 +323,24 @@ let saved (caps : < Cap.open_out ; .. >) (m : model) : model =
       { m with saved = m.profile }
   | _ -> m
 
+(* claude: the scale everything is drawn at: the one chosen, else the
+ * desktop's *)
+let scale_of (m : model) : float = Option.value m.profile.scale ~default:m.desktop
+
+(* claude: the window's size or the scale changed: the screen is the
+ * window's dots in the program's units, and every page laid out again
+ * at its width *)
+let rescreened (m : model) : model =
+  let w, h = m.window and s = scale_of m in
+  let screen = (float_of_int w /. s, float_of_int h /. s) in
+  if screen = m.screen then m else relaid_all { m with screen }
+
 (* claude: the shown page's site at the zoom [f] gives from its own *)
 let zoomed (f : float -> float) (m : model) : model =
   let zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) in
   relaid_all (with_profile { m.profile with zooms } m)
 
-let visit network url m = on_current { m with editing = false; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
+let visit network url m = on_current { m with omnibox = None; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
 let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
 
 (* a new tab, shown, loading [url] *)
@@ -417,11 +440,11 @@ let profile_of (caps : < Cap.open_in ; Cap.env ; .. >) (flags : flags) : Browser
       (Browser_profile.empty, None)
   | None -> (Browser_profile.empty, None)
 
-let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_profile.t * string option) (flags : flags) : model * msg Cmd.t =
+let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
   let url = Option.value (List.assoc_opt "url" flags) ~default:home in
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
-    { tabs = []; current = 0; next_id = 0; omnibox = url; editing = false; fresh = false; mouse = (1000., 1000.); time = 0.;
+    { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
       allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);
@@ -430,22 +453,18 @@ let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_prof
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
   let selected = match (panel, (current_tab m).state) with Elements, Shown p -> List.nth_opt (Dom.find_all "body" p.tree) 0 | _ -> None in
   ({ m with selected }, cmd)
 
-let backspace (s : string) : string =
-  let cs = characters s in
-  String.concat "" (List.filteri (fun i _ -> i < List.length cs - 1) cs)
-
-let edit_omnibox (network : < Cap.network ; .. >) (key : string) (m : model) : model * msg Cmd.t =
+let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_field.t) (m : model) : model * msg Cmd.t =
   match key with
-  | "enter" | "return" -> visit network (typed_url m.engine m.omnibox) m
-  | "escape" -> ({ m with editing = false }, Cmd.none)
-  | "backspace" -> ({ m with omnibox = (if m.fresh then "" else backspace m.omnibox); fresh = false }, Cmd.none)
+  | "enter" | "return" -> visit network (typed_url m.engine field.text) m
+  | "escape" -> ({ m with omnibox = None }, Cmd.none)
+  | "backspace" -> ({ m with omnibox = Some (Gui_field.backspace field) }, Cmd.none)
   | _ -> (m, Cmd.none)
 
 let form (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (m : model) : model * msg Cmd.t =
@@ -531,12 +550,14 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
    * libinput), is in the notches already *)
   | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
-  | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
-  (* claude: the window's size changed: every tab's page laid out again
-   * at its new width, its scroll kept within the new page *)
-  | Resized (w, h) when (float_of_int w, float_of_int h) = m.screen -> (m, Cmd.none)
+  (* claude: the pointer, from the window's dots to the program's units *)
+  | Mouse_move (x, y) -> ({ m with mouse = (x /. scale_of m, y /. scale_of m) }, Cmd.none)
+  (* claude: the window's size changed (not the first time, when it is
+   * told the size it started at): kept in the profile, and every tab's
+   * page laid out again at its new width *)
   | Resized (w, h) ->
-      (relaid_all (with_profile { m.profile with window = (w, h) } { m with screen = (float_of_int w, float_of_int h) }), Cmd.none)
+      let profile = if (w, h) = m.window then m.profile else { m.profile with window = Some (w, h) } in
+      (rescreened (with_profile profile { m with window = (w, h) }), Cmd.none)
   (* claude: a right click on the page: its menu, for what is under the
    * pointer; elsewhere, an open menu closed *)
   | Right_click -> (
@@ -544,7 +565,7 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
       match (tab.state, page_point m) with
       | Shown p, Some _ ->
           let items = Browser_menu.items ~link:(Option.map (resolve p.url) (hovered m)) ~back:(tab.history.behind <> []) ~forward:(tab.history.ahead <> []) in
-          ({ m with menu = Some (Gui_menu.opened ~screen:m.screen ~at:m.mouse items); editing = false }, Cmd.none)
+          ({ m with menu = Some (Gui_menu.opened ~screen:m.screen ~at:m.mouse items); omnibox = None }, Cmd.none)
       | _ -> ({ m with menu = None }, Cmd.none))
   (* claude: a click with the menu open is the menu's: on an item, done;
    * anywhere, the menu closed, the page under it not clicked *)
@@ -553,9 +574,9 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
       let m = { m with menu = None } in
       match Gui_menu.chosen menu m.mouse with Some action -> menu_action network menu action m | None -> (m, Cmd.none))
   | Click -> (
-      let m = { m with editing = false } in
+      let m = { m with omnibox = None } in
       if on_omnibox m then
-        on_current { m with editing = true; fresh = true; omnibox = current_url m } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
+        on_current { m with omnibox = Some (Gui_field.focused (current_url m)) } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
       else if near (wrench_x m -. 12.) (toolbar_y m) 24. 28. m then (toggle_panel m, Cmd.none)
       else if near (js_x m) (toolbar_y m) 22. 20. m then
         (* the site's scripts on or off, and the page loaded again *)
@@ -578,11 +599,19 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   (* claude: Ctrl held (SDL's names, or the web's), and the page zoomed;
    * the character such a key may also type is not the omnibox's *)
   | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)
-  | Key_up key -> ({ m with ctrl = m.ctrl && not (List.mem (String.lowercase_ascii key) [ "left ctrl"; "right ctrl"; "control" ]) }, Cmd.none)
-  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Option.get (Browser_zoom.key key)) m, Cmd.none)
+  | Key ("Left Shift" | "Right Shift" | "left shift" | "right shift" | "Shift") -> ({ m with shift = true }, Cmd.none)
+  | Key_up key ->
+      let up names = List.mem (String.lowercase_ascii key) names in
+      ({ m with ctrl = m.ctrl && not (up [ "left ctrl"; "right ctrl"; "control" ]); shift = m.shift && not (up [ "left shift"; "right shift"; "shift" ]) }, Cmd.none)
+  (* claude: with Shift too, the window's scale: a step of the zoom's
+   * levels, or the desktop's again (0) *)
+  | Key key when m.ctrl && m.shift && Browser_zoom.key key <> None ->
+      let scale = match Option.get (Browser_zoom.key key) with Reset -> None | change -> Some (Browser_zoom.apply change (scale_of m)) in
+      (rescreened (with_profile { m.profile with scale } m), Cmd.none)
+  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Browser_zoom.apply (Option.get (Browser_zoom.key key))) m, Cmd.none)
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
-  | Typed s when m.editing -> ({ m with omnibox = (if m.fresh then s else m.omnibox ^ s); fresh = false }, Cmd.none)
-  | Key key when m.editing -> edit_omnibox network (String.lowercase_ascii key) m
+  | Typed s when m.omnibox <> None -> ({ m with omnibox = Option.map (Gui_field.typed s) m.omnibox }, Cmd.none)
+  | Key key when m.omnibox <> None -> edit_omnibox network (String.lowercase_ascii key) (Option.get m.omnibox) m
   | Typed s when (current_tab m).focus <> None -> (
       match ((current_tab m).state, (current_tab m).focus) with
       | Shown p, Some e -> form network ~keep_focus:true (Changed (Browser_forms.typed p e s)) m
@@ -692,16 +721,17 @@ let panel (m : model) : shape list =
   @ header "Network" (x +. 160.) (m.panel = Network)
   @ body
 
-let view (m : model) : shape list =
+let view_unscaled (m : model) : shape list =
   let tab = current_tab m in
   let body = match tab.state with Shown p -> page_shapes m p | Loading _ -> [] in
   let background = match tab.state with Shown { background = Some (r, g, b); _ } -> rgb r g b | _ -> white in
-  let omnibox = if m.editing then m.omnibox ^ "_" else current_url m in
+  let editing = m.omnibox <> None in
+  let omnibox = match m.omnibox with Some field -> Gui_field.shown field | None -> current_url m in
   (* the address as Chrome shows it: the scheme and host dark, the rest
    * grey *)
   let host_end =
     match String.index_from_opt omnibox (min (String.length omnibox) (try String.index omnibox ':' + 3 with Not_found -> 0)) '/' with
-    | Some i when not m.editing -> i
+    | Some i when not editing -> i
     | _ -> String.length omnibox
   in
   (* claude: the zoom, when not 100%, left of "JS" *)
@@ -716,8 +746,7 @@ let view (m : model) : shape list =
       rectangle edge (width m) 1. |> move_y (area_top m) ]
   @ Gui_tabs.shapes (strip m) ~time:m.time
   @ Gui_toolbar.shapes (buttons m)
-  @ [ rectangle edge (omnibox_w m +. 2.) 30. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m);
-      rectangle white (omnibox_w m) 28. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m) ]
+  @ Gui_field.box ~x:(omnibox_x m) ~y:(toolbar_y m) ~w:(omnibox_w m)
   @ monospace (omnibox_x m +. 10.) (toolbar_y m) muted shown
   @ monospace (omnibox_x m +. 10.) (toolbar_y m) ink dark
   @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
@@ -731,6 +760,9 @@ let view (m : model) : shape list =
   @ bubble m
   @ (match m.menu with Some menu -> Gui_menu.shapes menu ~pointer:m.mouse | None -> [])
 
+(* claude: the window, its units made the screen's dots *)
+let view (m : model) : shape list = [ group (view_unscaled m) |> scale (scale_of m) ]
+
 (*****************************************************************************)
 (* The app *)
 (*****************************************************************************)
@@ -741,9 +773,9 @@ let view (m : model) : shape list =
  * state is kept here, after each update *)
 let unsaved : (string * Browser_profile.t) option ref = ref None
 
-let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) =
+let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) =
   {
-    Playground.init = init caps profile;
+    Playground.init = init caps profile ~desktop ~window;
     update =
       (fun msg m ->
         let m, cmd = update caps msg m in
@@ -774,11 +806,21 @@ let main = Program.main __MODULE__ (fun () ->
       (* claude: an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled. It starts
        * at the size it was last, the profile's (-size WxH, the
-       * Playground's, is stronger) *)
+       * Playground's, is stronger); the first time at 1280 by 900 of
+       * its units, more dots at the desktop's scale. scale=N is a
+       * scale chosen on the command line *)
       let profile, profile_dir = profile_of caps flags in
+      let profile =
+        match Option.bind (List.assoc_opt "scale" flags) float_of_string_opt with
+        | Some s when s >= 0.25 && s <= 5. -> { profile with scale = Some s }
+        | _ -> profile
+      in
+      let desktop = Gui_scale.desktop caps in
+      let scale = Option.value profile.scale ~default:desktop in
+      let window = Option.value profile.window ~default:(int_of_float (1280. *. scale), int_of_float (900. *. scale)) in
       (* claude: the window closed (the Playground exits), -dump-frame's
        * frame written: what changed in the last second is saved *)
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
           Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
-      Playground_platform.run_app ~screen:profile.window ~screen_follows_window:true ~flags (app caps (profile, profile_dir))))
+      Playground_platform.run_app ~screen:window ~screen_follows_window:true ~flags (app caps (profile, profile_dir) ~desktop ~window)))

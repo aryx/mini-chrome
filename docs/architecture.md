@@ -46,6 +46,26 @@ A tab (`Browser_tab.t`) is a value inside the model. It never touches a
 socket: it returns the requests it wants as messages, and the program
 holds the one `Fetch.t` that performs them and steps it on every `Tick`.
 
+## Units: the window's dots, the program's, the page's
+
+Three sizes of "one", each a multiple of the next:
+
+```
+   the screen's dots        what the window is measured in (model.window)
+     / scale                the desktop's (Gui_scale: Xft.dpi / 96), or the
+                            one chosen with Ctrl+Shift + and -
+   the program's units      the chrome is laid out in these (model.screen,
+                            model.mouse): a toolbar 42 high, letters 6 wide
+     / zoom                 the shown page's site's (Ctrl + and -)
+   the page's units         CSS's px: what the page is laid out in
+```
+
+`view` builds the picture in the program's units and scales it whole;
+the pointer and the window's size are divided on the way in. So nothing
+in the chrome or the layout knows the scale. With a scale of 2 a window
+of 2560 dots is 1280 units wide, and a page sees 1280 CSS px: what
+Chrome calls the device scale factor.
+
 ## The chrome's pieces: `libs/gui`
 
 The window's chrome is made of pieces that are not specific to a
@@ -89,9 +109,11 @@ What is in `libs/gui`, and what is still drawn in `MiniChrome.ml`:
 | The strip of tabs | `Gui_tabs` | generic over what a tab is |
 | Back, Forward, Reload, Stop | `Gui_toolbar` | a row of picture buttons |
 | A menu opened at a point | `Gui_menu` | generic over what an item is |
+| A line of text typed into | `Gui_field` | the omnibox's text and box |
+| The desktop's scale | `Gui_scale` | any window on a screen of many dots |
 | Colours, the box hit test | `Gui_kit` | shared by the pieces |
 | What the right click's menu offers | `src/chrome/Browser_menu` | a browser's |
-| The omnibox, the "JS" and zoom badges, the wrench | `MiniChrome.ml` | specific; the omnibox has no caret yet |
+| The omnibox's two-tone address, the "JS" and zoom badges, the wrench | `MiniChrome.ml` | specific to a browser |
 | The developer tools' panel | `MiniChrome.ml`, `Browser_devtools` | a browser's |
 
 ## Processes and threads
@@ -209,6 +231,7 @@ hands down only what each part needs:
    Cap.main
      |- Cap.network ................. Browser_tab -> Fetch -> Tcp, Http_request, Tls_client
      |- Cap.open_in, Cap.env ........ Browser_profile.load, .default_dir   (before the window is made)
+     |- Cap.forkew, Cap.env ......... Gui_scale.desktop: xrdb, for the desktop's scale
      '- Cap.open_out ................ Browser_profile.save                 (update's Tick, and at exit)
 ```
 
@@ -218,7 +241,7 @@ its two files (the roots, `/dev/urandom`).
 ## What is kept between runs
 
 One file, `~/.config/mini-chrome/Preferences` (JSON, `Browser_profile`):
-the window's size and each site's zoom. It is read in `main` before the
+the window's size, the scale chosen (if one was) and each site's zoom. It is read in `main` before the
 window is made, written a second after it changes and when the program
 ends. Everything else (history, the sites whose scripts run, cookies,
 which do not exist yet) lasts as long as the program.
