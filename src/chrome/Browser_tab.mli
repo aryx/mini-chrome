@@ -114,6 +114,10 @@ type 'msg config = {
 val empty : images:bool -> t
 val current_url : t -> string
 
+(* claude: the lines the tab's page (or its source) is long, of
+ * [cfg.line_height]: what a scrollbar shows the part of *)
+val line_count : 'msg config -> t -> int
+
 (* the scroll moved by [by] lines, kept within the page *)
 val scrolled : 'msg config -> int -> t -> t
 

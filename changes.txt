@@ -55,6 +55,11 @@
   Ctrl+Shift and +, -, 0 or scale=N, kept in the profile; a first
   window is 1280 by 900 of the program's units. A site's zoom multiplies
   it
+- a scrollbar at the right of a page longer than the window, over its
+  edge (Gui_scrollbar, libs/gui): its thumb dragged, its track clicked
+  above or below for a page up or down
+- the command line's words that are not flags are pages to open, a tab
+  each: mini-chrome news.ycombinator.com (an address, or words searched)
 - libs/gui: Gui_field, the omnibox's text while it is typed into (a
   fresh field replaced, Backspace) and its box
 - a right click on the page opens a menu, as Chrome's (Browser_menu):

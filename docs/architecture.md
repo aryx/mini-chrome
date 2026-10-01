@@ -110,6 +110,7 @@ What is in `libs/gui`, and what is still drawn in `MiniChrome.ml`:
 | Back, Forward, Reload, Stop | `Gui_toolbar` | a row of picture buttons |
 | A menu opened at a point | `Gui_menu` | generic over what an item is |
 | A line of text typed into | `Gui_field` | the omnibox's text and box |
+| A scrollbar | `Gui_scrollbar` | generic over the unit scrolled; the grab of a drag is the model's |
 | The desktop's scale | `Gui_scale` | any window on a screen of many dots |
 | Colours, the box hit test | `Gui_kit` | shared by the pieces |
 | What the right click's menu offers | `src/chrome/Browser_menu` | a browser's |

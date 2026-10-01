@@ -76,6 +76,26 @@ let tests =
           Alcotest.(check scale) "not a number" None (Gui_scale.of_xrdb "Xft.dpi:\tbig\n");
           Alcotest.(check scale) "not believed" None (Gui_scale.of_xrdb "Xft.dpi:\t9600\n");
           Alcotest.(check scale) "nothing" None (Gui_scale.of_xrdb ""));
+      Testo.create "Gui_scrollbar, the worked example: the thumb, a drag, the track" (fun () ->
+          let thumb = Alcotest.(option (pair number number)) in
+          let bar : Gui_scrollbar.t = { right = 500.; top = 250.; height = 600.; total = 300.; shown = 60.; offset = 120. } in
+          Alcotest.(check thumb) "120 long, from y = 10" (Some (10., 120.)) (Gui_scrollbar.thumb bar);
+          Alcotest.(check bool) "a press on the thumb, 10 under its top" true (Gui_scrollbar.at bar (494., 0.) = Some (Thumb 10.));
+          Alcotest.(check number) "dragged to -120: scrolled by 180" 180. (Gui_scrollbar.dragged bar ~grab:10. (-120.));
+          Alcotest.(check number) "dragged past the end: all the way" 240. (Gui_scrollbar.dragged bar ~grab:10. (-900.));
+          Alcotest.(check number) "past the start" 0. (Gui_scrollbar.dragged bar ~grab:10. 900.);
+          Alcotest.(check bool) "above the thumb" true (Gui_scrollbar.at bar (494., 100.) = Some Before);
+          Alcotest.(check bool) "below it" true (Gui_scrollbar.at bar (494., -200.) = Some After);
+          Alcotest.(check bool) "left of the bar" true (Gui_scrollbar.at bar (480., 0.) = None);
+          Alcotest.(check bool) "under the track" true (Gui_scrollbar.at bar (494., -360.) = None);
+          Alcotest.(check int) "drawn: its thumb" 1 (List.length (Gui_scrollbar.shapes bar ~lit:false)));
+      Testo.create "Gui_scrollbar: what fits has no bar; a long page's thumb is not too short" (fun () ->
+          let bar : Gui_scrollbar.t = { right = 500.; top = 250.; height = 600.; total = 40.; shown = 60.; offset = 0. } in
+          Alcotest.(check bool) "no thumb" true (Gui_scrollbar.thumb bar = None);
+          Alcotest.(check bool) "nothing under a point" true (Gui_scrollbar.at bar (494., 0.) = None);
+          Alcotest.(check int) "nothing drawn" 0 (List.length (Gui_scrollbar.shapes bar ~lit:true));
+          let long = { bar with total = 100000.; offset = 99940. } in
+          Alcotest.(check (option (pair number number))) "24 long, at the track's end" (Some (-326., 24.)) (Gui_scrollbar.thumb long));
       Testo.create "Gui_kit.near: a box from x, around the line y" (fun () ->
           Alcotest.(check bool) "inside" true (Gui_kit.near 10. 0. 20. 10. (15., 4.));
           Alcotest.(check bool) "left of it" false (Gui_kit.near 10. 0. 20. 10. (9., 0.));

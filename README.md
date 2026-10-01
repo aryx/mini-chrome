@@ -43,7 +43,9 @@ make
 ```
 
 Then `./bin/mini-chrome` (a symlink into `_build`, alive after a
-`make`), or `make run`: drawn by Cairo when its platform is installed,
+`make`), or `make run`; with an address, `./bin/mini-chrome
+news.ycombinator.com`, that page (several: a tab each; words that are
+not an address are searched): drawn by Cairo when its platform is installed,
 else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 (`make run-software`) is always the latter, for comparison.
 
@@ -53,6 +55,9 @@ Flags: `url=` the first page (`about:chrome`), `css=off`,
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
 (with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
 it is typed).
+
+A page longer than the window has a scrollbar at its right: drag its
+thumb, or click above or below it for a page.
 
 A right click on the page opens a menu: on a link, Open link in new
 tab; elsewhere Back, Forward, Reload; Inspect in both.
@@ -82,7 +87,8 @@ libs/gui              the chrome's pieces that know no browser, as values
                       cells (Gui_text), the tabs' strip (Gui_tabs), the
                       toolbar's buttons (Gui_toolbar), a menu opened at
                       a point (Gui_menu), a line typed into (Gui_field),
-                      the desktop's scale (Gui_scale)
+                      a scrollbar (Gui_scrollbar), the desktop's scale
+                      (Gui_scale)
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that

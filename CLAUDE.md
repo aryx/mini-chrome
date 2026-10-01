@@ -37,8 +37,11 @@ dune build @tests/css/runtest --force
 dune exec tests/css/Test.exe -- run -s specificity   # tests whose name contains it
 ```
 
-Program flags are `key=value` words on the command line
-(`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`):
+A word of the command line that is not a flag is a page to open, an
+address or words to search (`./bin/mini-chrome news.ycombinator.com`;
+several: a tab each). Program flags are `key=value` words
+(`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`;
+their names are `flag_names` in MiniChrome.ml, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`.
 
@@ -186,8 +189,8 @@ predates it.
 
 What the window's chrome is made of and that is not a browser's goes in
 `libs/gui` (`Gui_text`, `Gui_tabs`, `Gui_toolbar`, `Gui_menu`,
-`Gui_field`, the colours in `Gui_kit`, the desktop's scale in
-`Gui_scale`), as values built from the model: `shapes` for the
+`Gui_field`, `Gui_scrollbar`, the colours in `Gui_kit`, the desktop's
+scale in `Gui_scale`), as values built from the model: `shapes` for the
 view, a hit test (`at`, `chosen`) for update, no state, callback or
 message of their own. `MiniChrome.ml` builds them (`strip m`, `buttons
 m`) and decides what a hit means. A new piece of chrome goes there

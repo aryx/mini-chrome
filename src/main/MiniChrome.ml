@@ -53,6 +53,14 @@
  * laid out at the window's width divided by the zoom, and drawn
  * scaled; the zoom shows in the omnibox when not 100%.
  *
+ * claude: a page longer than the window has a **scrollbar** at its
+ * right (Gui_scrollbar), over the page's edge: its thumb dragged, its
+ * track clicked above or below for a page up or down.
+ *
+ * claude: the words of the command line that are not flags are the
+ * first pages, a tab each, as Chrome's: an address
+ * (mini-chrome news.ycombinator.com) or words to search.
+ *
  * claude: the whole window is drawn at a **scale**, a browser's device
  * scale factor: the desktop's (Gui_scale: 2 where GNOME says a screen
  * has twice the dots, and the chrome's letters of 6 could not be read),
@@ -150,6 +158,7 @@ type model = {
   window : int * int; (* claude: the window's size, in the screen's dots; [screen] is in the program's units *)
   desktop : float; (* claude: the desktop's scale (Gui_scale), when none is chosen *)
   shift : bool; (* claude: a Shift key held *)
+  grab : float option; (* claude: the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
 }
 
 and msg =
@@ -163,6 +172,7 @@ and msg =
   | Wheel of float
   | Mouse_move of float * float
   | Click
+  | Mouse_up
   | Right_click
   | Resized of int * int (* the window's new size *)
 
@@ -340,6 +350,14 @@ let zoomed (f : float -> float) (m : model) : model =
   let zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) in
   relaid_all (with_profile { m.profile with zooms } m)
 
+(* claude: the shown page's scrollbar, in lines: the page's, those the
+ * area shows, those scrolled *)
+let scrollbar (m : model) : Gui_scrollbar.t =
+  let tab = current_tab m in
+  { right = -.left m; top = area_top m; height = area_height m;
+    total = float_of_int (Browser_tab.line_count (config m m.current) tab); shown = float_of_int (visible_lines m tab);
+    offset = float_of_int tab.scroll }
+
 let visit network url m = on_current { m with omnibox = None; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
 let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
 
@@ -440,8 +458,19 @@ let profile_of (caps : < Cap.open_in ; Cap.env ; .. >) (flags : flags) : Browser
       (Browser_profile.empty, None)
   | None -> (Browser_profile.empty, None)
 
+(* claude: the first pages: url=X, and the words of the command line
+ * that are not a flag's name -- an address or words to search, as
+ * typed in the omnibox (the Playground cuts a word at its first =: put
+ * back, for an address with a query) *)
+let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale" ]
+
+let first_pages (engine : string) (flags : flags) : string list =
+  let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in
+  match Option.to_list (List.assoc_opt "url" flags) @ List.map (fun (name, value) -> typed_url engine (if value = "" then name else name ^ "=" ^ value)) words with
+  | [] -> [ home ]
+  | urls -> urls
+
 let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
-  let url = Option.value (List.assoc_opt "url" flags) ~default:home in
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
     { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.;
@@ -453,9 +482,13 @@ let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_prof
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false; grab = None }
   in
-  let m, cmd = open_tab network url m in
+  (* claude: a tab a page, the first one shown *)
+  let m, cmd =
+    List.fold_left (fun (m, cmd) url -> let m, c = open_tab network url m in (m, Cmd.batch [ cmd; c ])) (m, Cmd.none) (first_pages m.engine flags)
+  in
+  let m = { m with current = 0 } in
   (* with the elements' view open, the page's <body> shown in it *)
   let selected = match (panel, (current_tab m).state) with Elements, Shown p -> List.nth_opt (Dom.find_all "body" p.tree) 0 | _ -> None in
   ({ m with selected }, cmd)
@@ -551,7 +584,13 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
   (* claude: the pointer, from the window's dots to the program's units *)
-  | Mouse_move (x, y) -> ({ m with mouse = (x /. scale_of m, y /. scale_of m) }, Cmd.none)
+  | Mouse_move (x, y) -> (
+      let m = { m with mouse = (x /. scale_of m, y /. scale_of m) } in
+      (* claude: the scrollbar's thumb held: the page follows the pointer *)
+      match m.grab with
+      | Some grab -> (scrolled (int_of_float (Float.round (Gui_scrollbar.dragged (scrollbar m) ~grab (snd m.mouse))) - (current_tab m).scroll) m, Cmd.none)
+      | None -> (m, Cmd.none))
+  | Mouse_up -> ({ m with grab = None }, Cmd.none)
   (* claude: the window's size changed (not the first time, when it is
    * told the size it started at): kept in the profile, and every tab's
    * page laid out again at its new width *)
@@ -573,6 +612,15 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
       let menu = Option.get m.menu in
       let m = { m with menu = None } in
       match Gui_menu.chosen menu m.mouse with Some action -> menu_action network menu action m | None -> (m, Cmd.none))
+  (* claude: a press on the scrollbar: its thumb held until the button
+   * is let go, or a page up or down *)
+  | Click when Gui_scrollbar.at (scrollbar m) m.mouse <> None -> (
+      let m = { m with omnibox = None } in
+      match Gui_scrollbar.at (scrollbar m) m.mouse with
+      | Some (Thumb grab) -> ({ m with grab = Some grab }, Cmd.none)
+      | Some Before -> (scrolled (pages m (-1)) m, Cmd.none)
+      | Some After -> (scrolled (pages m 1) m, Cmd.none)
+      | None -> (m, Cmd.none))
   | Click -> (
       let m = { m with omnibox = None } in
       if on_omnibox m then
@@ -740,6 +788,7 @@ let view_unscaled (m : model) : shape list =
   let dark = String.sub shown 0 (min (String.length shown) host_end) in
   [ rectangle background (width m) (height m) ]
   @ body
+  @ Gui_scrollbar.shapes (scrollbar m) ~lit:(m.grab <> None || Gui_scrollbar.at (scrollbar m) m.mouse <> None)
   (* the chrome over what overflows *)
   @ [ rectangle frame (width m) 44. |> move_y (top m -. 22.);
       rectangle toolbar (width m) 42. |> move_y (area_top m +. 21.);
@@ -787,7 +836,7 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
         Sub.batch
           [ Sub.on_animation_frame (fun t -> Tick t); Sub.on_key_down (fun key -> Key key); Sub.on_key_up (fun key -> Key_up key);
             Sub.on_typed (fun s -> Typed s); Sub.on_mouse_wheel (fun n -> Wheel n);
-            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click); Sub.on_right_mouse_down (fun () -> Right_click);
+            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click); Sub.on_mouse_up (fun () -> Mouse_up); Sub.on_right_mouse_down (fun () -> Right_click);
             Sub.on_resize (fun w h -> Resized (w, h)) ]);
   }
 
