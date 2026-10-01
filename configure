@@ -123,14 +123,14 @@ echo ""
 # elm-playground's packages
 ###############################################################################
 # mini-chrome stands on elm-playground's packages (tiny_libs, the
-# Playground and its native platforms), 0.3.0 or later. Until 0.3.0 is
+# Playground and its native platforms), 0.3.1 or later. Until 0.3.1 is
 # on opam, they are pinned from the tag: opam builds them from
 # elm-playground's sources. Not when opam already knows them (from
 # opam-repository, or a 'make install' in an elm-playground checkout,
 # the way to work on both at once: see README.md).
 # coupling: the (depends ...) and (depopts ...) of dune-project
 
-ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#0.3.0
+ELM_PLAYGROUND=git+https://github.com/aryx/ocaml-elm-playground#0.3.1
 # what mini-chrome uses (its own languages/ replace tiny_languages')
 PACKAGES="tiny_libs elm_playground elm_playground_software"
 [ "$software" -eq 1 ] || PACKAGES="$PACKAGES elm_playground_native"
@@ -174,7 +174,7 @@ if [ "$outside_opam" -eq 1 ]; then
     # mini-chrome.opam: the other dependencies are installed by name
     # (theirs came with them)
     # coupling: the (depends ...) of dune-project
-    opam install --confirm-level=unsafe-yes -y caps testo alcotest
+    opam install --confirm-level=unsafe-yes -y caps testo alcotest conf-openssl
 else
     # --with-test for what 'make test' needs (testo, alcotest)
     opam install --confirm-level=unsafe-yes --deps-only --with-test -y ./mini-chrome.opam

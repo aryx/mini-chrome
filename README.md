@@ -17,7 +17,7 @@ towards the web as it is (Wikipedia first, YouTube one day).
 
 ## Building
 
-It stands on elm-playground's packages, 0.3.0 or later: the Playground
+It stands on elm-playground's packages, 0.3.1 or later: the Playground
 for its window and drawing, on one of its two native platforms (SDL
 for the window either way, and Cairo, `elm_playground_native`, or the
 Playground's own rasterizer, `elm_playground_software`), and

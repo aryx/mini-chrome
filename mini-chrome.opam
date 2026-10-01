@@ -17,11 +17,12 @@ depends: [
   "dune" {>= "3.0"}
   "ocaml" {>= "4.14.0"}
   "caps" {>= "0.1.0"}
-  "tiny_libs" {>= "0.3.0"}
-  "elm_playground" {>= "0.3.0"}
-  "elm_playground_software" {>= "0.3.0"}
+  "tiny_libs" {>= "0.3.1"}
+  "elm_playground" {>= "0.3.1"}
+  "elm_playground_software" {>= "0.3.1"}
   "testo" {with-test}
   "alcotest" {with-test}
+  "conf-openssl" {with-test}
   "odoc" {with-doc}
 ]
 depopts: ["elm_playground_native"]

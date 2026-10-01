@@ -38,20 +38,20 @@
 - the window resized (dragged, full screen, -size WxH): the page laid
   out again at its width, the chrome placed from the window's edges,
   instead of a 1000 by 1000 picture scaled with black bars (both
-  programs, over the Playground's run_app ~screen_follows_window, after
-  0.3.0); the window starts at 1280 by 900
+  programs, over the Playground's run_app ~screen_follows_window, of
+  0.3.1); the window starts at 1280 by 900
 
 ** Bug fixes
 - the wheel scrolled the wrong way
 
 ** build infra
 - one opam package, mini-chrome, standing on elm-playground's packages
-  (0.3.0): the Playground for its window and drawing
+  (0.3.1): the Playground for its window and drawing
   (elm_playground, elm_playground_native: SDL and Cairo), tiny_libs for
   the pictures, sound and video decoders
 - ./configure (after elm-playground's): checks for SDL2 and Cairo,
   finds elm-playground's packages (from opam, or a 'make install' in an
-  elm-playground checkout, or else pinned from the 0.3.0 tag)
+  elm-playground checkout, or else pinned from the 0.3.1 tag)
 - no Cairo needed: two programs, mini-chrome (Cairo's platform when
   installed, else the Playground's own rasterizer, by dune's select)
   and mini-chrome-software (always the rasterizer); ./configure

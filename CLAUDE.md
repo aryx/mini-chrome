@@ -7,10 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A web browser written from scratch in OCaml (HTML, CSS, a JavaScript
 engine, its own HTTP/1.1 and TLS 1.3), forked from
 [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
-TinyChrome. It still stands on elm-playground's opam packages (0.3.0+):
+TinyChrome. It still stands on elm-playground's opam packages (0.3.1+):
 `elm_playground` (the Elm-architecture runtime, window and drawing) and
 `tiny_libs` (picture/sound/video decoders, cryptography, Hershey fonts).
-The only C is SDL (and Cairo, optionally).
+The only C is SDL (and Cairo, optionally). `docs/history.md` says how
+it came to be, the decisions taken on the way, and what was next.
 
 ## Commands
 
@@ -37,9 +38,31 @@ Program flags are `key=value` words on the command line
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`.
 
+The Playground's own flags start with a dash, and make a change
+checkable without a screen: `-dump-frame n file.png` writes the nth
+frame and exits, `-size WxH` sets the window's size, `-script
+"space:3"` presses a key at a frame (here a page down). With SDL's
+dummy drivers, no display is needed:
+
+```bash
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+  ./bin/mini-chrome -size 1400x800 -dump-frame 5 /tmp/page.png url=about:tube panel=elements
+```
+
+Read the PNG to see the page. Two such dumps, before and after a
+change that should not move a pixel, compared with `cmp`, are the
+cheapest regression test of the chrome. What a dump cannot check is
+what needs a hand: dragging the window, the wheel, clicks.
+
 When a change is needed in elm-playground itself (sibling checkout
 `../ocaml-elm-playground`), mini-chrome only sees it after
-`(cd ../ocaml-elm-playground && make && make install)`.
+`(cd ../ocaml-elm-playground && make && make install)`. That changes
+the user's opam switch: ask first. To try a Playground change without
+touching the switch, install a copy into a scratch prefix (`dune build
+-p tiny_libs,tiny_languages,tiny_appkits,elm_playground,elm_playground_software,elm_playground_native
+@install`, then `dune install --prefix DIR` the same packages) and build
+here with `OCAMLPATH=DIR/lib`. A change to the Playground's interface or
+platforms is presented as a plan and agreed on before it is made.
 
 ## Architecture
 
@@ -83,6 +106,16 @@ Scripts run only on the built-in pages and on allow-listed hosts
 Playground (`init`/`update`/`view`/`subscriptions`, a `model` and a
 `msg`): the window's chrome, the omnibox, the panels, and a list of
 tabs.
+
+The program's screen is the window itself (`run_app
+~screen_follows_window:true`), not the Playground's usual 1000 by 1000
+picture scaled to fit: the model keeps the window's size (`screen`,
+from `Sub.on_resize`), the origin is the window's centre with y up, and
+every position is a function of the model anchored to an edge (`top m`,
+`left m`, `toolbar_y m`, `omnibox_w m`, ...). So no literal 500 or 1000
+in the view or the hit tests. A `Resized` lays every tab's page out
+again at the new width (`Browser_tab.relaid`). A positive wheel notch
+scrolls the page up.
 
 A `Browser_tab.t` never touches a socket. It is parameterized by a
 `'msg config` and asks for what it needs by returning a

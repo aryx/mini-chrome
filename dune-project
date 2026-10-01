@@ -36,12 +36,17 @@
   (depends
     (ocaml (>= "4.14.0"))
     (caps (>= "0.1.0"))
-    (tiny_libs (>= "0.3.0"))
-    (elm_playground (>= "0.3.0"))
+    ; claude: 0.3.1, the first with run_app ~screen_follows_window (the
+    ; window resized, the page laid out again at its width)
+    (tiny_libs (>= "0.3.1"))
+    (elm_playground (>= "0.3.1"))
     ; claude: the software platform, SDL only: mini-chrome-software
-    (elm_playground_software (>= "0.3.0"))
+    (elm_playground_software (>= "0.3.1"))
     (testo :with-test)
     (alcotest :with-test)
+    ; claude: the openssl program, the server tests/network_unix's TLS
+    ; tests talk to
+    (conf-openssl :with-test)
   )
   ; claude: the native platform, SDL and Cairo: mini-chrome, built when
   ; it is installed (src/main/dune's (optional))

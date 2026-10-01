@@ -24,7 +24,7 @@ RUN apt-get install -y pkg-config libsdl2-dev libcairo2-dev
 WORKDIR /src
 
 # Install dependencies (copy minimal files for Docker layer caching):
-# ./configure pins elm-playground's packages while 0.3.0 is not on opam
+# ./configure pins elm-playground's packages while 0.3.1 is not on opam
 COPY configure mini-chrome.opam ./
 RUN eval $(opam env) && ./configure
 
