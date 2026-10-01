@@ -50,7 +50,9 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
 `profile=DIR` or `profile=off`. With `-v` the terminal shows each
-file and URL opened (`-debug` more, `-quiet` nothing).
+file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
+(with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
+it is typed).
 
 A right click on the page opens a menu: on a link, Open link in new
 tab; elsewhere Back, Forward, Reload; Inspect in both.

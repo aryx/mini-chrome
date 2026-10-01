@@ -59,6 +59,11 @@ the TLS roots, every request and its answer). New code that opens a
 file or a URL says so with `Logs.info`; a thread of `Worker`'s pool
 may log too (the reporter has a mutex, set in MiniChrome's `main`).
 
+Ctrl+Q quits: the Playground's key (its `run_app ~platform_keys:false`
+would give the program every key; not used here). That is
+elm-playground after 0.3.1; in 0.3.1 it was a plain `q`, which no
+program could then receive.
+
 The others make a change checkable without a screen: `-dump-frame n file.png` writes the nth
 frame and exits, `-size WxH` sets the window's size, `-script
 "space:3"` presses a key at a frame (here a page down). With SDL's

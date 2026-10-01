@@ -78,6 +78,11 @@
 
 ** Bug fixes
 - the wheel scrolled the wrong way
+- a q typed anywhere (the omnibox, a page's field) quit the browser:
+  the Playground's key, on every native program. Fixed in
+  elm-playground after 0.3.1, where the platform's keys are Ctrl + a
+  key: Ctrl+Q quits here too (nothing changed in this repository; with
+  0.3.1 installed, q still quits)
 - the program ended (Cairo's INVALID_MATRIX) on a picture drawn with no
   width or no height: Hacker News' comment pages, which indent with
   <img src="s.gif" width=0>; a player squeezed to nothing
