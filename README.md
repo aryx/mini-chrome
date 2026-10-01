@@ -121,7 +121,8 @@ tests/                html, css, js, layout, browser, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
                       threads next to Chrome's); history.md: how it came
-                      to be
+                      to be; notes_debugging_techniques.txt: how a
+                      page that looks wrong was looked into
 data/about/           the built-in site's pages, sheets, scripts, pictures
 data/tube/            about:tube's two clips made elsewhere (ffmpeg, LAME)
 ```

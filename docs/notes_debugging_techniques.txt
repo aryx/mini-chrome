@@ -1,0 +1,99 @@
+Debugging a page that looks wrong
+================================
+
+This file is about the *technique*, not the specific bugs (see git log
+and the "claude:" comments in the source for those). Kept so the
+approach can be reused the next time a page does not look as it does
+in Chrome. A session adds a section; the first is below.
+
+
+Session 1 (2026-10-01): "a missing <h1> on example.com"
+--------------------------------------------------------
+
+docs/history.md listed it as the first bug to fix. It was not one: the
+page has no <h1>. What follows is how that was found in four commands,
+and what the page showed instead.
+
+1. Read the bytes before the code
+---------------------------------
+What is missing on the screen may be missing in the page. Before
+opening Html_tree or Box_layout:
+
+  curl -s https://example.com
+  curl -s https://example.com | grep -c '<h1'      # 0
+
+example.com was rewritten (Last-Modified: 28 Sep 2026, from `curl -s
+-D- -o /dev/null`): its <body> is now a <p>, an <a> and a <script
+src=/s.js>, with "Example Domain" only in the <title>. The heading
+"missing" was the one remembered from the page of the years before.
+
+Then check that the browser got the same bytes, with -v:
+
+  ./bin/mini-chrome -v ... url=https://example.com
+  mini-chrome: [INFO] 200 https://example.com (713 bytes)
+
+and `curl -s https://example.com | wc -c` says 713 too. A server may
+answer another page to another User-Agent (ours is "elm_playground"):
+`curl -A elm_playground` rules that out.
+
+2. See the page without a screen
+--------------------------------
+  SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+    ./bin/mini-chrome -size 1400x800 -dump-frame 120 /tmp/page.png \
+    url=https://example.com profile=off
+
+then Read the PNG. Two things to know:
+
+- The frame's number must be late enough for the answer to be there.
+  CLAUDE.md's example dumps frame 5 of about:tube, a built-in page; an
+  https:// page fetched on a Worker thread is not there at frame 5, and
+  the dump is a blank page that looks like a bug. 120 was enough here;
+  -v shows whether the "200" line came before "quitting".
+- Wrap it in `timeout 60`: a -dump-frame that never comes (a typo in
+  the flags) leaves a program running with no window to close.
+
+3. Try the suspected page from localhost
+----------------------------------------
+To know whether an <h1> is drawn at all, give the browser the page
+that had one. http:// to localhost needs no TLS and no Internet:
+
+  mkdir /tmp/www && cat > /tmp/www/old.html     # the page, pasted
+  (cd /tmp/www && python3 -m http.server 8765 &)
+  ./bin/mini-chrome ... -dump-frame 60 /tmp/old.png \
+    url=http://localhost:8765/old.html profile=off
+  pkill -f 'http.server 8765'
+
+The older example.com (a <div> with an <h1>, a <p> and a link) drew
+its heading, bold and larger. So: the tree builder, the cascade and
+the layout were never at fault. The same trick cuts a large page down:
+save it, delete half, look again.
+
+4. Then compare with Chrome, rule by rule
+-----------------------------------------
+With the bytes known, read the page's own <style> and ask of each
+declaration whether we honour it. On example.com's one rule that gave
+the real differences, none of them about a heading:
+
+- `background: light-dark(#eee, #222)`: the function is not known, the
+  declaration is dropped, the page is white instead of grey.
+- `min-height: 100vh`: a scrollbar on a page of five lines. The
+  viewport's height is the constant 768 (Browser_page.viewport_height),
+  not the window's, so 100vh is taller than the page's part of a window
+  800 high.
+- `display: grid; place-content: center`: laid out as a block, so the
+  text is not centred down the window (the grid of history.md's list).
+- `<script src=/s.js>`: not run (the host is not in default_allowed),
+  and it is ES2015 (arrows, a spread, a /u regexp) for an ES5 engine.
+  In Chrome it adds a picture above the text and five translations.
+
+A dump with a scrollbar where Chrome has none, or a background of the
+wrong colour, is worth the question "which declaration?" before "which
+module?".
+
+Lessons
+-------
+- A bug in a list is a claim: reproduce it, and read the page's
+  source, before reading ours.
+- Real sites change. A check against one (history.md's "example.com
+  rendered pixel for pixel") is true of the day it was made; a page
+  that must stay the same belongs in data/ or in a test's string.
