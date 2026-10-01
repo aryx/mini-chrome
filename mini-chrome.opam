@@ -17,6 +17,7 @@ depends: [
   "dune" {>= "3.0"}
   "ocaml" {>= "4.14.0"}
   "caps" {>= "0.1.0"}
+  "logs"
   "tiny_libs" {>= "0.3.1"}
   "elm_playground" {>= "0.3.1"}
   "elm_playground_software" {>= "0.3.1"}

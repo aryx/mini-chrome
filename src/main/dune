@@ -15,7 +15,8 @@
  (public_name mini-chrome)
  (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
  (libraries
-   caps ; the authority to reach the network
+   caps ; the authority to reach the network, and the profile's files
+   logs ; a profile that cannot be read, said
    tiny_libs.core network
    lang_html lang_css browser_layout
    browser_url browser_display browser_www browser_viewers browser_about browser_chrome

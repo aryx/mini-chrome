@@ -53,6 +53,12 @@
  * laid out at the window's width divided by the zoom, and drawn
  * scaled; the zoom shows in the omnibox when not 100%.
  *
+ * claude: the **profile** (Browser_profile) is what is kept from one
+ * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the sites' zooms, read at
+ * the start and written when one changes. It is the one place the
+ * program touches the file system, with Cap.open_in and Cap.open_out
+ * from Cap.main, as it reaches the network with Cap.network.
+ *
  * The **developer tools** (F12, or the wrench), after Chrome's Web
  * Inspector: Elements -- click Inspect, then an element of the page:
  * its place in the tree, its box (outlined on the page), its children,
@@ -66,7 +72,8 @@
  * flags url= (about:chrome), the first page; css=off, the browser's
  * own sheet alone (what a page looks like unstyled); panel=elements or
  * panel=network, the tools open; search=duckduckgo, the omnibox's
- * engine (wikipedia).
+ * engine (wikipedia); profile=DIR, the profile's directory, or
+ * profile=off, nothing read nor kept.
  *
  * Uses: appkit_browser (the tab, the page, Browser_boxes,
  * Browser_devtools, the forms), the web engine (Cascade, Computed, Box_layout,
@@ -119,7 +126,8 @@ type model = {
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
   screen : float * float; (* claude: the window's size, the page's width *)
   ctrl : bool; (* claude: a Ctrl key held *)
-  zooms : Browser_zoom.t; (* claude: the sites zoomed *)
+  profile : Browser_profile.t; (* claude: what is kept between runs: the sites zoomed *)
+  profile_dir : string option; (* claude: where it is saved; None, it is not *)
 }
 
 and msg =
@@ -197,7 +205,7 @@ let host_of (url : string) : string =
   | _ -> ""
 
 (* claude: a tab's zoom, its site's *)
-let zoom_of (m : model) (tab : Browser_tab.t) : float = Browser_zoom.of_host m.zooms (host_of (Browser_tab.current_url tab))
+let zoom_of (m : model) (tab : Browser_tab.t) : float = Browser_zoom.of_host m.profile.zooms (host_of (Browser_tab.current_url tab))
 
 (* claude: the lines of the page that the area shows *)
 let visible_lines (m : model) (tab : Browser_tab.t) : int = int_of_float (area_height m /. (line_height *. zoom_of m tab))
@@ -280,9 +288,12 @@ let relaid_all (m : model) : model =
   in
   { m with tabs = List.map relaid m.tabs }
 
-(* claude: the shown page's site at the zoom [f] gives from its own *)
-let zoomed (f : float -> float) (m : model) : model =
-  relaid_all { m with zooms = Browser_zoom.with_host m.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) }
+(* claude: the shown page's site at the zoom [f] gives from its own,
+ * and the profile saved (if it cannot be, the zoom is this run's) *)
+let zoomed (caps : < Cap.open_out ; .. >) (f : float -> float) (m : model) : model =
+  let profile : Browser_profile.t = { zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) } in
+  if profile <> m.profile then Option.iter (fun dir -> ignore (Browser_profile.save caps ~dir profile)) m.profile_dir;
+  relaid_all { m with profile }
 
 let visit network url m = on_current { m with editing = false; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
 let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
@@ -380,7 +391,19 @@ let panel_button (m : model) : string option =
 (* Update *)
 (*****************************************************************************)
 
-let init (network : < Cap.network ; .. >) (flags : flags) : model * msg Cmd.t =
+let init (caps : < Cap.network ; Cap.open_in ; Cap.env ; .. >) (flags : flags) : model * msg Cmd.t =
+  let network = (caps :> < Cap.network >) in
+  let profile_dir = match List.assoc_opt "profile" flags with Some "off" -> None | Some dir -> Some dir | None -> Browser_profile.default_dir caps in
+  (* a profile that cannot be read (not JSON: fixed by hand, a brace
+   * lost) is left as it is, not written over: this run keeps nothing *)
+  let profile, profile_dir =
+    match Option.map (fun dir -> Browser_profile.load caps ~dir) profile_dir with
+    | Some (Ok p) -> (p, profile_dir)
+    | Some (Error why) ->
+        Logs.warn (fun m -> m "the profile is not used, nor saved to: %s" why);
+        (Browser_profile.empty, None)
+    | None -> (Browser_profile.empty, None)
+  in
   let url = Option.value (List.assoc_opt "url" flags) ~default:home in
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
@@ -393,7 +416,7 @@ let init (network : < Cap.network ; .. >) (flags : flags) : model * msg Cmd.t =
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; zooms = Browser_zoom.empty }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -453,7 +476,8 @@ let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) -
 
 let toggle_panel (m : model) : model = { m with panel = (if m.panel = Closed then Elements else Closed); inspecting = false }
 
-let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+  let network = (caps :> < Cap.network >) in
   Browser_media.install ();
   match msg with
   | Got (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
@@ -473,7 +497,7 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
    * meaning): the page goes up, so its scroll down the page decreases.
    * The system's natural scrolling, where it is the driver's (X11,
    * libinput), is in the notches already *)
-  | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
+  | Wheel notches when m.ctrl -> (zoomed caps (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
   | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
   (* claude: the window's size changed: every tab's page laid out again
@@ -508,7 +532,7 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
    * the character such a key may also type is not the omnibox's *)
   | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)
   | Key_up key -> ({ m with ctrl = m.ctrl && not (List.mem (String.lowercase_ascii key) [ "left ctrl"; "right ctrl"; "control" ]) }, Cmd.none)
-  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Option.get (Browser_zoom.key key)) m, Cmd.none)
+  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed caps (Option.get (Browser_zoom.key key)) m, Cmd.none)
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
   | Typed s when m.editing -> ({ m with omnibox = (if m.fresh then s else m.omnibox ^ s); fresh = false }, Cmd.none)
   | Key key when m.editing -> edit_omnibox network (String.lowercase_ascii key) m
@@ -707,10 +731,10 @@ let view (m : model) : shape list =
 (* The app *)
 (*****************************************************************************)
 
-let app (network : < Cap.network ; .. >) =
+let app (caps : < Cap.network ; Cap.open_in ; Cap.open_out ; Cap.env ; .. >) =
   {
-    Playground.init = init network;
-    update = update network;
+    Playground.init = init caps;
+    update = update caps;
     view;
     subscriptions =
       (fun _ ->

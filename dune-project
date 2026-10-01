@@ -36,6 +36,8 @@
   (depends
     (ocaml (>= "4.14.0"))
     (caps (>= "0.1.0"))
+    ; claude: a warning at the start (a profile that cannot be read)
+    logs
     ; claude: 0.3.1, the first with run_app ~screen_follows_window (the
     ; window resized, the page laid out again at its width)
     (tiny_libs (>= "0.3.1"))

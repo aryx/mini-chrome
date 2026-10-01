@@ -8,5 +8,9 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
+(* the profile's tests read and write files (a temporary directory):
+ * the capability from here *)
 let () =
-  Testo.interpret_argv ~project_name:"browser" (fun _env -> List.concat [ Unit_browser.tests; Unit_browser_script.tests; Unit_browser_zoom.tests ])
+  Cap.main (fun caps ->
+      Testo.interpret_argv ~project_name:"browser" (fun _env ->
+          List.concat [ Unit_browser.tests; Unit_browser_script.tests; Unit_browser_zoom.tests; Unit_browser_profile.tests caps ]))

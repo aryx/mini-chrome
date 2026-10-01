@@ -36,7 +36,14 @@ dune exec tests/css/Test.exe -- run -s specificity   # tests whose name contains
 Program flags are `key=value` words on the command line
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
-`scripts=off|host1,host2`, `threads=off`.
+`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`.
+
+The profile (`Browser_profile`: each site's zoom, for now) is
+`~/.config/mini-chrome/Preferences`, JSON, read at the start and
+written whole when a zoom changes. `profile=off` neither reads nor
+writes it; `profile=DIR` uses another directory. A `Preferences` that
+is not JSON is reported (a warning) and left alone: that run saves
+nothing.
 
 The Playground's own flags start with a dash, and make a change
 checkable without a screen: `-dump-frame n file.png` writes the nth
@@ -46,13 +53,19 @@ dummy drivers, no display is needed:
 
 ```bash
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
-  ./bin/mini-chrome -size 1400x800 -dump-frame 5 /tmp/page.png url=about:tube panel=elements
+  ./bin/mini-chrome -size 1400x800 -dump-frame 5 /tmp/page.png url=about:tube panel=elements profile=off
 ```
+
+`profile=off` so the dump does not depend on the zooms saved in the
+user's profile, and a `-script` that zooms does not change them. The
+file comes right after `-dump-frame n`: another flag put between the
+two is taken as the file's name.
 
 Read the PNG to see the page. Two such dumps, before and after a
 change that should not move a pixel, compared with `cmp`, are the
 cheapest regression test of the chrome. What a dump cannot check is
-what needs a hand: dragging the window, the wheel, clicks.
+what needs a hand: dragging the window and the wheel (`-script` does
+keys, `"left ctrl:2-9,=:3"` a Ctrl and +, and clicks, `at(x;y):8-20,click:10`).
 
 When a change is needed in elm-playground itself (sibling checkout
 `../ocaml-elm-playground`), mini-chrome only sees it after
@@ -67,7 +80,7 @@ platforms is presented as a plan and agreed on before it is made.
 ## Architecture
 
 Each folder is one dune library, listed in the README in dependency
-order: `languages/` (html, css, javascript) → `libs/` (richtext,
+order: `languages/` (html, css, javascript, json) → `libs/` (richtext,
 typeset, network) → `src/` (url, layout, display, www, viewers, about,
 chrome, main). `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the
@@ -130,7 +143,13 @@ each style sheet, script and picture arrives.
 
 Every function that opens a socket takes a `Cap.network` capability,
 threaded from `Cap.main` in MiniChrome.ml through `Browser_tab` and
-`Fetch`.
+`Fetch`. Files are the same: `Browser_profile` takes `Cap.open_in` to
+read, `Cap.open_out` to write, `Cap.env` to find the directory, and
+asks the object for the path (`caps#open_in path`) before opening it.
+`init` and `update` get the capabilities they need and narrow them to
+`< Cap.network >` for the tabs. New code touching a file or the
+environment follows this; `Tls_client` (the roots' file, /dev/urandom)
+predates it.
 
 ### Build wiring worth knowing
 
@@ -178,3 +197,8 @@ threaded from `Cap.main` in MiniChrome.ml through `Browser_tab` and
 - `libs/network` is a copy of elm-playground's networking meant to
   diverge here (cookies, compression, keep-alive); the cryptography
   stays `tiny_libs.crypto`.
+- `tiny_languages` cannot be linked here: its libraries stand on its
+  own JavaScript, whose unwrapped modules (`Js_ast`, `Js_lexer`, ...)
+  have the names of ours. What is needed from it is copied
+  (`languages/json` is its `Json`, plus a printer); its `Jsonnet` would
+  be too, for a configuration written by hand.

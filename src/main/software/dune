@@ -9,7 +9,7 @@
  (public_name mini-chrome-software)
  (flags (:standard -open Network)) ; as ../dune's
  (libraries
-   caps
+   caps logs
    tiny_libs.core network
    lang_html lang_css browser_layout
    browser_url browser_display browser_www browser_viewers browser_about browser_chrome

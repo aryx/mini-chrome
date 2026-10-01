@@ -48,7 +48,12 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 (`make run-software`) is always the latter, for comparison.
 
 Flags: `url=` the first page (`about:chrome`), `css=off`,
-`panel=elements` or `panel=network`, `search=duckduckgo`.
+`panel=elements` or `panel=network`, `search=duckduckgo`,
+`profile=DIR` or `profile=off`.
+
+Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
+100%; each site keeps its zoom, saved in the profile
+(`~/.config/mini-chrome/Preferences`, JSON).
 
 ## Layout
 
@@ -60,6 +65,7 @@ library, in the order they depend on each other:
 languages/html        HTML read: bytes to text, tokens, the tree (Dom)
 languages/css         style sheets read and cascaded, computed styles
 languages/javascript  a small JavaScript
+languages/json        JSON read and written, over JavaScript's lexer
 libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that

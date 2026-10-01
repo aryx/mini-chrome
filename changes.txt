@@ -44,7 +44,16 @@
   and the wheel, Ctrl and 0 back to 100%, by Chrome's steps (25% to
   500%); the whole page, laid out at the window's width divided by the
   zoom and drawn scaled; a zoom is its site's (every page and tab of
-  that host) and shows in the omnibox; kept while the program runs
+  that host) and shows in the omnibox
+- the profile (Browser_profile), what is kept from one run to the
+  next: ~/.config/mini-chrome/Preferences, JSON as Chrome's, for now
+  each site's zoom; profile=DIR for another directory, profile=off for
+  none; a file that is not JSON is reported and left alone.
+  The first files the program reads and writes, by Cap.open_in and
+  Cap.open_out (and Cap.env for the directory) handed down from
+  Cap.main, as Cap.network is for sockets
+- languages/json: JSON read (elm-playground's Json, over our
+  JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
 - the wheel scrolled the wrong way

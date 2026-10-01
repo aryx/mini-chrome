@@ -1,10 +1,11 @@
 ; claude: unit tests for the browser's own libraries, run by 'make
 ; test' (dune runtest): the history's worked example, URLs resolved, a
-; form's query, and the DOM the scripts see (Unit_browser_script)
+; form's query, the DOM the scripts see (Unit_browser_script), the
+; zoom's levels, the profile's file
 (test
  (name Test)
  (libraries
-   alcotest testo
+   unix caps alcotest testo
    lang_html javascript browser_layout
    browser_url browser_www browser_chrome
    elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

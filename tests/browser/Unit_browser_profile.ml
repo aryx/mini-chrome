@@ -1,0 +1,63 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Unit_browser_profile.mli *)
+
+let example : Browser_profile.t = { zooms = [ ("news.ycombinator.com", 1.5); ("en.wikipedia.org", 0.9); ("", 1.25) ] }
+
+let text = {|{
+  "zoom": {
+    "news.ycombinator.com": 1.5,
+    "en.wikipedia.org": 0.9,
+    "": 1.25
+  }
+}
+|}
+
+let zooms = Alcotest.(result (list (pair string (float 0.0001))) string)
+let read (s : string) = Result.map (fun (p : Browser_profile.t) -> p.zooms) (Browser_profile.of_string s)
+
+let tests (caps : < Cap.open_in ; Cap.open_out ; Cap.env ; .. >) =
+  let loaded dir = Result.map (fun (p : Browser_profile.t) -> p.zooms) (Browser_profile.load caps ~dir) in
+  Testo.categorize "Browser_profile"
+    [
+      Testo.create "the worked example: the file's text, and back" (fun () ->
+          Alcotest.(check string) "written" text (Browser_profile.to_string example);
+          Alcotest.(check zooms) "read" (Ok example.zooms) (read text));
+      Testo.create "what is not understood is skipped; not JSON is an error" (fun () ->
+          Alcotest.(check zooms) "y.org alone" (Ok [ ("y.org", 2.) ])
+            (read {|{ "cookies": true, // a newer version's
+                      "zoom": { "a.org": "big", "b.org": 0, "c.org": 9, "d.org": 1, "y.org": 2, }, }|});
+          Alcotest.(check zooms) "no zoom" (Ok []) (read "{}");
+          Alcotest.(check zooms) "zoom not an object" (Ok []) (read {|{ "zoom": 2 }|});
+          Alcotest.(check bool) "a brace lost" true (Result.is_error (read {|{ "zoom": { "y.org": 2 }|}));
+          Alcotest.(check bool) "an empty file" true (Result.is_error (read "")));
+      Testo.create "saved to a new directory, loaded again; a broken one left alone" (fun () ->
+          let dir = Filename.concat (Filename.concat (Filename.get_temp_dir_name ()) (Printf.sprintf "mini-chrome-test-%d" (Unix.getpid ()))) "profile" in
+          let file = Filename.concat dir "Preferences" in
+          Alcotest.(check zooms) "no Preferences yet" (Ok []) (loaded dir);
+          Alcotest.(check (result unit string)) "saved" (Ok ()) (Browser_profile.save caps ~dir example);
+          Alcotest.(check zooms) "loaded" (Ok example.zooms) (loaded dir);
+          Alcotest.(check (result unit string)) "saved over" (Ok ()) (Browser_profile.save caps ~dir Browser_profile.empty);
+          Alcotest.(check zooms) "loaded: none" (Ok []) (loaded dir);
+          Alcotest.(check bool) "no Preferences.tmp left" false (Sys.file_exists (file ^ ".tmp"));
+          Out_channel.with_open_bin file (fun oc -> Out_channel.output_string oc "{ \"zoom\": {\n");
+          Alcotest.(check (result (list (pair string (float 0.0001))) string))
+            "broken: the file and the line" (Error (file ^ ": line 2: unexpected end of the text")) (loaded dir);
+          Sys.remove file;
+          Sys.rmdir dir;
+          Sys.rmdir (Filename.dirname dir));
+      Testo.create "a directory that cannot be made: an error, not an exception" (fun () ->
+          Alcotest.(check bool) "Error" true (Result.is_error (Browser_profile.save caps ~dir:"/dev/null/profile" example)));
+      Testo.create "the directory: mini-chrome, in the environment's configuration directory" (fun () ->
+          match Browser_profile.default_dir caps with
+          | Some dir -> Alcotest.(check string) "mini-chrome" "mini-chrome" (Filename.basename dir)
+          | None -> Alcotest.(check bool) "no HOME" true (Sys.getenv_opt "HOME" = None));
+    ]
