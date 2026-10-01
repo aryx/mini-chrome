@@ -1,11 +1,16 @@
 (* Browser_profile: what the browser remembers from one run to the
  * next, as Chrome's profile (its "user data directory",
- * ~/.config/google-chrome): for now each site's zoom (Browser_zoom).
+ * ~/.config/google-chrome): for now the window's size and each site's
+ * zoom (Browser_zoom).
  *
  * One file, Preferences, in the profile's directory, JSON as Chrome's
  * (which keeps its zooms under partition.per_host_zoom_levels):
  *
  *   {
+ *     "window": {
+ *       "width": 1280,
+ *       "height": 900
+ *     },
  *     "zoom": {
  *       "news.ycombinator.com": 1.5,
  *       "en.wikipedia.org": 0.9,
@@ -13,10 +18,11 @@
  *     }
  *   }
  *
- * each site's zoom by its host; the last, without a host, is the
- * built-in pages' (about:chrome has none). What is not understood is
- * skipped (a newer version's field, a zoom out of Browser_zoom's
- * levels) -- and not written back: the file is the program's, written
+ * the window as it was last (1280 by 900 the first time), and each
+ * site's zoom by its host; the last, without a host, is the built-in
+ * pages' (about:chrome has none). What is not understood is skipped (a
+ * newer version's field, a zoom out of Browser_zoom's levels, a window
+ * smaller than 100 or larger than 10000) -- and not written back: the file is the program's, written
  * whole at each change. But a file that is not JSON (a brace lost
  * fixing it by hand) is an error, so that the program can leave it
  * alone rather than write over it.
@@ -34,8 +40,12 @@
  * https://chromium.googlesource.com/chromium/src/+/main/docs/user_data_dir.md
  * https://specifications.freedesktop.org/basedir-spec/latest/ *)
 
-type t = { zooms : Browser_zoom.t }
+type t = {
+  window : int * int; (* the window's width and height *)
+  zooms : Browser_zoom.t;
+}
 
+(* a first run's: a window of 1280 by 900, no site zoomed *)
 val empty : t
 
 (* the Preferences file's text, the example above; and back, or what is

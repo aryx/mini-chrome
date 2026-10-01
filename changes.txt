@@ -47,7 +47,8 @@
   that host) and shows in the omnibox
 - the profile (Browser_profile), what is kept from one run to the
   next: ~/.config/mini-chrome/Preferences, JSON as Chrome's, for now
-  each site's zoom; profile=DIR for another directory, profile=off for
+  the window's size (it opens as it was left) and each site's zoom,
+  written a second after one changes; profile=DIR for another directory, profile=off for
   none; a file that is not JSON is reported and left alone.
   The first files the program reads and writes, by Cap.open_in and
   Cap.open_out (and Cap.env for the directory) handed down from

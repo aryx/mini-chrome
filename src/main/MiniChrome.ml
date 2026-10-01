@@ -54,8 +54,9 @@
  * scaled; the zoom shows in the omnibox when not 100%.
  *
  * claude: the **profile** (Browser_profile) is what is kept from one
- * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the sites' zooms, read at
- * the start and written when one changes. It is the one place the
+ * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the
+ * window's size and the sites' zooms, read at the start and written a
+ * second after one changes. It is the one place the
  * program touches the file system, with Cap.open_in and Cap.open_out
  * from Cap.main, as it reaches the network with Cap.network.
  *
@@ -128,8 +129,10 @@ type model = {
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
   screen : float * float; (* claude: the window's size, the page's width *)
   ctrl : bool; (* claude: a Ctrl key held *)
-  profile : Browser_profile.t; (* claude: what is kept between runs: the sites zoomed *)
+  profile : Browser_profile.t; (* claude: what is kept between runs: the window's size, the sites zoomed *)
   profile_dir : string option; (* claude: where it is saved; None, it is not *)
+  saved : Browser_profile.t; (* claude: the profile as it is on disk *)
+  changed : float; (* claude: when the profile last changed (time) *)
 }
 
 and msg =
@@ -290,12 +293,25 @@ let relaid_all (m : model) : model =
   in
   { m with tabs = List.map relaid m.tabs }
 
-(* claude: the shown page's site at the zoom [f] gives from its own,
- * and the profile saved (if it cannot be, the zoom is this run's) *)
-let zoomed (caps : < Cap.open_out ; .. >) (f : float -> float) (m : model) : model =
-  let profile : Browser_profile.t = { zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) } in
-  if profile <> m.profile then Option.iter (fun dir -> ignore (Browser_profile.save caps ~dir profile)) m.profile_dir;
-  relaid_all { m with profile }
+(* claude: the profile changed: saved once it has been still for a
+ * second (Tick), so a window dragged to its size is written once, not
+ * at each step of the drag. There is no message for the window closed:
+ * a change made in the last second before quitting is lost *)
+let with_profile (profile : Browser_profile.t) (m : model) : model =
+  if profile = m.profile then m else { m with profile; changed = m.time }
+
+let saved (caps : < Cap.open_out ; .. >) (m : model) : model =
+  match m.profile_dir with
+  | Some dir when m.profile <> m.saved && m.time -. m.changed >= 1. ->
+      (* if it cannot be saved, the change is this run's; not tried again *)
+      ignore (Browser_profile.save caps ~dir m.profile);
+      { m with saved = m.profile }
+  | _ -> m
+
+(* claude: the shown page's site at the zoom [f] gives from its own *)
+let zoomed (f : float -> float) (m : model) : model =
+  let zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) in
+  relaid_all (with_profile { m.profile with zooms } m)
 
 let visit network url m = on_current { m with editing = false; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
 let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
@@ -393,19 +409,20 @@ let panel_button (m : model) : string option =
 (* Update *)
 (*****************************************************************************)
 
-let init (caps : < Cap.network ; Cap.open_in ; Cap.env ; .. >) (flags : flags) : model * msg Cmd.t =
-  let network = (caps :> < Cap.network >) in
-  let profile_dir = match List.assoc_opt "profile" flags with Some "off" -> None | Some dir -> Some dir | None -> Browser_profile.default_dir caps in
-  (* a profile that cannot be read (not JSON: fixed by hand, a brace
-   * lost) is left as it is, not written over: this run keeps nothing *)
-  let profile, profile_dir =
-    match Option.map (fun dir -> Browser_profile.load caps ~dir) profile_dir with
-    | Some (Ok p) -> (p, profile_dir)
-    | Some (Error why) ->
-        Logs.warn (fun m -> m "the profile is not used, nor saved to: %s" why);
-        (Browser_profile.empty, None)
-    | None -> (Browser_profile.empty, None)
-  in
+(* claude: the profile, read before the window is made (its size is in
+ * it), and where it is saved. One that cannot be read (not JSON: fixed
+ * by hand, a brace lost) is left as it is, not written over: this run
+ * keeps nothing *)
+let profile_of (caps : < Cap.open_in ; Cap.env ; .. >) (flags : flags) : Browser_profile.t * string option =
+  let dir = match List.assoc_opt "profile" flags with Some "off" -> None | Some dir -> Some dir | None -> Browser_profile.default_dir caps in
+  match Option.map (fun dir -> Browser_profile.load caps ~dir) dir with
+  | Some (Ok p) -> (p, dir)
+  | Some (Error why) ->
+      Logs.warn (fun m -> m "the profile is not used, nor saved to: %s" why);
+      (Browser_profile.empty, None)
+  | None -> (Browser_profile.empty, None)
+
+let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_profile.t * string option) (flags : flags) : model * msg Cmd.t =
   let url = Option.value (List.assoc_opt "url" flags) ~default:home in
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
@@ -418,7 +435,7 @@ let init (caps : < Cap.network ; Cap.open_in ; Cap.env ; .. >) (flags : flags) :
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
       (* claude: until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0. }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -490,7 +507,7 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Tick time ->
       (* the shown tab's timers on the frame clock (the others wait, as
        * Chrome slows a hidden tab's) *)
-      let m, cmd, _ = task network { m with time } (fun s -> Browser_script.advance s (1000. /. 60.); false) in
+      let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s (1000. /. 60.); false) in
       (* the requests in flight stepped: the answers, Got and
        * Got_picture, as the next messages *)
       let answered = Fetch.step m.fetches in
@@ -499,14 +516,14 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
    * meaning): the page goes up, so its scroll down the page decreases.
    * The system's natural scrolling, where it is the driver's (X11,
    * libinput), is in the notches already *)
-  | Wheel notches when m.ctrl -> (zoomed caps (Browser_zoom.step (notches > 0.)) m, Cmd.none)
+  | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
   | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
   (* claude: the window's size changed: every tab's page laid out again
    * at its new width, its scroll kept within the new page *)
   | Resized (w, h) when (float_of_int w, float_of_int h) = m.screen -> (m, Cmd.none)
   | Resized (w, h) ->
-      (relaid_all { m with screen = (float_of_int w, float_of_int h) }, Cmd.none)
+      (relaid_all (with_profile { m.profile with window = (w, h) } { m with screen = (float_of_int w, float_of_int h) }), Cmd.none)
   | Click -> (
       let m = { m with editing = false } in
       if on_omnibox m then
@@ -534,7 +551,7 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
    * the character such a key may also type is not the omnibox's *)
   | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)
   | Key_up key -> ({ m with ctrl = m.ctrl && not (List.mem (String.lowercase_ascii key) [ "left ctrl"; "right ctrl"; "control" ]) }, Cmd.none)
-  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed caps (Option.get (Browser_zoom.key key)) m, Cmd.none)
+  | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Option.get (Browser_zoom.key key)) m, Cmd.none)
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
   | Typed s when m.editing -> ({ m with omnibox = (if m.fresh then s else m.omnibox ^ s); fresh = false }, Cmd.none)
   | Key key when m.editing -> edit_omnibox network (String.lowercase_ascii key) m
@@ -733,9 +750,9 @@ let view (m : model) : shape list =
 (* The app *)
 (*****************************************************************************)
 
-let app (caps : < Cap.network ; Cap.open_in ; Cap.open_out ; Cap.env ; .. >) =
+let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) =
   {
-    Playground.init = init caps;
+    Playground.init = init caps profile;
     update = update caps;
     view;
     subscriptions =
@@ -760,5 +777,8 @@ let main = Program.main __MODULE__ (fun () ->
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
       (* claude: an application's window: resized, the page is laid out
-       * again at its width rather than the picture scaled *)
-      Playground_platform.run_app ~screen:(1280, 900) ~screen_follows_window:true ~flags (app caps)))
+       * again at its width rather than the picture scaled. It starts
+       * at the size it was last, the profile's (-size WxH, the
+       * Playground's, is stronger) *)
+      let profile, profile_dir = profile_of caps flags in
+      Playground_platform.run_app ~screen:profile.window ~screen_follows_window:true ~flags (app caps (profile, profile_dir))))

@@ -53,8 +53,8 @@ Flags: `url=` the first page (`about:chrome`), `css=off`,
 file and URL opened (`-debug` more, `-quiet` nothing).
 
 Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
-100%; each site keeps its zoom, saved in the profile
-(`~/.config/mini-chrome/Preferences`, JSON).
+100%; each site keeps its zoom, saved with the window's size in the
+profile (`~/.config/mini-chrome/Preferences`, JSON).
 
 ## Layout
 

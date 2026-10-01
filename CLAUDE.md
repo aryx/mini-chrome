@@ -38,9 +38,11 @@ Program flags are `key=value` words on the command line
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`.
 
-The profile (`Browser_profile`: each site's zoom, for now) is
-`~/.config/mini-chrome/Preferences`, JSON, read at the start and
-written whole when a zoom changes. `profile=off` neither reads nor
+The profile (`Browser_profile`: the window's size and each site's
+zoom, for now) is `~/.config/mini-chrome/Preferences`, JSON, read at
+the start (before the window is made: its size is in it) and written
+whole once a change has been still for a second (`saved`, on `Tick`;
+there is no message for the window closed). `profile=off` neither reads nor
 writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
@@ -62,8 +64,9 @@ SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
   ./bin/mini-chrome -size 1400x800 -dump-frame 5 /tmp/page.png url=about:tube panel=elements profile=off
 ```
 
-`profile=off` so the dump does not depend on the zooms saved in the
-user's profile, and a `-script` that zooms does not change them. The
+`profile=off` so the dump does not depend on the window's size and the
+zooms saved in the user's profile, and a `-size` or a `-script` that
+zooms does not change them. The
 file comes right after `-dump-frame n`: another flag put between the
 two is taken as the file's name.
 
