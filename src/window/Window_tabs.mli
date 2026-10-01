@@ -78,4 +78,7 @@ val saved : < Cap.open_out ; .. > -> model -> model
 val search_url : string -> string -> string
 val typed_url : string -> string -> string
 
+(* the panel showing a view, or closed: the pages laid out again if the
+ * page area's height changed (it is their 100vh) *)
+val with_panel : panel -> model -> model
 val toggle_panel : model -> model

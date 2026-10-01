@@ -58,6 +58,11 @@
 - a scrollbar at the right of a page longer than the window, over its
   edge (Gui_scrollbar, libs/gui): its thumb dragged, its track clicked
   above or below for a page up or down
+- CSS's vh and a media query's height are the window's: the height of
+  the part showing the page (less with the panel open), not a constant
+  768; the pages laid out again when the panel opens or closes. A page
+  exactly as high as that part (a body of min-height: 100vh,
+  example.com's) has no scrollbar
 - the command line's words that are not flags are pages to open, a tab
   each: mini-chrome news.ycombinator.com (an address, or words searched)
 - libs/gui: Gui_field, the omnibox's text while it is typed into (a

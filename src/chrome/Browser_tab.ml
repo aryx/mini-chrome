@@ -110,7 +110,12 @@ let starts_with = Browser_url.starts_with
 
 let line_count (cfg : 'msg config) (tab : t) : int =
   match (tab.state, tab.view) with
-  | Shown p, Page -> int_of_float (Float.ceil (p.layout.height /. cfg.line_height))
+  | Shown p, Page ->
+      let lines = int_of_float (Float.ceil (p.layout.height /. cfg.line_height)) in
+      (* claude: a page that fits the window (a body of min-height: 100vh
+       * is exactly as high) does not scroll: [cfg.visible] is the whole
+       * lines shown, one less than the page's when a part of a line is *)
+      if p.layout.height <= (cfg.settings tab).height +. 0.5 then min lines cfg.visible else lines
   | Shown p, Source -> List.length p.lines
   | _ -> 0
 
@@ -151,7 +156,7 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
   let p = Browser_page.read (cfg.settings tab) url status content_type bytes in
   if not (cfg.scripts url) then { tab with state = Shown p; script = None; pending_scripts = [] }
   else
-    let s = Browser_script.create ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, float_of_int cfg.visible *. cfg.line_height) p.tree in
+    let s = Browser_script.create ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) p.tree in
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in

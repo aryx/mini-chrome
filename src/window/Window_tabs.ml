@@ -23,6 +23,8 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
     (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
     boxes = true;
     width = page_width m /. zoom_of m tab;
+    (* claude: the page area's, less with the panel open: CSS's 100vh *)
+    height = area_height m /. zoom_of m tab;
     breaker = Html_layout.greedy;
     visited = (fun url -> List.mem url tab.visited);
     picture = (fun url -> List.assoc_opt url tab.pictures);
@@ -163,4 +165,11 @@ let typed_url (engine : string) (s : string) : string =
   else if String.contains s '.' && not (String.contains s ' ') then "https://" ^ s
   else search_url engine s
 
-let toggle_panel (m : model) : model = { m with panel = (if m.panel = Closed then Elements else Closed); inspecting = false }
+(* claude: the panel opened, closed or showing another view; the page
+ * area's height is the pages' 100vh, so when it changes they are laid
+ * out again *)
+let with_panel (panel : panel) (m : model) : model =
+  let m' = { m with panel } in
+  if area_height m' = area_height m then m' else relaid_all m'
+
+let toggle_panel (m : model) : model = with_panel (if m.panel = Closed then Elements else Closed) { m with inspecting = false }

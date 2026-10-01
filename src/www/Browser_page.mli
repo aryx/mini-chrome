@@ -10,7 +10,8 @@
  * tree's.
  *
  * What the layout and the drawing need that the page does not say is
- * the browser's, given as [settings]: the page's width, how lines are
+ * the browser's, given as [settings]: the page's width (and the height
+ * of the window showing it, for CSS's vh), how lines are
  * broken, which URLs were visited (a link purple), which pictures have
  * come -- a page is laid out again when any of them changes (a reflow).
  *
@@ -42,6 +43,7 @@ type settings = {
   css : bool; (* the page's style sheets honoured (Css): <style>, style= *)
   boxes : bool; (* laid out by CSS 2.1's box model (Box_layout, Browser_boxes): TinyChrome's *)
   width : float;
+  height : float; (* the window's part that shows the page: 100vh, a media query's height *)
   breaker : Html_layout.breaker;
   visited : string -> bool; (* an absolute URL, no #fragment *)
   picture : string -> Browser_picture.t option; (* an absolute URL *)

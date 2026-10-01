@@ -34,6 +34,7 @@ type settings = {
   css : bool;
   boxes : bool;
   width : float;
+  height : float;
   breaker : Html_layout.breaker;
   visited : string -> bool;
   picture : string -> Browser_picture.t option;
@@ -232,9 +233,6 @@ let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascad
       last_styles := Some (tree, sheets, quirks, media, styles);
       styles
 
-(* the window's height, for media queries and vh: a laptop's screen *)
-let viewport_height = 768.
-
 (* the tree laid out and drawn, the page's links and pictures resolved
  * against its URL; with [boxes], by the box model (Cascade, Computed,
  * Box_layout, Browser_boxes), the page's colour its root's or its
@@ -245,12 +243,12 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
   let visited href = s.visited (fst (Browser_url.split_fragment (Browser_url.resolve base href))) in
   let picture_size src = Option.bind (picture src) Browser_picture.size in
   if s.boxes then
-    let media : Cascade.media = { width = s.width; height = viewport_height } in
+    let media : Cascade.media = { width = s.width; height = s.height } in
     let sheets = if s.css then fst (page_sheets s media base tree) else [] in
     (* before: the cascade and the computed styles again at each relayout
      *   let styles = Computed.styles ~visited ~quirks media sheets tree in *)
     let styles = styles_of ~visited ~quirks media sheets tree in
-    let boxes = Box_layout.layout Browser_text.metrics ~picture_size ~viewport:(s.width, viewport_height) styles tree in
+    let boxes = Box_layout.layout Browser_text.metrics ~picture_size ~viewport:(s.width, s.height) styles tree in
     let canvas =
       List.find_map
         (fun e -> match (styles e).background with c when c.a > 0. -> Some (c.r, c.g, c.b) | _ -> None)
@@ -271,7 +269,7 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
     (layout, Browser_draw.draw ~extensions:s.extensions ~visited ~picture_of:picture layout, None, [])
 
 let sheets_wanted (s : settings) (p : t) : string list =
-  if s.boxes && s.css then snd (page_sheets s { width = s.width; height = viewport_height } p.url p.tree) else []
+  if s.boxes && s.css then snd (page_sheets s { width = s.width; height = s.height } p.url p.tree) else []
 
 (* the page's colour: the style sheets' for its <body> or <html>, else
  * Netscape's bgcolor= -- or the canvas's, by the box model *)
@@ -353,7 +351,7 @@ let read (s : settings) (url : string) (status : int) (content_type : string opt
 let explain (s : settings) (p : t) (e : Dom.element) : (string * string * string) list =
   if not s.boxes then []
   else
-    let media : Cascade.media = { width = s.width; height = viewport_height } in
+    let media : Cascade.media = { width = s.width; height = s.height } in
     let visited href = s.visited (fst (Browser_url.split_fragment (Browser_url.resolve p.url href))) in
     let page = if s.css then fst (named_sheets s media p.url p.tree) else [] in
     let browser = List.mapi (fun i sh -> ((if i = 0 then "the browser's (ua.css)" else "quirks mode"), sh)) (Computed.browser_sheets ~quirks:p.quirks) in

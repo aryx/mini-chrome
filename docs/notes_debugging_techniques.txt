@@ -77,9 +77,12 @@ the real differences, none of them about a heading:
 - `background: light-dark(#eee, #222)`: the function is not known, the
   declaration is dropped, the page is white instead of grey.
 - `min-height: 100vh`: a scrollbar on a page of five lines. The
-  viewport's height is the constant 768 (Browser_page.viewport_height),
-  not the window's, so 100vh is taller than the page's part of a window
-  800 high.
+  viewport's height was the constant 768 (Browser_page.viewport_height),
+  not the window's, so 100vh was taller than the page's part of a window
+  800 high. Fixed (the settings' height); and then a second cause
+  showed, hidden by the first: a page exactly as high as its area still
+  scrolled by a line, its lines rounded up and the area's down
+  (Browser_tab.line_count).
 - `display: grid; place-content: center`: laid out as a block, so the
   text is not centred down the window (the grid of history.md's list).
 - `<script src=/s.js>`: not run (the host is not in default_allowed),

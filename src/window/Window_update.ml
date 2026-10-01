@@ -109,7 +109,7 @@ let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui
   | Inspect ->
       (* the element that was under the right click, in the tools *)
       let selected = match ((current_tab m).state, page_point_at m menu.at) with Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y | _ -> None in
-      ({ m with panel = Elements; inspecting = false; selected }, Cmd.none)
+      (with_panel Elements { m with inspecting = false; selected }, Cmd.none)
 
 let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
@@ -191,8 +191,8 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
         | Some (Show id), _, _ -> ({ m with current = id; selected = None; inspecting = false }, Cmd.none)
         | Some New, _, _ -> open_tab network home m
         | None, Some "Inspect", _ -> ({ m with inspecting = not m.inspecting }, Cmd.none)
-        | None, Some "Elements", _ -> ({ m with panel = Elements }, Cmd.none)
-        | None, Some "Network", _ -> ({ m with panel = Network; inspecting = false }, Cmd.none)
+        | None, Some "Elements", _ -> (with_panel Elements m, Cmd.none)
+        | None, Some "Network", _ -> (with_panel Network { m with inspecting = false }, Cmd.none)
         | None, _, Some Gui_toolbar.Back -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
         | None, _, Some Gui_toolbar.Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
         | None, _, Some Gui_toolbar.Reload -> load network (current_url m) m

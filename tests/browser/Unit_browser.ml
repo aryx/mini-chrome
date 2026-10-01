@@ -13,13 +13,13 @@
 (* a page read with no pictures, nothing visited, 976 wide *)
 let page (url : string) (html : string) : Browser_page.t =
   Browser_page.read
-    { extensions = false; css = false; boxes = false; width = 976.; breaker = Html_layout.greedy; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None) }
+    { extensions = false; css = false; boxes = false; width = 976.; height = 768.; breaker = Html_layout.greedy; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None) }
     url 200 (Some "text/html") html
 
 (* by the box model, [sheets] the style sheets it has, by URL *)
 let styled (sheets : (string * string) list) (html : string) : Browser_page.t * Browser_page.settings =
   let s : Browser_page.settings =
-    { extensions = true; css = true; boxes = true; width = 976.; breaker = Html_layout.greedy; visited = (fun _ -> false);
+    { extensions = true; css = true; boxes = true; width = 976.; height = 768.; breaker = Html_layout.greedy; visited = (fun _ -> false);
       picture = (fun _ -> None); sheet = (fun url -> List.assoc_opt url sheets) }
   in
   (Browser_page.read s "http://x.org/a/page.html" 200 (Some "text/html") html, s)
@@ -54,6 +54,13 @@ let tests =
           Alcotest.(check (list string)) "then its @import, resolved against it" [ "http://x.org/colours.css" ] (Browser_page.sheets_wanted s p);
           let p, s = styled [ ("http://x.org/a/main.css", {|@import "../colours.css";|}); ("http://x.org/colours.css", "p { color: blue }") ] html in
           Alcotest.(check (list string)) "all had" [] (Browser_page.sheets_wanted s p));
+      Testo.create "100vh is the height of the window's page area, not a constant" (fun () ->
+          (* example.com's body, which had a scrollbar for five lines *)
+          let html = "<!doctype html><style>html, body { margin: 0 } body { min-height: 100vh; padding: 2em 0 20vh; box-sizing: border-box }</style><p>a line" in
+          let p, s = styled [] html in
+          Alcotest.(check (float 0.01)) "the settings' height" 768. p.layout.height;
+          let p = Browser_page.laid_out { s with height = 400. } p in
+          Alcotest.(check (float 0.01)) "laid out again in a lower window" 400. p.layout.height);
       Testo.create "the network panel's lines" (fun () ->
           let requests : Browser_tab.request list =
             [ { url = "http://x.org/a.png"; kind = Picture; status = None; bytes = 0 };
