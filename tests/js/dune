@@ -1,6 +1,7 @@
 ; claude: unit tests for the JavaScript engine, run by 'make test'
-; (dune runtest): the worked examples of the .mlis
+; (dune runtest): the worked examples of the .mlis; and JSON, its
+; literals read by its lexer (languages/json)
 (test
  (name Test)
- (libraries alcotest testo javascript)
+ (libraries alcotest testo javascript lang_json) ; Json, over Js_lexer
 )

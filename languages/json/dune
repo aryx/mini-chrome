@@ -1,0 +1,11 @@
+; claude: JSON, for the browser's own files (the profile's Preferences):
+; read by Json over the JavaScript lexer, whose literals JSON is, and
+; written back. A copy of elm-playground's tiny_languages' Json, which
+; cannot be linked here (it stands on its own JavaScript library, whose
+; unwrapped modules have the names of ours); with a printer, which it
+; does not have.
+(library
+ (name lang_json)
+ (wrapped false)
+ (libraries javascript) ; Js_lexer
+)
