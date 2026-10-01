@@ -52,6 +52,11 @@
   The first files the program reads and writes, by Cap.open_in and
   Cap.open_out (and Cap.env for the directory) handed down from
   Cap.main, as Cap.network is for sockets
+- -v (or -verbose): each file and URL opened said on the terminal, by
+  Logs.info -- the profile's file read and written, the TLS roots'
+  file, each request (GET or POST) and its answer (status, bytes, a
+  redirection), a built-in page; -debug and -quiet as well (the
+  Playground's flags, the names of xix's programs)
 - languages/json: JSON read (elm-playground's Json, over our
   JavaScript lexer: comments and a last comma taken) and written
 

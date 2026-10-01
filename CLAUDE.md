@@ -45,8 +45,14 @@ writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
 
-The Playground's own flags start with a dash, and make a change
-checkable without a screen: `-dump-frame n file.png` writes the nth
+The Playground's own flags start with a dash. `-v` (or `-verbose`),
+`-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
+`-v` the terminal shows each file and URL opened (the profile's file,
+the TLS roots, every request and its answer). New code that opens a
+file or a URL says so with `Logs.info`; a thread of `Worker`'s pool
+may log too (the reporter has a mutex, set in MiniChrome's `main`).
+
+The others make a change checkable without a screen: `-dump-frame n file.png` writes the nth
 frame and exits, `-size WxH` sets the window's size, `-script
 "space:3"` presses a key at a frame (here a page down). With SDL's
 dummy drivers, no display is needed:

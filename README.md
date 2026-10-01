@@ -49,7 +49,8 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
-`profile=DIR` or `profile=off`.
+`profile=DIR` or `profile=off`. With `-v` the terminal shows each
+file and URL opened (`-debug` more, `-quiet` nothing).
 
 Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
 100%; each site keeps its zoom, saved in the profile

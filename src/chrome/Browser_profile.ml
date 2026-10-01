@@ -45,16 +45,20 @@ let load (caps : < Cap.open_in ; .. >) ~(dir : string) : (t, string) result =
   let path = preferences dir in
   (* the authority to read [path], asked for before it is opened *)
   let (_ : Cap.FS_.open_in) = caps#open_in path in
-  if not (Sys.file_exists path) then Ok empty
-  else
+  if not (Sys.file_exists path) then (
+    Logs.info (fun m -> m "profile: no %s yet" path);
+    Ok empty)
+  else (
+    Logs.info (fun m -> m "profile: reading %s" path);
     Result.map_error
       (fun why -> path ^ ": " ^ why)
-      (match In_channel.with_open_bin path In_channel.input_all with s -> of_string s | exception Sys_error why -> Error why)
+      (match In_channel.with_open_bin path In_channel.input_all with s -> of_string s | exception Sys_error why -> Error why))
 
 let save (caps : < Cap.open_out ; .. >) ~(dir : string) (p : t) : (unit, string) result =
   let path = preferences dir in
   let (_ : Cap.FS_.open_out) = caps#open_out path in
   let rec make (dir : string) = if not (Sys.file_exists dir) then (make (Filename.dirname dir); Sys.mkdir dir 0o700) in
+  Logs.info (fun m -> m "profile: writing %s" path);
   try
     make dir;
     Out_channel.with_open_bin (path ^ ".tmp") (fun oc -> Out_channel.output_string oc (to_string p));

@@ -63,10 +63,20 @@ let blocking ?post (t : 'msg t) (caps : Cap.network) (url : string) (k : answer 
   | None -> Now (k (https_get ?post caps url))
   | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post caps url), k)
 
+(* claude: what -v shows: each request as it starts, and its answer
+ * (said when it is handed back, in step: not on a thread of the pool) *)
+let said (url : string) (a : answer) : unit =
+  match a with
+  | Ok r when r.url = url -> Logs.info (fun m -> m "%d %s (%d bytes)" r.status url (String.length r.body))
+  | Ok r -> Logs.info (fun m -> m "%d %s (%d bytes), redirected from %s" r.status r.url (String.length r.body) url)
+  | Error e -> Logs.info (fun m -> m "failed %s: %s" url (error_to_string e))
+
 let perform (t : 'msg t) (r : 'msg request) : unit =
+  Logs.info (fun m -> m "%s %s" (if r.post = None then "GET" else "POST") r.url);
+  let k (a : answer) = said r.url a; r.k a in
   let f =
-    if is_https r.url then blocking ?post:r.post t r.caps r.url r.k
-    else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool r.caps r.url, r.k)
+    if is_https r.url then blocking ?post:r.post t r.caps r.url k
+    else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool r.caps r.url, k)
   in
   t.in_flight <- t.in_flight @ [ f ]
 

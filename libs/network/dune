@@ -22,5 +22,6 @@
    unix
    threads.posix ; Worker's pool
    caps ; Cap.network, which every function opening a socket takes
+   logs ; -v: the roots' file read
    tiny_libs.crypto ; the hashes, ciphers and signatures of TLS
    tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)

@@ -73,7 +73,9 @@
  * own sheet alone (what a page looks like unstyled); panel=elements or
  * panel=network, the tools open; search=duckduckgo, the omnibox's
  * engine (wikipedia); profile=DIR, the profile's directory, or
- * profile=off, nothing read nor kept.
+ * profile=off, nothing read nor kept. And the Playground's, with a
+ * dash: -v (or -verbose) says on the terminal each file and URL
+ * opened, -debug more (the keys pressed), -quiet nothing (Logs).
  *
  * Uses: appkit_browser (the tab, the page, Browser_boxes,
  * Browser_devtools, the forms), the web engine (Cascade, Computed, Box_layout,
@@ -750,6 +752,12 @@ let app (caps : < Cap.network ; Cap.open_in ; Cap.open_out ; Cap.env ; .. >) =
 let main = Program.main __MODULE__ (fun () ->
   Cap.main (fun caps ->
       let flags = Playground_platform.flags () in
+      (* claude: -v, -debug and -quiet are the Playground's, read by
+       * flags (): Logs' level. A line at a time, the answers coming
+       * from the pool's threads too (Tls_client's roots) *)
+      let lock = Mutex.create () in
+      Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
+      Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
       (* claude: an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled *)

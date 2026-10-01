@@ -279,6 +279,8 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
   (* a new page: a new network log *)
   let tab = { tab with scroll = 0; focus = None; queue = []; total = 0; requests = [] } in
   if starts_with "about:" url then
+    (* claude: with -v; the web's pages are said by Fetch *)
+    let () = Logs.info (fun m -> m "built-in page %s" url) in
     let name, query = Browser_url.split_query (String.sub url 6 (String.length url - 6)) in
     let show bytes content_type =
       let tab = logged ~status:200 ~bytes:(String.length bytes) Document url tab in
