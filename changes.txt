@@ -62,6 +62,9 @@
 
 ** Bug fixes
 - the wheel scrolled the wrong way
+- the program ended (Cairo's INVALID_MATRIX) on a picture drawn with no
+  width or no height: Hacker News' comment pages, which indent with
+  <img src="s.gif" width=0>; a player squeezed to nothing
 
 ** build infra
 - one opam package, mini-chrome, standing on elm-playground's packages

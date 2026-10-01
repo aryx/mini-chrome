@@ -30,6 +30,12 @@ let element (p : Browser_page.t) (name : string) : Dom.element =
 let tests =
   Testo.categorize "Browser"
     [
+      Testo.create "a picture without area is not drawn (<img width=0>)" (fun () ->
+          let img = Rgba_image.create ~width:1 ~height:1 in
+          Alcotest.(check int) "10 by 10: one shape" 1 (List.length (Browser_picture.drawn 10. 10. img));
+          Alcotest.(check int) "no width" 0 (List.length (Browser_picture.drawn 0. 10. img));
+          Alcotest.(check int) "no height" 0 (List.length (Browser_picture.drawn 10. 0. img));
+          Alcotest.(check int) "squeezed past nothing" 0 (List.length (Browser_picture.drawn (-4.) 10. img)));
       Testo.create "the history: the worked example" (fun () ->
           let h = Browser_history.(visit "B" (visit "A" empty)) in
           (* at C, A and B behind *)

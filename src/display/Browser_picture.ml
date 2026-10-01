@@ -30,6 +30,9 @@ let decode (bytes : string) : t =
 
 let broken_size = 24.
 
+let drawn (w : float) (h : float) (img : Rgba_image.t) : Playground.shape list =
+  if w > 0. && h > 0. && img.width > 0 && img.height > 0 then [ Playground.bitmap w h img ] else []
+
 let size (t : t) : (float * float) option =
   match t with
   | Arrived img -> Some (float_of_int img.width, float_of_int img.height)

@@ -167,10 +167,10 @@ let draw ~(now : float) ~(media : string -> string option) (page : Browser_page.
                 let img = Movie.frame_at movie at in
                 let k = Float.min (w /. float_of_int img.width) (h /. float_of_int img.height) in
                 let iw = float_of_int img.width *. k and ih = float_of_int img.height *. k in
-                [ bitmap iw ih img |> move (f.x +. (w /. 2.)) (-.(top +. (h /. 2.))) ]
+                List.map (move (f.x +. (w /. 2.)) (-.(top +. (h /. 2.)))) (Browser_picture.drawn iw ih img)
             | Ok (Picture img) when video ->
                 let k = Float.min (w /. float_of_int img.width) (h /. float_of_int img.height) in
-                [ bitmap (float_of_int img.width *. k) (float_of_int img.height *. k) img |> move (f.x +. (w /. 2.)) (-.(top +. (h /. 2.))) ]
+                List.map (move (f.x +. (w /. 2.)) (-.(top +. (h /. 2.)))) (Browser_picture.drawn (float_of_int img.width *. k) (float_of_int img.height *. k) img)
             | Error why when video -> label why ~x:(f.x +. 8.) ~baseline:(top +. (h /. 2.)) (200, 200, 200)
             | _ -> []
           in

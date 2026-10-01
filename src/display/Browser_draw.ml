@@ -48,7 +48,7 @@ let picture_shapes (state : Browser_picture.t option) (color : color) (f : Html_
   let center = (f.x +. (w /. 2.), -.(top +. (h /. 2.))) in
   let body =
     match state with
-    | Some (Arrived img) -> [ bitmap w h img |> move (fst center) (snd center) ]
+    | Some (Arrived img) -> List.map (move (fst center) (snd center)) (Browser_picture.drawn w h img)
     | Some Broken ->
         (* a torn picture: a white card, a red slash across *)
         [ rectangle (rgb 245 245 245) w h |> move (fst center) (snd center);
