@@ -34,14 +34,32 @@ let glyph color (look : Style.t) s ~x ~baseline =
   in
   let segment (x1, y1) (x2, y2) =
     let dx = x2 -. x1 and dy = y2 -. y1 in
-    (* one pen-width longer than the segment, so that joints overlap
-     * rather than leaving notches *)
-    Playground.rectangle color (sqrt ((dx *. dx) +. (dy *. dy)) +. pen) pen
+    Playground.rectangle color (sqrt ((dx *. dx) +. (dy *. dy))) pen
     |> Playground.rotate (atan2 dy dx *. 180. /. Float.pi)
     |> Playground.move ((x1 +. x2) /. 2.) ((y1 +. y2) /. 2.)
   in
+  (* claude: a round pen: a dot at each point of the stroke fills the
+   * joint between two segments and rounds the stroke's ends.
+   *
+   * old: half the shapes (a stroke of n points was n-1 rectangles, now
+   * 2n-1 with its dots), so faster, but the square corners of the
+   * segments stuck out of each joint: spikes, once the page is zoomed.
+   * The segments were one pen-width longer, so that joints overlapped
+   * rather than leaving notches, and there was no dot:
+   *
+   *   let segment (x1, y1) (x2, y2) =
+   *     let dx = x2 -. x1 and dy = y2 -. y1 in
+   *     Playground.rectangle color (sqrt ((dx *. dx) +. (dy *. dy)) +. pen) pen
+   *     |> Playground.rotate (atan2 dy dx *. 180. /. Float.pi)
+   *     |> Playground.move ((x1 +. x2) /. 2.) ((y1 +. y2) /. 2.)
+   *   in
+   *   let strokes = List.concat_map (fun stroke -> pairs (List.map at stroke)) g.strokes in
+   *)
+  let dot (x, y) = Playground.circle color (pen /. 2.) |> Playground.move x y in
   let rec pairs = function a :: (b :: _ as rest) -> segment a b :: pairs rest | _ -> [] in
-  let strokes = List.concat_map (fun stroke -> pairs (List.map at stroke)) g.strokes in
+  let strokes =
+    List.concat_map (fun stroke -> let points = List.map at stroke in pairs points @ List.map dot points) g.strokes
+  in
   let advance = float_of_int (g.right - g.left) *. k in
   let rule y =
     Playground.rectangle color advance (pen *. 0.8) |> Playground.move (x +. (advance /. 2.)) y

@@ -45,6 +45,9 @@
   500%); the whole page, laid out at the window's width divided by the
   zoom and drawn scaled; a zoom is its site's (every page and tab of
   that host) and shows in the omnibox
+- the page's letters drawn with a round pen (Stroke_text: a dot at
+  each point of a stroke): zoomed, the square corners of the segments
+  stuck out of every joint, spikes on the bold most of all
 - a right click on the page opens a menu, as Chrome's (Browser_menu):
   on a link, Open link in new tab (behind the tab shown) and Inspect;
   elsewhere Back, Forward, Reload and Inspect (the developer tools on
