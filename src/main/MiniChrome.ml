@@ -56,7 +56,7 @@
  * claude: the **profile** (Browser_profile) is what is kept from one
  * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the
  * window's size and the sites' zooms, read at the start and written a
- * second after one changes. It is the one place the
+ * second after one changes, and when the program ends. It is the one place the
  * program touches the file system, with Cap.open_in and Cap.open_out
  * from Cap.main, as it reaches the network with Cap.network.
  *
@@ -295,8 +295,8 @@ let relaid_all (m : model) : model =
 
 (* claude: the profile changed: saved once it has been still for a
  * second (Tick), so a window dragged to its size is written once, not
- * at each step of the drag. There is no message for the window closed:
- * a change made in the last second before quitting is lost *)
+ * at each step of the drag; and when the program ends, if it changed
+ * since (unsaved, below) *)
 let with_profile (profile : Browser_profile.t) (m : model) : model =
   if profile = m.profile then m else { m with profile; changed = m.time }
 
@@ -750,10 +750,20 @@ let view (m : model) : shape list =
 (* The app *)
 (*****************************************************************************)
 
+(* claude: the profile not saved yet, and where it goes: what is
+ * written when the program ends (main's at_exit). The Playground has
+ * no message for the window closed -- it exits -- so the model's last
+ * state is kept here, after each update *)
+let unsaved : (string * Browser_profile.t) option ref = ref None
+
 let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) =
   {
     Playground.init = init caps profile;
-    update = update caps;
+    update =
+      (fun msg m ->
+        let m, cmd = update caps msg m in
+        unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
+        (m, cmd));
     view;
     subscriptions =
       (fun _ ->
@@ -781,4 +791,9 @@ let main = Program.main __MODULE__ (fun () ->
        * at the size it was last, the profile's (-size WxH, the
        * Playground's, is stronger) *)
       let profile, profile_dir = profile_of caps flags in
+      (* claude: the window closed (the Playground exits), -dump-frame's
+       * frame written: what changed in the last second is saved *)
+      at_exit (fun () ->
+          Logs.info (fun m -> m "quitting");
+          Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
       Playground_platform.run_app ~screen:profile.window ~screen_follows_window:true ~flags (app caps (profile, profile_dir))))

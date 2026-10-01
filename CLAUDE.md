@@ -41,8 +41,9 @@ Program flags are `key=value` words on the command line
 The profile (`Browser_profile`: the window's size and each site's
 zoom, for now) is `~/.config/mini-chrome/Preferences`, JSON, read at
 the start (before the window is made: its size is in it) and written
-whole once a change has been still for a second (`saved`, on `Tick`;
-there is no message for the window closed). `profile=off` neither reads nor
+whole once a change has been still for a second (`saved`, on `Tick`)
+and when the program ends (`main`'s `at_exit`, from `unsaved`: the
+Playground has no message for the window closed, it calls `exit`). `profile=off` neither reads nor
 writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
