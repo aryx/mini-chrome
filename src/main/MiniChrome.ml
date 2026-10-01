@@ -111,6 +111,7 @@ type model = {
   engine : string; (* the omnibox's searches: search_url *)
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
+  screen : float * float; (* claude: the window's size, the page's width *)
 }
 
 and msg =
@@ -123,6 +124,7 @@ and msg =
   | Wheel of float
   | Mouse_move of float * float
   | Click
+  | Resized of int * int (* the window's new size *)
 
 let home = "about:chrome"
 let characters = Browser_text.characters
@@ -132,45 +134,57 @@ let resolve = Browser_url.resolve
 (* The window's geometry *)
 (*****************************************************************************)
 
+(* claude: the screen is the window, whatever its size (run_app's
+ * screen_follows_window), the origin at its centre: everything is placed
+ * from its edges -- the tabs and the toolbar hang from the top, the
+ * panel sits on the bottom, the page takes what is left, the omnibox
+ * stretches between the buttons and the wrench *)
+let width (m : model) : float = fst m.screen
+let height (m : model) : float = snd m.screen
+let left (m : model) : float = -.(width m /. 2.)
+let top (m : model) : float = height m /. 2.
+
+(* the panel: its header, its two views' names, the Inspect button; at
+ * the bottom, 370 high, less in a low window *)
+let panel_height (m : model) : float = Float.min 370. (0.4 *. height m)
+let panel_top (m : model) : float = panel_height m -. top m
+let panel_header_y (m : model) : float = panel_top m -. 12.
+let cell = 6.
+
 (* the page area, below the toolbar, above the panel if it is open *)
-let area_top = 414.
-let area_left = -500.
-let area_bottom (m : model) : float = if m.panel = Closed then -500. else -130.
-let area_height (m : model) : float = area_top -. area_bottom m
-let page_width = 1000.
+let area_top (m : model) : float = top m -. 86.
+let area_left = left
+let area_bottom (m : model) : float = if m.panel = Closed then -.top m else panel_top m
+let area_height (m : model) : float = area_top m -. area_bottom m
+let page_width = width
 let line_height = 16.
 
 (* the tab strip; the toolbar's buttons and the omnibox *)
-let tab_y = 481.
-let tab_left = -490.
-let toolbar_y = 438.
-let button_x (i : int) : float = -476. +. (38. *. float_of_int i)
-let omnibox_x = -362.
-let omnibox_w = 820.
+let tab_y (m : model) : float = top m -. 19.
+let tab_left (m : model) : float = left m +. 10.
+let toolbar_y (m : model) : float = top m -. 62.
+let button_x (m : model) (i : int) : float = left m +. 24. +. (38. *. float_of_int i)
+let omnibox_x (m : model) : float = left m +. 138.
+let omnibox_w (m : model) : float = width m -. 180.
 (* the omnibox's "JS", the page's scripts on (blue) or off (grey) *)
-let js_x = omnibox_x +. omnibox_w -. 30.
-let wrench_x = 478.
-
-(* the panel: its header, its two views' names, the Inspect button *)
-let panel_top = -130.
-let panel_header_y = -142.
-let cell = 6.
+let js_x (m : model) : float = omnibox_x m +. omnibox_w m -. 30.
+let wrench_x (m : model) : float = -.left m -. 22.
 
 (* the tabs' width, sharing the strip *)
-let tab_width (m : model) : float = Float.min 220. (900. /. float_of_int (max 1 (List.length m.tabs)))
-let tab_x (m : model) (i : int) : float = tab_left +. (float_of_int i *. (tab_width m +. 2.))
+let tab_width (m : model) : float = Float.min 220. ((width m -. 100.) /. float_of_int (max 1 (List.length m.tabs)))
+let tab_x (m : model) (i : int) : float = tab_left m +. (float_of_int i *. (tab_width m +. 2.))
 
 (*****************************************************************************)
 (* The tabs: Chrome's settings *)
 (*****************************************************************************)
 
-let settings (css : bool) (tab : Browser_tab.t) : Browser_page.settings =
+let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
   {
     extensions = true;
-    css;
+    css = m.css;
     (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
     boxes = true;
-    width = page_width;
+    width = page_width m;
     breaker = Html_layout.greedy;
     visited = (fun url -> List.mem url tab.visited);
     picture = (fun url -> List.assoc_opt url tab.pictures);
@@ -192,7 +206,7 @@ let default_allowed = [ "news.ycombinator.com" ]
 
 let config (m : model) (id : int) : msg Browser_tab.config =
   {
-    settings = settings m.css;
+    settings = settings m;
     (* the built-in site, and TinyTube in it *)
     about = (fun name -> match Tube.about name with Some x -> Some x | None -> Site.about name);
     got = (fun url r -> Got (id, url, r));
@@ -279,7 +293,7 @@ let typed_url (engine : string) (s : string) : string =
 
 let page_point (m : model) : (float * float) option =
   let mx, my = m.mouse in
-  if my <= area_top && my >= area_bottom m then Some (mx -. area_left, area_top -. my +. (float_of_int (current_tab m).scroll *. line_height))
+  if my <= area_top m && my >= area_bottom m then Some (mx -. area_left m, area_top m -. my +. (float_of_int (current_tab m).scroll *. line_height))
   else None
 
 let hovered (m : model) : string option =
@@ -302,9 +316,9 @@ let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool =
 
 let button_at (m : model) : string option =
   List.mapi (fun i b -> (i, b)) (buttons m)
-  |> List.find_map (fun (i, (text, active)) -> if active && near (button_x i -. 16.) toolbar_y 32. 32. m then Some text else None)
+  |> List.find_map (fun (i, (text, active)) -> if active && near (button_x m i -. 16.) (toolbar_y m) 32. 32. m then Some text else None)
 
-let on_omnibox (m : model) : bool = near omnibox_x toolbar_y omnibox_w 28. m
+let on_omnibox (m : model) : bool = near (omnibox_x m) (toolbar_y m) (omnibox_w m) 28. m
 
 (* the tab strip: a tab's close box, a tab, the + *)
 type strip = Close_tab of int | Show_tab of int | New_tab
@@ -315,16 +329,16 @@ let strip_at (m : model) : strip option =
     List.mapi (fun i t -> (i, t)) m.tabs
     |> List.find_map (fun (i, t) ->
            let x = tab_x m i in
-           if near (x +. w -. 26.) tab_y 18. 20. m then Some (Close_tab t.id) else if near x tab_y w 28. m then Some (Show_tab t.id) else None)
+           if near (x +. w -. 26.) (tab_y m) 18. 20. m then Some (Close_tab t.id) else if near x (tab_y m) w 28. m then Some (Show_tab t.id) else None)
   in
-  match on_tab with Some _ -> on_tab | None -> if near (tab_x m (List.length m.tabs)) tab_y 26. 26. m then Some New_tab else None
+  match on_tab with Some _ -> on_tab | None -> if near (tab_x m (List.length m.tabs)) (tab_y m) 26. 26. m then Some New_tab else None
 
 (* the panel's header: its views' names and Inspect *)
 let panel_button (m : model) : string option =
   if m.panel = Closed then None
-  else if near (-490.) panel_header_y 60. 16. m then Some "Inspect"
-  else if near (-410.) panel_header_y 60. 16. m then Some "Elements"
-  else if near (-330.) panel_header_y 60. 16. m then Some "Network"
+  else if near (left m +. 10.) (panel_header_y m) 60. 16. m then Some "Inspect"
+  else if near (left m +. 90.) (panel_header_y m) 60. 16. m then Some "Elements"
+  else if near (left m +. 170.) (panel_header_y m) 60. 16. m then Some "Network"
   else None
 
 (*****************************************************************************)
@@ -342,7 +356,9 @@ let init (network : < Cap.network ; .. >) (flags : flags) : model * msg Cmd.t =
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
-      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") () }
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
+      (* claude: until the platform says (Resized, before the first frame) *)
+      screen = (Playground.default_width, Playground.default_height) }
   in
   let m, cmd = open_tab network url m in
   (* with the elements' view open, the page's <body> shown in it *)
@@ -418,14 +434,25 @@ let update (network : < Cap.network ; .. >) (msg : msg) (m : model) : model * ms
        * Got_picture, as the next messages *)
       let answered = Fetch.step m.fetches in
       (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) answered))
-  | Wheel notches -> (scrolled (3 * int_of_float (Float.round notches)) m, Cmd.none)
+  (* claude: the wheel's notches, positive scrolling up (the platform's
+   * meaning): the page goes up, so its scroll down the page decreases.
+   * The system's natural scrolling, where it is the driver's (X11,
+   * libinput), is in the notches already *)
+  | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
   | Mouse_move (x, y) -> ({ m with mouse = (x, y) }, Cmd.none)
+  (* claude: the window's size changed: every tab's page laid out again
+   * at its new width, its scroll kept within the new page *)
+  | Resized (w, h) when (float_of_int w, float_of_int h) = m.screen -> (m, Cmd.none)
+  | Resized (w, h) ->
+      let m = { m with screen = (float_of_int w, float_of_int h) } in
+      let relaid (t : tab) = let cfg = config m t.id in { t with tab = Browser_tab.scrolled cfg 0 (Browser_tab.relaid cfg t.tab) } in
+      ({ m with tabs = List.map relaid m.tabs }, Cmd.none)
   | Click -> (
       let m = { m with editing = false } in
       if on_omnibox m then
         on_current { m with editing = true; fresh = true; omnibox = current_url m } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
-      else if near (wrench_x -. 12.) toolbar_y 24. 28. m then (toggle_panel m, Cmd.none)
-      else if near js_x toolbar_y 22. 20. m then
+      else if near (wrench_x m -. 12.) (toolbar_y m) 24. 28. m then (toggle_panel m, Cmd.none)
+      else if near (js_x m) (toolbar_y m) 22. 20. m then
         (* the site's scripts on or off, and the page loaded again *)
         let host = host_of (current_url m) in
         let allowed = if List.mem host m.allowed then List.filter (( <> ) host) m.allowed else host :: m.allowed in
@@ -508,15 +535,15 @@ let tabs (m : model) : shape list =
          let title = match t.tab.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in
          let title = if List.length (characters title) > chars then Browser_text.tail chars title else title in
          let angle = if loading t.tab then m.time *. 360. else 0. in
-         [ polygon (if shown then toolbar else rgb 168 192 228) [ (x, tab_y -. 15.); (x +. 12., tab_y +. 13.); (x +. w -. 12., tab_y +. 13.); (x +. w, tab_y -. 15.) ];
-           group [ circle (rgb 66 133 244) 7.; rectangle (if shown then toolbar else rgb 168 192 228) 3. 8. |> move 0. 4. ] |> rotate angle |> move (x +. 26.) tab_y ]
-         @ monospace (x +. 38.) tab_y ink title
-         @ [ rectangle muted 9. 2. |> rotate 45. |> move (x +. w -. 17.) tab_y; rectangle muted 9. 2. |> rotate (-45.) |> move (x +. w -. 17.) tab_y ])
+         [ polygon (if shown then toolbar else rgb 168 192 228) [ (x, tab_y m -. 15.); (x +. 12., tab_y m +. 13.); (x +. w -. 12., tab_y m +. 13.); (x +. w, tab_y m -. 15.) ];
+           group [ circle (rgb 66 133 244) 7.; rectangle (if shown then toolbar else rgb 168 192 228) 3. 8. |> move 0. 4. ] |> rotate angle |> move (x +. 26.) (tab_y m) ]
+         @ monospace (x +. 38.) (tab_y m) ink title
+         @ [ rectangle muted 9. 2. |> rotate 45. |> move (x +. w -. 17.) (tab_y m); rectangle muted 9. 2. |> rotate (-45.) |> move (x +. w -. 17.) (tab_y m) ])
        m.tabs)
   @
   let x = tab_x m (List.length m.tabs) in
-  [ rectangle (rgb 120 155 210) 22. 18. |> move (x +. 13.) (tab_y -. 2.); rectangle white 10. 2. |> move (x +. 13.) (tab_y -. 2.);
-    rectangle white 2. 10. |> move (x +. 13.) (tab_y -. 2.) ]
+  [ rectangle (rgb 120 155 210) 22. 18. |> move (x +. 13.) (tab_y m -. 2.); rectangle white 10. 2. |> move (x +. 13.) (tab_y m -. 2.);
+    rectangle white 2. 10. |> move (x +. 13.) (tab_y m -. 2.) ]
 
 (* the status bubble: a link's address, or what is loading *)
 let bubble (m : model) : shape list =
@@ -535,8 +562,8 @@ let bubble (m : model) : shape list =
   | Some t ->
       let t = Browser_text.tail 100 t in
       let w = (cell *. float_of_int (List.length (characters t))) +. 12. in
-      [ rectangle edge (w +. 2.) 20. |> move (-500. +. ((w +. 2.) /. 2.)) y; rectangle toolbar w 18. |> move (-500. +. (w /. 2.)) y ]
-      @ monospace (-494.) y ink t
+      [ rectangle edge (w +. 2.) 20. |> move (left m +. ((w +. 2.) /. 2.)) y; rectangle toolbar w 18. |> move (left m +. (w /. 2.)) y ]
+      @ monospace (left m +. 6.) y ink t
   | None -> []
 
 (* the page, and the element inspected outlined on it *)
@@ -560,36 +587,40 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
   |> List.filter (fun (top, bottom, _) -> bottom > scroll && top < scroll +. area_height m)
   |> List.map (fun (_, _, s) -> s)
   |> group
-  |> move area_left (area_top +. scroll)
+  |> move (area_left m) (area_top m +. scroll)
   |> fun s -> [ s ]
 
 (* the developer tools: the header, then the view's lines *)
 let panel (m : model) : shape list =
   let tab = current_tab m in
   let lines ~x ~max (ls : Browser_devtools.line list) =
-    let rows = int_of_float ((panel_top -. 20. +. 500.) /. 14.) - 1 in
+    let rows = int_of_float ((panel_height m -. 20.) /. 14.) - 1 in
     List.concat
       (List.mapi
-         (fun i ((text, (r, g, b)) : Browser_devtools.line) -> if i >= rows then [] else monospace ~max x (panel_header_y -. 18. -. (14. *. float_of_int i)) (rgb r g b) text)
+         (fun i ((text, (r, g, b)) : Browser_devtools.line) -> if i >= rows then [] else monospace ~max x (panel_header_y m -. 18. -. (14. *. float_of_int i)) (rgb r g b) text)
          ls)
   in
-  let header name x active = [ rectangle (if active then white else toolbar) 60. 16. |> move (x +. 30.) panel_header_y ] @ monospace (x +. 4.) panel_header_y ink name in
+  let header name x active = [ rectangle (if active then white else toolbar) 60. 16. |> move (x +. 30.) (panel_header_y m) ] @ monospace (x +. 4.) (panel_header_y m) ink name in
+  (* claude: the characters a line of [w] units holds: a whole line of
+   * the panel, or one of its two halves *)
+  let chars w = int_of_float (w /. cell) in
+  let x = left m +. 10. and half = chars ((width m /. 2.) -. 20.) in
   let body =
     match (m.panel, tab.state, m.selected) with
-    | Network, _, _ -> lines ~x:(-490.) ~max:160 (Browser_devtools.network tab.requests ~times:(fun url -> List.assoc_opt url (current m).times))
+    | Network, _, _ -> lines ~x ~max:(chars (width m -. 40.)) (Browser_devtools.network tab.requests ~times:(fun url -> List.assoc_opt url (current m).times))
     | Elements, Shown p, Some e ->
-        lines ~x:(-490.) ~max:80 (Browser_devtools.element p e)
-        @ [ rectangle edge 1. (panel_top +. 500. -. 20.) |> move 0. ((panel_top -. 520.) /. 2.) ]
-        @ lines ~x:6. ~max:80 (Browser_devtools.styles (settings m.css tab) p e)
-    | Elements, _, _ -> lines ~x:(-490.) ~max:120 [ ("Click Inspect, then an element of the page.", (110, 110, 110)) ]
+        lines ~x ~max:half (Browser_devtools.element p e)
+        @ [ rectangle edge 1. (panel_height m -. 20.) |> move 0. (panel_top m -. 20. -. ((panel_height m -. 20.) /. 2.)) ]
+        @ lines ~x:6. ~max:half (Browser_devtools.styles (settings m tab) p e)
+    | Elements, _, _ -> lines ~x ~max:120 [ ("Click Inspect, then an element of the page.", (110, 110, 110)) ]
     | Closed, _, _ -> []
   in
-  [ rectangle (rgb 250 250 250) 1000. (panel_top +. 500.) |> move_y ((panel_top -. 500.) /. 2.); rectangle edge 1000. 1. |> move_y panel_top;
-    rectangle toolbar 1000. 22. |> move_y panel_header_y ]
-  @ [ rectangle (if m.inspecting then inspector_blue else toolbar) 60. 16. |> move (-460.) panel_header_y ]
-  @ monospace (-486.) panel_header_y (if m.inspecting then white else ink) "Inspect"
-  @ header "Elements" (-410.) (m.panel = Elements)
-  @ header "Network" (-330.) (m.panel = Network)
+  [ rectangle (rgb 250 250 250) (width m) (panel_height m) |> move_y (panel_top m -. (panel_height m /. 2.)); rectangle edge (width m) 1. |> move_y (panel_top m);
+    rectangle toolbar (width m) 22. |> move_y (panel_header_y m) ]
+  @ [ rectangle (if m.inspecting then inspector_blue else toolbar) 60. 16. |> move (x +. 30.) (panel_header_y m) ]
+  @ monospace (x +. 4.) (panel_header_y m) (if m.inspecting then white else ink) "Inspect"
+  @ header "Elements" (x +. 80.) (m.panel = Elements)
+  @ header "Network" (x +. 160.) (m.panel = Network)
   @ body
 
 let view (m : model) : shape list =
@@ -604,26 +635,26 @@ let view (m : model) : shape list =
     | Some i when not m.editing -> i
     | _ -> String.length omnibox
   in
-  let shown = Browser_text.tail 128 omnibox in
+  let shown = Browser_text.tail (int_of_float ((omnibox_w m -. 52.) /. cell)) omnibox in
   let dark = String.sub shown 0 (min (String.length shown) host_end) in
-  [ rectangle background 1000. 1000. ]
+  [ rectangle background (width m) (height m) ]
   @ body
   (* the chrome over what overflows *)
-  @ [ rectangle frame 1000. 44. |> move_y 478.;
-      rectangle toolbar 1000. 42. |> move_y (area_top +. 21.);
-      rectangle edge 1000. 1. |> move_y area_top ]
+  @ [ rectangle frame (width m) 44. |> move_y (top m -. 22.);
+      rectangle toolbar (width m) 42. |> move_y (area_top m +. 21.);
+      rectangle edge (width m) 1. |> move_y (area_top m) ]
   @ tabs m
-  @ List.concat (List.mapi (fun i (name, active) -> icon name active (button_x i) toolbar_y) (buttons m))
-  @ [ rectangle edge (omnibox_w +. 2.) 30. |> move (omnibox_x +. (omnibox_w /. 2.)) toolbar_y;
-      rectangle white omnibox_w 28. |> move (omnibox_x +. (omnibox_w /. 2.)) toolbar_y ]
-  @ monospace (omnibox_x +. 10.) toolbar_y muted shown
-  @ monospace (omnibox_x +. 10.) toolbar_y ink dark
+  @ List.concat (List.mapi (fun i (name, active) -> icon name active (button_x m i) (toolbar_y m)) (buttons m))
+  @ [ rectangle edge (omnibox_w m +. 2.) 30. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m);
+      rectangle white (omnibox_w m) 28. |> move (omnibox_x m +. (omnibox_w m /. 2.)) (toolbar_y m) ]
+  @ monospace (omnibox_x m +. 10.) (toolbar_y m) muted shown
+  @ monospace (omnibox_x m +. 10.) (toolbar_y m) ink dark
   @ (let on = tab.script <> None in
-     [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x +. 11.) toolbar_y ]
-     @ monospace (js_x +. 5.) toolbar_y white "JS")
+     [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x m +. 11.) (toolbar_y m) ]
+     @ monospace (js_x m +. 5.) (toolbar_y m) white "JS")
   (* the wrench: Chrome's one menu, here the developer tools *)
-  @ [ rectangle (if m.panel <> Closed then inspector_blue else rgb 70 90 120) 4. 18. |> rotate 45. |> move wrench_x toolbar_y;
-      circle (if m.panel <> Closed then inspector_blue else rgb 70 90 120) 5. |> move (wrench_x -. 5.) (toolbar_y +. 5.) ]
+  @ [ rectangle (if m.panel <> Closed then inspector_blue else rgb 70 90 120) 4. 18. |> rotate 45. |> move (wrench_x m) (toolbar_y m);
+      circle (if m.panel <> Closed then inspector_blue else rgb 70 90 120) 5. |> move (wrench_x m -. 5.) (toolbar_y m +. 5.) ]
   @ (if m.panel <> Closed then panel m else [])
   @ bubble m
 
@@ -641,7 +672,8 @@ let app (network : < Cap.network ; .. >) =
         Sub.batch
           [ Sub.on_animation_frame (fun t -> Tick t); Sub.on_key_down (fun key -> Key key);
             Sub.on_typed (fun s -> Typed s); Sub.on_mouse_wheel (fun n -> Wheel n);
-            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click) ]);
+            Sub.on_mouse_move (fun (x, y) -> Mouse_move (x, y)); Sub.on_mouse_down (fun () -> Click);
+            Sub.on_resize (fun w h -> Resized (w, h)) ]);
   }
 
 (* threads on, as in TinyNetscape (N2): a name resolved, an https://
@@ -650,4 +682,6 @@ let main = Program.main __MODULE__ (fun () ->
   Cap.main (fun caps ->
       let flags = Playground_platform.flags () in
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
-      Playground_platform.run_app ~flags (app caps)))
+      (* claude: an application's window: resized, the page is laid out
+       * again at its width rather than the picture scaled *)
+      Playground_platform.run_app ~screen:(1280, 900) ~screen_follows_window:true ~flags (app caps)))

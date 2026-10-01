@@ -35,6 +35,14 @@
   from TinyMediaPlayer's Our_media)
 - renamed MiniChrome (the window's title, about:chrome), no longer
   held to TinyChrome's budget of 5,000 lines
+- the window resized (dragged, full screen, -size WxH): the page laid
+  out again at its width, the chrome placed from the window's edges,
+  instead of a 1000 by 1000 picture scaled with black bars (Cairo's
+  platform, over the Playground's run_app ~screen_follows_window, after
+  0.3.0; the software one keeps 1000 by 1000)
+
+** Bug fixes
+- the wheel scrolled the wrong way
 
 ** build infra
 - one opam package, mini-chrome, standing on elm-playground's packages
