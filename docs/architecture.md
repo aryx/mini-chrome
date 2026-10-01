@@ -11,7 +11,7 @@ is about the shape of the running program.
 languages/   html, css, javascript, json      text in, values out; no window
 libs/        gui, richtext, typeset, network  general, not a browser's
 src/         url, layout, display, www,       the browser, by role
-             viewers, about, chrome, main
+             viewers, about, chrome, window, main
 ```
 
 Each folder is one library, and a library only uses those above it in
@@ -20,8 +20,9 @@ fonts, no sockets, which is why their tests run on strings.
 
 ## The program is Model-View-Update
 
-`src/main/MiniChrome.ml` is an Elm-architecture program over the
-Playground's `run_app`:
+The browser's window is an Elm-architecture program over the
+Playground's `run_app`, in `src/window`; `src/main/MiniChrome.ml` is
+its main (the flags, the profile read, the capabilities handed down):
 
 ```
             +-------------------- msg --------------------+
@@ -41,6 +42,19 @@ Playground's `run_app`:
   profile. Those effects are few and all there.
 - **view** rebuilds every shape of the window from the model at each
   frame. Nothing on screen is kept from the frame before.
+
+A module a concern, each using only those above it:
+
+| Module | Its concern | Lines |
+|---|---|---|
+| `Window_model` | the state and the messages: types alone | 58 |
+| `Window_layout` | the model read: where each part is, what is under the pointer, the `libs/gui` pieces built from it | 129 |
+| `Window_tabs` | the model changed: a tab's settings, one changed, opened, closed; scroll, zoom, scale, the profile | 167 |
+| `Window_update` | `init` and `update`: what each message does, in the order of who gets an event | 235 |
+| `Window_view` | `view`: the shapes, back to front | 145 |
+
+It was one file of 875 lines; the rule of thumb is that a module stays
+under about 700, split along a concern when there is one.
 
 A tab (`Browser_tab.t`) is a value inside the model. It never touches a
 socket: it returns the requests it wants as messages, and the program
@@ -101,7 +115,7 @@ focus and the caret underneath the model. Here the Playground already
 is the loop and delivers messages, so the pieces only need to be values
 with a hit test and shapes.
 
-What is in `libs/gui`, and what is still drawn in `MiniChrome.ml`:
+What is in `libs/gui`, and what is still drawn in `Window_view`:
 
 | Piece | Where | Why |
 |---|---|---|
@@ -114,8 +128,8 @@ What is in `libs/gui`, and what is still drawn in `MiniChrome.ml`:
 | The desktop's scale | `Gui_scale` | any window on a screen of many dots |
 | Colours, the box hit test | `Gui_kit` | shared by the pieces |
 | What the right click's menu offers | `src/chrome/Browser_menu` | a browser's |
-| The omnibox's two-tone address, the "JS" and zoom badges, the wrench | `MiniChrome.ml` | specific to a browser |
-| The developer tools' panel | `MiniChrome.ml`, `Browser_devtools` | a browser's |
+| The omnibox's two-tone address, the "JS" and zoom badges, the wrench | `Window_view` | specific to a browser |
+| The developer tools' panel | `Window_view`, `Browser_devtools` | a browser's |
 
 ## Processes and threads
 

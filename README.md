@@ -107,9 +107,14 @@ src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
                       (Browser_zoom), what the right click's menu offers
                       (Browser_menu), what is kept between runs
                       (Browser_profile)
-src/main/             the window: the program's model, update and view
-                      over those and libs/gui's pieces; the omnibox, the
-                      panels (MiniChrome.ml)
+src/window/           the window as a Model-View-Update program over
+                      those and libs/gui's pieces: Window_model (the
+                      state, the messages), Window_layout (where each
+                      part is, what is under the pointer), Window_tabs
+                      (a tab changed, opened, closed; scroll, zoom),
+                      Window_update, Window_view
+src/main/             the main: the flags, the profile, the capabilities
+                      handed down, the Playground run (MiniChrome.ml)
 tests/                html, css, js, layout, browser, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and

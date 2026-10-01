@@ -41,11 +41,11 @@ A word of the command line that is not a flag is a page to open, an
 address or words to search (`./bin/mini-chrome news.ycombinator.com`;
 several: a tab each). Program flags are `key=value` words
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`;
-their names are `flag_names` in MiniChrome.ml, to keep up to date):
+their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`.
 
-Everything is drawn at a scale (`scale_of` in MiniChrome.ml): the one
+Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
 `"scale"`), else the desktop's, which `Gui_scale` reads from `xrdb`'s
 `Xft.dpi` (2 on a screen GNOME scales twice). The model's `screen` and
@@ -114,7 +114,7 @@ platforms is presented as a plan and agreed on before it is made.
 Each folder is one dune library, listed in the README in dependency
 order: `languages/` (html, css, javascript, json) → `libs/` (gui, richtext,
 typeset, network) → `src/` (url, layout, display, www, viewers, about,
-chrome, main). `languages/` and `src/layout` are pure OCaml: no
+chrome, window, main). `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the
 caller), which is why their tests run on plain strings.
 
@@ -143,14 +143,27 @@ page is then laid out again whole (`Browser_page.with_tree`). The
 JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
 Scripts run only on the built-in pages and on allow-listed hosts
-(`default_allowed` in MiniChrome.ml).
+(`default_allowed` in `Window_tabs`).
 
 ### Tabs, fetching and the program
 
-`src/main/MiniChrome.ml` is an Elm-architecture program over the
-Playground (`init`/`update`/`view`/`subscriptions`, a `model` and a
-`msg`): the window's chrome, the omnibox, the panels, and a list of
-tabs.
+The program is an Elm-architecture one over the Playground
+(`init`/`update`/`view`/`subscriptions`, a `model` and a `msg`): the
+window's chrome, the omnibox, the panels, and a list of tabs. It is
+`src/window`, a module a concern:
+
+| Module | What it is |
+|---|---|
+| `Window_model` | the `model` and `msg` types (an `.mli` alone) |
+| `Window_layout` | the model read: where each part of the window is, what is under the pointer, the `libs/gui` pieces built from it |
+| `Window_tabs` | the model changed: a tab's settings and `config`, `on_tab`, tabs opened and closed, scroll, zoom, scale, the profile |
+| `Window_update` | `init` and `update`: what each message does |
+| `Window_view` | `view`: the shapes |
+
+`src/main/MiniChrome.ml` is only the main: the flags, the profile read,
+the capabilities handed down, `run_app`. No module should pass about
+700 lines: when one nears it, look for a split along a concern as
+this one, and leave it whole if there is none.
 
 The program's screen is the window itself (`run_app
 ~screen_follows_window:true`), not the Playground's usual 1000 by 1000
@@ -192,8 +205,9 @@ What the window's chrome is made of and that is not a browser's goes in
 `Gui_field`, `Gui_scrollbar`, the colours in `Gui_kit`, the desktop's
 scale in `Gui_scale`), as values built from the model: `shapes` for the
 view, a hit test (`at`, `chosen`) for update, no state, callback or
-message of their own. `MiniChrome.ml` builds them (`strip m`, `buttons
-m`) and decides what a hit means. A new piece of chrome goes there
+message of their own. `Window_layout` and `Window_tabs` build them
+(`strip m`, `buttons m`, `scrollbar m`) and `Window_update` decides
+what a hit means. A new piece of chrome goes there
 unless it is specific to a browser (then `src/chrome`, as
 `Browser_menu`).
 

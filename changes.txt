@@ -73,6 +73,11 @@
   menu offers. Then, moved out of MiniChrome.ml, the same pixels:
   Gui_tabs (the strip of tabs), Gui_toolbar (Back, Forward, Reload,
   Stop), the status bubble (Gui_text), the colours (Gui_kit)
+- src/window: MiniChrome.ml (875 lines) split by concern, the same
+  pixels (24 frames compared): Window_model (the state and messages),
+  Window_layout (the model read: the geometry, the pointer),
+  Window_tabs (the model changed: tabs, scroll, zoom, the profile),
+  Window_update, Window_view; src/main's MiniChrome.ml is the main
 - docs/architecture.md: the Model-View-Update loop, the pieces of
   libs/gui and their style among the four of elm-playground's
   notes_gui.md, the one process and its pool of four threads next to

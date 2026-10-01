@@ -21,6 +21,7 @@
    mini_gui ; Gui_text, Gui_menu
    lang_html lang_css browser_layout
    browser_url browser_display browser_www browser_viewers browser_about browser_chrome
+   browser_window ; the program: its model, update and view
    elm_playground
    (select Platform_choice.ml from
      (elm_playground_native -> Platform_choice.cairo.ml) ; SDL and Cairo

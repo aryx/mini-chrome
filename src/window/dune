@@ -1,0 +1,19 @@
+; claude: the browser's window as a Model-View-Update program
+; (docs/architecture.md): Window_model (the state and the messages),
+; Window_layout (the model read: where each part is, what is under the
+; pointer), Window_tabs (the model changed: a tab's settings, one
+; changed, opened, closed; scroll, zoom, the profile), Window_update
+; (what each message does) and Window_view (the shapes). src/main's
+; MiniChrome.ml runs it, on either of the Playground's platforms.
+(library
+ (name browser_window)
+ (wrapped false)
+ (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
+ (modules_without_implementation window_model) ; types alone
+ (libraries
+   caps ; the network and the profile's file, handed down by main
+   tiny_libs.core network
+   mini_gui ; the chrome's pieces
+   lang_html lang_css browser_layout
+   browser_url browser_display browser_www browser_viewers browser_about browser_chrome
+   elm_playground))
