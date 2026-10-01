@@ -8,7 +8,7 @@ on:
   pull_request_target: {}
   workflow_dispatch: null
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:

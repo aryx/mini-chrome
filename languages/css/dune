@@ -1,4 +1,4 @@
-; claude: what a page's elements look like (see engine/layout/README.md):
+; claude: what a page's elements look like:
 ; Looks, Mosaic's fixed table computed down the tree; and the page's
 ; style sheets cascaded on top of it: Css_syntax (the text read:
 ; tokens, blocks, rules), Selectors (which elements a rule is for), Css
