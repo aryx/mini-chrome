@@ -100,7 +100,8 @@ src/layout/           where everything goes: CSS's box model (Box_layout,
 src/display/          a page drawn as shapes: Hershey's letters, pictures,
                       boxes (Browser_draw, Browser_boxes)
 src/www/              the page as a document (Browser_page), its scripts
-                      and DOM (Browser_script), its forms
+                      and DOM (Browser_script, over Script_dom and
+                      Script_host), its forms
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube
 src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),

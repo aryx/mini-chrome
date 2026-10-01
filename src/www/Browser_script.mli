@@ -30,6 +30,12 @@
                               |
        layout  <--  Dom  <--freeze (when changed)
 
+   **The code** is three modules over Script_types' types, each using
+   only those before it: Script_dom (the copy: thawed, changed, frozen,
+   its HTML, a selector's elements), Script_host (the host objects: an
+   element's, document, location, a URL), and this one, the tasks (the
+   page's scripts, events, timers) and what the browser asks.
+
    **The scripts** of the page, its <script> elements, run in order once
    the page is read -- as the attribute defer asks, rather than as the
    parser meets them, so a script can find every element whatever its

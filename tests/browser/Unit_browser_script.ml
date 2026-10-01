@@ -149,4 +149,20 @@ let tests =
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));
+      Testo.create "Script_dom's worked example: the copy thawed, read, changed, frozen" (fun () ->
+          let tree = Html_tree.of_string "<p id=a>one <b>two</b>" in
+          let root = Script_dom.thaw tree in
+          let p = List.find (fun (n : Script_types.node) -> n.name = "p") (Script_dom.elements root) in
+          Alcotest.(check (list string)) "its children: a text, a b" [ "#text"; "b" ] (List.map (fun (n : Script_types.node) -> n.name) p.children);
+          Alcotest.(check bool) "each knows its parent" true (List.for_all (fun (n : Script_types.node) -> match n.parent with Some q -> q == p | None -> false) p.children);
+          Alcotest.(check (option string)) "its attribute" (Some "a") (Script_dom.attribute p "id");
+          Alcotest.(check string) "its text" "one two" (Script_dom.text_content p);
+          Alcotest.(check string) "inner_html" "one <b>two</b>" (Script_dom.inner_html p);
+          Alcotest.(check string) "html_of" {|<p id="a">one <b>two</b></p>|} (Script_dom.html_of p);
+          Alcotest.(check bool) "frozen unchanged: the same tree" true (Script_dom.freeze root = tree);
+          Script_dom.set_attribute p "id" "b";
+          Script_dom.set_attribute p "class" "x";
+          Script_dom.detach (List.nth p.children 1);
+          Alcotest.(check string) "changed" {|<p id="b" class="x">one </p>|} (Script_dom.html_of p);
+          Alcotest.(check (list string)) "a fragment's nodes" [ "i"; "#text" ] (List.map (fun (n : Script_types.node) -> n.name) (Script_dom.parse_fragment "<i>a</i>b")));
     ]

@@ -1,9 +1,12 @@
 ; claude: the page as a document: read, styled and laid out, every stage
-; kept (Browser_page), its scripts and the DOM they see (Browser_script),
+; kept (Browser_page), its scripts and the DOM they see (Browser_script:
+; the tasks, over Script_dom, the page's mutable copy, and Script_host,
+; the host objects; their types in Script_types),
 ; its forms' clicks and keys (Browser_forms).
 (library
  (name browser_www)
  (wrapped false)
+ (modules_without_implementation script_types) ; types alone
  (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
  (libraries
    lang_html lang_css javascript browser_layout

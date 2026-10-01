@@ -145,8 +145,9 @@ over the page's tree (blocks, flex, shrink-to-fit, positioned boxes,
 tables) that cannot be cut. `Box_layout.mli` tells the whole.
 
 The `Dom` tree is an immutable value. `Browser_script` gives a page's
-scripts a mutable copy (thaw), and freezes it back when it changed; the
-page is then laid out again whole (`Browser_page.with_tree`). The
+scripts a mutable copy (`Script_dom`: thaw), reached through host
+objects (`Script_host`), and freezes it back when it changed; the page
+is then laid out again whole (`Browser_page.with_tree`). The
 JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
 Scripts run only on the built-in pages and on allow-listed hosts

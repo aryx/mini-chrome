@@ -83,6 +83,10 @@
   box, a line's items, a block being laid out), Box_tree (a box read),
   Box_inline (words on lines beside floats), Box_flow (a block's width,
   margins and content), and Box_layout, the recursion (680 lines)
+- src/www: Browser_script.ml (724 lines) split by concern, the same
+  pixels and tests: Script_types, Script_dom (the page's mutable copy),
+  Script_host (the host objects: an element's, document, location),
+  and Browser_script, the tasks (scripts, events, timers)
 - docs/architecture.md: the Model-View-Update loop, the pieces of
   libs/gui and their style among the four of elm-playground's
   notes_gui.md, the one process and its pool of four threads next to

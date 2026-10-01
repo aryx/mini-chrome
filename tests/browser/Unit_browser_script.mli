@@ -6,5 +6,6 @@
  * the scripts' errors in the console, the next script still run; the
  * events: a click bubbling, stopped, prevented (onclick="...; return
  * false" too), delegated to a table; keys and a field's input; timers
- * on the page's clock; alert and DOMContentLoaded *)
+ * on the page's clock; alert and DOMContentLoaded; and Script_dom's
+ * worked example, the copy by itself *)
 val tests : Testo.t list
