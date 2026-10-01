@@ -5,6 +5,12 @@ A small web browser written from scratch in OCaml, after Google Chrome
 engine, SVG, pictures, `<video>` and `<audio>`, tabs, an omnibox and
 developer tools.
 
+From scratch all the way down: its own networking too (HTTP/1.1 over
+its own TLS 1.3 client), and its pictures, sound and video decoders,
+its cryptography and even its drawing, by a software rasterizer instead
+of Cairo if you like, are elm-playground's, written from scratch as
+well. Of C it needs only SDL, for the window.
+
 It started as [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
 TinyChrome, a toy held to 5,000 lines of its own code; here it grows,
 towards the web as it is (Wikipedia first, YouTube one day).
