@@ -17,6 +17,9 @@ let ok = function Ok x -> x | Error e -> Alcotest.fail e
 let body_of (head : string list) (rest : string) : string =
   (ok (Http.parse_response (String.concat "\r\n" head ^ "\r\n\r\n" ^ rest))).body
 
+(* Gzip.mli's worked example: "hi" in one stored block *)
+let hi_gz = "\x1F\x8B\x08\x00\x00\x00\x00\x00\x00\xFF\x01\x02\x00\xFD\xFF\x68\x69\xAC\x2A\x93\xD8\x02\x00\x00\x00"
+
 let wikipedia = "4\r\nWiki\r\n5\r\npedia\r\nE\r\n in\r\n\r\nchunks.\r\n0\r\n\r\n"
 
 let tests =
@@ -24,7 +27,7 @@ let tests =
     [
       Testo.create "the request of the diagram" (fun () ->
           Alcotest.(check string) "bytes"
-            "GET /images/turtle.gif HTTP/1.1\r\nHost: elm-lang.org\r\nUser-Agent: elm_playground\r\nConnection: close\r\n\r\n"
+            "GET /images/turtle.gif HTTP/1.1\r\nHost: elm-lang.org\r\nUser-Agent: elm_playground\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
             (Http.request_to_string (Http.get ~host:"elm-lang.org" "/images/turtle.gif")));
       Testo.create "the status line" (fun () ->
           Alcotest.(check (triple string int string)) "200" ("HTTP/1.1", 200, "OK") (ok (Http.parse_status_line "HTTP/1.1 200 OK"));
@@ -55,13 +58,26 @@ let tests =
           let r = ok (Http.parse_response "HTTP/1.1 301 Moved\nLOCATION:   /new  \n\n") in
           Alcotest.(check (option string)) "Location" (Some "/new") (Http.header "Location" r.headers);
           Alcotest.(check bool) "a redirect" true (Http.is_redirect r.status));
-      Testo.create "refused: folded headers, compression" (fun () ->
+      Testo.create "Content-Encoding: gzip, the worked example" (fun () ->
+          Alcotest.(check string) "Content-Length, the compressed bytes'" "hi" (body_of [ "HTTP/1.1 200 OK"; "Content-Encoding: gzip"; "Content-Length: 25" ] (hi_gz ^ "more"));
+          Alcotest.(check string) "until the connection closes; x-gzip" "hi" (body_of [ "HTTP/1.1 200 OK"; "content-encoding: X-GZIP" ] hi_gz);
+          let chunked = Printf.sprintf "a\r\n%s\r\nf\r\n%s\r\n0\r\n\r\n" (String.sub hi_gz 0 10) (String.sub hi_gz 10 15) in
+          Alcotest.(check string) "under the chunks" "hi" (body_of [ "HTTP/1.1 200 OK"; "Content-Encoding: gzip"; "Transfer-Encoding: chunked" ] chunked);
+          Alcotest.(check string) "identity" "hi" (body_of [ "HTTP/1.1 200 OK"; "Content-Encoding: identity" ] "hi");
+          Alcotest.(check string) "a 304 has no body to decompress" "" (body_of [ "HTTP/1.1 304 Not Modified"; "Content-Encoding: gzip" ] "");
+          let r = ok (Http.parse_response ("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 25\r\n\r\n" ^ hi_gz)) in
+          Alcotest.(check (option string)) "the headers are the server's" (Some "25") (Http.header "Content-Length" r.headers));
+      Testo.create "refused: folded headers, another coding, a corrupt gzip" (fun () ->
           Alcotest.(check bool) "folded" true
             (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nX-A: 1\r\n  2\r\n\r\n"));
           Alcotest.(check bool) "space before the colon" true
             (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nX-A : 1\r\n\r\n"));
-          Alcotest.(check bool) "gzip" true
-            (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\n\r\n...")));
+          Alcotest.(check bool) "brotli" true
+            (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: br\r\n\r\n..."));
+          Alcotest.(check bool) "not a gzip stream" true
+            (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\n\r\n..."));
+          Alcotest.(check bool) "a gzip stream cut short" true
+            (Result.is_error (Http.parse_response ("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\n\r\n" ^ String.sub hi_gz 0 14))));
       Testo.create "the server's side: a request, whole or not yet" (fun () ->
           let show (p : Http.parsed_request) =
             match p with

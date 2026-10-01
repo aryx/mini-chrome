@@ -11,7 +11,8 @@
      GET /images/turtle.gif HTTP/1.1      HTTP/1.1 200 OK
      Host: elm-lang.org                   Content-Type: image/gif
      User-Agent: elm_playground           Content-Length: 1523
-     Connection: close                    Connection: close
+     Accept-Encoding: gzip                Connection: close
+     Connection: close
      (empty line)                         (empty line)
                                           GIF89a... (1523 bytes)
 
@@ -61,11 +62,27 @@
    server failed. Following redirections is the client's job
    (Http_client.mli), not this module's.
 
+   **Compression.** "Accept-Encoding: gzip" tells the server it may
+   send the body compressed, and "Content-Encoding: gzip" in its answer
+   that it did: a page of text is then five times smaller on the wire
+   (Wikipedia's article on OCaml, 354 KB, comes as 64). The coding is
+   under the framing: the chunks are joined, or Content-Length's bytes
+   taken (the length is the compressed one), and then the whole is a
+   gzip stream (tiny_libs' Gzip: DEFLATE in RFC 1952's wrapper).
+   [response.body] is the page, decompressed; its headers are the
+   server's, untouched. The worked example, "hi" (Gzip.mli's 25 bytes):
+
+     HTTP/1.1 200 OK
+     Content-Encoding: gzip
+     Content-Length: 25
+     (empty line)
+     1F 8B 08 00 00 00 00 00 00 FF 01 02 00 FD FF 68 69 AC 2A 93 D8 02 00 00 00
+
+   Any other coding (deflate, br, zstd: not asked for) is refused.
+
    Not done: keep-alive (several requests on one connection, the reason
    for 1.1's body framings: each message must end without the
-   connection ending); compression (we don't send "Accept-Encoding", so
-   a server must not compress, and a "Content-Encoding" other than
-   identity is refused; gzip would be compression's Inflate); caching;
+   connection ending); caching;
    HTTP/2 (2015: the same messages as binary frames, many requests at
    once on one connection) and HTTP/3 (2022: the same over QUIC, over
    UDP) --
@@ -95,7 +112,7 @@ type request = {
 
 (* a GET of [target] from [host] ("elm-lang.org", or "localhost:8001"
  * for a port that isn't the default), with the headers above: Host,
- * User-Agent, Connection: close *)
+ * User-Agent, Accept-Encoding: gzip, Connection: close *)
 val get : host:string -> string -> request
 
 (* a POST of [body] to [target]: get's headers, and the body's
@@ -129,7 +146,8 @@ val dechunk : string -> (string, string) result
  * above, for this status and these headers *)
 val body : status:int -> header list -> string -> (string, string) result
 
-(* everything the server sent until it closed the connection, parsed *)
+(* everything the server sent until it closed the connection, parsed;
+ * the body decompressed if "Content-Encoding: gzip" *)
 val parse_response : string -> (response, string) result
 
 (* 301, 302, 303, 307, 308: the answer is elsewhere, in "Location:" *)

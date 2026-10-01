@@ -127,6 +127,8 @@ Discussed but not started when this was written, in the order proposed:
    every tab out again. Measure first.
 4. Networking: gzip (the Inflate decoder is in `tiny_libs`, and the HTTP
    code refuses compressed bodies), then keep-alive, then cookies.
+   gzip is done: `Gzip` added to `tiny_libs.compression` (it is no
+   browser's), `Http` asking for it and decompressing.
 
 YouTube is the far goal: its pages need a modern JavaScript engine and
 streaming video formats nothing here decodes yet.
@@ -135,6 +137,10 @@ Known loose ends:
 
 - Until 0.3.1 is in opam-repository, `./configure` pins elm-playground's
   packages from the tag.
+- gzip needs `tiny_libs`' `Gzip`, in elm-playground after 0.3.3 and in
+  no release yet: the bounds (`dune-project`, 0.3.1) and the tag
+  `./configure` pins are behind, and the CI fails until a release has
+  it.
 - `tests/network_unix` opens sockets on localhost and runs the `openssl`
   program. elm-playground's copy of those tests learned to skip itself
   in a sandbox without network (opam's on macOS); this copy has not.

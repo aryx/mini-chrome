@@ -25,7 +25,7 @@ let ( let* ) = Result.bind
 type request = { meth : string; target : string; headers : header list }
 
 let get ~(host : string) (target : string) : request =
-  { meth = "GET"; target; headers = [ ("Host", host); ("User-Agent", "elm_playground"); ("Connection", "close") ] }
+  { meth = "GET"; target; headers = [ ("Host", host); ("User-Agent", "elm_playground"); ("Accept-Encoding", "gzip"); ("Connection", "close") ] }
 
 let post ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
   let r = get ~host target in
@@ -154,17 +154,24 @@ let body ~(status : int) (headers : header list) (rest : string) : (string, stri
             else Ok (String.sub rest 0 n)
         | Some n -> Error (Printf.sprintf "Http: bad Content-Length %S" n))
 
+(* claude: the body as the server had it before "Content-Encoding":
+ * gzip's (we ask for no other, Accept-Encoding: gzip), once the
+ * framing is undone; a body of nothing (a 304) is not a gzip stream *)
+let decoded (headers : header list) (body : string) : (string, string) result =
+  match Option.map String.lowercase_ascii (header "Content-Encoding" headers) with
+  | None | Some "identity" -> Ok body
+  | Some ("gzip" | "x-gzip") when body = "" -> Ok ""
+  | Some ("gzip" | "x-gzip") -> (
+      (* Inflate reads past the end of a stream cut short *)
+      try Ok (Gzip.decompress body) with Failure e | Invalid_argument e -> Error ("Http: " ^ e))
+  | Some ce -> Error (Printf.sprintf "Http: content coding %S not supported" ce)
+
 let parse_response (s : string) : (response, string) result =
   let* line, pos = Option.to_result ~none:"Http: no status line" (line_at s 0) in
   let* version, status, reason = parse_status_line line in
   let* headers, pos = parse_headers s pos in
-  let* () =
-    match header "Content-Encoding" headers with
-    | None -> Ok ()
-    | Some ce when String.lowercase_ascii ce = "identity" -> Ok ()
-    | Some ce -> Error (Printf.sprintf "Http: content coding %S not supported" ce)
-  in
   let* body = body ~status headers (String.sub s pos (String.length s - pos)) in
+  let* body = decoded headers body in
   Ok { version; status; reason; headers; body }
 
 let is_redirect (status : int) : bool = List.mem status [ 301; 302; 303; 307; 308 ]

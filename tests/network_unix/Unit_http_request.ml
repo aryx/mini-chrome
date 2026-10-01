@@ -46,7 +46,7 @@ let tests (caps : < Cap.network ; .. >) =
                   match run_frames (Http_request.start caps url) with
                   | Ok r, _, _ -> Alcotest.check response path (ok (Http_client.get caps url)) r
                   | Error _, _, _ -> Alcotest.fail path)
-                [ "/old"; "/nothing" ]));
+                [ "/old"; "/nothing"; "/gz" ]));
       Testo.create "the name resolved on a thread: the same responses" (fun () ->
           let resolver = Worker.create 1 in
           Testutil_server.(with_server (respond site)) (fun port ->
@@ -59,7 +59,7 @@ let tests (caps : < Cap.network ; .. >) =
                   match run_frames r with
                   | Ok r, _, _ -> Alcotest.check response path (ok (Http_client.get caps url)) r
                   | Error _, _, _ -> Alcotest.fail path)
-                [ "/old"; "/nothing" ]));
+                [ "/old"; "/nothing"; "/gz" ]));
       Testo.create "refused like the blocking client" (fun () ->
           Testutil_server.(with_server (respond site)) (fun port ->
               let error path = match run_frames (Http_request.start caps (Testutil_server.url port path)) with Error e, _, _ -> Some e | Ok _, _, _ -> None in

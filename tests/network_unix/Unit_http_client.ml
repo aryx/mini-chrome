@@ -24,6 +24,14 @@ let tests (caps : < Cap.network ; .. >) =
                   Alcotest.(check int) "status" 200 r.status;
                   Alcotest.(check string) "body" "Wikipedia" r.body
               | Error e -> Alcotest.fail e));
+      Testo.create "a page sent with Content-Encoding: gzip" (fun () ->
+          Testutil_server.(with_server (respond site)) (fun port ->
+              match Http_client.get caps (Testutil_server.url port "/gz") with
+              | Ok (r : Http.response) ->
+                  Alcotest.(check string) "the page, decompressed" Testutil_server.page r.body;
+                  let sent = int_of_string (Option.get (Http.header "Content-Length" r.headers)) in
+                  Alcotest.(check bool) "fewer bytes on the wire" true (sent * 4 < String.length r.body)
+              | Error e -> Alcotest.fail e));
       Testo.create "a 404 is an answer, given back" (fun () ->
           Testutil_server.(with_server (respond site)) (fun port ->
               match Http_client.get caps (Testutil_server.url port "/nothing") with

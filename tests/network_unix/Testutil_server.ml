@@ -54,11 +54,17 @@ let with_server (handle : int -> string -> Unix.file_descr -> unit) (f : int -> 
           ignore (Unix.waitpid [] child))
         (fun () -> f port)
 
+let page = String.concat "" (List.init 200 (fun i -> Printf.sprintf "<p>line %d of a page</p>\n" i))
+
 let site (port : int) (request_line : string) : string =
   match request_line with
   | "GET /old HTTP/1.1" -> "HTTP/1.1 301 Moved Permanently\r\nLocation: new?v=2\r\nContent-Length: 0\r\n\r\n"
   | "GET /new?v=2 HTTP/1.1" ->
       "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n5\r\npedia\r\n0\r\n\r\n"
+  (* claude: a page compressed, longer than its bytes on the wire *)
+  | "GET /gz HTTP/1.1" ->
+      let body = Gzip.compress page in
+      Printf.sprintf "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: %d\r\n\r\n%s" (String.length body) body
   | "GET /loop HTTP/1.1" -> Printf.sprintf "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:%d/loop\r\n\r\n" port
   (* claude: to https:// where nobody listens, so that following it
    * needs no Internet *)

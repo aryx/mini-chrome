@@ -5,7 +5,8 @@
 ; in and bytes out) and unix/ (Tcp, Worker, Tls_client, Http_client,
 ; Http_request: the sockets, the GET, and the same GET as a non-blocking
 ; machine stepped each frame). Its own copy, to grow (cookies,
-; compression, keep-alive); the cryptography stays tiny_libs.crypto.
+; keep-alive); the cryptography stays tiny_libs.crypto, and gzip
+; tiny_libs.compression.
 ;
 ; Wrapped, as Network: the Playground links tiny_libs' networking (its
 ; Http and Multiplayer APIs, and the native platforms' Http.get), whose
@@ -24,4 +25,5 @@
    caps ; Cap.network, which every function opening a socket takes
    logs ; -v: the roots' file read
    tiny_libs.crypto ; the hashes, ciphers and signatures of TLS
+   tiny_libs.compression ; Gzip: a body with Content-Encoding: gzip
    tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)

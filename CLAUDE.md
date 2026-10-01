@@ -263,8 +263,10 @@ unless it is specific to a browser (then `src/chrome`, as
   `../ocaml-elm-playground/docs/claude_notes/` (`tutorials/`, `plans/`);
   `plan_tiny_chrome.md` lists the target sites and what each needs.
 - `libs/network` is a copy of elm-playground's networking meant to
-  diverge here (cookies, compression, keep-alive); the cryptography
-  stays `tiny_libs.crypto`.
+  diverge here (cookies, keep-alive); the cryptography stays
+  `tiny_libs.crypto`, and gzip (`Http` decompresses a body with
+  `Content-Encoding: gzip`) is `tiny_libs.compression`'s `Gzip`, which
+  is in elm-playground after 0.3.3: a compression is not a browser's.
 - `tiny_languages` cannot be linked here: its libraries stand on its
   own JavaScript, whose unwrapped modules (`Js_ast`, `Js_lexer`, ...)
   have the names of ours. What is needed from it is copied

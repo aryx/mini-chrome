@@ -7,4 +7,4 @@
 (test
  (name Test)
  (flags (:standard -open Network))
- (libraries unix caps alcotest testo network))
+ (libraries unix caps alcotest testo network tiny_libs.compression)) ; Gzip: the server's compressed page
