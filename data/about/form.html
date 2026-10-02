@@ -5,8 +5,8 @@
 <BODY>
 <H1>A fill-out form</H1>
 
-<P>Mosaic 2.0 (1993) let a page ask. This form is answered by
-TinyMosaic itself (<CODE>about:echo</CODE>), which shows what a server
+<P>Mosaic 2.0 (1993) let a page ask. This form is answered by the
+browser itself (<CODE>about:echo</CODE>), which shows what a server
 would have received.
 
 <FORM ACTION="about:echo">
@@ -30,12 +30,6 @@ the URL, where a password should not be.
 <P>Password: <INPUT TYPE=password NAME="secret" SIZE=12> <INPUT TYPE=submit>
 </FORM>
 
-<P>And one answered by a server, when this page comes from
-<CODE>tiny_httpd</CODE> (<CODE>http://localhost:8080/form.html</CODE>):
-a CGI program, <CODE>cgi-bin/echo</CODE>, run for the request.
-
-<FORM ACTION="cgi-bin/echo" METHOD=POST>
-<P>Say something: <INPUT NAME="said" SIZE=30> <INPUT TYPE=submit>
-</FORM>
+<P>Back to <A HREF="about:mosaic">the page of 1993</A>.
 </BODY>
 </HTML>

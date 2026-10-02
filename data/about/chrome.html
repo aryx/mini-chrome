@@ -15,11 +15,11 @@
     <h1>MiniChrome</h1>
     <p>A small browser for the real web: CSS's cascade and box model, from scratch.</p>
   </div>
-  <nav><a href="about:chrome">Home</a><a href="about:firefox">Firefox</a><a href="about:history">History</a></nav>
+  <nav><a href="about:chrome">Home</a><a href="about:history">History</a><a href="about:firefox">Scripts</a><a href="about:tube">Tube</a></nav>
 </header>
 <main>
   <div class="card">
-    <h2>The box model <span class="badge">C3</span></h2>
+    <h2>The box model <span class="badge">CSS 2.1</span></h2>
     <figure><img src="picture.png" width="96" height="96" alt="a picture"><figcaption>float: left</figcaption></figure>
     <p>Every box on this page is a content box inside its padding, its
     border and its margin. The column is <code>max-width: 760px</code>
@@ -31,7 +31,9 @@
     inline-blocks, shrunk to fit their words. The style comes from a
     linked sheet, <code>chrome.css</code>, fetched like a picture, which
     <code>@import</code>s its colours.</p>
-    <p class="clear"><a class="button" href="about:css">CSS in TinyNetscape</a><a class="button" href="about:netscape">Netscape's extensions</a><a class="button" href="about:home">TinyMosaic's home</a></p>
+    <p class="muted">The same engine reads the pages of the web's other
+    ages, each written as its time wrote them:</p>
+    <p class="clear"><a class="button" href="about:mosaic">1993: HTML alone</a><a class="button" href="about:netscape">1995: Netscape's tags</a><a class="button" href="about:css">1996: style sheets</a><a class="button" href="about:firefox">Scripts</a></p>
   </div>
 
   <div class="card">
@@ -39,7 +41,7 @@
     <p class="muted">A table as Hacker News still writes it: <code>bgcolor=</code>,
     <code>width=</code>, <code>cellpadding=</code> -- presentational hints, read as CSS.</p>
     <table width="100%" cellpadding="3" cellspacing="0" bgcolor="#f6f6ef">
-      <tr><td bgcolor="#ff6600"><b>Tiny News</b> &nbsp; new | past | comments | ask | show</td></tr>
+      <tr><td bgcolor="#ff6600"><b>Mini News</b> &nbsp; new | past | comments | ask | show</td></tr>
       <tr><td>1. <a href="about:firefox">A browser that runs the page's own program</a> <span class="muted">(about:firefox)</span></td></tr>
       <tr><td>2. <a href="about:history">The first browsers, and what they showed</a> <span class="muted">(about:history)</span></td></tr>
     </table>
@@ -103,12 +105,12 @@
 
   <div class="card">
     <h2>Sites to try</h2>
-    <p>Click one, or type an address in the omnibox above. What should
-    look mostly right, as the plan grows (plan_tiny_chrome.md):</p>
+    <p>Click one, or type an address in the omnibox above. What looks
+    mostly right today, and what each asks of the engine:</p>
     <ul class="sites">
-      <li><a href="https://news.ycombinator.com/"><b>Hacker News</b></a>: tables and attributes <span class="muted">(C4)</span></li>
-      <li><a href="https://en.wikipedia.org/wiki/Web_browser"><b>Wikipedia</b></a>: a long article, its sheets fetched <span class="muted">(C4)</span></li>
-      <li><a href="https://www.google.com/"><b>Google</b></a>: flexbox <span class="muted">(C5)</span>; <a href="https://github.com/aryx/mini-chrome"><b>GitHub</b></a>: flexbox and icons <span class="muted">(C5, C6)</span></li>
+      <li><a href="https://news.ycombinator.com/"><b>Hacker News</b></a>: tables and attributes, a small script</li>
+      <li><a href="https://en.wikipedia.org/wiki/Web_browser"><b>Wikipedia</b></a>: a long article, its sheets fetched, its columns a grid</li>
+      <li><a href="https://www.google.com/"><b>Google</b></a>: flexbox; <a href="https://github.com/aryx/mini-chrome"><b>GitHub</b></a>: flexbox and icons</li>
       <li><a href="https://www.craigslist.org/"><b>Craigslist</b></a>, <a href="https://lite.cnn.com/"><b>CNN Lite</b></a>, <a href="https://www.bbc.com/news"><b>BBC News</b></a>: the next ones</li>
     </ul>
   </div>

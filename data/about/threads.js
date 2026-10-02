@@ -1,5 +1,5 @@
 // about:threads' script: comments folded as Hacker News' hn.js folds
-// them, in the same ES5 -- written for TinyChrome's engine to run.
+// them, in the same ES5 -- written for MiniChrome's engine to run.
 
 function Thread(el) {
   this.el = el;

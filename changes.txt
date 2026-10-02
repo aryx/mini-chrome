@@ -60,6 +60,15 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the built-in site is MiniChrome's own: its pages no longer speak as
+  the teaching browsers they came from (TinyMosaic, TinyNetscape,
+  TinyFirefox), but as pages of the web's ages, each written as its
+  time wrote them -- about:mosaic (1993, HTML alone; about:home
+  still), about:netscape (1995), about:css (1996), about:firefox
+  (pages that are programs) -- and about:history goes on to Chrome
+  (JavaScript, CSS, Firefox, Safari); what to try is what this
+  browser does (F12, the right click, the zoom); about:chrome links
+  them all
 - CSS grid: display: grid, grid-template-columns and -rows (lengths,
   fr, min-content, max-content, auto, minmax(), repeat()),
   grid-template-areas and grid-area (a name, or row / column), the
