@@ -14,7 +14,7 @@
 # clock's time against the CPU's: nearly the same means the program
 # computes, it does not wait for the network.
 #
-# What to read in it (docs/notes_debugging_techniques.txt, session 2):
+# What to read in it (docs/dev/notes_debugging_techniques.txt, session 2):
 # answers that come in bursts seconds apart are frames that long (a
 # page laid out again for each answer of the burst); and two runs to
 # different frames (FRAMES=600, FRAMES=1200) give what a frame costs

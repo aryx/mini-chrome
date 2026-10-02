@@ -50,7 +50,7 @@ val ready : (float * float * Playground.shape) list -> drawn
  *    | est laborum.        |   (15978, 16000, shape)  /  then dropped
  *    +---------------------+
  *
- * On Wikipedia's article on OCaml (docs/plan_performance.md): 450 ms
+ * On Wikipedia's article on OCaml (docs/plans/plan_performance.md): 450 ms
  * of shapes for a layout of 22 ms, 24 times while the page loads, for
  * the 4% of the lines that show.
  *

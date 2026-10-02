@@ -39,7 +39,7 @@
    a load lays the page out, and what a frame costs once it is shown.
    scripts/perf/load_timeline.sh shows those, on the real program.
 
-   The numbers that started docs/plan_performance.md (2026-10-01, the
+   The numbers that started docs/plans/plan_performance.md (2026-10-01, the
    page 354 KB, 3,904 elements, 16,000 pixels high):
 
      Html_lexer, Html_tree        33 + 28 ms

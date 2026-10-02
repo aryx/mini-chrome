@@ -24,7 +24,7 @@
  * text, a letter being ten to twenty shapes. A game moves at each
  * frame; a page being read does not, and was drawn all the same: 12
  * ms of CPU a frame for an empty page, 72 for about:chrome, a core
- * kept busy by a window nobody touches (docs/plan_performance.md).
+ * kept busy by a window nobody touches (docs/plans/plan_performance.md).
  *
  *     Tick --> update --> model --> view --> shapes --> draw: 72 ms
  *     Tick --> update --> model --> view --> shapes --> draw: 72 ms

@@ -178,7 +178,7 @@ Lessons
 - Count how many times, not only how long: 0.5 s is slow, 24 times
   0.5 s is the 14 s.
 
-What to do about it is docs/plan_performance.md. Its step 2 (the
+What to do about it is docs/plans/plan_performance.md. Its step 2 (the
 shapes built when a line is shown) took a relayout from 450 ms to 28,
 and the same two tools measured it, with opti=off for the "before" on
 the same machine and the same day.

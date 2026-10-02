@@ -53,7 +53,7 @@ their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
 `opti=off`, `letters=segments` (a letter as its pen's strokes, not one
-picture: `docs/plan_performance.md`, step 4b).
+picture: `docs/plans/plan_performance.md`, step 4b).
 
 Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
@@ -364,7 +364,7 @@ cost; after it, what it did.
 
 ## Performance
 
-`docs/plan_performance.md` says where a page's load goes and the steps
+`docs/plans/plan_performance.md` says where a page's load goes and the steps
 to take. Measure before and after with `scripts/perf/` (`Page_bench.exe`:
 each stage timed on a real page; `load_timeline.sh`: the real program's
 load, a time on each line of `-v`).
@@ -415,12 +415,18 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
 - Comments mentioning `appkits/browser/...`, `engine/...`,
   `src/browser/...`, `apps/internet/`, `TinyMosaic`/`TinyNetscape`/
   `TinyFirefox` refer to elm-playground's tree, not this one. The
-  browser's own notes and plans were brought to `docs/` here
+  browser's own notes and plans were brought to `docs/` here, sorted
+  as elm-playground's `docs/claude_notes/` is: `docs/tutorials/`
   (`notes_browser.md`, `notes_css_engine.md`, `notes_javascript.md`,
-  `notes_tls.md`, `notes_browser_related_work.md`, `plan_tiny_chrome.md`
-  -- the target sites and what each needs --, `plan_tiny_firefox.md`,
-  `plan_browser_teaching.md`): tutorials written as the code was, with
-  that tree's paths. The other `notes_*.md` and `plan_*.md` a comment
+  `notes_tls.md`), `docs/plans/done/` (`plan_tiny_chrome.md` -- the
+  target sites and what each needs --, `plan_tiny_firefox.md`,
+  `plan_browser_teaching.md`), `docs/related-work/`
+  (`notes_browser_related_work.md`): written as the code was, with
+  that tree's paths. A plan in progress is in `docs/plans/`
+  (`plan_performance.md`), a note on how the work is done in
+  `docs/dev/` (`notes_debugging_techniques.txt`); what describes the
+  program as it stands (`architecture.md`, `history.md`, `sites.md`,
+  `tags.md`) is in `docs/` itself. The other `notes_*.md` and `plan_*.md` a comment
   cites (`notes_gui.md`, `notes_images.md`, `notes_opti_ocaml.md`...)
   are still in `../ocaml-elm-playground/docs/claude_notes/`.
 - `libs/network` is a copy of elm-playground's networking meant to

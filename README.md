@@ -173,20 +173,23 @@ tools/                small programs beside the browser, made of its
 tests/                tools, html, xml, css, js, layout, browser, images, compression, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
-                      threads next to Chrome's); tags.md: the theme tags of the
-                      interfaces' comments (cs-history:, modern:...);
-                      history.md: how it came
-                      to be; notes_browser.md, notes_css_engine.md,
-                      notes_javascript.md, notes_tls.md: the
-                      tutorials, a browser built stage by stage (and
-                      plan_browser_teaching.md, plan_tiny_firefox.md,
-                      plan_tiny_chrome.md, the plans they followed;
-                      notes_browser_related_work.md, the browsers
-                      since 1990); notes_debugging_techniques.txt: how a
-                      page that looks wrong, or slow, was looked into;
-                      plan_performance.md: where a load's time goes,
-                      what to change; sites.md: the sites it shows, and
-                      what each lacks, by part, in colours
+                      threads next to Chrome's); history.md: how it
+                      came to be; sites.md: the sites it shows, and
+                      what each lacks, by part, in colours; tags.md:
+                      the theme tags of the interfaces' comments
+                      (cs-history:, modern:...)
+docs/tutorials/       a browser built stage by stage: notes_browser.md,
+                      notes_css_engine.md, notes_javascript.md,
+                      notes_tls.md
+docs/plans/           what is being done: plan_performance.md (where a
+                      load's time goes, what to change); done/: the
+                      plans the tutorials followed (plan_browser_teaching,
+                      plan_tiny_firefox, plan_tiny_chrome: the target
+                      sites)
+docs/related-work/    notes_browser_related_work.md: the browsers since
+                      1990, and where this one stands
+docs/dev/             notes_debugging_techniques.txt: how a page that
+                      looks wrong, or slow, was looked into
 scripts/              perf/: a page's stages timed (Page_bench), a load
                       in time (load_timeline.sh)
 data/about/           the built-in site's pages, sheets, scripts, pictures

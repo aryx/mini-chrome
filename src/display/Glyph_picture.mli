@@ -1,7 +1,7 @@
 (* A letter drawn as one small picture, made once and kept, instead of
    the ten to twenty shapes of its pen's strokes.
 
-   The way a page's letters are drawn (docs/plan_performance.md, step
+   The way a page's letters are drawn (docs/plans/plan_performance.md, step
    4b, "a letter a picture"). Stroke_text.glyph chooses
    (Mini_opti.letters); the simple way, its own glyph_segments, is what
    one reads first, and what letters=segments or opti=off on the

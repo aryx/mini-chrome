@@ -16,7 +16,7 @@
    optimization buys: opti=off on mini-chrome's command line, and on
    scripts/perf/Page_bench.exe's, runs the simple paths.
 
-   A matter of judgment, not a rule (docs/plan_performance.md, "The
+   A matter of judgment, not a rule (docs/plans/plan_performance.md, "The
    way"): a small optimization is just made, and simple lines replaced
    by a few others can stay in a comment beside them, with no switch.
    The comments of every kind start "opti:" and give the
@@ -44,7 +44,7 @@
 val enabled : bool ref
 
 (* how a letter of the page is drawn, where there are several
- * ways to set against each other (docs/plan_performance.md, step 4b);
+ * ways to set against each other (docs/plans/plan_performance.md, step 4b);
  * with [enabled] false, the simple one whatever this says:
  * - Segments: the pen's strokes, a rectangle a segment and a dot a
  *   point (Stroke_text.glyph_segments): the simple way, to read first;

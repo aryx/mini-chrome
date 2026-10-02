@@ -1,5 +1,5 @@
-; where a page's load goes, stage by stage (docs/plan_performance.md;
-; the technique in docs/notes_debugging_techniques.txt, session 2): not a
+; where a page's load goes, stage by stage (docs/plans/plan_performance.md;
+; the technique in docs/dev/notes_debugging_techniques.txt, session 2): not a
 ; test, run by hand, from the repository's root:
 ;   dune build scripts/perf/Page_bench.exe
 ;   ./_build/default/scripts/perf/Page_bench.exe https://en.wikipedia.org/wiki/OCaml
