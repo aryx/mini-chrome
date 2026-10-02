@@ -1,11 +1,16 @@
-; pictures' formats decoded: WebP, the web's own (Webp: the container;
-; Vp8l: the lossless format; Vp8: the lossy one, a frame of the VP8
-; video codec). The older formats (GIF, PNG, JPEG) are elm-playground's
-; (tiny_libs.graphics_images); this one was born of the web and is
-; told here. Pure OCaml, bytes in and pixels out.
+; pictures' formats decoded, the two born of the web: WebP (Webp: the
+; container; Vp8l: the lossless format; Vp8: the lossy one, a frame of
+; the VP8 video codec) and SVG (Svg: a drawing read and made pixels;
+; elm-playground's, copied to be told here and to grow). The older
+; formats (GIF, PNG, JPEG) came to the web from outside and stay
+; elm-playground's. Pure OCaml, bytes in and pixels out.
 (library
  (name mini_images)
  (wrapped false)
  (libraries
    tiny_libs.graphics_rgba ; Rgba_image: the pixels given back
-   tiny_libs.compression)) ; Huffman: the lossless format's prefix codes
+   mini_dom lang_xml ; Dom, Xml: a drawing is a document, an SVG file read
+   tiny_libs.compression ; Huffman: the lossless format's prefix codes
+   ; Svg's: polygons filled and stroked (Fill, Stroke, Framebuffer),
+   ; curves made lines and transforms composed (Curve, Affine)
+   tiny_libs.graphics_core tiny_libs.graphics_2d tiny_libs.graphics_2d_geometry))

@@ -111,6 +111,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- SVG is the browser's own: Svg, copied from elm-playground's
+  graphics/images/svg into libs/images beside WebP (a format born of
+  the web, to grow with what a browser has), its interface telling
+  PostScript's model, PGML and VML, the ten years of plug-ins, canvas
+  and icon fonts; tiny_libs.graphics_svg is no longer linked. A file
+  is read by Xml, and Svg draws a Dom.element, an <svg> of a page or
+  a file's alike (Svg.node and Browser_boxes' conversion are gone)
 - XML has its own reader, languages/xml (Xml, out of elm-playground's
   Svg: text kept, CDATA, a DOCTYPE's own declarations skipped;
   forgiving), read into a Dom as HTML is, its interface telling SGML,

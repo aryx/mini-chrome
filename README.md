@@ -94,11 +94,13 @@ libs/gui              the chrome's pieces that know no browser, as values
                       a point (Gui_menu), a line typed into (Gui_field),
                       a scrollbar (Gui_scrollbar), the desktop's scale
                       (Gui_scale)
-libs/images           WebP, the web's own picture format, decoded: the
-                      file's chunks (Webp), the lossless format (Vp8l),
-                      the lossy one, a key frame of the VP8 video
-                      codec (Vp8); GIF, PNG, JPEG and SVG are
-                      elm-playground's
+libs/images           the two picture formats born of the web. WebP
+                      decoded: the file's chunks (Webp), the lossless
+                      format (Vp8l), the lossy one, a key frame of the
+                      VP8 video codec (Vp8). SVG made pixels (Svg:
+                      paths, shapes, fills and strokes; from an
+                      <svg> of a page or a file, one tree). GIF,
+                      PNG and JPEG are elm-playground's
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style), text laid out on pages

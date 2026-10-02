@@ -1,1 +1,1 @@
-(* The pictures' tests' main: exports nothing *)
+(* The XML tests' main: exports nothing *)

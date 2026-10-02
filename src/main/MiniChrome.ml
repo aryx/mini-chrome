@@ -105,7 +105,7 @@
  * Uses: appkit_browser (the tab, the page, Browser_boxes,
  * Browser_devtools, the forms), the web engine (Cascade, Computed, Box_layout,
  * Flex_layout, and Hit through the page's Html_layout view),
- * graphics/images/svg (Svg) through Browser_boxes and Browser_picture,
+ * libs/images (Svg) through Browser_boxes and Browser_picture,
  * the built-in site (Site). Its own: the chrome, the tabs, the panel.
  *
  * Tried live: Hacker News (its tables, attributes and news.css), a

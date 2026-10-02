@@ -32,11 +32,6 @@ let inside ((l, t, r, b) : clip) (x : float) (y : float) (w : float) (h : float)
 (* Inline SVG *)
 (*****************************************************************************)
 
-(* an <svg> of the page as Svg's nodes: its elements, its text dropped *)
-let rec svg_node (e : Dom.element) : Svg.node =
-  { name = e.name; attributes = e.attributes @ e.extensions;
-    children = List.filter_map (fun (n : Dom.node) -> match n with Element c -> Some (svg_node c) | Text _ -> None) e.children }
-
 (* its pixels, by element (==), colour and size: a page laid out again
  * as each of its pictures arrives draws the same icons again (GitHub's
  * hundreds) *)
@@ -48,7 +43,7 @@ let svg_picture (e : Dom.element) (color : int * int * int) (w : int) (h : int) 
   | Some (_, _, _, _, img) -> img
   | None ->
       if Hashtbl.length rendered > 4096 then Hashtbl.reset rendered;
-      let img = Svg.render ~color (svg_node e) ~width:w ~height:h in
+      let img = Svg.render ~color e ~width:w ~height:h in
       Hashtbl.add rendered key (e, color, w, h, img);
       img
 

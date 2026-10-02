@@ -144,7 +144,8 @@ matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
 typeset, network, images) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
-`src/`; a language may use a library (the `Dom`). `tools/` has the small programs beside the
+`src/`; a language may use a library (the `Dom`) and a library a
+language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
 browser, made of its libraries, each a library (its logic, tested in
 `tests/tools`) and a main of a few lines: `tools/node` (`mini-node`,
 the JavaScript engine in a terminal), `tools/curl` (`mini-curl`, a URL
@@ -404,6 +405,16 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   `Gzip`, `Brotli` (its dictionary a library of its own,
   `compression_brotli_words`) and `Zstd`, which
   are in elm-playground after 0.3.3: a compression is not a browser's.
+- `libs/images` has the two picture formats born of the web: WebP
+  (`Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
+  against libwebp's output in `tests/images`, whose `data/make.py`
+  made the files) and SVG (`Svg`, a copy of elm-playground's
+  `graphics/images/svg` meant to diverge, as `libs/network`:
+  `tiny_libs.graphics_svg` is not linked, the two have a module of
+  the same name). GIF, PNG and JPEG stay `tiny_libs`', and so does
+  what `Svg` draws with (`graphics/2d`). An SVG file is read by
+  `languages/xml`'s `Xml` into a `Dom`, the tree of an `<svg>` written
+  in a page: `Svg` draws a `Dom.element`, whichever parser made it.
 - `tiny_languages` cannot be linked here: its libraries stand on its
   own JavaScript, whose unwrapped modules (`Js_ast`, `Js_lexer`, ...)
   have the names of ours. What is needed from it is copied

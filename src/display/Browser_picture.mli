@@ -27,11 +27,11 @@
  *   RIFF....WEBP   WebP (2010): the four bytes between are the
  *             file's length
  *   <svg      SVG (2001), text (after <?xml ...?> perhaps): drawn at its
- *             own size into pixels (graphics/images/svg's Svg)
+ *             own size into pixels (libs/images' Svg)
  *
  * Decoded by our own readers (elm-playground's graphics/images/: Gif,
- * Png, Jpeg, Svg; libs/images here: Webp), pure OCaml, so a browser
- * running in a browser decodes them too. *)
+ * Png, Jpeg; libs/images here, the two born of the web: Webp, Svg),
+ * pure OCaml, so a browser running in a browser decodes them too. *)
 
 type t = Waiting | Arrived of Rgba_image.t | Broken
 
