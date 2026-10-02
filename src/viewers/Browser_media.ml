@@ -127,11 +127,27 @@ let source (page : Browser_page.t) (e : Dom.element) : string option =
   let src = match Dom.attribute "src" e with Some s -> Some s | None -> List.find_map (fun (c : Dom.element) -> Dom.attribute "src" c) (Dom.find_all "source" e) in
   Option.map (Browser_url.resolve page.url) src
 
+(* claude: opti: the players of the last layout asked about, kept: they
+ * are found by reading the page's every fragment (12,000 for a
+ * Wikipedia article), and the view asks at each frame it builds, twice
+ * (draw, plays) -- 12 ms of a scrolled frame's 15, for a page with no
+ * player at all. A layout is a value: the same one (==) has the same
+ * players. Before, at each call:
+ *   List.filter_map (fun f -> ... Some (f, f.element) ...) (Html_layout.fragments page.layout) *)
+let last_players : (Html_layout.box * (Html_layout.fragment * Dom.element) list) option ref = ref None
+
 let players_of (page : Browser_page.t) : (Html_layout.fragment * Dom.element) list =
-  List.filter_map
-    (fun (f : Html_layout.fragment) ->
-      match f.picture with Some { src = ""; _ } when f.element.name = "video" || f.element.name = "audio" -> Some (f, f.element) | _ -> None)
-    (Html_layout.fragments page.layout)
+  match !last_players with
+  | Some (layout, players) when layout == page.layout -> players
+  | _ ->
+      let players =
+        List.filter_map
+          (fun (f : Html_layout.fragment) ->
+            match f.picture with Some { src = ""; _ } when f.element.name = "video" || f.element.name = "audio" -> Some (f, f.element) | _ -> None)
+          (Html_layout.fragments page.layout)
+      in
+      last_players := Some (page.layout, players);
+      players
 
 let mm_ss (t : float) : string = Printf.sprintf "%d:%02d" (int_of_float t / 60) (int_of_float t mod 60)
 

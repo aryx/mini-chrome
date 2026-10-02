@@ -335,11 +335,45 @@ scale 2, zoomed and scrolled, the letters are the same to the eye
 were a little darker). Not looked at: a real window, and the web
 platform, where a picture is a PNG encoded each time.
 
-Left as it is, to know: Cairo's platform keeps the last 32 pictures
-it converted and a page has 200 (it was fast all the same: to
-understand why, or to raise); a page zoomed in steps makes pictures at
-each density (the cache starts again past 4,096); the web's platform
-(a picture is a PNG encoded) not tried.
+Left as it is, to know: a page zoomed in steps makes pictures at each
+density (the cache starts again past 4,096); the web's platform (a
+picture is a PNG encoded) not tried.
+
+**A Wikipedia article scrolled** (the same day: about:chrome was
+smooth, the article sluggish). Measured by a script of 600 presses of
+the arrows after the load, against the same run at rest: the CPU of a
+step, the frame's view and its drawing (Cairo).
+
+| | ms a step |
+|---|---|
+| opti=off | 139 |
+| letters=segments | 97 |
+| pictures, as first made the default | 340 |
+| the platform keeping every picture it converted | 23 |
+| the page's players and controls kept a layout | 15 |
+
+Two causes, neither the letters' pictures themselves:
+
+- **Cairo's platform converted most letters again at each frame.** It
+  kept the surfaces of the last 32 bitmaps, in a list: enough for
+  about:chrome, whose letters of one size and colour mostly were
+  among the last 32 seen, not for an article's (links, bold, small
+  print: more than 32 different ones in a line). Each miss is a
+  Bigarray and a Cairo surface made. Now a table by the image (`==`),
+  bounded by pixels (16 million), in elm-playground's
+  `Image_native.surface_of_bitmap`. The lesson is the plan's own first
+  one: what was "fast all the same" on one page had been left
+  unexplained.
+- **The view read the page's every fragment three times a frame** to
+  find its players (twice) and its controls, 12,000 fragments each
+  time, for a page with no player: 12 ms of a built view's 15 (found
+  by a clock round each part of the view, in the real program, taken
+  out again). Kept for the last layout asked about, as values of it
+  (`Browser_media.players_of`, `Browser_draw.controls_of`).
+
+What is left of a step is the drawing. 15 ms is just inside a frame at
+60 a second; the next gain would be there (fewer shapes: a line a
+picture; or only the lines that came in drawn, the others moved).
 
 Not tried, the letters being fast enough for now: a line a picture; a
 stroke a shape, in the Playground.

@@ -97,6 +97,15 @@ let () =
       let placed = [ Playground.group window |> Playground.move (-.width /. 2.) (height /. 2.) ] in
       timed ~runs:3 "a frame: the window's shapes rasterized (software)" (fun () -> Shape_render_software.render fb placed);
       ignore (timed "Browser_draw.between: the whole page's" (fun () -> Browser_draw.between ~top:0. ~bottom:infinity p.drawn));
+      (* what else the view asks of the page at each frame that changes
+       * (a scroll, the pointer moved): its controls, its players, the
+       * link under the pointer *)
+      print_newline ();
+      ignore (timed ~runs:3 "Html_layout.fragments (the page's every fragment)" (fun () -> Html_layout.fragments p.layout));
+      ignore (timed ~runs:3 "Browser_draw.controls_drawn" (fun () -> Browser_draw.controls_drawn ~value:(Browser_page.value_of p) ~focus:None p.layout));
+      ignore (timed ~runs:3 "Browser_media.draw (the players)" (fun () -> Browser_media.draw ~now:0. ~media:(fun _ -> None) p));
+      ignore (timed ~runs:3 "Hit.link_at (the pointer over the page)" (fun () -> Hit.link_at p.layout ~x:(width /. 2.) ~y:(p.layout.height /. 2.)));
+      ignore (timed ~runs:3 "Hit.element_at" (fun () -> Hit.element_at p.layout ~x:(width /. 2.) ~y:(p.layout.height /. 2.)));
       (* the pieces of that relayout; the sheets parsed here as
        * Browser_page does (their order is not the page's: the same work) *)
       print_newline ();

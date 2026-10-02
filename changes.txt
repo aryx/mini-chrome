@@ -42,6 +42,13 @@
   instead of 74 (Cairo), 32 instead of 116 (software), and a scroll
   far smoother. letters=segments, or opti=off: the pen's way
   (docs/plan_performance.md, step 4b)
+- a Wikipedia article scrolled: a step from 340 ms to 15. Cairo's
+  platform converted most of the letters' pictures again at each
+  frame (it kept the last 32: elm-playground's now keeps them all, up
+  to 16 million pixels), and the view read the page's every fragment
+  three times a frame to find its players and controls
+  (Browser_media.players_of, Browser_draw.controls_of: kept a layout).
+  With the pen's segments it was 97, with opti=off 139
 - a window at rest is not drawn again: Window_view.view gives back
   the frame before's list of shapes when the model is the same but
   for its time, and the platform skips the frame (run_app

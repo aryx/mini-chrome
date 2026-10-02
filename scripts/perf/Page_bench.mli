@@ -25,6 +25,10 @@
                    them costs (the Playground's software rasterizer;
                    Cairo's platform is not linked here)
 
+     the rest      what else the view asks of the page when a frame
+                   changes: its every fragment read, its controls, its
+                   players, the link under the pointer
+
    The URL may be a built-in page's (about:chrome): no network then.
 
    A stage on the CPU is run three times and its best time kept; the

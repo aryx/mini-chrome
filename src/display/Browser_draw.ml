@@ -261,14 +261,29 @@ let control_shapes ~(value : Dom.element -> Forms.value) ~(focused : bool) (f : 
             | [] -> [])
       | Hidden -> [])
 
+(* claude: opti: the controls of the last layout asked about, kept: as
+ * Browser_media's players, they are found by reading the page's every
+ * fragment, at each frame the view builds (3 ms of a scrolled frame on
+ * a Wikipedia article, which has two). Their shapes are still built at
+ * each frame: they change as one types. Before:
+ *   Html_layout.fragments layout |> List.filter_map (fun f -> match f.control with Some c -> ... | None -> None) *)
+let last_controls : (Html_layout.box * (Html_layout.fragment * Html_layout.control) list) option ref = ref None
+
+let controls_of (layout : Html_layout.box) : (Html_layout.fragment * Html_layout.control) list =
+  match !last_controls with
+  | Some (l, controls) when l == layout -> controls
+  | _ ->
+      let controls =
+        List.filter_map (fun (f : Html_layout.fragment) -> Option.map (fun c -> (f, c)) f.control) (Html_layout.fragments layout)
+      in
+      last_controls := Some (layout, controls);
+      controls
+
 let controls_drawn ~(value : Dom.element -> Forms.value) ~(focus : Dom.element option) (layout : Html_layout.box) : drawn =
-  Html_layout.fragments layout
-  |> List.filter_map (fun (f : Html_layout.fragment) ->
-         match f.control with
-         | Some c ->
-             let focused = match focus with Some e -> e == c.element | None -> false in
-             Some (f.baseline -. c.control_height, f.baseline +. c.control_height, group (control_shapes ~value ~focused f c))
-         | None -> None)
+  controls_of layout
+  |> List.map (fun ((f : Html_layout.fragment), (c : Html_layout.control)) ->
+         let focused = match focus with Some e -> e == c.element | None -> false in
+         (f.baseline -. c.control_height, f.baseline +. c.control_height, group (control_shapes ~value ~focused f c)))
   |> ready
 
 (*****************************************************************************)

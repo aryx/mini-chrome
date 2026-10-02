@@ -182,3 +182,58 @@ What to do about it is docs/plan_performance.md. Its step 2 (the
 shapes built when a line is shown) took a relayout from 450 ms to 28,
 and the same two tools measured it, with opti=off for the "before" on
 the same machine and the same day.
+
+
+Session 3 (2026-10-02): "scrolling the Wikipedia article is sluggish"
+----------------------------------------------------------------------
+
+The letters had just become pictures, about:chrome scrolled smoothly
+(a frame drawn in 8 ms instead of 74), and the article did not.
+
+1. A script of the same gesture, against the same run at rest
+-------------------------------------------------------------
+-script presses keys at frames. 600 presses of the arrows after the
+load ("down:500,down:502,...", then as many "up"), and the same run
+without them, to the same frame: the difference of their CPU times
+(/usr/bin/time's %U), divided by 600, is a scroll step. A page at
+rest costs nothing now (the view's same list is not drawn), so the
+difference is the steps alone.
+
+With 150 presses the answer moved by 10 ms from one run to the next:
+the load itself, with its TLS on threads, takes 5 to 7 s of CPU, and
+that noise was divided by 150 only. With 600 it is steady to half a
+millisecond. And a word added to the command line to label a run was
+opened as a page: a third number that meant nothing. The two runs
+must differ by the script alone.
+
+2. The same measure on the other platform
+-----------------------------------------
+  Cairo:     pictures 340 ms a step, the pen's segments 145
+  software:  pictures  52,           the pen's segments 197
+
+Pictures slower than segments on one platform and four times faster
+on the other: the fault is that platform's way with pictures, not
+the pictures. Cairo's kept the last 32 it converted, and an article's
+line has more different letters than that.
+
+3. A clock round each part, in the real program, then taken out
+---------------------------------------------------------------
+The drawing alone was 7 ms (-uncapped at the scrolled place: every
+frame drawn, the view the same list) and a step 26: 19 ms were not
+the drawing. Page_bench had each suspect at 1.5 ms. So a table of
+(count, total time) by name, a `timed "name" (fun () -> ...)` round
+update by message, round view, and round four parts of the view,
+printed at exit: Browser_media.draw 9.4 ms, controls_drawn 3.4,
+animated 2.5 -- three readings of the page's 12,000 fragments, a
+frame, for a page with no player. In the program they cost three
+times what the bench said (the collector, with the rest of a frame's
+work around). The clock was a throwaway: the files put back from
+their copies, the numbers kept here.
+
+Lessons
+-------
+- "Fast all the same" is a thing not understood: the cache of 32 was
+  noted the day before as odd and left, because about:chrome was fast.
+- A bench of one stage alone can be three times off the program's.
+- Make the measure long enough that the run's own noise is small in
+  it, and change one thing between two runs.
