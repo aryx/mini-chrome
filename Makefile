@@ -13,7 +13,8 @@ run-software:
 	dune exec mini-chrome-software
 
 # the lines of OCaml, and how much of the budget (30,000 for
-# languages/, libs/ and src/; not the tests) they are; -v: a library a
+# languages/, libs/ and src/; not the tests, nor the interfaces'
+# opening comments) they are; -v: a library a
 # line, and the largest files
 loc:
 	scripts/stats/loc.py

@@ -323,7 +323,9 @@ site's or a script's colour, change its cell, and the date.
 
 The browser is to stay under 30,000 lines of OCaml: `languages/`,
 `libs/` and `src/`, their `.mli` files, comments and blank lines
-included; not `tests/`, `scripts/` nor `tools/`. `make loc` says where it stands
+included; not `tests/`, `scripts/` nor `tools/`, and not the opening
+comment of an `.mli` (the module's documentation, where it teaches:
+a cap is not a reason to teach less). `make loc` says where it stands
 (`scripts/stats/loc.py`). Before a large feature, say what it will
 cost; after it, what it did.
 
@@ -359,7 +361,7 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   `Cascade.mli`, `Js_promise.mli`). Only what is certain: a date left
   out rather than guessed. A famous name of the web gets its own
   module, to be seen in the tree (`XMLHttpRequest`). These lines are
-  welcome: `make loc` says how many they are, apart.
+  welcome, and not in the budget: `make loc` says how many they are.
 - A paragraph of that comment that is around the module rather than
   the module's own has a theme tag on a line of its own before it:
   `cs-history:` (who, when, why it mattered), `modern:` (how the real

@@ -350,6 +350,9 @@
   5.5.1), make build-docker
 
 ** internals
+- the budget does not count the interfaces' opening comments, where
+  the modules teach: 22,396 of 30,000 (75%), the browser's 27,341
+  lines less their 4,945
 - the interfaces teach, as elm-playground's libs do: where each thing
   came from, who made it and when, what it replaced, the papers and
   standards to read -- HTML's tag soup and HTML5's parser (Html_lexer,

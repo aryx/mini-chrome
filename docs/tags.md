@@ -63,7 +63,7 @@ the module's own, and has no tag.
 
 ## Counting them
 
-`make loc` says how many lines the interfaces' opening comments are,
-and of those how many are tagged, by tag: the day the budget is to be
-of the code alone, or of the code and its own explanation, these are
-the lines to leave out.
+The budget of 30,000 lines does not count an interface's opening
+comment at all, tagged or not: it is where the module teaches.
+`make loc` says how many lines those comments are, and of those how
+many are under a tag, by tag.

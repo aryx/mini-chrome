@@ -10,17 +10,18 @@
 #
 # Lines of OCaml across the project (.ml and .mli), and how much of
 # the budget they are: the browser is to stay under 30,000 lines,
-# comments and blank lines included, .mli files too, so that it stays
-# small enough to read. The budget is what the browser is made of --
+# comments and blank lines included, .mli files too (but for their
+# opening comments: below), so that it stays small enough to read. The budget is what the browser is made of --
 # languages/, libs/ and src/ -- and not its tests (every tests/
 # directory), nor scripts/ (the tools round it), nor tools/ (the
 # programs beside it: mini-node): a cap must never be a reason to
 # write fewer tests.
 #
 # The opening comment of an .mli is the module's documentation, and
-# where its history and references are told: counted in the budget,
-# and said apart at the end, for the day the budget is of the code
-# alone. In it, a paragraph that is around the module rather than the
+# where its history and references are told: it teaches, and is not
+# counted in the budget -- a cap must not be a reason to teach less
+# either. Its lines are in the table above the budget's line (they
+# are lines of the browser) and taken off for the budget. In it, a paragraph that is around the module rather than the
 # module's own (its history, how browsers do it today) has a tag
 # before it (docs/tags.md: cs-history:, modern:, ...): counted by tag.
 #
@@ -278,12 +279,13 @@ def main():
         for lines, path in sorted(largest, reverse=True)[:10]:
             print(f"{lines:>7,}  {path}")
 
-    used = total(stats.get("browser", {}).values())["lines"]
+    lines = total(stats.get("browser", {}).values())["lines"]
+    used = lines - taught
     print(f"\nbudget: {used:,} of {BUDGET:,} lines"
           f" ({100 * used / BUDGET:.0f}%), {BUDGET - used:,} left")
-    print(f"  of which {taught:,} are the interfaces' opening comments"
-          f" (the idea, the history, the references);"
-          f" {used - taught:,} without them")
+    print(f"  the browser's {lines:,} lines less the {taught:,} of its"
+          f" interfaces' opening comments (the idea, the history, the"
+          f" references: not counted)")
     if themes:
         print(f"  tagged (docs/tags.md): {sum(themes.values()):,} lines -- "
               + ", ".join(f"{t} {themes[t]:,}" for t in TAGS if themes[t]))
