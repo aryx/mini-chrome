@@ -111,6 +111,9 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- one tree for the languages: Dom moved from languages/html to a
+  library of its own, libs/dom, under them; CSS, which matches on it,
+  no longer depends on the HTML library
 - WebP pictures (libs/images, a decoder of our own, in mini-chrome
   and not with elm-playground's GIF, PNG and JPEG: the format was
   born of the web): the file's chunks (Webp), the lossless format

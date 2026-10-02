@@ -78,7 +78,8 @@
    elements and of what each start tag closes); MMM's dtd.ml. *)
 
 (* where an element or an attribute comes from *)
-type origin =
+(* the Dom's own type (libs/dom), told here *)
+type origin = Dom.origin =
   | Core (* HTML 2.0, what Mosaic read *)
   | Netscape (* Netscape's extensions *)
 

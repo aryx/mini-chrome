@@ -10,12 +10,14 @@
 
 (* See Dom.mli *)
 
+type origin = Core | Netscape
+
 type node = Element of element | Text of string
 and element = {
   name : string;
   attributes : (string * string) list;
   extensions : (string * string) list;
-  origin : Dtd.origin;
+  origin : origin;
   children : node list;
 }
 

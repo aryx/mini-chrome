@@ -1,8 +1,8 @@
 ; HTML read: the bytes of a page to text (Charset), the
 ; characters it names (Entities), its tokens (Html_lexer), its tree
-; (Dom, Dtd, Html_tree), and the tree as text (Line_mode). Pure OCaml,
-; no shapes, natively and in a browser.
+; (Dtd, Html_tree: a Dom, libs/dom's), and the tree as text
+; (Line_mode). Pure OCaml, no shapes, natively and in a browser.
 (library
  (name lang_html)
  (wrapped false)
-)
+ (libraries mini_dom)) ; Dom: what a page is read into

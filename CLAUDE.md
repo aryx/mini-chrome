@@ -138,9 +138,13 @@ platforms is presented as a plan and agreed on before it is made.
 ## Architecture
 
 Each folder is one dune library, listed in the README in dependency
-order: `languages/` (html, css, javascript, json) → `libs/` (gui, richtext,
+order: `libs/dom` (the `Dom` tree alone, a library of its own under
+the languages, since HTML and XML are both read into it and CSS
+matches on it) → `languages/` (html,
+css, javascript, json) → `libs/` (gui, richtext,
 typeset, network, images) → `src/` (url, layout, display, www, dom, viewers, about,
-chrome, window, main). `tools/` has the small programs beside the
+chrome, window, main). Nothing in `languages/` or `libs/` depends on
+`src/`; a language may use a library (the `Dom`). `tools/` has the small programs beside the
 browser, made of its libraries, each a library (its logic, tested in
 `tests/tools`) and a main of a few lines: `tools/node` (`mini-node`,
 the JavaScript engine in a terminal), `tools/curl` (`mini-curl`, a URL

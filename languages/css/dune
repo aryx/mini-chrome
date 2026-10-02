@@ -9,7 +9,7 @@
 (library
  (name lang_css)
  (wrapped false)
- (libraries lang_html) ; Dom
+ (libraries mini_dom) ; Dom: what a selector matches on (nothing of HTML's parser)
 )
 
 ; the browser's own style sheet, ua.css, embedded as a string

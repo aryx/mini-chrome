@@ -80,7 +80,9 @@ written in, general libraries, then the browser by role, each folder a
 library, in the order they depend on each other:
 
 ```
-languages/html        HTML read: bytes to text, tokens, the tree (Dom)
+libs/dom              the document as a tree (Dom): what HTML and XML are
+                      read into, what CSS matches on and the rest walks
+languages/html        HTML read: bytes to text, tokens, the tree
 languages/css         style sheets read and cascaded, computed styles
 languages/javascript  a small JavaScript
 languages/json        JSON read and written, over JavaScript's lexer

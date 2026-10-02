@@ -4,8 +4,12 @@
    The Document Object Model is what the rest of a browser works on:
    the looks are computed on it, the layout walks it, a click finds its
    way back to it (and, in browsers with scripts, JavaScript changes
-   it). Html_tree builds it from the tokens; nothing here knows HTML's
-   rules, only the shape:
+   it). Two parsers build it: Html_tree from a page's tokens, with all
+   of HTML's rules; Xml from an XML file, with none (an SVG picture's
+   elements are the same nodes as the <svg> written in a page, and
+   Svg draws either). Nothing here knows those rules, only the shape
+   -- which is why it is a library of its own (libs/dom), under the
+   languages and not in one of them:
 
    cs-history:
    The name is a standard's. When scripts came to pages, each browser
@@ -30,7 +34,7 @@
           +- p
               +- "Soup of the day"
 
-   An element keeps **where it comes from** (Dtd.origin): HTML 2.0's
+   An element keeps **where it comes from** ([origin]): HTML 2.0's
    core, or Netscape's extensions -- an element of its own (<font>),
    or the attributes it gave a core one (<body bgcolor=silver>), kept
    apart from the core's, so that code reading HTML 2.0 sees HTML 2.0
@@ -45,13 +49,19 @@
    (1998); WHATWG, "DOM Living Standard", section 4 (nodes, trees);
    notes_browser.md section 4. *)
 
+(* where an HTML element or attribute comes from (languages/html's Dtd
+ * says which): an XML element is Core *)
+type origin =
+  | Core (* HTML 2.0, what Mosaic read *)
+  | Netscape (* Netscape's extensions *)
+
 type node = Element of element | Text of string
 
 and element = {
-  name : string; (* lowercased: "p" *)
+  name : string; (* as its parser gives it: HTML's lowercased ("p"), XML's as written *)
   attributes : (string * string) list; (* all of a Netscape element's *)
   extensions : (string * string) list; (* a core element's Netscape ones *)
-  origin : Dtd.origin; (* the element's *)
+  origin : origin; (* the element's *)
   children : node list;
 }
 

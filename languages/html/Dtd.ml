@@ -10,7 +10,7 @@
 
 (* See Dtd.mli *)
 
-type origin = Core | Netscape
+type origin = Dom.origin = Core | Netscape
 
 let void = [ "area"; "base"; "basefont"; "br"; "col"; "embed"; "frame"; "hr"; "img"; "input"; "isindex"; "link"; "meta"; "param"; "wbr" ]
 let head = [ "title"; "meta"; "link"; "base"; "style"; "script" ]
