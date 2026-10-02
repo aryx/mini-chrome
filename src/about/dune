@@ -2,7 +2,7 @@
 ; files embedded as strings, data/about/home.html becoming
 ; Site_pages.home at build time, so the browser has something to show
 ; with no network; and the video site of our own, about:tube (Tube,
-; Tube_clips), its two clips made elsewhere in data/tube/.
+; Tube_clips), its three clips made elsewhere in data/tube/.
 ;
 ; The files are data, kept in data/ at the top; copied here at build
 ; time (copy_files), so that the rules below name them plainly.
@@ -93,8 +93,8 @@
 
 (rule
  (targets Tube_files.ml)
- (deps ball_and_square.mpg stereo.mp3 %{project_root}/scripts/files_to_string_ml.ml)
+ (deps ball_and_square.mpg ball_and_square.webm stereo.mp3 %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
-   (run ocaml %{project_root}/scripts/files_to_string_ml.ml ball_and_square.mpg stereo.mp3))))
+   (run ocaml %{project_root}/scripts/files_to_string_ml.ml ball_and_square.mpg ball_and_square.webm stereo.mp3))))

@@ -24,6 +24,10 @@
  *     00 00 01 BA               an MPEG-1 system stream, .mpg: the video
  *                               and its sound interleaved, a pack's
  *                               start code first (Mpeg_system.mli)
+ *     1A 45 DF A3               WebM (2010), the web's own: Matroska's
+ *                               container, its video VP8, played
+ *                               without its sound (libs/video's
+ *                               Webm.mli, Vp8_video.mli)
  *     FF Ex / FF Fx, or "ID3"   MPEG audio, MP2 and MP3 (1993): 11 bits
  *                               of sync, a frame's header, checked by the
  *                               next frame's being where it says; or a
@@ -47,7 +51,7 @@
  * Y4M, FLI and FLC, AVI, MPEG-1, and an .mpg's video with its MP2
  * (plan_video_teaching.md). *)
 
-type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg
+type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm
 
 val kind_name : kind -> string
 

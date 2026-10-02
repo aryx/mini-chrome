@@ -10,7 +10,7 @@
 
 (* See Media.mli *)
 
-type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg
+type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm
 
 let kind_name = function
   | Wav -> "WAV"
@@ -29,6 +29,7 @@ let kind_name = function
   | Avi -> "AVI"
   | Mpeg1 -> "MPEG-1"
   | Mpg -> "MPEG-1 system"
+  | Webm -> "WebM"
 
 (*****************************************************************************)
 (* What it is *)
@@ -49,6 +50,7 @@ let by_bytes (s : string) : kind option =
   else if starts s 0 "YUV4MPEG2 " then Some Y4m
   else if starts s 0 "\000\000\001\xB3" then Some Mpeg1
   else if starts s 0 "\000\000\001\xBA" then Some Mpg
+  else if Webm.sniff s then Some Webm
   else if String.length s >= 128 && (starts s 4 "\x11\xAF" || starts s 4 "\x12\xAF") then Some Flic
   else if starts s 0 "X:" then Some Abc
   else
@@ -151,11 +153,38 @@ let mpg (bytes : string) : (media, string) result =
       in
       Ok (mpeg1_movie video.bytes ~sound)
 
+(* a WebM file's video (libs/video): VP8's frames, decoded as they are
+ * asked for, each from the one before -- a frame that is not shown
+ * (one kept only to predict from) decoded on the way to the next *)
+let webm_movie (bytes : string) : (media, string) result =
+  match Webm.video (Webm.parse bytes) with
+  | None -> Error "a WebM file with no video in it"
+  | Some (track, _) when track.codec <> "V_VP8" -> Error (Printf.sprintf "a WebM file whose video is %s: only VP8 is decoded" track.codec)
+  | Some (track, frames) ->
+      let packets = Array.of_list frames in
+      (* a frame's first byte says whether it is shown *)
+      let shown = List.filter (fun (_, data) -> data <> "" && Char.code data.[0] land 0x10 <> 0) frames in
+      if shown = [] then Error "a WebM file with no frame to show"
+      else
+        let times = Array.of_list (List.map fst shown) in
+        let times = Array.map (fun t -> t -. times.(0)) times in
+        let last = times.(Array.length times - 1) in
+        (* the last frame lasts as long as the one before it did *)
+        let duration = last +. if Array.length times > 1 then last /. float_of_int (Array.length times - 1) else 0.04 in
+        let rec next ((decoder, i) : Vp8_video.t * int) =
+          if i >= Array.length packets then ((decoder, i), Vp8_video.picture decoder)
+          else if Vp8_video.decode decoder (snd packets.(i)) then ((decoder, i + 1), Vp8_video.picture decoder)
+          else next (decoder, i + 1)
+        in
+        Ok (Movie { movie = Movie.sequential ~width:track.width ~height:track.height ~times ~duration ~start:(fun () -> (Vp8_video.create (), 0)) ~next; sound = None; mpeg = None })
+
 let open_ ~(name : string) (bytes : string) : (kind * media, string) result =
   match sniff ~name bytes with
   | None -> Error (name ^ ": not a kind of file this player knows")
   | Some kind -> (
-      let media =
+      (* decoded inside the match below: what a decoder raises on a
+       * broken file is caught there *)
+      let media () =
         match kind with
         | Wav -> Result.map (fun s -> Sound { samples = Signal.both s; notes = [] }) (Wav.of_string bytes)
         | Mp2 | Mp3 -> Result.map (fun samples -> Sound { samples; notes = [] }) (mpeg_sound bytes)
@@ -175,8 +204,9 @@ let open_ ~(name : string) (bytes : string) : (kind * media, string) result =
             Ok (Movie { movie; sound = Option.map Signal.both sound; mpeg = None })
         | Mpeg1 -> Ok (mpeg1_movie bytes ~sound:None)
         | Mpg -> mpg bytes
+        | Webm -> webm_movie bytes
       in
-      match media with Ok m -> Ok (kind, m) | Error e -> Error (name ^ ": " ^ e) | exception e -> Error (name ^ ": " ^ Printexc.to_string e))
+      match media () with Ok m -> Ok (kind, m) | Error e -> Error (name ^ ": " ^ e) | exception e -> Error (name ^ ": " ^ Printexc.to_string e))
 
 let duration (m : media) : float option =
   match m with

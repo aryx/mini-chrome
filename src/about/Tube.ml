@@ -15,7 +15,10 @@
 type clip = { file : string; title : string; format : string; about : string }
 
 let clips : clip list =
-  [ { file = "ffmpeg_muxed.mpg"; title = "The ball and the square"; format = "MPEG-1 and MP2, in an .mpg";
+  [ { file = "ball_and_square.webm"; title = "The ball and the square, as the web has it"; format = "VP8, in a WebM file";
+      about =
+        "HTML5's own video (2010): VP8, the codec Google bought and opened so that <video> had a format nobody paid for, in Matroska's container. A key frame, then frames that say where each block of the one before went -- vectors of quarter pixels -- and what changed. Decoded by libs/video, written here: every frame the same, to the byte, as ffmpeg's decoder gives. Without its sound: Vorbis is not decoded." };
+    { file = "ffmpeg_muxed.mpg"; title = "The ball and the square"; format = "MPEG-1 and MP2, in an .mpg";
       about =
         "A Video CD's formats (1993): MPEG-1 video -- its I, P and B pictures, motion vectors and the DCT -- and MPEG-1 audio layer II, interleaved in a system stream, the picture following the sound's clock. Decoded by graphics/videos/mpeg1 and audio/formats/mpeg_audio." };
     { file = "ball_and_square.avi"; title = "The ball and the square, in an AVI"; format = "Motion JPEG and PCM, in an AVI";
@@ -89,7 +92,7 @@ let about (name : string) : (string * string) option =
   match name with
   | "tube" -> html (index ())
   | _ when String.starts_with ~prefix:"tube-" name -> (
-      match Option.bind (int_of_string_opt (String.sub name 5 (String.length name - 5))) (fun n -> Option.map (fun c -> (n - 1, c)) (List.nth_opt clips (n - 1))) with
+      match Option.bind (int_of_string_opt (String.sub name 5 (String.length name - 5))) (fun n -> if n < 1 then None else Option.map (fun c -> (n - 1, c)) (List.nth_opt clips (n - 1))) with
       | Some (i, c) -> html (watch i c)
       | None -> None)
   | _ when String.starts_with ~prefix:file name ->

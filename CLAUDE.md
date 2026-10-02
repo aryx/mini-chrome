@@ -468,8 +468,10 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   container) and `Vp8_video` (VP8's frames predicted from others,
   over `libs/images`' `Vp8`, whose parts it shares), written here and
   checked to the byte against ffmpeg's decoder in `tests/video`
-  (`data/make.sh`); the browser's `<video>` does not play them yet
-  (`Media` and `Browser_media` play tiny_libs' MPEG-1).
+  (`data/make.sh`). `<video>` plays a WebM file through `Media`
+  (a `Movie` whose frames `Vp8_video` decodes as they are asked for;
+  no sound: Vorbis and Opus are not decoded), beside tiny_libs'
+  MPEG-1; `about:tube`'s first clip is one.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
   The Playground itself links `tiny_libs`' `Png` (textures, a frame

@@ -141,6 +141,9 @@ let playlist : (string * string Lazy.t) list =
     (* the clip and its blips muxed by ffmpeg as an .mpg, once: its
      * MPEG-1 video and its MP2, interleaved *)
     ("ffmpeg_muxed.mpg", Lazy.from_val Tube_files.ball_and_square_mpg);
+    (* the same clip as the web has it, by ffmpeg's libvpx, once: VP8
+     * in a WebM file, no sound *)
+    ("ball_and_square.webm", Lazy.from_val Tube_files.ball_and_square_webm);
     (* two chirps encoded by LAME, once: we decode MP3, we have no
      * encoder *)
     ("lame_encoded.mp3", Lazy.from_val Tube_files.stereo_mp3);

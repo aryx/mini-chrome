@@ -1,7 +1,8 @@
 ; what the browser plays rather than lays out: <video> and
 ; <audio> (Browser_media), over a file recognized by its bytes and
 ; decoded (Media: MPEG-1 and MP2, MP3, AVI, FLC, Y4M, GIF, WAV, MIDI,
-; MOD) by tiny_libs' readers.
+; MOD) by tiny_libs' readers, and the web's own, WebM's VP8, by ours
+; (libs/video).
 (library
  (name browser_viewers)
  (wrapped false)
@@ -14,5 +15,6 @@
    tiny_libs.graphics_jpeg tiny_libs.graphics_xpm
    tiny_libs.graphics_movie tiny_libs.graphics_y4m tiny_libs.graphics_fli
    tiny_libs.graphics_avi tiny_libs.graphics_mpeg1 tiny_libs.graphics_mpeg_system
-   images) ; Png (ours: the flag below)
+   images ; Png (ours: the flag below)
+   mini_video) ; Webm, Vp8_video: a WebM file's VP8
  (flags (:standard -open Images)))

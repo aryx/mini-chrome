@@ -24,8 +24,10 @@
  * for the browser to choose from, as <source> still allows. The
  * iPhone (2007) never ran Flash; Steve Jobs's letter "Thoughts on
  * Flash" (April 2010) said it never would, and the plug-ins were gone
- * from every browser by 2020. What plays here are the formats
- * elm-playground has decoders for, older than all of that.
+ * from every browser by 2020. What plays here: the formats
+ * elm-playground has decoders for, older than all of that, and the
+ * one of that quarrel that is the web's own, VP8 in a WebM file
+ * (libs/video; without its sound).
  *
  * **The clock**: with a sound, the sound's -- one deck, like
  * TinyMediaPlayer's, whose samples the mixer pulls (Audio.instrument),

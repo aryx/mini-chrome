@@ -119,7 +119,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
-- video, the web's (libs/video, not yet played by <video>): a WebM
+- <video> plays a WebM file: its VP8 by libs/video, the frames
+  decoded as the player asks for them (Media: a Movie over
+  Vp8_video), without sound (Vorbis and Opus are not decoded);
+  about:tube's first clip is one. A media file that does not decode
+  is now an error said, for every format (the exception was not
+  caught), and about:tube-0 is no page, not a crash
+- video, the web's (libs/video): a WebM
   file's frames found (Webm: EBML, Matroska's tracks, clusters and
   blocks) and VP8's decoded whole (Vp8_video: the frames predicted
   from the last, golden and altref frames, the modes from the

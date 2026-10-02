@@ -110,7 +110,7 @@ libs/images           the picture formats born of the web. PNG (Png:
 libs/video            video as the web has it: a WebM file's frames found
                       (Webm) and decoded (Vp8_video: VP8's frames
                       predicted from others, over libs/images' Vp8);
-                      not yet played by the browser
+                      what <video> plays of today's web, without sound
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style): what the pen drawing a letter is told
@@ -200,7 +200,7 @@ scripts/              perf/: a page's stages timed (Page_bench), a load
                       in time (load_timeline.sh)
 data/                 what is embedded and is not OCaml (data/README.md):
                       about/ the built-in site's pages, sheets, scripts,
-                      pictures; tube/ about:tube's two clips made
+                      pictures; tube/ about:tube's three clips made
                       elsewhere (ffmpeg, LAME); css/ua.css the
                       browser's own style sheet; prelude/ the library
                       and the small web APIs written in JavaScript

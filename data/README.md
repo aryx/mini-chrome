@@ -8,7 +8,7 @@ it (`copy_files`), and becomes a generated module there.
 | Here | What it is | Embedded as | By |
 |---|---|---|---|
 | `about/` | the built-in site: the `about:` pages (`home.html`, `chrome.html`, the pages of the browsers before...), their style sheets and scripts, and one picture in each format the browser reads | `Site_pages`, `Site_pictures` | `src/about` |
-| `tube/` | `about:tube`'s two clips made elsewhere (an MPEG-1 video by ffmpeg, an MP3 by LAME) | `Tube_files` | `src/about` |
+| `tube/` | `about:tube`'s three clips made elsewhere (an MPEG-1 video and its WebM twin by ffmpeg, an MP3 by LAME) | `Tube_files` | `src/about` |
 | `css/ua.css` | the browser's own style sheet: what an element looks like before the page says anything (CSS 2.1's appendix D, grown) | `Ua_sheet` | `languages/css` |
 | `prelude/library.js` | the JavaScript standard library's later additions (ES2016 to ES2024, `Date`, `JSON.stringify`), written in JavaScript and run in every engine before any script | `Js_prelude` | `languages/javascript` |
 | `prelude/web.js` | small web APIs (`AbortController`, `TextEncoder`, `structuredClone`, `Headers`, `Intl`...) written in JavaScript and run in every page before its scripts | `Script_prelude` | `src/dom` |
