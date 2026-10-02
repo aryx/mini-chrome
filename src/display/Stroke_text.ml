@@ -20,6 +20,15 @@ let metrics look s =
   let g = Hershey.glyph (char_of s) in
   float_of_int (g.right - g.left) *. scale_of look
 
+(* claude: the line under text, and the one through it: [width] long
+ * from [x], as thick as the look's pen nearly *)
+let line color (look : Style.t) ~x ~width y =
+  let pen = if look.bold then look.size /. 7. else look.size /. 16. in
+  Playground.rectangle color width (pen *. 0.8) |> Playground.move (x +. (width /. 2.)) y
+
+let underline color (look : Style.t) ~x ~width ~baseline = line color look ~x ~width (baseline -. (look.size *. 0.18))
+let strike color (look : Style.t) ~x ~width ~baseline = line color look ~x ~width (baseline +. (look.size *. 0.25))
+
 let glyph_segments color (look : Style.t) s ~x ~baseline =
   let g = Hershey.glyph (char_of s) in
   let k = scale_of look in

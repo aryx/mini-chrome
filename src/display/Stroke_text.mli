@@ -55,6 +55,14 @@ val metrics : Page.metrics
 val glyph :
   Playground.color -> Style.t -> string -> x:float -> baseline:float -> Playground.shape list
 
+(* claude: the line under text in [look], and the one through it,
+ * [width] long from [x]: what [glyph] draws under a letter that is
+ * underlined, here for a whole run of words (a link's, the spaces
+ * between them too: Browser_draw.decorations) *)
+val underline : Playground.color -> Style.t -> x:float -> width:float -> baseline:float -> Playground.shape
+
+val strike : Playground.color -> Style.t -> x:float -> width:float -> baseline:float -> Playground.shape
+
 (* claude: the two ways [glyph] chooses between (Mini_opti.letters): the
  * pen's, a rectangle a segment and a dot a point, the simple way
  * (letters=segments, opti=off); and the letter as one picture made

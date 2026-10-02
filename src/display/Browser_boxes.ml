@@ -54,7 +54,7 @@ let svg_picture (e : Dom.element) (color : int * int * int) (w : int) (h : int) 
 
 (* a fragment's shapes: an inline <svg>'s picture drawn here, the rest
  * by Browser_draw *)
-let glyphs ~visited ~picture_of (f : Html_layout.fragment) : shape list =
+let glyphs ~visited ~picture_of ?decorated (f : Html_layout.fragment) : shape list =
   match f.picture with
   (* a player's place: black, until the browser draws what plays there
    * (a video's frame, the controls) over it *)
@@ -68,8 +68,8 @@ let glyphs ~visited ~picture_of (f : Html_layout.fragment) : shape list =
       [ bitmap f.width height img |> move (f.x +. (f.width /. 2.)) (-.centre) ]
   (* a picture in a link without Mosaic's frame of the link's colour:
    * here borders are the style sheets' *)
-  | Some _ -> Browser_draw.glyphs ~visited ~picture_of { f with look = { f.look with link = None } }
-  | None -> Browser_draw.glyphs ~visited ~picture_of f
+  | Some _ -> Browser_draw.glyphs ~visited ~picture_of ?decorated { f with look = { f.look with link = None } }
+  | None -> Browser_draw.glyphs ~visited ~picture_of ?decorated f
 
 (* a picture in one colour, its alpha kept: a mask's shape in the
  * background's colour -- by picture (==) and colour *)
@@ -163,7 +163,9 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
            * nearly all of a relayout's time, for lines mostly off
            * screen. [shown], [visited] and [picture_of] are this
            * layout's, and do not change after it *)
-          Some (l.top, l.top +. l.height, Browser_draw.later (fun () -> group (List.concat_map (glyphs ~visited ~picture_of) shown))))
+          Some (l.top, l.top +. l.height, Browser_draw.later (fun () ->
+                  (* the letters, and under them the links' lines, a run of words each *)
+                  group (Browser_draw.decorations ~visited shown @ List.concat_map (glyphs ~visited ~picture_of ~decorated:false) shown))))
       b.lines
   in
   (* a list item's marker, left of its first line, in the list's colour *)

@@ -82,6 +82,22 @@ let tests =
           Alcotest.(check bool) "the same as the simple way's" true (shown = Browser_draw.between ~top:0. ~bottom:100. simple);
           Alcotest.(check bool) "the whole page: the same shapes" true
             (Browser_draw.between ~top:0. ~bottom:infinity lazy_ = Browser_draw.between ~top:0. ~bottom:infinity simple));
+      Testo.create "a link of several words is underlined whole, the spaces too" (fun () ->
+          let html = "<!doctype html><style>body { margin: 0 } s { color: red }</style><p>see <a href=/x>a short history</a> and <u>this</u> <s>not that</s>" in
+          let p, _ = styled [] html in
+          let fragments = Html_layout.fragments p.layout in
+          let word w = List.find (fun (f : Html_layout.fragment) -> f.text = w) fragments in
+          (* a line's width and where it starts: a rectangle, moved to its middle *)
+          let line (s : Playground.shape) = match s.form with Rectangle (_, w, _) -> (s.x -. (w /. 2.), w) | _ -> Alcotest.fail "a rectangle" in
+          let near = Alcotest.(pair (float 0.01) (float 0.01)) in
+          match List.map line (Browser_draw.decorations fragments) with
+          | [ under_u; under_link; through ] ->
+              let a = word "a" and history = word "history" and this = word "this" and not_ = word "not" and that = word "that" in
+              Alcotest.check near "the link: from its first letter to its last" (a.x, history.x +. history.width -. a.x) under_link;
+              Alcotest.(check bool) "which is more than its three words: their two spaces" true (snd under_link > a.width +. (word "short").width +. history.width);
+              Alcotest.check near "the <u>, its word" (this.x, this.width) under_u;
+              Alcotest.check near "the <s>: struck through, its space too" (not_.x, that.x +. that.width -. not_.x) through
+          | lines -> Alcotest.failf "three lines, not %d" (List.length lines));
       Testo.create "the network panel's lines" (fun () ->
           let requests : Browser_tab.request list =
             [ { url = "http://x.org/a.png"; kind = Picture; status = None; bytes = 0 };

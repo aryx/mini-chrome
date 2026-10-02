@@ -108,7 +108,22 @@ val sunken : float -> float -> float -> float -> Playground.shape list
  * the broken image; a link's framed in its colour); a control's are
  * [control_shapes]' *)
 val glyphs :
-  ?visited:(string -> bool) -> ?picture_of:(string -> Browser_picture.t option) -> Html_layout.fragment -> Playground.shape list
+  ?visited:(string -> bool) ->
+  ?picture_of:(string -> Browser_picture.t option) ->
+  ?decorated:bool ->
+  Html_layout.fragment ->
+  Playground.shape list
+(* claude: with [decorated] (true), its underline and its strike too,
+ * its own; false for a line's fragments, whose lines are drawn a run
+ * at a time: *)
+
+(* claude: the lines under and through a line's words ([fragments], left
+ * to right): one for each run of neighbours of the same link, colour,
+ * size and baseline, from the first's left to the last's right -- a
+ * link of several words is underlined whole, the spaces between its
+ * words too, as browsers draw it (a letter's own piece of line left
+ * the spaces bare) *)
+val decorations : ?visited:(string -> bool) -> Html_layout.fragment list -> Playground.shape list
 
 (* the whole page but its controls: every line, float, rule and marker;
  * with [extensions] (false), Netscape's <hr noshade> a flat bar and a

@@ -60,6 +60,10 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a link of several words is underlined whole, the spaces between its
+  words too, as browsers draw it: one line a run of words
+  (Browser_draw.decorations), where each letter drew its own piece and
+  a space had none; a <s>'s line through, the same
 - the built-in site is MiniChrome's own: its pages no longer speak as
   the teaching browsers they came from (TinyMosaic, TinyNetscape,
   TinyFirefox), but as pages of the web's ages, each written as its

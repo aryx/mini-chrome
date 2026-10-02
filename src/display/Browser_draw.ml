@@ -73,14 +73,58 @@ let picture_shapes (state : Browser_picture.t option) (color : color) (f : Html_
   in
   body @ match f.look.link with Some _ -> [ frame ~t:2. color (f.x -. 2.) (top -. 2.) (w +. 4.) (h +. 4.) ] | None -> []
 
-let glyphs ?(visited = fun (_ : string) -> false) ?(picture_of = fun (_ : string) -> None) (f : Html_layout.fragment) :
+(* a fragment's colour: a visited link's is Mosaic's purple, and every
+ * browser's since (or the page's vlink=) *)
+let color_of ~(visited : string -> bool) (f : Html_layout.fragment) : int * int * int =
+  match f.look.link with Some href when visited href -> f.look.visited_color | _ -> f.look.color
+
+(* claude: the lines under and through a line's words, one for each run
+ * of neighbours that share it -- a link of several words is underlined
+ * from its first letter to its last, the spaces between its words too,
+ * as browsers draw it. Before, each letter drew its own piece
+ * (Stroke_text.glyph), and a space, which has no letter, had none:
+ *
+ *     a short history of the web        a short history of the web
+ *     - ----- ------- -- --- ---        --------------------------
+ *
+ * Two words are of one run when they are neighbours on the line, of
+ * the same link, colour and size, on the same baseline: a link's
+ * words, or a <u>'s. A picture or a control ends a run. *)
+let decorations ?(visited = fun (_ : string) -> false) (fragments : Html_layout.fragment list) : shape list =
+  let text (f : Html_layout.fragment) = f.picture = None && f.control = None && f.text <> "" in
+  let lines (has : Looks.t -> bool) (draw : color -> Style.t -> x:float -> width:float -> baseline:float -> shape) : shape list =
+    let together (a : Html_layout.fragment) (b : Html_layout.fragment) =
+      a.look.link = b.look.link && a.baseline = b.baseline && a.look.size = b.look.size && a.look.bold = b.look.bold
+      && color_of ~visited a = color_of ~visited b
+    in
+    (* the runs: a first word, and the last one joined to it so far *)
+    let runs =
+      List.fold_left
+        (fun runs (f : Html_layout.fragment) ->
+          if not (text f && has f.look) then None :: runs
+          else
+            match runs with
+            | Some (first, last) :: rest when together last f -> Some (first, f) :: rest
+            | runs -> Some (f, f) :: runs)
+        [] fragments
+    in
+    List.filter_map
+      (Option.map (fun ((first : Html_layout.fragment), (last : Html_layout.fragment)) ->
+           let r, g, b = color_of ~visited first in
+           draw (rgb r g b) (Browser_text.style_of first.look) ~x:first.x ~width:(last.x +. last.width -. first.x) ~baseline:(-.first.baseline)))
+      runs
+  in
+  lines (fun l -> l.underline) Stroke_text.underline @ lines (fun l -> l.strike) Stroke_text.strike
+
+let glyphs ?(visited = fun (_ : string) -> false) ?(picture_of = fun (_ : string) -> None) ?(decorated = true) (f : Html_layout.fragment) :
     shape list =
-  let style = Browser_text.style_of f.look in
-  (* a visited link's colour: Mosaic's purple, and every browser's
-   * since (or the page's vlink=) *)
-  let (r, g, b) = match f.look.link with Some href when visited href -> f.look.visited_color | _ -> f.look.color in
+  (* the letters alone: their lines are the run's (decorations) *)
+  let style = { (Browser_text.style_of f.look) with underline = false; strike = false } in
+  let (r, g, b) = color_of ~visited f in
   let color = rgb r g b in
   let baseline = -.f.baseline in
+  (if decorated then decorations ~visited [ f ] else [])
+  @
   match (f.picture, f.control) with
   | Some pic, _ -> picture_shapes (picture_of pic.src) color f pic
   (* a form's control: drawn with its value every frame (control_shapes) *)
@@ -141,7 +185,7 @@ let rec draw ?(extensions = false) ~(visited : string -> bool) ~(picture_of : st
   let lines =
     List.map
       (fun (l : Html_layout.line) ->
-        (l.top, l.top +. l.height, later (fun () -> group (List.concat_map (glyphs ~visited ~picture_of) l.fragments))))
+        (l.top, l.top +. l.height, later (fun () -> group (decorations ~visited l.fragments @ List.concat_map (glyphs ~visited ~picture_of ~decorated:false) l.fragments))))
       b.lines
   in
   (* a box's floats, each drawn over its own height, not its line's *)
