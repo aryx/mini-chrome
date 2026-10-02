@@ -81,6 +81,11 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript's regular expressions: lookaheads (?=x) (?!x) and
+  lookbehinds (?<=x) (?<!x), backreferences \1 and named groups
+  (?<name>x) \k<name>, the flags s (the dot takes a newline), u (the
+  dot is a whole character; \u{...}) and y. jQuery's and Mithril's
+  patterns compile; Mithril runs
 - JavaScript, the language since 2015: template literals (their ${ }
   lexed as any expression), destructuring in declarations, parameters,
   for-of and assignments ({ a, b: c = 1, ...rest }, [x, , y]),

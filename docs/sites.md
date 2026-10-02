@@ -75,9 +75,9 @@ running; 🔴 does not parse.
 |---|---|---|
 | Hacker News' `hn.js` | 🟢 | |
 | Preact 10 (minified) | 🟢 | |
-| jQuery 3.7 | 🟡 | a regular expression with a lookahead `(?=...)` |
-| jQuery 3.7 slim (minified) | 🟡 | the same |
-| Mithril 2 | 🟡 | a regular expression with a backreference `\5` |
+| Mithril 2 | 🟢 | |
+| jQuery 3.7 | 🟡 | `Cannot read properties of undefined (reading 'createElement')`: its document, not found |
+| jQuery 3.7 slim (minified) | 🟡 | `Cannot read properties of undefined (reading 'pseudos')` |
 | Underscore 1.13 | 🟡 | `isFinite` is not defined |
 | Wikipedia's startup module | 🟡 | `NORLQ is not defined` |
 | React 18 (minified) | 🟡 | `Symbol` is not defined |
@@ -93,13 +93,14 @@ How it moved, the same day:
 | at first | 1 | 0 | 11 |
 | the language of 1999 (the comma operator, `in` and for-in, the bits, `switch`, `do`, labels, `finally`) | 2 | 5 | 5 |
 | template literals, destructuring, default and rest parameters, spread, an object literal's short forms, getters and setters | 2 | 8 | 2 |
+| regular expressions: lookaheads, lookbehinds, backreferences, named groups, the flags s, u, y | 3 | 7 | 2 |
 
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **The regular expressions' lookaheads and backreferences, `class`,
-  optional chaining, `Symbol` and a few globals**: the scripts above;
+- **`class`, optional chaining, `Symbol` and a few globals, and what
+  jQuery expects of `window` and `document`**: the scripts above;
   then the sites' own scripts can be tried (`scripts=`).
 - **Brotli**: Berkshire Hathaway (and a server that will not send
   gzip).

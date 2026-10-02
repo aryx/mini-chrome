@@ -16,9 +16,23 @@
                                    from its "(") or not
      x|y                           either
      x* x+ x? x{n} x{n,} x{n,m}    repeated, greedy; lazy with a ? after
+     (?=x) (?!x)                   x is ahead, or is not: nothing consumed
+     (?<=x) (?<!x)                 x is behind, or is not
+     \1  (?<name>x)  \k<name>      what a group matched, again; a group
+                                   named
 
    and the flags g (Js_builtins': every match), i (case ignored), m
-   (^ and $ at each line).
+   (^ and $ at each line), s (. matches a newline too), u (. is a whole
+   character, not one of its bytes; \u{1F600}) and y (the match must be
+   at the position asked).
+
+   A look ahead is the pattern tried from here and its end thrown away:
+   jQuery's /^[\s]*[>+~]|:(even|odd)(?=[^-]|$)/ wants ":even" not
+   followed by a dash. A look behind is tried from each position before,
+   until one ends exactly here. A backreference compares the text again:
+
+     /(["'])(.*?)\1/ on {|say "hi" or 'yo'|}: group 1 is the quote that
+     opened, \1 the same one closing: "hi" then 'yo', never "hi' 
 
    **Matching by backtracking**: each part of the pattern is tried at a
    position with "what comes after" as a continuation; a repetition
@@ -30,8 +44,8 @@
      /a(b+)c/ on "xabbbcx": tried at 0 (fails at x), at 1: a, then b+
      takes bbb, c matches: [1, 6), group 1 [2, 5)
 
-   Not read: lookaheads (?=...) and lookbehinds, backreferences \1,
-   named groups, the u, s and y flags, classes of Unicode.
+   Not read: classes of Unicode (\p{L}); with u, a set and a quantifier
+   still count bytes.
 
    Reference: ECMA-262 5.1, section 15.10 (RegExp); Russ Cox, "Regular
    Expression Matching Can Be Simple And Fast" (2007: why backtracking,
@@ -49,6 +63,12 @@ val global : t -> bool
 
 (* the number of capturing groups *)
 val groups : t -> int
+
+(* the groups that have a name, (?<name>x), and their numbers *)
+val names : t -> (string * int) list
+
+(* the y flag: [exec] matches at [from] or not at all *)
+val sticky : t -> bool
 
 (* [exec re s from]: the first match at or after [from], its span, and
  * each group's, if it took part: index 0 the whole match *)

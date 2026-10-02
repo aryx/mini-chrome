@@ -21,8 +21,24 @@ type node =
   | Boundary of bool (* \b, or \B *)
   | Group of int option * node list list (* captured as n, or not; its alternatives *)
   | Repeat of node * int * int option * bool (* at least, at most, greedy *)
+  (* (?=x) (?!x) (?<=x) (?<!x): x matches here (or does not), ahead or
+   * behind, and nothing is consumed *)
+  | Look of { ahead : bool; wanted : bool; alts : node list list }
+  | Backref of int (* \1: what group 1 matched, again *)
+  | Named_ref of string (* \k<name>: resolved once the pattern is read *)
 
-type t = { source : string; flags : string; alts : node list list; count : int; ignore_case : bool; multiline : bool }
+type t = {
+  source : string;
+  flags : string;
+  alts : node list list;
+  count : int;
+  names : (string * int) list; (* (?<name>x): the groups that have one *)
+  ignore_case : bool;
+  multiline : bool;
+  dot_all : bool; (* s: . matches a newline too *)
+  unicode : bool; (* u: . is a whole character, not a byte of it *)
+  sticky : bool; (* y: at the position asked, not after it *)
+}
 
 exception Bad of string
 
@@ -30,9 +46,9 @@ exception Bad of string
 (* Reading a pattern *)
 (*****************************************************************************)
 
-let parse (p : string) : node list list * int =
+let parse (p : string) : node list list * int * (string * int) list =
   let n = String.length p in
-  let pos = ref 0 and count = ref 0 in
+  let pos = ref 0 and count = ref 0 and names = ref [] in
   let peek () = if !pos < n then Some p.[!pos] else None in
   let next () = let c = p.[!pos] in incr pos; c in
   let number () =
@@ -41,7 +57,7 @@ let parse (p : string) : node list list * int =
     if !pos = start then None else Some (int_of_string (String.sub p start (!pos - start)))
   in
   (* \x: a class, or the character it stands for *)
-  let escape () : [ `Class of char | `Char of char | `Chars of string | `Boundary of bool ] =
+  let escape () : [ `Class of char | `Char of char | `Chars of string | `Boundary of bool | `Node of node ] =
     if !pos >= n then raise (Bad "\\ at the end of the pattern");
     match next () with
     | ('d' | 'w' | 's' | 'D' | 'W' | 'S') as c -> `Class c
@@ -53,6 +69,18 @@ let parse (p : string) : node list list * int =
     | 'f' -> `Char '\012'
     | 'v' -> `Char '\011'
     | '0' -> `Char '\000'
+    (* \u{1F600}: any code point, as its UTF-8 bytes *)
+    | 'u' when !pos < n && p.[!pos] = '{' -> (
+        match String.index_from_opt p !pos '}' with
+        | Some close -> (
+            match int_of_string_opt ("0x" ^ String.sub p (!pos + 1) (close - !pos - 1)) with
+            | Some cp ->
+                pos := close + 1;
+                let b = Buffer.create 4 in
+                Buffer.add_utf_8_uchar b (Uchar.of_int cp);
+                `Chars (Buffer.contents b)
+            | None -> `Char 'u')
+        | None -> `Char 'u')
     | 'u' when !pos + 4 <= n -> (
         match int_of_string_opt ("0x" ^ String.sub p !pos 4) with
         | Some cp ->
@@ -63,7 +91,17 @@ let parse (p : string) : node list list * int =
         | None -> `Char 'u')
     | 'x' when !pos + 2 <= n -> (
         match int_of_string_opt ("0x" ^ String.sub p !pos 2) with Some c -> pos := !pos + 2; `Char (Char.chr c) | None -> `Char 'x')
-    | c when c >= '1' && c <= '9' -> raise (Bad "backreferences are not supported")
+    (* \1, \12: a group's match, again *)
+    | c when c >= '1' && c <= '9' ->
+        decr pos;
+        `Node (Backref (Option.get (number ())))
+    | 'k' when !pos < n && p.[!pos] = '<' -> (
+        match String.index_from_opt p !pos '>' with
+        | Some close ->
+            let name = String.sub p (!pos + 1) (close - !pos - 1) in
+            pos := close + 1;
+            `Node (Named_ref name)
+        | None -> `Char 'k')
     | c -> `Char c
   in
   let rec alternatives () : node list list =
@@ -107,15 +145,34 @@ let parse (p : string) : node list list * int =
     | '^' -> [ Start ]
     | '$' -> [ End ]
     | '(' ->
+        let starts s = !pos + String.length s <= n && String.sub p !pos (String.length s) = s in
+        let skip s = pos := !pos + String.length s in
+        (* what the "(" opens: a look around, or a group *)
+        let look =
+          if starts "?=" then (skip "?="; Some (true, true))
+          else if starts "?!" then (skip "?!"; Some (true, false))
+          else if starts "?<=" then (skip "?<="; Some (false, true))
+          else if starts "?<!" then (skip "?<!"; Some (false, false))
+          else None
+        in
         let captured =
-          if !pos + 1 < n && p.[!pos] = '?' then
-            if p.[!pos + 1] = ':' then (pos := !pos + 2; None) else raise (Bad "lookarounds and named groups are not supported")
+          if look <> None then None
+          else if starts "?:" then (skip "?:"; None)
+          else if starts "?<" then (
+            match String.index_from_opt p !pos '>' with
+            | Some close ->
+                incr count;
+                names := (String.sub p (!pos + 2) (close - !pos - 2), !count) :: !names;
+                pos := close + 1;
+                Some !count
+            | None -> raise (Bad "a group's name never closed"))
+          else if starts "?" then raise (Bad "an unknown group (?")
           else (incr count; Some !count)
         in
         let alts = alternatives () in
         if peek () <> Some ')' then raise (Bad "a ( never closed");
         incr pos;
-        [ Group (captured, alts) ]
+        [ (match look with Some (ahead, wanted) -> Look { ahead; wanted; alts } | None -> Group (captured, alts)) ]
     | '[' -> [ set () ]
     | ('*' | '+' | '?') as c -> raise (Bad (Printf.sprintf "nothing to repeat before %c" c))
     | '\\' -> (
@@ -123,7 +180,8 @@ let parse (p : string) : node list list * int =
         | `Class c -> [ Set (false, [ Class c ]) ]
         | `Char c -> [ Char c ]
         | `Chars s -> List.init (String.length s) (fun i -> Char s.[i])
-        | `Boundary b -> [ Boundary b ])
+        | `Boundary b -> [ Boundary b ]
+        | `Node nd -> [ nd ])
     | c -> [ Char c ]
   and set () : node =
     let negated = if peek () = Some '^' then (incr pos; true) else false in
@@ -134,7 +192,15 @@ let parse (p : string) : node list list * int =
       | Some _ ->
           let lo =
             match next () with
-            | '\\' -> ( match escape () with `Class c -> `Item (Class c) | `Char c -> `C c | `Chars s -> `C s.[0] | `Boundary _ -> `C '\b')
+            | '\\' -> (
+                match escape () with
+                | `Class c -> `Item (Class c)
+                | `Char c -> `C c
+                | `Chars s -> `C s.[0]
+                | `Boundary _ -> `C '\b'
+                (* in a set, \1 is the character of that code *)
+                | `Node (Backref g) -> `C (Char.chr (g land 255))
+                | `Node _ -> `C 'k')
             | c -> `C c
           in
           (match lo with
@@ -150,18 +216,33 @@ let parse (p : string) : node list list * int =
   in
   let alts = alternatives () in
   if !pos < n then raise (Bad "an unmatched )");
-  (alts, !count)
+  (alts, !count, !names)
+
+(* \k<name> made the number of its group, now that every name is known *)
+let rec resolved (names : (string * int) list) (nd : node) : node =
+  let each = List.map (List.map (resolved names)) in
+  match nd with
+  | Named_ref name -> ( match List.assoc_opt name names with Some g -> Backref g | None -> raise (Bad ("no group named " ^ name)))
+  | Group (c, alts) -> Group (c, each alts)
+  | Look l -> Look { l with alts = each l.alts }
+  | Repeat (x, lo, hi, greedy) -> Repeat (resolved names x, lo, hi, greedy)
+  | nd -> nd
 
 let compile (source : string) (flags : string) : (t, string) result =
   match parse source with
-  | alts, count ->
-      Ok { source; flags; alts; count; ignore_case = String.contains flags 'i'; multiline = String.contains flags 'm' }
+  | alts, count, names ->
+      let has = String.contains flags in
+      Ok
+        { source; flags; alts = List.map (List.map (resolved names)) alts; count; names; ignore_case = has 'i'; multiline = has 'm'; dot_all = has 's';
+          unicode = has 'u'; sticky = has 'y' }
   | exception Bad why -> Error why
 
 let source (re : t) = re.source
 let flags (re : t) = re.flags
 let global (re : t) = String.contains re.flags 'g'
 let groups (re : t) = re.count
+let names (re : t) = re.names
+let sticky (re : t) = re.sticky
 
 (*****************************************************************************)
 (* Matching *)
@@ -205,7 +286,11 @@ let exec (re : t) (s : string) (from : int) : (int * int) option array option =
     else
       match nd with
       | Char c -> i < len && same s.[i] c && k (i + 1)
-      | Any -> i < len && s.[i] <> '\n' && k (i + 1)
+      | Any ->
+          (* with u, a whole character: its first byte and those that
+           * continue it (10xxxxxx) *)
+          let rec past j = if re.unicode && j < len && Char.code s.[j] land 0xC0 = 0x80 then past (j + 1) else j in
+          i < len && (re.dot_all || s.[i] <> '\n') && k (past (i + 1))
       | Set (negated, items) -> i < len && in_set items s.[i] <> negated && k (i + 1)
       | Start -> (i = 0 || (re.multiline && s.[i - 1] = '\n')) && k i
       | End -> (i = len || (re.multiline && s.[i] = '\n')) && k i
@@ -220,6 +305,29 @@ let exec (re : t) (s : string) (from : int) : (int * int) option array option =
               caps.(g) <- Some (i, j);
               k j || (caps.(g) <- saved; false))
           || (caps.(g) <- old; false)
+      (* x here, ahead: tried, and whatever it took given back. Behind:
+       * some start before from which it ends exactly here. Not wanted:
+       * the groups it set are forgotten *)
+      | Look { ahead; wanted; alts = l } ->
+          let saved = Array.copy caps in
+          let found =
+            if ahead then alts l i (fun _ -> true)
+            else
+              let rec from j = j >= 0 && (alts l j (fun e -> e = i) || from (j - 1)) in
+              from i
+          in
+          if found = wanted then (if not wanted then Array.blit saved 0 caps 0 (Array.length caps); k i || (Array.blit saved 0 caps 0 (Array.length caps); false))
+          else (Array.blit saved 0 caps 0 (Array.length caps); false)
+      (* what the group matched, again here; a group that took no part: nothing *)
+      | Backref g -> (
+          match if g < Array.length caps then caps.(g) else None with
+          | None -> k i
+          | Some (a, b) ->
+              let n = b - a in
+              i + n <= len
+              && (let rec eq j = j >= n || (same s.[a + j] s.[i + j] && eq (j + 1)) in eq 0)
+              && k (i + n))
+      | Named_ref _ -> false
       | Repeat (x, lo, hi, greedy) ->
           (* one more of x, unless at the maximum; an empty one ends it
            * (x* on an empty x would never) *)
@@ -237,7 +345,7 @@ let exec (re : t) (s : string) (from : int) : (int * int) option array option =
       if alts re.alts start (fun j -> found := Some j; true) then (
         caps.(0) <- Some (start, Option.get !found);
         Some (Array.copy caps))
-      else if !steps > budget then None
+      else if !steps > budget || re.sticky then None
       else from_ (start + 1))
   in
   from_ (max 0 from)

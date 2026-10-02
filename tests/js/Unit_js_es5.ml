@@ -53,6 +53,29 @@ let tests =
           check "a / dividing is not one" "var x = 10, y = 2; [x / y, (x) / 5]" "[5, 2]";
           check "lazy, bounds, a word's edge" "['<a><b>'.match(/<.+?>/)[0], /^a{2,3}$/.test('aaaa'), 'cat category'.replace(/\\bcat\\b/g, 'dog')]"
             "[\"<a>\", false, \"dog category\"]");
+      Testo.create "regular expressions: looking around, a group again, the flags s u y" (fun () ->
+          check "ahead: jQuery's :even not before a dash"
+            {|[/:(even|odd)(?=[^-]|$)/.test('li:even'), /:(even|odd)(?=[^-]|$)/.test('li:even-x'), 'price: 10 eur, 20 usd'.match(/\d+(?= eur)/)[0]]|}
+            {|[true, false, "10"]|};
+          check "not ahead" {|['foobar foobaz'.match(/foo(?!bar)\w+/)[0], /^(?!.*\d)\w+$/.test('abc'), /^(?!.*\d)\w+$/.test('ab1')]|} {|["foobaz", true, false]|};
+          check "ahead takes nothing: what follows starts where it started" {|['ab'.match(/a(?=b)b/)[0]]|} {|["ab"]|};
+          check "a group set ahead is kept; one in a refused look is not" {|[/(?=(a+))a*b\1/.exec('baaabac')[0], /(?!(a))b/.exec('b')[1]]|} {|["aba", undefined]|};
+          check "behind, and not behind"
+            {|['$10 and 20'.match(/(?<=\$)\d+/)[0], '$10 and 20'.match(/(?<!\$)\b\d+/)[0], /(?<=ab)c/.test('xabc'), /(?<=ab)c/.test('xbc')]|}
+            {|["10", "20", true, false]|};
+          check "the worked example: the quote that opened closes" {|'say "hi" or \'yo\' but not "mixed\''.match(/(["'])(.*?)\1/g)|} {|["\"hi\"", "'yo'"]|};
+          check "Mithril's selector: an attribute's value in the same quote" {|var m = /\[(.+?)(?:\s*=\s*("|'|)((?:\\["'\]]|.)*?)\2)?\]/.exec('[href="a b"]'); [m[1], m[3]]|}
+            {|["href", "a b"]|};
+          check "a group that took no part: nothing to match again" {|/(a)?b\1c/.test('bc')|} "true";
+          check "the case ignored, there too" {|/(a)\1/i.test('aA')|} "true";
+          check "a named group, and it again" {|var m = /(?<year>\d{4})-(?<month>\d\d)/.exec('on 2026-10-02'); [m[1], m[2], /(?<q>['"]).*?\k<q>/.test('"x"')]|}
+            {|["2026", "10", true]|};
+          check "s: the dot takes a newline" {|[/a.b/.test('a\nb'), /a.b/s.test('a\nb')]|} "[false, true]";
+          check "u: the dot is a character, not a byte of one (example.com's /./gu)"
+            {|['hé!'.match(/./gu).length, 'hé!'.match(/./g).length, 'hé'.replace(/./gu, '<$&>') === '<h><é>']|} "[3, 4, true]";
+          check "u: any code point" {|/\u{1F600}/u.test('a \u{1F600}')|} "true";
+          check "y: at the position, not after it" {|[/b/y.test('ab'), /a/y.test('ab')]|} "[false, true]";
+          check "what cannot be read says so" {|/(?<n/|} "line 1: SyntaxError: Invalid regular expression: /(?<n/: a group's name never closed");
       Testo.create "Date, URIs, splice" (fun () ->
           check "the host's clock: 2001-09-09T01:46:40Z" "var d = new Date(); [d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), Date.now()]"
             "[2001, 8, 9, 1, 1000000000000]";
