@@ -2,6 +2,20 @@
    wins -- over the browser's style sheet and the page's, @media
    evaluated, the rules indexed.
 
+   The word in the name. Håkon Wium Lie proposed "Cascading HTML Style
+   Sheets" at CERN in October 1994, days before Netscape's first
+   release; Bert Bos joined him, and CSS1 was a W3C Recommendation in
+   December 1996. Other style languages were proposed in those years
+   (DSSSL's, for one, a programming language). What set this one apart
+   is in its first word: a page's look is not one party's to decide.
+   The browser has a style sheet (its defaults), the author has
+   others, and the reader may have one too (larger letters, for eyes
+   that need them); they *cascade*, combined by a fixed order in which
+   each can override the one before and the reader can have the last
+   word (!important). That negotiation, and not the properties, is the
+   idea -- and the part of CSS that authors find hardest, since which
+   rule wins is decided far from where it is written.
+
    (notes_css_engine.md section 4.) The declarations that apply to an
    element are sorted, the last winning:
 
@@ -53,8 +67,11 @@
    text (Css_syntax's components): Computed makes values of them,
    var() included, since a custom property is inherited like a colour.
 
-   Reference: W3C, CSS Cascading and Inheritance Level 4, section 6 (the
-   cascade's order); Media Queries Level 3; notes_css_engine.md
+   Reference: Håkon Wium Lie, "Cascading HTML Style Sheets -- a
+   proposal" (1994), and his thesis, "Cascading Style Sheets" (Oslo,
+   2005), on why this design and not the others; Lie and Bos,
+   "Cascading Style Sheets, level 1" (W3C, 1996), section 3; W3C, CSS
+   Cascading and Inheritance Level 4, section 6 (the cascade's order); Media Queries Level 3; notes_css_engine.md
    section 4. *)
 
 type origin = User_agent | Author

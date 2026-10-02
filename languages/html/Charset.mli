@@ -4,6 +4,21 @@
    they encode the text. "é" is one byte in Latin-1 (ISO 8859-1, the
    web's default until HTML5), two in UTF-8:
 
+   How the web got here. ASCII (1963) is seven bits, English's
+   letters; every country then used the eighth bit for its own (ISO
+   8859-1 for Western Europe, 1987; Windows-1252, Microsoft's variant
+   of it; KOI8 for Russian; several for Japanese alone), and a text
+   did not say which. Unicode (1991) numbered every character of every
+   script, and UTF-8 is the way to write those numbers as bytes that
+   won: designed by Ken Thompson with Rob Pike in September 1992, on a
+   placemat in a New Jersey diner, for Plan 9 -- ASCII stays ASCII, no
+   byte of a longer character looks like one, a text can be read from
+   its middle. The web's pages were mostly Latin-1 and its relatives
+   until about 2008, when UTF-8 passed them; nearly all are UTF-8 now.
+   A browser still has to read the old ones, and to guess: the bytes
+   do not say, the server's header is often wrong, and the page's own
+   <meta> is inside the bytes to be decoded.
+
      "café"   Latin-1   63 61 66 E9
               UTF-8     63 61 66 C3 A9
 
@@ -42,7 +57,9 @@
    WHATWG lists 39; ours are the two a Mosaic-era page and a modern one
    need), UTF-16, and the spec's statistical guessers.
 
-   Reference: WHATWG, "Encoding" (encoding.spec.whatwg.org), section 4.2
+   Reference: Rob Pike and Ken Thompson, "Hello World, or Καλημέρα
+   κόσμε, or こんにちは 世界" (USENIX, 1993), UTF-8 and why; RFC 3629
+   (Yergeau, 2003); WHATWG, "Encoding" (encoding.spec.whatwg.org), section 4.2
    (the labels) and the index windows-1252; WHATWG HTML, 13.2.3
    "The input byte stream" (13.2.3.2, the prescan of <meta>). *)
 

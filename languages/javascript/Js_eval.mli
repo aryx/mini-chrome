@@ -1,5 +1,31 @@
 (* Js_eval: a JavaScript program run, by walking its tree.
 
+   The language. Brendan Eich wrote the first JavaScript in ten days
+   of May 1995, at Netscape, which wanted a language for the people
+   who wrote pages, to go with Java for the people who wrote programs:
+   it was to "look like Java", and under that skin Eich put what he
+   admired -- Scheme's functions, first-class and closing over their
+   variables, and Self's objects, with prototypes and no classes. It
+   shipped in Navigator 2 (as LiveScript in the betas; renamed for
+   marketing), Microsoft copied it as JScript (Internet Explorer 3,
+   1996), and to keep the two alike it was standardized at Ecma:
+   ECMA-262, "ECMAScript", 1997. Its editions are the tags of
+   Js_ast.mli: ES3 (1999) the language of the first web applications;
+   a fourth abandoned after years of dispute (2008); ES5 (2009); ES2015
+   ("ES6": let, classes, arrows, promises, modules) and one a year
+   since. The ten days show still -- in ==, in var's scope, in typeof
+   null -- because nothing a page relies on can be taken back.
+
+   How it is run here is the simplest way: the tree is walked, each
+   node's rule applied. An engine compiles the tree first -- Eich's
+   own to a bytecode that it then interpreted, as SpiderMonkey, its
+   descendant, still does to start with. What made JavaScript fast
+   enough to write Gmail's successors in was the next step, compiling
+   to machine code as the program runs: V8 (Lars Bak, Google, 2008,
+   for Chrome), with Self's own techniques -- hidden classes, inline
+   caches -- found again twenty years on. None of that
+   is here: this is the language's meaning, not its speed.
+
    (notes_javascript.md sections 5 to 8.) Each kind of node has its
    rule: an expression's value from its children's, a statement's
    effect. What makes a language of it is three things:
@@ -55,6 +81,13 @@
    not a boolean. == is read as === (no conversion: the real ==, and
    its table, are an exercise).
 
+   Reference: Brendan Eich and Allen Wirfs-Brock, "JavaScript: The
+   First 20 Years" (HOPL IV, 2020), the history by those who made it;
+   ECMA-262 (the language: section 8, environments; 10, functions);
+   David Ungar and Randall Smith, "Self: The Power of Simplicity"
+   (OOPSLA 1987), prototypes; Guy Steele and Gerald Sussman, "Scheme:
+   An Interpreter for Extended Lambda Calculus" (1975), closures.
+
    **Errors**, named as browsers name them, on the line of their
    statement: "ReferenceError: x is not defined", "TypeError: f is not
    a function", "TypeError: Cannot read properties of undefined
@@ -99,6 +132,12 @@ val call : t -> Js_value.value -> this:Js_value.value -> Js_value.value list -> 
  * (Js_value.Throw), a text that does not parse as a SyntaxError *)
 val eval_in_run : t -> string -> Js_value.value
 val call_in_run : t -> Js_value.value -> this:Js_value.value -> Js_value.value list -> Js_value.value
+
+(* a property read, through getters, prototypes and proxies; a new
+ * promise with its resolve and reject (Js_promise.make): for a host
+ * whose answer comes later (fetch) *)
+val get : t -> Js_value.value -> string -> Js_value.value
+val promise : t -> Js_value.value * (Js_value.value -> unit) * (Js_value.value -> unit)
 
 (* a global, read and defined (the host's: document, and window's) *)
 val global : t -> string -> Js_value.value option

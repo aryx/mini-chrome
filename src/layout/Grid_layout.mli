@@ -8,6 +8,22 @@
    and out, as Flex_layout is for a flex container and Table_layout
    for a table.
 
+   The layout pages had always wanted. Designers lay a page out on a
+   grid, as print does; the web gave them tables (1995: the grid, but
+   tied to the order and meaning of the markup), then floats, then
+   frameworks of classes over floats ("the 960 grid", Bootstrap's
+   twelve columns). Proposals for a real one are as old as CSS (Bert
+   Bos's "frames" and template layouts, 1996 to 2005). The one that
+   became this module came from Microsoft: Phil Cupp and his
+   colleagues' Grid Layout shipped in
+   Internet Explorer 10 (2012), was reworked in the W3C by Tab Atkins,
+   Elika Etemad and Rossen Atanassov (named lines and areas, the fr
+   unit kept), and then did what no layout had: Firefox, Chrome and
+   Safari all shipped it within one month, March 2017, finished and
+   alike. With it the two-dimensional layout is said in the style
+   sheet -- "three columns, the middle one takes what is left" -- and
+   the markup is free of it.
+
    1. **Placement** ([place]). An item with grid-area: a name takes the
       rectangle that name draws in grid-template-areas; one with
       "row / column" takes that cell; the others take the free cells in
@@ -56,7 +72,8 @@
    Not done: grid-auto-flow: column and dense; an item's span said
    without a name ("span 2"); baseline alignment; subgrid.
 
-   Reference: W3C, CSS Grid Layout Module Level 1, sections 8.5
+   Reference: Rachel Andrew, "The New CSS Layout" (2017), the history
+   and the use; W3C, CSS Grid Layout Module Level 1, sections 8.5
    (placement), 12.3 to 12.7 (the track sizing algorithm), 11.8
    (packing). *)
 

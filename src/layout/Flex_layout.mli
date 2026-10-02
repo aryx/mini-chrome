@@ -9,6 +9,20 @@
    with their sizes, numbers in and numbers out (as Table_layout is for
    a table's columns):
 
+   Why it exists. CSS2's layout was made for documents: blocks down the
+   page, text in lines. Putting three boxes side by side, of equal
+   height, one of them taking the room left, had no direct way: for
+   fifteen years pages did it with tables, then with floats and the
+   tricks to contain them ("clearfix"), then with inline-block and its
+   stray spaces; centring a box down its container was a known joke.
+   Flexbox is the first layout made for interfaces. Its model came from
+   Mozilla's XUL, the boxes Firefox's own window is made of (hbox,
+   vbox, flex=1); a first draft (2009) copied it, and the module was
+   rewritten twice before the one browsers shipped (Tab Atkins, Elika
+   Etemad and Rossen Atanassov, editors; a Candidate Recommendation in
+   September 2012, in every browser by 2015). It lays out along one
+   axis; two at once is the grid's job (Grid_layout.mli).
+
    1. each item's **base size**: its flex-basis, else its width (its
       height in a column), else its content's -- measured by
       Box_layout, which also gives its minimum (its widest word: an

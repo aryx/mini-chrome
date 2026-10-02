@@ -3,6 +3,18 @@
    (notes_javascript.md sections 4 and 7.) Seven kinds, less symbol
    and bigint:
 
+   The kinds are those of 1995, and their oddities with them. A number
+   is a float, the only kind of number until BigInt (2020): the first
+   engine had integers inside but the language never showed them.
+   typeof null is "object": in that engine a value was a tagged word,
+   the tag 0 meant an object, and null was the zero pointer -- a bug of
+   the first week; its repair was proposed, and refused, because pages
+   test for it. And the conversions (+ with a string concatenates, ==
+   converts before comparing) were asked of Brendan Eich by the first
+   users, who wanted "1" == 1 to be true for the text of a form's
+   field; by his own account he regrets granting it. === (ES3, 1999) is the
+   comparison without them.
+
      undefined  null  boolean  number (a float: 1 is 1.0)  string  object  function
 
    An **object** is a table from names to values, mutable, its keys kept

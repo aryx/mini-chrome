@@ -7,6 +7,22 @@
    given to the one who asks; a promise (ES2015) is the answer itself
    as a value, not there yet, that can be kept, given and combined:
 
+   An old idea, late to the web. A value standing for a result not yet
+   computed is of the 1970s: "promise" is Daniel Friedman and David
+   Wise's word (1976), "future" Henry Baker and Carl Hewitt's (1977);
+   Barbara Liskov and Liuba Shrira's "Promises" (1988) gave them the
+   shape used here, for calls across a network, and Mark Miller's E
+   language the chaining with "when". JavaScript had only callbacks,
+   and programs whose every step waits for the network grew sideways
+   ("callback hell", the pyramid of nested functions, errors lost at
+   each level). Promises reached it through libraries: Twisted's
+   Deferred in Python (2002) copied by Dojo (2007) and jQuery (2011);
+   then a common rule for "then" that let them work together,
+   CommonJS Promises/A (Kris Zyp, 2009) and Promises/A+ (2012); then
+   the language (ES2015). async and await came from C# 5 (2012, after
+   F#'s asynchronous workflows, 2007) and were in JavaScript in 2017:
+   with them code that waits reads as code that does not.
+
        pending ----resolve(v)----> fulfilled with v
           \------reject(e)-------> rejected with e      (once, for ever)
 
@@ -52,7 +68,9 @@
    Promise is a plain one; no Promise.withResolvers, no for await, no
    async generators.
 
-   Reference: ECMA-262 sections 27.2 (Promise), 27.7 (async functions),
+   Reference: Barbara Liskov and Liuba Shrira, "Promises: Linguistic
+   Support for Efficient Asynchronous Procedure Calls in Distributed
+   Systems" (PLDI 1988); ECMA-262 sections 27.2 (Promise), 27.7 (async functions),
    9.5 (jobs); the Promises/A+ specification, which the then of
    section 2.2 and the "resolution procedure" of 2.3 (a thenable
    adopted) follow. *)

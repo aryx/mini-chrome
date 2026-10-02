@@ -7,6 +7,18 @@
    it). Html_tree builds it from the tokens; nothing here knows HTML's
    rules, only the shape:
 
+   The name is a standard's. When scripts came to pages, each browser
+   gave them its own view of the page: Netscape 2 and 3 (1995, 1996)
+   only the forms, images and links ("DOM Level 0", named afterwards);
+   then, for "Dynamic HTML" (1997), Netscape 4 its layers and Internet
+   Explorer 4 document.all, every element -- two incompatible models,
+   and pages written twice. The W3C's Document Object Model (Level 1,
+   October 1998) is the one tree both agreed on, defined apart from any
+   language: nodes, with a parent, children and attributes. Levels 2
+   (2000) and 3 (2004) added events, styles and ranges; it is now a
+   living standard of the WHATWG's. Here it is the tree alone, as
+   an OCaml value; what a script sees of it is src/dom's.
+
      html                       the root, always there (Html_tree
       +- head                    makes the three of them even when the
       |   +- title               page wrote none)
@@ -28,7 +40,8 @@
    parent; ours keeps elements and text, and is a value: built once,
    then only read, so a parent is where you came from.
 
-   Reference: WHATWG, "DOM Living Standard", section 4 (nodes, trees);
+   Reference: W3C, "Document Object Model (DOM) Level 1 Specification"
+   (1998); WHATWG, "DOM Living Standard", section 4 (nodes, trees);
    notes_browser.md section 4. *)
 
 type node = Element of element | Text of string

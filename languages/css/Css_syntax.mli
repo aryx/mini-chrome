@@ -1,5 +1,16 @@
 (* Css_syntax: a style sheet's text read -- tokens, then rules and blocks.
 
+   A syntax made to be skipped. CSS1 (1996) already said how to read
+   what a browser does not know: a declaration with an unknown property
+   or a value it cannot read is dropped, alone; a rule with a selector
+   it cannot read, dropped whole; an unknown @-rule skipped to its
+   ";" or its matching "}". So a style sheet written for tomorrow's
+   browsers does no harm in today's, and CSS could grow for thirty
+   years without versions -- a page says "display: grid" and an old
+   browser simply lays it out as blocks. Reading CSS is mostly knowing
+   where the thing one does not understand ends: hence blocks matched
+   by their brackets before anything is interpreted.
+
    (notes_css_engine.md sections 1 and 2.) CSS's syntax is older and
    smaller than its properties, and CSS Syntax Level 3 wrote down the
    tokenizer every browser had converged on: identifiers, functions

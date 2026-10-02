@@ -17,6 +17,11 @@
 # programs beside it: mini-node): a cap must never be a reason to
 # write fewer tests.
 #
+# The opening comment of an .mli is the module's documentation, and
+# where its history and references are told: counted in the budget,
+# and said apart at the end, for the day the budget is of the code
+# alone.
+#
 # Each line is counted once, as code (it has some code, maybe a
 # comment too), comment (only a comment, or inside one) or blank.
 # After elm-playground's scripts/stats/loc.py, whose counting it is.
@@ -142,6 +147,27 @@ def classify(path):
     return group, parts[0] + "/" if len(parts) > 1 else "./"
 
 
+def teaching(path, text):
+    """The lines of an .mli's opening comment: the module's
+    documentation, where the idea, its history and its references are
+    told (0 for another file, or an .mli that starts otherwise). No
+    tag marks them: the first comment of an interface is that."""
+    if not path.endswith(".mli") or not text.lstrip().startswith("(*"):
+        return 0
+    depth, i = 0, text.index("(*")
+    start = i
+    while i < len(text):
+        if text.startswith("(*", i):
+            depth, i = depth + 1, i + 2
+        elif text.startswith("*)", i):
+            depth, i = depth - 1, i + 2
+            if depth == 0:
+                break
+        else:
+            i += 1
+    return text.count("\n", start, i) + 1
+
+
 def files():
     out = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard",
@@ -169,6 +195,7 @@ def main():
     verbose = "-v" in sys.argv[1:]
     stats = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     largest = []  # (lines, path), the browser's
+    taught = 0  # the browser's .mli files' opening comments, in lines
     for path in files():
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
@@ -186,6 +213,7 @@ def main():
         s["lines"] += code + comment + blank
         if group == "browser":
             largest.append((code + comment + blank, path))
+            taught += teaching(path, text)
 
     def total(subs):
         t = defaultdict(int)
@@ -224,6 +252,9 @@ def main():
     used = total(stats.get("browser", {}).values())["lines"]
     print(f"\nbudget: {used:,} of {BUDGET:,} lines"
           f" ({100 * used / BUDGET:.0f}%), {BUDGET - used:,} left")
+    print(f"  of which {taught:,} are the interfaces' opening comments"
+          f" (the idea, the history, the references);"
+          f" {used - taught:,} without them")
 
 
 if __name__ == "__main__":

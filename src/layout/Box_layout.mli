@@ -8,6 +8,23 @@
    picture, a control, where it goes), so that Hit, the form controls
    and the drawing of words work on both ([as_html_layout]).
 
+   Where the box model came from. Before CSS a page was laid out by
+   its tags (Html_layout.mli: Mosaic's flow) and, from 1995, by tables
+   used for what they were not meant for (Table_layout.mli). CSS1
+   (1996) gave every element a box -- content, padding, border, margin
+   -- and CSS2 (1998) the rules by which boxes are placed: blocks
+   stacked, inline boxes flowed into lines, floats (born as Netscape's
+   <img align=left>, text flowing round a picture) and positioning.
+   Browsers disagreed on it for a decade. Internet Explorer 5 counted
+   padding and border inside "width"; the standard counts them outside;
+   pages were written for each, and to keep the old ones working
+   browsers took the page's <!DOCTYPE> as a switch between "quirks" and
+   "standards" (2000) -- still there. CSS 2.1 (a Recommendation only in
+   2011) is CSS2 corrected to what browsers could be made to agree on,
+   chapter 9 above all; the Acid2 test (2005) is how they were held to
+   it. Its vocabulary -- block formatting context, containing block,
+   margin collapsing -- is this module's.
+
    **The box.** Every block is a content box inside its padding, its
    border and its margin; the box kept here is the border box (what a
    background fills), its border's widths with it:
@@ -159,7 +176,8 @@
    and beside them Box_grid, a grid container's items, given the
    recursion's two functions it needs rather than being in it.
 
-   Reference: W3C, CSS 2.1, chapters 8 (the box model, collapsing
+   Reference: Bert Bos, Tantek Çelik, Ian Hickson and Håkon Wium Lie
+   (editors), CSS 2.1 (W3C, 2011), chapters 8 (the box model, collapsing
    margins), 9 (the visual formatting model: block and inline
    formatting contexts, floats, positioning), 10 (widths and heights:
    10.3.3's equation, shrink-to-fit in 10.3.5, line height in 10.8) and

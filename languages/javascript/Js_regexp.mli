@@ -1,6 +1,21 @@
 (* Js_regexp: JavaScript's regular expressions, the part pages use -- a
    pattern read into a tree, matched by backtracking.
 
+   Where they came from. Stephen Kleene's "regular sets" (1951, 1956)
+   were a mathematician's notation for what a finite automaton
+   accepts; Ken Thompson made them a tool, compiling an expression to
+   machine code that follows every alternative at once (QED, 1968;
+   then ed, and grep, 1973). Those match in time proportional to the
+   text. Another line of implementations tries one alternative at a
+   time and comes back on failure -- backtracking: Henry Spencer's
+   library (1986), then Perl (Larry Wall, 1987), which over the years
+   added what no automaton can do: groups referred back to (\1),
+   lookaheads, lazy quantifiers. Perl 5's syntax (1994) is what the
+   world means by "regex" since, and what JavaScript took in ES3
+   (1999). So this matcher backtracks, as Perl's and every browser's
+   do: it is the only way to have backreferences, and its price is a
+   pattern such as (a+)+b that takes exponential time on "aaaa...".
+
    (notes_javascript.md.) Hacker News' script counts its stories with
    s.match(/[0-9]+/); a page's scripts split, test and replace with
    them. What is read:
@@ -47,7 +62,8 @@
    Not read: classes of Unicode (\p{L}); with u, a set and a quantifier
    still count bytes.
 
-   Reference: ECMA-262 5.1, section 15.10 (RegExp); Russ Cox, "Regular
+   Reference: Ken Thompson, "Regular Expression Search Algorithm"
+   (CACM, 1968); ECMA-262 5.1, section 15.10 (RegExp); Russ Cox, "Regular
    Expression Matching Can Be Simple And Fast" (2007: why backtracking,
    and its worst case); Kernighan and Pike, "The Practice of
    Programming", chapter 9 (a matcher in 30 lines). *)

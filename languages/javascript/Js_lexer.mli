@@ -1,5 +1,15 @@
 (* Js_lexer: JavaScript's text cut into tokens.
 
+   Two things here are JavaScript's own, both from its first days. The
+   newline that may end a statement: semicolons were made optional so
+   that a page's author, not a programmer, would not be stopped by one
+   left out ("automatic semicolon insertion"), and the rules for when a
+   newline counts have surprised everyone since (a "return" alone on
+   its line returns nothing). And the slash: "/" is a division after a
+   value and the start of a regular expression anywhere else (Perl's
+   syntax, taken in ES3, 1999), so that this lexer, unlike most, must
+   know what kind of token came before to know what it is reading.
+
    The first stage of the engine (notes_javascript.md section 1):
    characters in, tokens out -- a keyword (let, function), a name (n,
    document), a number, a string (its escapes decoded), a punctuation
