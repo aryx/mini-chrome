@@ -237,13 +237,48 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
 (* Arrays *)
 (*****************************************************************************)
 
-let array_methods ~(call : value -> this:value -> value list -> value) : obj =
+(* claude: the items of something like an array -- a length and its
+ * indices (a jQuery object, a proxy of an array, a string's letters) *)
+let like_array ~(get : value -> string -> value) (v : value) : value list =
+  match v with
+  | Object { kind = Array _; _ } | String _ | Undefined | Null -> ( match v with Object a -> array_items a | String s -> List.init (String.length s) (fun i -> String (String.make 1 s.[i])) | _ -> [])
+  | v ->
+      let n = match get v "length" with Number n when n > 0. && n < 1e7 -> int_of_float n | _ -> 0 in
+      List.init n (fun i -> get v (string_of_int i))
+
+(* the methods that change the array they are called on *)
+let mutating = [ "push"; "pop"; "shift"; "unshift"; "splice"; "sort"; "reverse"; "fill" ]
+
+let array_methods ~(call : value -> this:value -> value list -> value) ~(get : value -> string -> value) ~(put : value -> string -> value -> unit) : obj =
   let o = new_object () in
+  (* claude: a method of an array works on anything like one
+   * ([].indexOf.call(jQueryObject, el), [].push.apply(it, found)): on
+   * a copy of its items, written back to it if the method changes
+   * them. Before: a TypeError, "called on something not an array" *)
   let def name f =
     set_own o name
       (fn name (fun ~this args ->
-           let arr, items = this_array name this in
-           f arr items args))
+           match this with
+           | Object ({ kind = Array items; _ } as arr) -> f arr items args
+           | Undefined | Null -> throw "TypeError" (Printf.sprintf "Array.prototype.%s called on null or undefined" name)
+           | this -> (
+               let before = like_array ~get this in
+               let copy = new_array before in
+               let items = match copy.kind with Array items -> items | _ -> assert false in
+               let result = f copy items args in
+               (match this with
+               | Object _ when List.mem name mutating ->
+                   let after = array_items copy in
+                   List.iteri (fun i v -> put this (string_of_int i) v) after;
+                   (* the indices left over, gone *)
+                   (match this with
+                   | Object ({ kind = Plain | Closure _; _ } as o) ->
+                       List.iteri (fun i _ -> if i >= List.length after then o.props <- List.remove_assoc (string_of_int i) o.props) before
+                   | _ -> ());
+                   put this "length" (Number (float_of_int (List.length after)))
+               | _ -> ());
+               (* a method that returns its array (sort, reverse) returns this one *)
+               match result with Object r when r == copy -> this | r -> r)))
   in
   (* f(item, index, array) for each item, as the callbacks are called *)
   let each (arr : obj) (f : value) (k : value -> int -> unit) : unit =
@@ -419,7 +454,8 @@ let percent_decode (s : string) : string =
   go 0;
   Buffer.contents b
 
-let install ~(call : value -> this:value -> value list -> value) ~(log : string -> unit) ~(seed : int) ?(now = fun () -> 0.)
+let install ~(call : value -> this:value -> value list -> value) ~(get : value -> string -> value) ~(put : value -> string -> value -> unit)
+    ~(items : value -> value list) ~compile:(make_function : async:bool -> string -> string -> value) ~(log : string -> unit) ~(seed : int) ?(now = fun () -> 0.)
     (define : string -> value -> unit) : protos =
   let shown args = String.concat " " (List.map display args) in
   define "console"
@@ -472,7 +508,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(log : string 
   method_ regexps "toString" (fun ~this _ -> to_primitive this);
   method_ numbers "toFixed" (fun ~this args -> String (Printf.sprintf "%.*f" (int_arg args 0 ~default:0) (to_number this)));
   method_ numbers "toString" (fun ~this _ -> String (to_string this));
-  let strings = string_methods ~call ~regexps and arrays = array_methods ~call in
+  let strings = string_methods ~call ~regexps and arrays = array_methods ~call ~get ~put in
   (* a constructor with its prototype and its own functions *)
   let constructor name f (proto : obj) (statics : (string * value) list) =
     let c = fn name f in
@@ -487,7 +523,15 @@ let install ~(call : value -> this:value -> value list -> value) ~(log : string 
   constructor "String" (fun ~this:_ args -> String (match args with [] -> "" | v :: _ -> to_string v)) strings
     [ ("fromCharCode", fn "fromCharCode" (fun ~this:_ args -> String (String.concat "" (List.map (fun v -> String.make 1 (Char.chr (int_of_float (to_number v) land 255))) args)))) ];
   constructor "Number" (fun ~this:_ args -> Number (match args with [] -> 0. | v :: _ -> to_number v)) numbers [];
-  constructor "Function" (fun ~this:_ _ -> throw "EvalError" "new Function is not supported") functions [];
+  (* claude: new Function("a", "b", "return a + b"): its last argument
+   * the body, those before its parameters; a function of the global
+   * scope. Before: an EvalError *)
+  constructor "Function"
+    (fun ~this:_ args ->
+      match List.rev (List.map to_string args) with
+      | [] -> make_function ~async:false "" ""
+      | body :: params -> make_function ~async:false (String.concat "," (List.rev params)) body)
+    functions [];
   constructor "RegExp"
     (fun ~this:_ args ->
       match arg args 0 with
@@ -531,7 +575,17 @@ let install ~(call : value -> this:value -> value list -> value) ~(log : string 
            let o = new_object () in
            (match arg args 0 with Object p -> o.proto <- Some p | _ -> ());
            Object o));
-      ("getPrototypeOf", fn "getPrototypeOf" (fun ~this:_ args -> match arg args 0 with Object { proto = Some p; _ } -> Object p | _ -> Null));
+      (* claude: the one it was given, else its kind's (Js_props.proto_of) *)
+      ("getPrototypeOf",
+       fn "getPrototypeOf" (fun ~this:_ args ->
+           match arg args 0 with
+           | Object { proto = Some p; _ } -> Object p
+           | Object { kind = Array _; _ } -> Object arrays
+           | Object { kind = Closure _ | Host_function _; _ } -> Object functions
+           | Object { kind = Regexp _; _ } -> Object regexps
+           | Object ({ kind = Plain; _ } as o) when o != objects -> Object objects
+           | String _ -> Object strings
+           | _ -> Null));
       ("assign",
        fn "assign" (fun ~this:_ args ->
            match args with
@@ -550,6 +604,13 @@ let install ~(call : value -> this:value -> value list -> value) ~(log : string 
   constructor "Array"
     (fun ~this:_ args -> match args with [ Number n ] -> array (List.init (int_of_float n) (fun _ -> Undefined)) | _ -> array args)
     arrays
-    [ ("isArray", fn "isArray" (fun ~this:_ args -> Bool (match arg args 0 with Object { kind = Array _; _ } -> true | _ -> false)));
-      ("from", fn "from" (fun ~this:_ args -> match arg args 0 with Object ({ kind = Array _; _ } as a) -> array (array_items a) | _ -> array [])) ];
+    [ ("isArray", fn "isArray" (fun ~this:_ args -> Bool (match arg args 0 with Object o -> (match (target o).kind with Array _ -> true | _ -> false) | _ -> false)));
+      (* claude: of what can be gone through (an array, a string, a Set),
+       * else of what is like an array ({ length: 3 }); each item through
+       * the function given, if one is *)
+      ("from",
+       fn "from" (fun ~this:_ args ->
+           let src = arg args 0 in
+           let vs = match src with Object { kind = Plain | Host_object _ | Closure _; _ } when get src "@@iterator" = Undefined -> like_array ~get src | Undefined | Null -> [] | _ -> items src in
+           array (match arg args 1 with Undefined -> vs | f -> List.mapi (fun i v -> call f ~this:Undefined [ v; Number (float_of_int i) ]) vs))) ];
   { strings; arrays; objects; functions; regexps; numbers }

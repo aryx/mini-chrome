@@ -18,7 +18,7 @@ let rec loose_equal (a : value) (b : value) : bool =
   match (a, b) with
   | (Undefined | Null), (Undefined | Null) -> true
   | (Undefined | Null), _ | _, (Undefined | Null) -> false
-  | Number _, Number _ | String _, String _ | Bool _, Bool _ | Object _, Object _ -> strict_equal a b
+  | Number _, Number _ | String _, String _ | Bool _, Bool _ | Object _, Object _ | Symbol _, _ | _, Symbol _ -> strict_equal a b
   | Number x, String _ -> x = to_number b
   | String _, Number y -> to_number a = y
   | Bool _, _ -> loose_equal (Number (to_number a)) b

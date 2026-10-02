@@ -50,7 +50,7 @@ let uses : (string * string * string * string) list =
     ("vue", "<div id=app></div>",
      {|Vue.createApp({ data: function () { return { n: 1, items: ['a', 'b'] } }, template: '<p>{{ n + 1 }}</p><ul><li v-for="i in items">{{ i }}</li></ul>' }).mount('#app');
        document.getElementById('app').innerHTML|},
-     "<p>2</p><ul><!--[--><li>a</li><li>b</li><!--]--></ul>");
+     "<p>2</p><ul><li>a</li><li>b</li></ul>");
     ("alpine", {|<div x-data="{ n: 1 }"><span id=s x-text="n + 1"></span></div>|}, {|Alpine.start(); document.getElementById('s').textContent|}, "2");
     ("htmx", "<button id=b hx-get=/x>go</button>", {|htmx.addClass(htmx.find('#b'), 'on'); htmx.process(document.body); [htmx.find('#b').className, htmx.findAll('button').length, typeof htmx.ajax].join(' ')|}, "on 1 function") ]
 

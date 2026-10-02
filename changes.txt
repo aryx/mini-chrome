@@ -108,6 +108,17 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript, what libraries need to work and not only load: an
+  array's methods on what is only like an array (a jQuery object: a
+  copy worked on, written back), Array.from of the same and of what
+  can be gone through; new Function (and an async function's
+  constructor); with (o) { }; Proxy (get, set, has, deleteProperty,
+  apply, ownKeys) and Reflect; a symbol a value of its own (typeof
+  "symbol"); a function's name and length; Object.getPrototypeOf of
+  what was given no prototype, Object.getOwnPropertyDescriptors.
+  jQuery, Underscore, Vue and Alpine work when used: the nine
+  libraries of the survey do, and jQuery, Vue and Alpine on one page
+  in the browser itself
 - the DOM libraries ask for (src/dom): an element's members since the
   first DOM (Script_element: matches, closest, contains, append,
   prepend, before, after, replaceWith, cloneNode, dataset,

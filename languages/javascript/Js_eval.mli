@@ -37,6 +37,13 @@
    queue of jobs (Js_promise), run to its end after each [run] and
    each [call]: when the script has returned, never in its middle.
 
+   **Names that are not variables.** In "with (o) { ... }" a name that
+   is a property of o is that property (a frame keeps the object:
+   Js_value.scope's subject); and an object can be a Proxy, whose
+   handler's traps are called where a property is read, set, tested or
+   deleted. Both are how a library runs a template's expressions
+   against a page's data and learns what they read.
+
    **this.** In o.f(), f runs with this bound to o; in f(), to
    undefined; an arrow has no this of its own, it keeps the one of
    where it was written -- why event handlers are written as arrows.

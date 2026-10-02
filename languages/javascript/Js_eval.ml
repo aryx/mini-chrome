@@ -42,7 +42,7 @@ let define_accessor (o : obj) (k : string) ~(getter : value option) ~(setter : v
 (* Scopes *)
 (*****************************************************************************)
 
-let new_scope (parent : scope) : scope = { vars = Hashtbl.create 8; parent = Some parent }
+let new_scope (parent : scope) : scope = { vars = Hashtbl.create 8; parent = Some parent; subject = None; in_with = parent.in_with }
 
 let rec lookup (s : scope) (x : string) : binding option =
   match Hashtbl.find_opt s.vars x with Some b -> Some b | None -> Option.bind s.parent (fun p -> lookup p x)
@@ -90,7 +90,8 @@ let rec describe (e : A.expr) : string =
  * array's items, a string's characters *)
 let rec items_of (v : value) : value list =
   match v with
-  | Object ({ kind = Array _; _ } as o) -> array_items o
+  | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> array_items o
+  | Object { kind = Proxy (tg, _); _ } -> items_of (Object tg)
   | String str -> List.init (String.length str) (fun i -> String (String.make 1 str.[i]))
   (* its Symbol.iterator, here a function giving the items (a Map's, a Set's) *)
   | Object ({ kind = Plain; _ } as o) -> (
@@ -111,7 +112,9 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Null -> Null
   | This -> this
   | Name x -> (
-      match lookup s x with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined"))
+      match if s.in_with then with_subject t s x else None with
+      | Some o -> get t o x
+      | None -> ( match lookup s x with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined")))
   | Array es -> Object (new_array (eval_list t s this es))
   | Spread _ -> throw "SyntaxError" "... is for an array's items or a call's arguments"
   | Object props ->
@@ -159,7 +162,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       (* typeof of an undeclared name is "undefined", not an error *)
       | "typeof" -> (
           match x with
-          | Name n when lookup s n = None -> String "undefined"
+          | Name n when lookup s n = None && not (s.in_with && with_subject t s n <> None) -> String "undefined"
           | _ -> String (typeof (eval_expr t s this x)))
       | "!" -> Bool (not (truthy (eval_expr t s this x)))
       | "-" -> Number (-.to_number (eval_expr t s this x))
@@ -167,7 +170,13 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       | "void" -> ignore (eval_expr t s this x); Undefined
       (* delete o.k: the property gone from the object itself *)
       | "delete" -> (
-          let remove o k = match o with Object o -> o.props <- List.filter (fun (k', _) -> k' <> k) o.props | _ -> () in
+          let rec remove o k =
+            match o with
+            | Object { kind = Proxy (tg, h); _ } -> (
+                match trap t h "deleteProperty" with Some f -> ignore (call_value t f ~this:(Object h) [ Object tg; String k ]) | None -> remove (Object tg) k)
+            | Object o -> o.props <- List.filter (fun (k', _) -> k' <> k) o.props
+            | _ -> ()
+          in
           match x with
           | Member (o, k) -> remove (eval_expr t s this o) k; Bool true
           | Index (o, k) -> let o = eval_expr t s this o in remove o (key_of (eval_expr t s this k)); Bool true
@@ -184,7 +193,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Binary ("in", k, o) -> (
       let k = key_of (eval_expr t s this k) in
       match eval_expr t s this o with
-      | Object o -> Bool (has t o k)
+      | Object _ as o -> Bool (has_property t o k)
       | v -> throw "TypeError" (Printf.sprintf "Cannot use 'in' operator to search for '%s' in %s" k (display v)))
   | Comma (a, b) -> ignore (eval_expr t s this a); eval_expr t s this b
   (* `a${x}b`: the strings and the values, as strings, one after the other *)
@@ -205,7 +214,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | New (f, args) ->
       let fn = eval_expr t s this f in
       let args = eval_list t s this args in
-      (match fn with Object { kind = Closure _ | Host_function _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a constructor"));
+      (match fn with Object { kind = Closure _ | Host_function _ | Proxy _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a constructor"));
       let o = new_object () in
       (match get t fn "prototype" with Object p -> o.proto <- Some p | _ -> ());
       (match call_value t fn ~this:(Object o) args with Object _ as r -> r | _ -> Object o)
@@ -256,7 +265,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
         | _ -> (eval_expr t s this f, Undefined)
       in
       let args = eval_list t s this args in
-      (match fn with Object { kind = Closure _ | Host_function _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a function"));
+      (match fn with Object { kind = Closure _ | Host_function _ | Proxy _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a function"));
       call_value t fn ~this:self args
 
 (* class A extends B { ... }: a constructor function whose prototype
@@ -319,14 +328,43 @@ and eval_list (t : t) (s : scope) (this : value) (es : A.expr list) : value list
 
 (* o.k: the property, or what its getter gives *)
 and get (t : t) (target : value) (k : string) : value =
-  match Js_props.get (protos t) target k with
-  | Object { kind = Accessor (getter, _); _ } -> if getter = Undefined then Undefined else call_value t getter ~this:target []
-  | v -> v
+  match target with
+  (* a proxy: its handler's get(target, key, receiver), else the target's *)
+  | Object { kind = Proxy (tg, h); _ } -> (
+      match trap t h "get" with Some f -> call_value t f ~this:(Object h) [ Object tg; String k; target ] | None -> get t (Object tg) k)
+  | _ -> (
+      match Js_props.get (protos t) target k with
+      | Object { kind = Accessor (getter, _); _ } -> if getter = Undefined then Undefined else call_value t getter ~this:target []
+      | v -> v)
+
+(* a handler's trap, if it has that one *)
+and trap (t : t) (handler : obj) (name : string) : value option =
+  match Js_props.get (protos t) (Object handler) name with Object { kind = Closure _ | Host_function _; _ } as f -> Some f | _ -> None
+
+(* k in o: its own or its prototypes'; a proxy's has(target, key) *)
+and has_property (t : t) (o : value) (k : string) : bool =
+  match o with
+  | Object { kind = Proxy (tg, h); _ } -> (
+      match trap t h "has" with Some f -> truthy (call_value t f ~this:(Object h) [ Object tg; String k ]) | None -> has_property t (Object tg) k)
+  | Object o -> has t o k
+  | _ -> false
+
+(* the object of the nearest with (o) { } around [s] that has [x], if
+ * no frame nearer declares x *)
+and with_subject (t : t) (s : scope) (x : string) : value option =
+  if Hashtbl.mem s.vars x then None
+  else
+    match (s.subject, s.parent) with
+    | Some o, _ when has_property t o x -> Some o
+    | _, Some p when p.in_with -> with_subject t p x
+    | _ -> None
 
 (* o.k = v: the property set, or its setter called (an object's own, or
  * its prototypes': looked for only where there can be one) *)
 and put (t : t) (target : value) (k : string) (v : value) : unit =
   match target with
+  | Object { kind = Proxy (tg, h); _ } -> (
+      match trap t h "set" with Some f -> ignore (call_value t f ~this:(Object h) [ Object tg; String k; v; target ]) | None -> put t (Object tg) k v)
   | Object { kind = Plain | Closure _; _ } -> (
       match Js_props.get (protos t) target k with
       | Object { kind = Accessor (_, setter); _ } -> if setter <> Undefined then ignore (call_value t setter ~this:target [ v ])
@@ -370,10 +408,12 @@ and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) 
 
 and closure (s : scope) (this : value) (f : A.func) : value =
   let c = { func = f; scope = s; this = (if f.arrow then Some this else None) } in
-  Object { (new_object ()) with kind = Closure c }
+  let proto = if f.async then match lookup s "%async" with Some { value = Object p; _ } -> Some p | _ -> None else None in
+  Object { (new_object ()) with kind = Closure c; proto }
 
 and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : unit =
   match target with
+  | Name x when s.in_with && with_subject t s x <> None -> put t (Option.get (with_subject t s x)) x v
   | Name x -> (
       match lookup s x with
       | Some { constant = true; _ } -> throw "TypeError" "Assignment to constant variable."
@@ -418,6 +458,9 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
 and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value =
   match fn with
   | Object { kind = Host_function (_, f); _ } -> f ~this args
+  (* a proxy of a function: its handler's apply(target, this, arguments) *)
+  | Object { kind = Proxy (tg, h); _ } -> (
+      match trap t h "apply" with Some f -> call_value t f ~this:(Object h) [ Object tg; this; Object (new_array args) ] | None -> call_value t (Object tg) ~this args)
   | Object { kind = Closure c; _ } ->
       if t.depth >= max_depth then throw "RangeError" "Maximum call stack size exceeded";
       t.depth <- t.depth + 1;
@@ -478,7 +521,7 @@ and hoist (s : scope) (body : A.stmt list) : unit =
     match st.stmt with
     | Let (Var_kind, decls) -> List.concat_map (fun (pt, _) -> pattern_names pt) decls
     | If (_, a, b) -> names a @ (match b with Some b -> names b | None -> [])
-    | While (_, b) -> names b
+    | While (_, b) | With (_, b) -> names b
     | For (init, _, _, b) -> (match init with Some i -> names i | None -> []) @ names b
     | For_of (Var_kind, x, _, b) -> pattern_names x @ names b
     | For_in (Declared (Var_kind, x), _, b) -> x :: names b
@@ -551,6 +594,10 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
         if truthy (eval c) then match after (exec t (new_scope s) this body) with None -> loop () | Some o -> o else Normal
       in
       loop ()
+  | With (o, body) ->
+      let o = eval o in
+      (match o with Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot convert %s to object" (to_string o)) | _ -> ());
+      exec t { vars = Hashtbl.create 1; parent = Some s; subject = Some o; in_with = true } this body
   | Do_while (body, c) ->
       let rec loop () =
         match after (exec t (new_scope s) this body) with None -> if truthy (eval c) then loop () else Normal | Some o -> o
@@ -599,7 +646,11 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
             | Target e -> assign t s this e (String k));
             match after (exec t it this body) with None -> loop rest | Some o -> o)
       in
-      loop (enumerable_keys (eval o))
+      loop
+        (match eval o with
+        | Object { kind = Proxy (tg, h); _ } as o -> (
+            match trap t h "ownKeys" with Some f -> List.map to_string (items_of (call_value t f ~this:(Object h) [ Object tg ])) | None -> enumerable_keys o)
+        | o -> enumerable_keys o)
   (* the first case that is === the value, and from there every
    * statement to a break, the next cases' too; no case: the default *)
   | Switch (e, cases) -> (
@@ -648,16 +699,55 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
 (* Entry points *)
 (*****************************************************************************)
 
+(* a program's statements, in the global scope *)
+let run_in_run (t : t) (program : A.program) : value =
+      (* the value of the last expression statement: a console's echo *)
+      let last = ref Undefined in
+      hoist t.globals program;
+      List.iter
+        (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare t.globals (Option.get f.name) ~constant:false (closure t.globals Undefined f) | _ -> ())
+        program;
+      List.iter
+        (fun (st : A.stmt) ->
+          match st.stmt with
+          | Expr e ->
+              t.line <- st.line;
+              tick t;
+              last := eval_expr t t.globals Undefined e
+          | _ -> (
+              match exec t t.globals Undefined st with
+              | Normal -> ()
+              | Return _ -> throw "SyntaxError" "Illegal return statement"
+              | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
+        program;
+      !last
+
+let eval_in_run (t : t) (text : string) : value =
+  match Js_parse.parse text with
+  | Ok program -> run_in_run t program
+  | Error e -> t.line <- e.line; throw "SyntaxError" e.message
+
 let default_budget = 10_000_000
 
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
-  let globals = { vars = Hashtbl.create 64; parent = None } in
+  let globals = { vars = Hashtbl.create 64; parent = None; subject = None; in_with = false } in
   let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0 } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
-  t.protos <- Some (Js_builtins.install ~call ~log ~seed ?now define);
+  (* new Function(params, body); an async one's constructor makes async ones *)
+  let compile ~async params body = eval_in_run t (Printf.sprintf "(%sfunction anonymous(%s\n) {\n%s\n})" (if async then "async " else "") params body) in
+  t.protos <- Some (Js_builtins.install ~call ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~items:items_of ~compile ~log ~seed ?now define);
+  (* the prototype of async functions: Object.getPrototypeOf(async
+   * function () {}).constructor is how a library gets to make one
+   * from a text (Alpine) *)
+  let async_proto = { (new_object ()) with proto = Some (protos t).functions } in
+  set_own async_proto "constructor"
+    (host_function "AsyncFunction" (fun ~this:_ args ->
+         match List.rev (List.map to_string args) with [] -> compile ~async:true "" "" | body :: params -> compile ~async:true (String.concat "," (List.rev params)) body));
+  declare globals "%async" ~constant:true (Object async_proto);
   (* the helpers libraries look for: Symbol, Map, Object.defineProperty... *)
-  Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x)) define;
+  Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x))
+    ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~has:(has_property t) define;
   (* a rejection nobody handled, said as an error is *)
   let report v = log ("Uncaught (in promise) " ^ match v with Object o -> (match (get_own o "name", get_own o "message") with Some (String n), Some (String m) -> n ^ ": " ^ m | _ -> display v) | v -> display v) in
   t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:items_of ~report define);
@@ -693,35 +783,7 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   | exception ((Invalid_argument _ | Failure _ | Not_found | Division_by_zero) as e) ->
       Error { line = t.line; message = "InternalError: " ^ Printexc.to_string e }
 
-(* a program's statements, in the global scope *)
-let run_in_run (t : t) (program : A.program) : value =
-      (* the value of the last expression statement: a console's echo *)
-      let last = ref Undefined in
-      hoist t.globals program;
-      List.iter
-        (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare t.globals (Option.get f.name) ~constant:false (closure t.globals Undefined f) | _ -> ())
-        program;
-      List.iter
-        (fun (st : A.stmt) ->
-          match st.stmt with
-          | Expr e ->
-              t.line <- st.line;
-              tick t;
-              last := eval_expr t t.globals Undefined e
-          | _ -> (
-              match exec t t.globals Undefined st with
-              | Normal -> ()
-              | Return _ -> throw "SyntaxError" "Illegal return statement"
-              | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
-        program;
-      !last
-
 let run (t : t) (program : A.program) : (value, error) result = guarded t (fun () -> run_in_run t program)
-
-let eval_in_run (t : t) (text : string) : value =
-  match Js_parse.parse text with
-  | Ok program -> run_in_run t program
-  | Error e -> t.line <- e.line; throw "SyntaxError" e.message
 
 let call_in_run = call_value
 

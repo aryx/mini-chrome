@@ -76,18 +76,22 @@ stops when used; 🔴 does not load.
 
 | Script | | Where it stops (2026-10-02) |
 |---|---|---|
+| jQuery 3.7 | 🟢 | finds (`#l li`, `li:last`, `:contains`), changes (`text`, `addClass`, `appendTo`), listens and triggers a click |
+| jQuery 3.7 slim (minified) | 🟢 | the same |
+| Vue 3.4 (minified) | 🟢 | `createApp(...).mount()`: a template compiled, `{{ }}` and `v-for` rendered |
+| Alpine 3 | 🟢 | `x-data` read, `x-text` set |
+| Underscore 1.13 | 🟢 | `map`, `uniq`, `template` |
 | Preact 10 (minified) | 🟢 | renders a tree into the page |
 | Mithril 2 | 🟢 | renders a tree into the page |
 | React 18 (minified) | 🟢 | makes elements (React alone: no react-dom here) |
 | htmx 1.9 | 🟢 | finds, changes and processes elements (its requests: not tried, they need `XMLHttpRequest`'s answer) |
 | Hacker News' `hn.js` | 🟢 | |
 | Wikipedia's startup module | 🟢 | |
-| jQuery 3.7 | 🟡 | loads; `$('#l li')` stops at `Array.prototype.indexOf` called on something not an array: the array's methods on an object that is like one (a jQuery object) |
-| jQuery 3.7 slim (minified) | 🟡 | the same |
-| Underscore 1.13 | 🟡 | `map`, `uniq` work; `_.template` needs `new Function` |
-| Vue 3 (minified) | 🟡 | loads; `createApp(...).mount()` needs `Proxy` |
-| Alpine 3 | 🟡 | loads in an empty page; with an `x-data` to read it needs `Object.getPrototypeOf` of an async function, then `new Function` and `with` |
-| example.com's `s.js` | 🟡 | parses; in the survey's page it stops at the paragraph it expects |
+| example.com's `s.js` | 🟡 | parses; in the survey's page it stops at the paragraph it expects. On example.com itself (`scripts=example.com`) it runs with no error said, and the page looks the same: not looked into |
+
+jQuery, Vue and Alpine were also put on one page, served by
+`mini-httpd` and opened in the browser itself (`scripts=127.0.0.1`):
+each drew its part.
 
 Loading was the measure until the libraries all loaded: a library
 defined is not a library working, and the use says so.
@@ -107,16 +111,18 @@ How it moved, the same day:
 
 By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 
+| | 🟢 | 🟡 | 🔴 |
+|---|---|---|---|
+| used: an array's methods on what is like one, `new Function`, `with`, `Proxy` and `Reflect`, a symbol as a value | 11 | 1 | 0 |
+
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **What the libraries need of the language to work, not only load**:
-  the array's methods on an array-like object (jQuery), `new Function`
-  (Underscore's templates, Alpine), `Proxy` and `Reflect` (Vue's
-  reactivity), `with` (Alpine); then `XMLHttpRequest` and `fetch`
-  given their answers (htmx, and every site that loads its content),
-  and the sites' own scripts can be tried (`scripts=`).
+- **`XMLHttpRequest` and `fetch` given their answers**: the libraries
+  work, and a page that loads its content (htmx, Google's results)
+  asks the network from its script. Then the sites' own scripts can be
+  tried one by one (`scripts=`).
 - **The heading of Berkshire Hathaway** (a 1990s table and `<font>`),
   now that its Brotli is read.
 - **The TLS handshake Craigslist refuses**: to look into.

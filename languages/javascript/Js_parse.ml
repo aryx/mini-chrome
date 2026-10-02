@@ -538,6 +538,13 @@ and statement (p : t) : stmt =
       let a = statement p in
       let b = if is_keyword p "else" then (ignore (advance p); Some (statement p)) else None in
       s (If (c, a, b))
+  (* with (o) body: with is a name, but before a ( at a statement's start *)
+  | Name "with" when (peek_at p 1).kind = Punct "(" ->
+      ignore (advance p);
+      expect p "(";
+      let o = inside p (fun () -> expression p 0) in
+      expect p ")";
+      s (With (o, statement p))
   | Keyword "while" ->
       ignore (advance p);
       expect p "(";

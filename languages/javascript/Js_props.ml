@@ -15,11 +15,11 @@ open Js_value
 let index_of_key (k : string) : int option =
   match int_of_string_opt k with Some i when i >= 0 && string_of_int i = k -> Some i | _ -> None
 
-let key_of (v : value) : string = match v with Number f when Float.is_integer f && f >= 0. -> Printf.sprintf "%.0f" f | v -> to_string v
+let key_of (v : value) : string = match v with Symbol k -> k | Number f when Float.is_integer f && f >= 0. -> Printf.sprintf "%.0f" f | v -> to_string v
 
 (* an object's prototype: its own, else its kind's (an array's
  * Array.prototype...), Object.prototype last, and nothing after it *)
-let proto_of (ps : Js_builtins.protos) (o : obj) : obj option =
+let rec proto_of (ps : Js_builtins.protos) (o : obj) : obj option =
   match o.proto with
   | Some p -> Some p
   | None -> (
@@ -31,6 +31,7 @@ let proto_of (ps : Js_builtins.protos) (o : obj) : obj option =
         | Closure _ | Host_function _ -> Some p.functions
         | Regexp _ -> Some p.regexps
         | Host_object _ | Accessor _ -> None
+        | Proxy (t, _) -> proto_of ps t
         | Plain -> Some p.objects)
 
 (* a property: the object's own, else up its prototypes' chain; a
@@ -45,11 +46,16 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
           set_own p "constructor" (Object o);
           set_own o "prototype" (Object p);
           Object p
+      (* claude: a function's name, and how many parameters it declares *)
+      | Closure { func; _ }, "name" -> String (Option.value func.name ~default:"")
+      | Closure { func; _ }, "length" -> Number (float_of_int (List.length func.params))
+      | Host_function (name, _), "name" -> String name
       | Host_object h, _ -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v)
       | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
 
-let get (ps : Js_builtins.protos) (target : value) (k : string) : value =
+let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
   match target with
+  | Object { kind = Proxy (t, _); _ } -> get ps (Object t) k
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
   | String s -> (
       match (k, index_of_key k) with
@@ -66,6 +72,11 @@ let get (ps : Js_builtins.protos) (target : value) (k : string) : value =
    * added to it) *)
   | Object o -> from_chain ps o k
   | Number _ -> from_chain ps ps.numbers k
+  | Symbol _ -> (
+      match k with
+      | "description" -> let s = to_string target in String (String.sub s 7 (String.length s - 8))
+      | "toString" -> host_function k (fun ~this:_ _ -> String (to_string target))
+      | _ -> Undefined)
   | Bool _ -> Undefined
 
 (* whether an object has a property, its own or its prototypes': k in o *)
@@ -73,6 +84,7 @@ let rec has (ps : Js_builtins.protos) (o : obj) (k : string) : bool =
   get_own o k <> None
   ||
   match o.kind with
+  | Proxy (t, _) -> has ps t k
   | Array a -> k = "length" || (match index_of_key k with Some i -> i < a.length | None -> false) || inherited ps o k
   | Host_object h -> h.get k <> Undefined
   | _ -> inherited ps o k
@@ -90,7 +102,7 @@ let enumerable_keys (v : value) : string list =
     let own = List.filter (fun k -> not (List.mem k seen || symbol k)) (keys o) in
     own @ match o.proto with Some p -> List.filter (( <> ) "constructor") (chain p (seen @ own)) | None -> []
   in
-  match v with
+  match (match v with Object o -> Object (Js_value.target o) | v -> v) with
   | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ chain o []
   | Object { kind = Host_object _; _ } -> []
   | Object o -> chain o []
@@ -105,8 +117,9 @@ let instance_of (ps : Js_builtins.protos) (v : value) (f : value) : bool =
       up o
   | _ -> false
 
-let set (target : value) (k : string) (v : value) : unit =
+let rec set (target : value) (k : string) (v : value) : unit =
   match target with
+  | Object { kind = Proxy (t, _); _ } -> set (Object t) k v
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot set properties of %s (setting '%s')" (to_string target) k)
   | Object ({ kind = Array a; _ } as o) -> (
       let grow n =
@@ -130,4 +143,4 @@ let set (target : value) (k : string) (v : value) : unit =
   | Object { kind = Host_object h; _ } -> h.set k v
   | Object o -> set_own o k v
   (* a property of a primitive: lost, as JavaScript loses it *)
-  | Bool _ | Number _ | String _ -> ()
+  | Bool _ | Number _ | String _ | Symbol _ -> ()

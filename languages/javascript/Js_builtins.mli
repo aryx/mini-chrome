@@ -46,11 +46,20 @@ type protos = { strings : Js_value.obj; arrays : Js_value.obj; objects : Js_valu
 (* a RegExp object of [re], its prototype [proto]: a literal's *)
 val regexp_value : Js_value.obj -> Js_regexp.t -> Js_value.value
 
-(* [install ~call ~log ~seed ?now define]: every global [define]d,
- * console writing to [log], Math.random from [seed], Date's clock [now]
- * (milliseconds since 1970; 0 unless given); the prototypes *)
+(* [install ~call ~get ~put ~items ~compile ~log ~seed ?now define]:
+ * every global [define]d, console writing to [log], Math.random from
+ * [seed], Date's clock [now] (milliseconds since 1970; 0 unless
+ * given); the prototypes. What the interpreter does for them: [call] a
+ * function, [get] and [put] a property (an array's method on what is
+ * only like an array), [items] of what can be gone through
+ * (Array.from), [compile] a function from its parameters' and its
+ * body's text (new Function) *)
 val install :
   call:(Js_value.value -> this:Js_value.value -> Js_value.value list -> Js_value.value) ->
+  get:(Js_value.value -> string -> Js_value.value) ->
+  put:(Js_value.value -> string -> Js_value.value -> unit) ->
+  items:(Js_value.value -> Js_value.value list) ->
+  compile:(async:bool -> string -> string -> Js_value.value) ->
   log:(string -> unit) ->
   seed:int ->
   ?now:(unit -> float) ->

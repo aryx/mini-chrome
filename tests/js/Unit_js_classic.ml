@@ -77,4 +77,30 @@ let tests =
       Testo.create "an assignment's order: the target, then the value" (fun () ->
           check "the object first" {|var b; (b = { p: { eq: 1 } }).p.nth = b.p.eq; b.p.nth|} "1";
           check "and the key" {|var log = [], o = {}; function f(x) { log.push(x); return x } o[f('k')] = f('v'); log|} "[\"k\", \"v\"]");
+      Testo.create "an array's methods on what is like an array" (fun () ->
+          check "read: indexOf, slice, map, join" {|var o = { length: 3, 0: 'a', 1: 'b', 2: 'c' };
+            [[].indexOf.call(o, 'b'), [].slice.call(o, 1), Array.prototype.map.call(o, function (x) { return x + x }), [].join.call(o, '-'), [].map.call('hi', function (c) { return c + c })]|}
+            {|[1, ["b", "c"], ["aa", "bb", "cc"], "a-b-c", ["hh", "ii"]]|};
+          check "written back: push, splice, pop, sort; its length too" {|var o = { length: 0 };
+            [].push.call(o, 'c', 'a'); [].push.apply(o, ['b']); var pushed = [o.length, o[0], o[2]];
+            var sorted = [].sort.call(o) === o; [].splice.call(o, 0, 1); var last = [].pop.call(o);
+            [pushed, sorted, o.length, o[0], o[1], last]|} {|[[3, "c", "b"], true, 1, "b", undefined, "c"]|};
+          check "a function's arguments; a length inherited (an empty jQuery object)" {|function Q() {} Q.prototype.length = 0; var q = new Q();
+            [].push.call(q, 1); [(function () { return [].slice.call(arguments, 1) })(1, 2, 3), q.length, q[0], Q.prototype.length]|} "[[2, 3], 1, 1, 0]";
+          check "on nothing" {|var r; try { [].slice.call(null) } catch (e) { r = e.name } r|} "TypeError");
+      Testo.create "new Function, with" (fun () ->
+          check "a function from its text: of the global scope" {|var g = 10; var add = new Function('a', 'b', 'return a + b + g'); var none = Function('return typeof local');
+            (function () { var local = 1; return [add(1, 2), none(), new Function('a, b', 'return a * b')(3, 4), add.name, add.length, (function named(a) {}).name, Math.max.name] })()|} {|[13, "undefined", 12, "anonymous", 2, "named", "max"]|};
+          check "a mistake in its text" {|var r; try { new Function('return (') } catch (e) { r = e.name } r|} "SyntaxError";
+          check "an async function's constructor makes async ones" {|var AsyncFunction = Object.getPrototypeOf(async function () {}).constructor; var out = [];
+            var f = new AsyncFunction('x', 'return await x + 1'); f(1).then(function (v) { out.push(v) }); [f(1) instanceof Promise, AsyncFunction === Function]|} "[true, false]";
+          check "with: a name is the object's property, read and assigned; else the scope's" {|var o = { a: 1, b: 2 }, c = 3, r;
+            with (o) { r = a + b + c; a = 10; c = 30; var made = 5 } [r, o.a, c, made, 'c' in o, 'made' in o]|} "[6, 10, 30, 5, false, false]";
+          check "a template compiled to a function, as libraries do" {|var render = new Function('data', "var out = ''; with (data) { out += 'Hello ' + name + ', ' + (items.length) + ' items' } return out");
+            render({ name: 'you', items: [1, 2] })|} "Hello you, 2 items";
+          check "with a proxy: has decides, get and set are told; a closure made inside keeps it" {|var log = [];
+            var scope = new Proxy({ n: 1 }, { has: function (o, k) { return k in o }, get: function (o, k) { log.push('get ' + k); return o[k] }, set: function (o, k, v) { log.push('set ' + k); o[k] = v; return true } });
+            var later; with (scope) { n = n + 1; later = function () { return n } }
+            [later(), log, typeof missing]|} {|[2, ["get n", "set n", "get n"], "undefined"]|};
+          check "with is a name elsewhere; with of nothing" {|var o = { with: 1 }, r; try { with (null) { } } catch (e) { r = [o.with, e.name] } r|} {|[1, "TypeError"]|});
     ]

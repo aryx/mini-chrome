@@ -40,10 +40,12 @@ let tests =
           check "read before it is one: still an error" {|nothing + 1|} "line 1: ReferenceError: nothing is not defined");
       Testo.create "Symbol: a key no one else has" (fun () ->
           check "each its own; Symbol.for the same for the same name" {|[Symbol('a') === Symbol('a'), Symbol.for('app') === Symbol.for('app'), typeof Symbol, typeof Symbol.iterator]|}
-            {|[false, true, "function", "string"]|};
+            {|[false, true, "function", "symbol"]|};
+          check "a value of its own: its description, its text, never equal to a string" {|var s = Symbol('saved'); [s.description, s.toString(), String(Symbol.iterator), s == 'saved', s === s, typeof s]|}
+            {|["saved", "Symbol(saved)", "Symbol(Symbol.iterator)", false, true, "symbol"]|};
           check "as a key: there, and not in a for-in nor the entries" {|var tag = Symbol('tag'); var o = { a: 1 }; o[tag] = 'hidden'; var ks = []; for (var k in o) ks.push(k); [o[tag], ks, Object.entries(o).length, JSON.stringify(Object.getOwnPropertyNames(o))]|}
             {|["hidden", ["a"], 1, "[\"a\"]"]|};
-          check "React's test" {|var hasSymbol = typeof Symbol === 'function' && Symbol.for; var el = hasSymbol ? Symbol.for('react.element') : 0xeac7; typeof el|} {|string|});
+          check "React's test" {|var hasSymbol = typeof Symbol === 'function' && Symbol.for; var el = hasSymbol ? Symbol.for('react.element') : 0xeac7; typeof el|} {|symbol|});
       Testo.create "Map and Set" (fun () ->
           check "a Map: any value as a key, in the order set" {|var k = {}, m = new Map(); m.set('a', 1).set(k, 2).set(NaN, 3); m.set('a', 10); [m.get('a'), m.get(k), m.get(NaN), m.get({}), m.has(k), m.size, m.keys().length]|}
             "[10, 2, 3, undefined, true, 3, 3]";
@@ -56,4 +58,43 @@ let tests =
           check "a Map from a Map" {|new Map(new Map([[1, 2]])).get(1)|} "2");
       Testo.create "a mistake of the engine's own is the script's error, not the program's end" (fun () ->
           check "half a surrogate pair, in a string and a pattern" {|['\ud800'.length, /[\ud800-\udfff]/.test('a')]|} "[3, false]");
+      Testo.create "Proxy and Reflect" (fun () ->
+          check "the worked example: get and set seen" {|
+            const seen = [];
+            const p = new Proxy({ a: 1 }, {
+              get(target, key) { seen.push(key); return Reflect.get(target, key) },
+              set(target, key, value) { target[key] = value * 2; return true } });
+            p.a; p.b = 2; [p.b, seen]|} {|[4, ["a", "b"]]|};
+          check "has, deleteProperty; a trap not given: the target's own way" {|
+            const log = [], t = { a: 1, b: 2 };
+            const p = new Proxy(t, { has(o, k) { log.push('has ' + k); return k in o }, deleteProperty(o, k) { log.push('delete ' + k); delete o[k]; return true } });
+            const r = ['a' in p, 'z' in p]; delete p.a; p.c = 3;
+            [r, log, Object.keys(t), p.c]|} {|[[true, false], ["has a", "has z", "delete a"], ["b", "c"], 3]|};
+          check "what does not go through a trap sees the target" {|
+            const p = new Proxy({ a: 1, list: [1, 2] }, { get(o, k) { return k === 'a' ? 'trapped' : o[k] } });
+            [p.a, JSON.stringify(p), Object.keys(p), typeof p, p instanceof Object]|} {|["trapped", "{\"a\":1,\"list\":[1,2]}", ["a", "list"], "object", true]|};
+          check "a proxy of an array is an array: its methods through the traps" {|
+            const sets = [];
+            const p = new Proxy([1, 2], { set(o, k, v) { sets.push(k); o[k] = v; return true } });
+            p.push(3);
+            [Array.isArray(p), p.length, p.map(x => x * 2), [...p], sets]|} {|[true, 3, [2, 4, 6], [1, 2, 3], ["0", "1", "2", "length"]]|};
+          check "a proxy of a function: apply; for-in: ownKeys" {|
+            const f = new Proxy(function (a, b) { return a + b }, { apply(target, self, args) { return target(...args) * 10 } });
+            const o = new Proxy({}, { ownKeys() { return ['x', 'y'] } });
+            const ks = []; for (const k in o) ks.push(k);
+            [f(1, 2), typeof f, ks]|} {|[30, "function", ["x", "y"]]|};
+          check "Reflect: each operation as a function" {|
+            const o = { a: 1 };
+            [Reflect.get(o, 'a'), Reflect.set(o, 'b', 2), Reflect.has(o, 'b'), Reflect.ownKeys(o), Reflect.ownKeys([7]), Reflect.deleteProperty(o, 'a'), Object.keys(o),
+             Reflect.apply(Math.max, null, [1, 3]), Reflect.getPrototypeOf([]) === Array.prototype]|}
+            {|[1, true, true, ["a", "b"], ["0", "length"], true, ["b"], 3, true]|});
+      Testo.create "typed arrays, Array.from, getPrototypeOf" (fun () ->
+          check "a typed array is an array" {|[new Uint8Array(3), new Float64Array([1.5, 2]), new Uint8Array(2).length]|} "[[0, 0, 0], [1.5, 2], 2]";
+          check "Array.from: what can be gone through, what is like an array, a function for each" {|
+            [Array.from('ab'), Array.from(new Set([1, 1, 2])), Array.from({ length: 2, 0: 'x', 1: 'y' }), Array.from({ length: 3 }, (v, i) => i * i), Array.from([1, 2], x => x + 1)]|}
+            {|[["a", "b"], [1, 2], ["x", "y"], [0, 1, 4], [2, 3]]|};
+          check "getPrototypeOf: its kind's, when it was given none" {|
+            [Object.getPrototypeOf([]) === Array.prototype, Object.getPrototypeOf(function () {}) === Function.prototype, Object.getPrototypeOf({}) === Object.prototype,
+             Object.getPrototypeOf(Object.prototype), Object.keys(Object.getOwnPropertyDescriptors({ a: 1, get b() { return 2 } }))]|}
+            {|[true, true, true, null, ["a", "b"]]|});
     ]

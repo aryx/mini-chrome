@@ -83,6 +83,7 @@ and statement =
   | Continue of string option
   | Block of stmt list
   | Empty
+  | With of expr * stmt
   | Do_while of stmt * expr
   | Switch of expr * (expr option * stmt list) list
   | Labeled of string * stmt
@@ -220,6 +221,7 @@ and stmt_to_string (s : stmt) : string =
   | If (c, a, None) -> p "If (%s, %s)" (e c) (stmt_to_string a)
   | If (c, a, Some b) -> p "If (%s, %s, %s)" (e c) (stmt_to_string a) (stmt_to_string b)
   | While (c, b) -> p "While (%s, %s)" (e c) (stmt_to_string b)
+  | With (o, b) -> p "With (%s, %s)" (e o) (stmt_to_string b)
   | For (init, test, update, b) ->
       p "For (%s, %s, %s, %s)" (opt stmt_to_string init) (opt e test) (opt e update) (stmt_to_string b)
   | For_of (k, x, xs, b) -> p "For_of (%s %s, %s, %s)" (kind_to_string k) (pattern_to_string x) (e xs) (stmt_to_string b)

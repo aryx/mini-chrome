@@ -156,6 +156,10 @@ and statement =
   | Continue of string option
   | Block of stmt list
   | Empty (* a lone ; *)
+  (* with (o) body: in the body, a name that is a property of o is that
+   * property. Forbidden in strict mode (ES5), and still what a
+   * template compiled to a function relies on (Underscore, Alpine) *)
+  | With of expr * stmt
   (* ES3 (1999): do, switch, labels, exceptions *)
   | Do_while of stmt * expr (* do body while (test) *)
   (* switch (e) { case a: ...; default: ... }: each case's test (None:

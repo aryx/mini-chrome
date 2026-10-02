@@ -18,7 +18,7 @@ let is_symbol (k : string) : bool = String.length k >= 2 && k.[0] = '@' && k.[1]
 
 (* an object's own keys that show: not a symbol's *)
 let own_keys (v : value) : string list =
-  match v with
+  match (match v with Object o -> Object (target o) | v -> v) with
   | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ List.filter (fun k -> not (is_symbol k)) (keys o)
   | Object o -> List.filter (fun k -> not (is_symbol k)) (keys o)
   | String s -> List.init (String.length s) string_of_int
@@ -27,7 +27,7 @@ let own_keys (v : value) : string list =
 (* a key's value, read without calling a getter: an array's item, a
  * string's character, an object's own *)
 let own (v : value) (k : string) : value =
-  match (v, int_of_string_opt k) with
+  match ((match v with Object o -> Object (target o) | v -> v), int_of_string_opt k) with
   | Object { kind = Array a; _ }, Some i when i >= 0 && i < a.length -> a.elements.(i)
   | String s, Some i when i >= 0 && i < String.length s -> String (String.make 1 s.[i])
   | Object o, _ -> Option.value (get_own o k) ~default:Undefined
@@ -76,6 +76,21 @@ let object_statics : (string * value) list =
              set_own d "configurable" (Bool true);
              Object d)
          | _ -> Undefined));
+    (* every own property's descriptor, by its key *)
+    ("getOwnPropertyDescriptors",
+     fn "getOwnPropertyDescriptors" (fun ~this:_ args ->
+         let v = arg args 0 and all = new_object () in
+         List.iter
+           (fun k ->
+             let d = new_object () in
+             (match own v k with
+             | Object { kind = Accessor (g, s); _ } -> set_own d "get" g; set_own d "set" s
+             | x -> set_own d "value" x; set_own d "writable" (Bool true));
+             set_own d "enumerable" (Bool true);
+             set_own d "configurable" (Bool true);
+             set_own all k (Object d))
+           (own_keys v);
+         Object all));
     ("values", fn "values" (fun ~this:_ args -> let v = arg args 0 in array (List.map (own v) (own_keys v))));
     ("entries", fn "entries" (fun ~this:_ args -> array (pairs (arg args 0))));
     ("fromEntries",
@@ -124,12 +139,12 @@ let number_statics : (string * value) list =
  * its well-known name *)
 let symbol () : value =
   let made = ref 0 and registry : (string, value) Hashtbl.t = Hashtbl.create 8 in
-  let fresh description = incr made; String (Printf.sprintf "@@%d:%s" !made description) in
+  let fresh description = incr made; Symbol (Printf.sprintf "@@%d:%s" !made description) in
   let description args = match arg args 0 with Undefined -> "" | v -> to_string v in
   let s = fn "Symbol" (fun ~this:_ args -> fresh (description args)) in
   (match s with
   | Object o ->
-      List.iter (fun name -> set_own o name (String ("@@" ^ name))) [ "iterator"; "asyncIterator"; "toStringTag"; "hasInstance"; "toPrimitive"; "species" ];
+      List.iter (fun name -> set_own o name (Symbol ("@@" ^ name))) [ "iterator"; "asyncIterator"; "toStringTag"; "hasInstance"; "toPrimitive"; "species" ];
       (* Symbol.for: the same one for the same name *)
       set_own o "for"
         (fn "for" (fun ~this:_ args ->
@@ -190,10 +205,45 @@ let collection ~(call : value -> this:value -> value list -> value) (name : stri
   c
 
 (*****************************************************************************)
+(* Proxy, Reflect *)
+(*****************************************************************************)
+
+(* new Proxy(target, handler): the traps are the interpreter's (Js_eval) *)
+let proxy : value =
+  fn "Proxy" (fun ~this:_ args ->
+      match (arg args 0, arg args 1) with
+      | Object tg, Object h -> Object { (new_object ()) with kind = Proxy (tg, h) }
+      | _ -> throw "TypeError" "Cannot create proxy with a non-object as target or handler")
+
+(* Reflect: what a trap does when it only wants the usual -- each
+ * operation on an object as a function *)
+let reflect ~(call : value -> this:value -> value list -> value) ~(lookup : string -> value option) ~(get : value -> string -> value)
+    ~(put : value -> string -> value -> unit) ~(has : value -> string -> bool) : value =
+  let o = new_object () in
+  let def m f = set_own o m (fn m (fun ~this:_ args -> f args)) in
+  let of_object m args = match lookup "Object" with Some (Object c) -> ( match get_own c m with Some f -> call f ~this:Undefined args | None -> Undefined) | _ -> Undefined in
+  def "get" (fun args -> get (arg args 0) (to_string (arg args 1)));
+  def "set" (fun args -> put (arg args 0) (to_string (arg args 1)) (arg args 2); Bool true);
+  def "has" (fun args -> Bool (has (arg args 0) (to_string (arg args 1))));
+  def "deleteProperty" (fun args ->
+      (match arg args 0 with Object o -> let o = target o in o.props <- List.filter (fun (k, _) -> k <> to_string (arg args 1)) o.props | _ -> ());
+      Bool true);
+  (* an array's: its indices and "length" too *)
+  def "ownKeys" (fun args ->
+      let v = arg args 0 in
+      array (List.map (fun k -> String k) (own_keys v @ match v with Object o when (match (target o).kind with Array _ -> true | _ -> false) -> [ "length" ] | _ -> [])));
+  def "getPrototypeOf" (of_object "getPrototypeOf");
+  def "defineProperty" (fun args -> ignore (of_object "defineProperty" args); Bool true);
+  def "getOwnPropertyDescriptor" (of_object "getOwnPropertyDescriptor");
+  def "apply" (fun args -> call (arg args 0) ~this:(arg args 1) (match arg args 2 with Object a -> array_items a | _ -> []));
+  Object o
+
+(*****************************************************************************)
 (* Entry point *)
 (*****************************************************************************)
 
-let install ~(call : value -> this:value -> value list -> value) ~(lookup : string -> value option) (define : string -> value -> unit) : unit =
+let install ~(call : value -> this:value -> value list -> value) ~(lookup : string -> value option) ~(get : value -> string -> value)
+    ~(put : value -> string -> value -> unit) ~(has : value -> string -> bool) (define : string -> value -> unit) : unit =
   let add name statics = match lookup name with Some (Object o) -> List.iter (fun (k, v) -> set_own o k v) statics | _ -> () in
   add "Object" object_statics;
   (* and what every object has from Object.prototype *)
@@ -225,6 +275,8 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
              | Object ({ kind = Array _; _ } as a) -> array (array_items a)
              | _ -> array [])))
     [ "Uint8Array"; "Int8Array"; "Uint8ClampedArray"; "Uint16Array"; "Int16Array"; "Uint32Array"; "Int32Array"; "Float32Array"; "Float64Array" ];
+  define "Proxy" proxy;
+  define "Reflect" (reflect ~call ~lookup ~get ~put ~has);
   define "Symbol" (symbol ());
   define "Map" (collection ~call "Map" ~map:true);
   define "WeakMap" (collection ~call "WeakMap" ~map:true);
