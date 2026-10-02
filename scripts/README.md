@@ -10,6 +10,10 @@ use it; the techniques behind them are in
     and how much of the budget they are: 30,000 lines for the browser
     (`languages/`, `libs/`, `src/`), its tests and tools not counted
     (`make loc`, `make loc-v`)
+- `sites/`: the real web (`docs/sites.md`)
+  - `dump_sites.sh`: each site of the list loaded without a screen and
+    dumped as a PNG, its requests and failures said: to look at, and
+    bring `docs/sites.md` up to date
 - `js/`: what real scripts ask of the JavaScript engine
   - `Js_survey.exe`: each script given parsed, then run in an empty
     page; its first mistake, and the mistakes counted (`Js_survey.mli`)

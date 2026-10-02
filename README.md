@@ -129,7 +129,8 @@ docs/                 architecture.md: the running program's shape (the
                       to be; notes_debugging_techniques.txt: how a
                       page that looks wrong, or slow, was looked into;
                       plan_performance.md: where a load's time goes,
-                      what to change
+                      what to change; sites.md: the sites it shows, and
+                      what each lacks, by part, in colours
 scripts/              perf/: a page's stages timed (Page_bench), a load
                       in time (load_timeline.sh)
 data/about/           the built-in site's pages, sheets, scripts, pictures

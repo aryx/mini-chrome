@@ -276,6 +276,16 @@ unless it is specific to a browser (then `src/chrome`, as
   dune by the root `dune` file.
 - The root `dune` disables warnings 6, 32, 37 and 69 in dev.
 
+## The sites
+
+`docs/sites.md` is where the browser stands on the real web: a row a
+site, a column a part (network, HTML, CSS, text, JavaScript), each
+cell green, yellow or red with what is missing; and the same for
+twelve real scripts given to the engine. When a feature changes a
+site's or a script's colour, change its cell, and the date.
+`scripts/sites/dump_sites.sh` dumps them all to look at;
+`scripts/js/Js_survey.exe` runs the scripts.
+
 ## The budget
 
 The browser is to stay under 30,000 lines of OCaml: `languages/`,
