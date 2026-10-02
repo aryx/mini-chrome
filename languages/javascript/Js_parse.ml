@@ -23,6 +23,8 @@ type t = {
   mutable no_in : bool;
   (* in an async function's body: "await" is the operator, not a name *)
   mutable in_async : bool;
+  (* in a generator's body: "yield" is the operator *)
+  mutable in_generator : bool;
 }
 
 (*****************************************************************************)
@@ -70,6 +72,8 @@ let infix (op : string) : (int * bool) option =
   match op with
   | "," -> Some (0, false)
   | op when List.mem op assignments -> Some (1, true)
+  (* ES2021: a ||= b assigns only if a is falsy; &&=, ??= the same of && and ?? *)
+  | "&&=" | "||=" | "??=" -> Some (1, true)
   | "?" -> Some (2, true)
   | "??" -> Some (3, false)
   | "||" -> Some (4, false)
@@ -152,9 +156,13 @@ and loop (p : t) (min : int) (left : expr) : expr =
       loop p min (Optional (chain left))
   | Punct "[" when postfix_power >= min ->
       ignore (advance p);
-      let i = expression p 0 in
+      let i = inside p (fun () -> expression p 0) in
       expect p "]";
       loop p min (Index (left, i))
+  (* tag`...`: a template right after an expression is its argument *)
+  | Template (strings, expressions) when postfix_power >= min ->
+      ignore (advance p);
+      loop p min (Tagged (left, strings, template_values p t expressions))
   | Punct "(" when postfix_power >= min ->
       ignore (advance p);
       let args = arguments p in
@@ -183,6 +191,7 @@ and loop (p : t) (min : int) (left : expr) : expr =
                 Conditional (left, a, expression p 1)
             | "," -> Comma (left, expression p next)
             | op when List.mem op assignments -> Assign (op, target p left, expression p next)
+            | "&&=" | "||=" | "??=" -> Assign (op, target p left, expression p next)
             | "&&" | "||" | "??" -> Logical (op, left, expression p next)
             | _ -> Binary (op, left, expression p next)
           in
@@ -192,13 +201,26 @@ and loop (p : t) (min : int) (left : expr) : expr =
 
 (* a function's body read by [f]: await is the operator in an async
  * one's, a name in another's, whatever the function around is *)
-and body_in : 'a. t -> async:bool -> (unit -> 'a) -> 'a =
- fun p ~async f ->
-  let outer = p.in_async in
+and body_in : 'a. t -> async:bool -> generator:bool -> (unit -> 'a) -> 'a =
+ fun p ~async ~generator f ->
+  let outer = (p.in_async, p.in_generator) in
   p.in_async <- async;
+  p.in_generator <- generator;
   let x = f () in
-  p.in_async <- outer;
+  p.in_async <- fst outer;
+  p.in_generator <- snd outer;
   x
+
+(* a template's ${ }s, each read as an expression of its own, on the
+ * template's line *)
+and template_values (p : t) (t : Js_lexer.token) (expressions : Js_lexer.token list list) : expr list =
+  List.map
+    (fun (tokens : Js_lexer.token list) ->
+      let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false; in_async = p.in_async; in_generator = p.in_generator } in
+      let e = expression inner 0 in
+      if (peek inner).kind <> Eof then unexpected inner "'}'";
+      e)
+    expressions
 
 (* after a ".": a name, and a keyword is one too (o.default, e.catch) *)
 and property_name (p : t) : string =
@@ -215,6 +237,12 @@ and prefix (p : t) : expr =
     let t = advance p in
     match t.kind with
     | Name "await" when p.in_async -> Await (expression p prefix_power)
+    (* yield, yield e, yield* e: in a generator *)
+    | Name "yield" when p.in_generator ->
+        let delegate = is_punct p "*" && (ignore (advance p); true) in
+        let next = peek p in
+        let nothing = next.newline_before || (match next.kind with Punct (")" | "]" | "}" | "," | ";" | ":") | Eof -> true | _ -> false) in
+        Yield (delegate, if nothing && not delegate then None else Some (expression p 1))
     | Number f -> Number f
     | String s -> String s
     (* super(a), super.m: the class's parent *)
@@ -247,7 +275,7 @@ and prefix (p : t) : expr =
             if is_punct p "," then (ignore (advance p); elements (e :: acc))
             else List.rev (e :: acc)
         in
-        let es = elements [] in
+        let es = inside p (fun () -> elements []) in
         expect p "]";
         Array es
     | Punct "{" ->
@@ -257,21 +285,11 @@ and prefix (p : t) : expr =
             let m = property p in
             if is_punct p "," then (ignore (advance p); members (m :: acc)) else List.rev (m :: acc)
         in
-        let props = members [] in
+        let props = inside p (fun () -> members []) in
         expect p "}";
         Object props
     | Regex (r, f) -> Regex (r, f)
-    (* each ${ } read as an expression of its own, on the template's line *)
-    | Template (strings, expressions) ->
-        Template
-          ( strings,
-            List.map
-              (fun (tokens : Js_lexer.token list) ->
-                let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false; in_async = p.in_async } in
-                let e = expression inner 0 in
-                if (peek inner).kind <> Eof then unexpected inner "'}'";
-                e)
-              expressions )
+    | Template (strings, expressions) -> Template (strings, template_values p t expressions)
     (* new F(a), new F: F a name and its members, not a call *)
     | Keyword "new" ->
         let rec members e =
@@ -313,9 +331,9 @@ and key (p : t) : key =
 
 (* m(params) { body }, of an object literal or a class: what is after
  * its key *)
-and method_ (p : t) (k : key) ~(async : bool) : func =
+and method_ (p : t) (k : key) ~(async : bool) ~(generator : bool) : func =
   let ps, rest = params p in
-  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async (fun () -> block_body p); arrow = false; async }
+  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async }
 
 (* one property of an object literal *)
 and property (p : t) : property =
@@ -331,13 +349,18 @@ and property (p : t) : property =
       ignore (advance p);
       let k = key p in
       let ps, rest = params p in
-      let f = { name = None; params = ps; rest; body = body_in p ~async:false (fun () -> block_body p); arrow = false; async = false } in
+      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false } in
       if which = "get" then Getter (k, f) else Setter (k, f)
   (* async m() { } *)
   | Name "async" when accessor ->
       ignore (advance p);
       let k = key p in
-      Prop (k, Function (method_ p k ~async:true))
+      Prop (k, Function (method_ p k ~async:true ~generator:false))
+  (* *m() { }: a generator *)
+  | Punct "*" ->
+      ignore (advance p);
+      let k = key p in
+      Prop (k, Function (method_ p k ~async:false ~generator:true))
   | _ -> (
       let k = key p in
       match ((peek p).kind, k) with
@@ -345,7 +368,7 @@ and property (p : t) : property =
           ignore (advance p);
           Prop (k, expression p 1)
       (* m() { }: a method *)
-      | Punct "(", _ -> Prop (k, Function (method_ p k ~async:false))
+      | Punct "(", _ -> Prop (k, Function (method_ p k ~async:false ~generator:false))
       (* { a }: a: a; { a = 1 }, in a pattern: its default *)
       | Punct "=", Key x ->
           ignore (advance p);
@@ -432,22 +455,24 @@ and arrow (p : t) ~(async : bool) : expr =
   let line = (peek p).line in
   expect p "=>";
   let body =
-    body_in p ~async (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
+    body_in p ~async ~generator:false (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
   in
-  Function { name = None; params = ps; rest; body; arrow = true; async }
+  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async }
 
 (* function name? (params) { body }: what is after the keyword *)
 and func (p : t) ~(arrow : bool) ~(async : bool) : func =
+  (* function* f: a generator *)
+  let generator = is_punct p "*" && (ignore (advance p); true) in
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
   let ps, rest = params p in
-  { name; params = ps; rest; body = body_in p ~async (fun () -> block_body p); arrow; async }
+  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async }
 
 (* class Name extends Parent { members }: what is after the keyword. A
  * member: [static] then a method m() { }, an accessor get k() { } or
  * set k(v) { }, or a field k = e; the method called constructor is
  * the class's *)
 and class_ (p : t) : class_ =
-  let class_name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
+  let class_name = match (peek p).kind with Name x when x <> "extends" -> ignore (advance p); Some x | _ -> None in
   let parent = if (peek p).kind = Name "extends" then (ignore (advance p); Some (expression p prefix_power |> fun e -> loop p postfix_power e)) else None in
   expect p "{";
   let ctor = ref None in
@@ -458,10 +483,13 @@ and class_ (p : t) : class_ =
       (* a word before a member's key, not the key itself: static x, get x() *)
       let modifier w = (peek p).kind = Name w && (match (peek_at p 1).kind with Punct ("(" | "=" | ";" | "}") -> false | _ -> true) in
       let static = modifier "static" && (ignore (advance p); true) in
+      if static && is_punct p "{" then members ({ static; key = Key "static"; what = Static_block (block_body p) } :: acc)
+      else
       let accessor = if modifier "get" then (ignore (advance p); Some `Get) else if modifier "set" then (ignore (advance p); Some `Set) else None in
       let async = modifier "async" && (ignore (advance p); true) in
+      let generator = is_punct p "*" && (ignore (advance p); true) in
       let k = key p in
-      let method_ () = method_ p k ~async in
+      let method_ () = method_ p k ~async ~generator in
       match (accessor, (peek p).kind, k) with
       | None, Punct "(", Key "constructor" when not static ->
           ctor := Some (method_ ());
@@ -485,7 +513,8 @@ and class_ (p : t) : class_ =
 and block_body (p : t) : stmt list =
   expect p "{";
   let rec go acc = if is_punct p "}" then (ignore (advance p); List.rev acc) else go (statement p :: acc) in
-  go []
+  (* a function's body in a for's first part: "in" is the operator there *)
+  inside p (fun () -> go [])
 
 (* a statement's end: ";", or before "}", the end, or a new line *)
 and end_statement (p : t) : unit =
@@ -553,8 +582,10 @@ and statement (p : t) : stmt =
       s (While (c, statement p))
   | Keyword "for" ->
       ignore (advance p);
+      (* for await (x of xs) *)
+      let awaited = (peek p).kind = Name "await" && (ignore (advance p); true) in
       expect p "(";
-      s (for_rest p)
+      s (match (awaited, for_rest p) with true, For_of (k, x, xs, b) -> For_await (k, x, xs, b) | _, st -> st)
   | Keyword (("break" | "continue") as k) ->
       ignore (advance p);
       (* its label, if one follows on the line *)
@@ -689,7 +720,7 @@ let with_tokens (text : string) (f : t -> 'a) : ('a, error) result =
   match Js_lexer.tokenize text with
   | exception Js_lexer.Error (line, message) -> Error { line; message }
   | tokens -> (
-      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false; in_async = false } in
+      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false; in_async = false; in_generator = false } in
       match f p with x -> Ok x | exception Error e -> Error e)
 
 let parse (text : string) : (program, error) result =

@@ -16,7 +16,13 @@ use it; the techniques behind them are in
     bring `docs/sites.md` up to date
 - `js/`: what real scripts ask of the JavaScript engine
   - `Js_survey.exe`: each script given parsed, then run in an empty
-    page; its first mistake, and the mistakes counted (`Js_survey.mli`)
+    page; its first mistake, and the mistakes counted; a library then
+    used in a small page (`Js_survey.mli`)
+  - `Page_scripts.exe`: a saved page's scripts run with no window:
+    their console, the requests they make, the cookies they set, and
+    a question asked of the page at the end (`Page_scripts.mli`;
+    `mini-curl -o page.html URL`, then
+    `./_build/default/scripts/js/Page_scripts.exe page.html URL "typeof jQuery"`)
 - `perf/`: how fast (`docs/plan_performance.md`)
   - `Page_bench.exe`: where a page's load goes: the network, then each
     stage of the pipeline timed on the page fetched (`Page_bench.mli`;

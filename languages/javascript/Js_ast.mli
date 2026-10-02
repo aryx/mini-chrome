@@ -86,6 +86,14 @@ type expr =
   (* ES2015 ("ES6"): templates, spread, classes *)
   | Template of string list * expr list (* `a${x}b`: its strings (one more than its expressions), and them *)
   | Spread of expr (* ...xs, in an array's items or a call's arguments: each of xs *)
+  (* tag`a${x}b`: the function tag called with the strings (an array)
+   * and then each value -- a template whose meaning is the tag's:
+   * styled-components' css`color: ${c}`, String.raw`\n` *)
+  | Tagged of expr * string list * expr list
+  (* in a generator (a function* f): yield e gives e to who called next()
+   * and stops there until the next one; yield* xs gives each of xs
+   * (the bool). Its value: what next(v) was given *)
+  | Yield of bool * expr option
   | Class of class_ (* class A extends B { ... } *)
   (* in a class's constructor and methods: super(a) calls the parent's
    * constructor on this; super.m is the parent's m *)
@@ -110,6 +118,7 @@ and func = {
   rest : pattern option; (* ES2015: (...xs), the arguments left *)
   body : stmt list;
   arrow : bool; (* ES2015 *)
+  generator : bool; (* ES2015: function* f() { }, *m() { }: its call gives an iterator over what it yields *)
   async : bool; (* ES2017: async function f() { }, async x => ..., async m() { }: it gives a promise *)
 }
 
@@ -135,7 +144,9 @@ and class_ = { class_name : string option; parent : expr option; ctor : func opt
  * itself: a method, a getter, a setter (ES2015); or a field, set on
  * each instance when it is made (x = 1: ES2022) *)
 and member = { static : bool; key : key; what : member_kind }
-and member_kind = Method of func | Get of func | Set of func | Field of expr option
+(* [Static_block]: static { ... } (ES2022), statements run once when
+ * the class is made, this the class *)
+and member_kind = Method of func | Get of func | Set of func | Field of expr option | Static_block of stmt list
 
 (* ES2015 (the rest of an object: ES2018). What a declaration, a
  * parameter or a for-of names: one name, or the parts of a value taken
@@ -183,6 +194,10 @@ and statement =
   | Try of stmt list * (string option * stmt list) option * stmt list option
   (* ES2015 *)
   | For_of of let_kind * pattern * expr * stmt (* for (let x of xs) body *)
+  (* ES2018, in an async function: for await (const x of xs) body --
+   * each item awaited before the body has it; xs may give its items
+   * late itself (its [Symbol.asyncIterator], whose next() is a promise) *)
+  | For_await of let_kind * pattern * expr * stmt
   | Class_decl of class_
 
 (* what a for-in sets at each turn: a name it declares (for (var k in

@@ -281,4 +281,27 @@ let url_object (href : string) : value =
   set_own o "toString" (host_function "toString" (fun ~this:_ _ -> String href));
   Object o
 
-let location (t : t) : value = url_object t.base
+(* location: the page's address in parts, and the way for a script to
+ * send the page elsewhere -- location.href = url, assign(url) (the
+ * page left is kept in the history), replace(url) (it is not),
+ * reload(). The browser goes there once the script has returned *)
+let location (t : t) : value =
+  let parts = url_parts t.base in
+  let go ~(replace : bool) (url : string) = t.navigation <- Some (Browser_url.resolve t.base url, replace) in
+  let searchParams = match url_object t.base with Object o -> Option.value (get_own o "searchParams") ~default:Undefined | _ -> Undefined in
+  host_object
+    {
+      class_name = "Location";
+      get =
+        (fun k ->
+          match (k, List.assoc_opt k parts) with
+          | _, Some v -> String v
+          | "assign", _ -> method_ k (fun args -> go ~replace:false (str (arg args 0)); Undefined)
+          | "replace", _ -> method_ k (fun args -> go ~replace:true (str (arg args 0)); Undefined)
+          | "reload", _ -> method_ k (fun _ -> go ~replace:true t.base; Undefined)
+          | "toString", _ -> method_ k (fun _ -> String t.base)
+          | "searchParams", _ -> searchParams
+          | _ -> Undefined);
+      set = (fun k v -> match k with "href" -> go ~replace:false (str v) | "hash" | "search" | "pathname" -> () | _ -> ());
+      show = (fun () -> t.base);
+    }

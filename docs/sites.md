@@ -26,8 +26,8 @@ then look at the pictures and correct the rows.
 | | Sites | |
 |---|---|---|
 | 🟢 | 7 of 16 | the web of the 1990s, the text-only sites, Hacker News |
-| 🟡 | 5 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway: readable, not right |
-| 🔴 | 4 of 16 | one that does not load (a TLS handshake), two whose page is unusable, and Google: its page shows, a search does not |
+| 🟡 | 6 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
+| 🔴 | 3 of 16 | one that does not load (a TLS handshake), one whose page is unusable, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -57,10 +57,10 @@ Oldest web first, then by how much they ask.
 | **Project Gutenberg** | 🟢 | 🟡 read; its search and menus not tried | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
 | **Wikipedia** (an article) | 🟡 | 🟡 read, with holes in the words; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🔴 every accented letter and phonetic sign is `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
 | **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟡 `?` in the snippets | ⚪ |
-| **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then "enable JavaScript to continue" | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 not run: Google's results have needed scripts since 2025 |
+| **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then a page of script only | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 a search answers our browser with a challenge: an obfuscated program (63 KB) that must compute a token before any result is sent. It loads and runs here without an error, and gives no token. To a browser it does not know Google sends that page; to an old Opera Mini's name, plain HTML results |
 | **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
-| **GitHub** (a repository) | 🟡 | 🟡 the files' names can be read and followed; the README not looked at | 🟢 24 requests | 🟢 | 🟡 the files are listed, bare: wide gaps, no table of them, the branch button a grey bar | 🟢 | 🔴 not run |
-| **BBC News** | 🔴 | 🔴 headlines cannot be read in order | 🟢 23 requests | 🟢 | 🔴 the menu is a column of links, headlines overlap, columns too narrow | 🟢 | 🔴 not run; its pictures are loaded by scripts: broken frames |
+| **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🔴 not run: its scripts are modules (`<script type=module>`), and each file's last commit comes by them |
+| **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP: no decoder, empty frames |
 
 `?` in a cell: could not be told, the page did not get that far.
 
@@ -119,11 +119,18 @@ By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **The sites' own scripts, one by one** (`scripts=`): the libraries
-  work and a script now gets its answers from the network
-  (`XMLHttpRequest`, `fetch`), so what stops Google's results, GitHub
-  or the BBC is to be found by trying each (`-v` shows the page's
-  console).
+- **WebP** (a decoder, in elm-playground beside the others): the
+  BBC's pictures, and most pictures of today's web.
+- **Google's results**: not a matter of the engine any more. Either
+  its challenge is studied until it gives a token (a program made to
+  resist that), or the browser says it is one Google still sends plain
+  results to, or searches go to DuckDuckGo (`search=duckduckgo`),
+  which works.
+- **Modules** (`<script type=module>`, import and export): GitHub's
+  scripts, and most sites built since 2020.
+- **`<details>` opened by a click, the layers of `@layer`, a style
+  sheet as an object** (`style.sheet`, which React's styling
+  libraries write their rules into).
 - **The heading of Berkshire Hathaway** (a 1990s table and `<font>`),
   now that its Brotli is read.
 - **The TLS handshake Craigslist refuses**: to look into.

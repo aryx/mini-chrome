@@ -34,7 +34,7 @@ let keywords =
     "do"; "switch"; "case"; "default"; "void"; "instanceof" ]
 
 (* the operators, the longest first: the longest match *)
-let puncts3 = [ ">>>="; "==="; "!=="; "..."; "**="; ">>>"; "<<="; ">>=" ]
+let puncts3 = [ ">>>="; "==="; "!=="; "..."; "**="; ">>>"; "<<="; ">>="; "&&="; "||="; "??=" ]
 
 let puncts2 =
   [ "=="; "!="; "<="; ">="; "&&"; "||"; "=>"; "++"; "--"; "+="; "-="; "*="; "/="; "%="; "**"; "??"; "?."; "<<"; ">>"; "&="; "|="; "^=" ]
@@ -43,7 +43,10 @@ let puncts1 = "{}()[];,.<>+-*/%=!?:&|^~"
 
 let is_digit c = c >= '0' && c <= '9'
 (* '#': a class's private name, #x (ES2022), read as a name like any *)
-let is_name_start c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '$' || c = '#'
+(* a byte above ASCII is of a letter of another alphabet, in UTF-8: a
+ * name may be written in any (what is not a letter up there, a no-break
+ * space, is set apart before) *)
+let is_name_start c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '$' || c = '#' || c >= '\128'
 let is_name_char c = is_name_start c || is_digit c
 
 (* a code point as UTF-8's bytes: a string's \u escape *)
@@ -83,7 +86,15 @@ let tokenize (s : string) : token list =
           incr line;
           newline := true;
           go (i + 1)
-      | ' ' | '\t' | '\r' -> go (i + 1)
+      | ' ' | '\t' | '\r' | '\012' -> go (i + 1)
+      (* the spaces that are not ASCII's: a no-break space (U+00A0), a
+       * byte order mark (U+FEFF), the line and paragraph separators
+       * (U+2028, U+2029), in UTF-8 *)
+      | '\xC2' when i + 1 < n && s.[i + 1] = '\xA0' -> go (i + 2)
+      | '\xEF' when i + 2 < n && s.[i + 1] = '\xBB' && s.[i + 2] = '\xBF' -> go (i + 3)
+      | '\xE2' when i + 2 < n && s.[i + 1] = '\x80' && (s.[i + 2] = '\xA8' || s.[i + 2] = '\xA9') ->
+          newline := true;
+          go (i + 3)
       | '/' when i + 1 < n && s.[i + 1] = '/' ->
           let rec eol j = if j >= n || s.[j] = '\n' then j else eol (j + 1) in
           go (eol i)

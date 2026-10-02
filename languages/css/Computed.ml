@@ -542,7 +542,13 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
     grid_columns = (match get "grid-template-columns" with Some v -> Css_grid.tracks ctx v | None -> []);
     grid_rows = (match get "grid-template-rows" with Some v -> Css_grid.tracks ctx v | None -> []);
     grid_areas = (match get "grid-template-areas" with Some v -> Css_grid.areas v | None -> []);
-    grid_area = (match get "grid-area" with Some v -> Css_grid.placement v | None -> Auto_placed);
+    grid_area =
+      (match (get "grid-area", get "grid-row", get "grid-column") with
+      | Some v, _, _ -> Css_grid.placement v
+      | None, None, None -> Auto_placed
+      | None, row, column ->
+          let axis v = match v with Some v -> Css_grid.axis v | None -> (Css_grid.Auto, Css_grid.Auto) in
+          Lines { row = axis row; column = axis column });
     align_content = (match word "align-content" with Some ("normal" | "stretch") | None -> None | Some s -> align_of s);
     custom;
   }

@@ -20,7 +20,14 @@ type t = {
   mutable steps : int; (* left in this run's budget *)
   mutable budget : int;
   mutable depth : int; (* of the calls *)
+  mutable generators : generating list; (* those whose body is running, the innermost first *)
 }
+
+(* a generator between its body and who calls next(): what the body
+ * gave last, what it is given back *)
+and generating = { mutable out : out; mutable sent : sent }
+and out = Yielded of value | Ended of value | Failed of value
+and sent = Sent of value | Thrown of value | Returned of value
 
 type error = { line : int; message : string }
 
@@ -28,6 +35,10 @@ type error = { line : int; message : string }
 type outcome = Normal | Return of value | Break of string option | Continue of string option
 
 let max_depth = 2_000
+
+(* generator.return(v): the body left from its yield, its finally
+ * blocks run on the way *)
+exception Generator_return of value
 
 (* a?.b with a null or undefined: the chain it is in ends, undefined *)
 exception Short_circuit
@@ -86,20 +97,6 @@ let rec describe (e : A.expr) : string =
 (* Expressions *)
 (*****************************************************************************)
 
-(* what a for-of, a ...spread or an array pattern goes through: an
- * array's items, a string's characters *)
-let rec items_of (v : value) : value list =
-  match v with
-  | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> array_items o
-  | Object { kind = Proxy (tg, _); _ } -> items_of (Object tg)
-  | String str -> List.init (String.length str) (fun i -> String (String.make 1 str.[i]))
-  (* its Symbol.iterator, here a function giving the items (a Map's, a Set's) *)
-  | Object ({ kind = Plain; _ } as o) -> (
-      match get_own o "@@iterator" with
-      | Some (Object { kind = Host_function (_, f); _ }) -> items_of (f ~this:v [])
-      | _ -> throw "TypeError" (display v ^ " is not iterable"))
-  | v -> throw "TypeError" (display v ^ " is not iterable")
-
 let tick (t : t) : unit =
   t.steps <- t.steps - 1;
   if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)"
@@ -157,6 +154,23 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Opt e -> ( match eval_expr t s this e with Undefined | Null -> raise Short_circuit | v -> v)
   | Optional e -> ( try eval_expr t s this e with Short_circuit -> Undefined)
   | Await e -> Js_promise.await (Option.get t.promises) (eval_expr t s this e)
+  (* tag`a${x}b`: tag(["a", "b"], x), the strings' array with itself
+   * as its raw (the escapes are read already: an approximation) *)
+  | Tagged (tag, strings, es) ->
+      let fn, self = match tag with Member (o, k) -> let o = eval_expr t s this o in (get t o k, o) | tag -> (eval_expr t s this tag, Undefined) in
+      let parts = new_array (List.map (fun x -> String x) strings) in
+      set_own parts "raw" (Object parts);
+      call_value t fn ~this:self (Object parts :: List.map (eval_expr t s this) es)
+  | Yield (false, e) -> yield t (match e with Some e -> eval_expr t s this e | None -> Undefined)
+  (* yield* xs: each of xs yielded *)
+  | Yield (true, e) ->
+      iterate t (match e with Some e -> eval_expr t s this e | None -> Undefined) (fun v -> ignore (yield t v); true);
+      Undefined
+  (* a ||= b: assigned only if a is falsy; &&=, ??= the same of && and ?? *)
+  | Assign ((("&&=" | "||=" | "??=") as op), target, v) ->
+      let old = eval_expr t s this target in
+      let wanted = match op with "&&=" -> truthy old | "||=" -> not (truthy old) | _ -> old = Undefined || old = Null in
+      if wanted then (let v = eval_expr t s this v in assign t s this target v; v) else old
   | Unary (op, x) -> (
       match op with
       (* typeof of an undeclared name is "undefined", not an error *)
@@ -300,8 +314,8 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
     match (c.ctor, c.parent) with
     | Some f, Some _ -> f
     | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
-    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; async = false }
-    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; async = false }
+    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false }
+    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false }
   in
   let made = closure cs this { ctor with name = c.class_name } in
   let f = match made with Object f -> f | _ -> assert false in
@@ -317,14 +331,106 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
       | Get fn -> define_accessor target (key m.key) ~getter:(Some (closure cs this fn)) ~setter:None
       | Set fn -> define_accessor target (key m.key) ~getter:None ~setter:(Some (closure cs this fn))
       | Field e when m.static -> set_own f (key m.key) (match e with Some e -> eval_expr t cs made e | None -> Undefined)
-      | Field _ -> ())
+      | Field _ -> ()
+      | Static_block body -> ignore (exec_block t (new_scope cs) made body))
     c.members;
   made
 
 (* an array's items or a call's arguments: each one's value, a ...xs
  * each of xs' *)
 and eval_list (t : t) (s : scope) (this : value) (es : A.expr list) : value list =
-  List.concat_map (fun (e : A.expr) -> match e with Spread x -> items_of (eval_expr t s this x) | e -> [ eval_expr t s this e ]) es
+  List.concat_map (fun (e : A.expr) -> match e with Spread x -> items_of t (eval_expr t s this x) | e -> [ eval_expr t s this e ]) es
+
+(* what a for-of, a ...spread or an array pattern goes through, one
+ * item at a time, [f] saying whether to go on: an array's items, a
+ * string's characters; else the iteration protocol (ES2015) -- the
+ * object's [Symbol.iterator]() gives an iterator, whose next() gives
+ * { value, done } each time; stopped early, its return() is called *)
+and iterate (t : t) (v : value) (f : value -> bool) : unit =
+  let rec each (l : value list) = match l with x :: rest -> if f x then each rest | [] -> () in
+  match v with
+  | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> each (array_items o)
+  | String str -> each (List.init (String.length str) (fun i -> String (String.make 1 str.[i])))
+  | Object _ -> (
+      match get t v "@@iterator" with
+      | Object { kind = Closure _ | Host_function _; _ } as make -> (
+          match call_value t make ~this:v [] with
+          (* an array given at once (a Map's entries here) *)
+          | Object { kind = Array _; _ } as items -> iterate t items f
+          | it ->
+              let next = get t it "next" in
+              let rec go () =
+                let r = call_value t next ~this:it [] in
+                if not (truthy (get t r "done")) then
+                  if f (get t r "value") then go ()
+                  else match get t it "return" with Object { kind = Closure _ | Host_function _; _ } as stop -> ignore (call_value t stop ~this:it []) | _ -> ()
+              in
+              go ())
+      | _ -> throw "TypeError" (display v ^ " is not iterable"))
+  | v -> throw "TypeError" (display v ^ " is not iterable")
+
+and items_of (t : t) (v : value) : value list =
+  let items = ref [] in
+  iterate t v (fun x -> items := x :: !items; true);
+  List.rev !items
+
+(* yield v, in a generator's body: v given to who called next(), the
+ * body stopped until the next one; what that next() was given *)
+and yield (t : t) (v : value) : value =
+  match t.generators with
+  | [] -> throw "SyntaxError" "yield is only valid in generator functions"
+  | g :: _ -> (
+      g.out <- Yielded v;
+      Js_coroutine.suspend ();
+      match g.sent with
+      | Sent v -> v
+      | Thrown e -> raise (Throw e)
+      | Returned v -> raise (Generator_return v))
+
+(* a generator's call: its body a coroutine not started yet, and the
+ * iterator that runs it a yield at a time -- next(v), return(v),
+ * throw(e), and itself as its own [Symbol.iterator]() *)
+and generator (t : t) (body : unit -> value) : value =
+  let g = { out = Yielded Undefined; sent = Sent Undefined } in
+  let ended = ref false and started = ref false in
+  let run () =
+    g.out <-
+      (match body () with
+      | v -> Ended v
+      | exception Generator_return v -> Ended v
+      | exception Throw e -> Failed e
+      | exception Stack_overflow -> Failed (error "RangeError" "Maximum call stack size exceeded"));
+    ended := true
+  in
+  let co = Js_coroutine.create run in
+  let result v finished =
+    let o = new_object () in
+    set_own o "value" v;
+    set_own o "done" (Bool finished);
+    Object o
+  in
+  let resume (what : sent) : value =
+    if !ended then (match what with Thrown e -> raise (Throw e) | Returned v -> result v true | Sent _ -> result Undefined true)
+    else if (not !started) && (match what with Sent _ -> false | _ -> true) then (
+      (* stopped before it began: nothing of its body runs *)
+      ended := true;
+      match what with Thrown e -> raise (Throw e) | Returned v -> result v true | Sent _ -> result Undefined true)
+    else (
+      started := true;
+      g.sent <- what;
+      t.generators <- g :: t.generators;
+      Js_coroutine.resume co;
+      t.generators <- List.tl t.generators;
+      match g.out with Yielded v -> result v false | Ended v -> result v true | Failed e -> raise (Throw e))
+  in
+  let o = new_object () in
+  let self = Object o in
+  let arg args = match args with v :: _ -> v | [] -> Undefined in
+  set_own o "next" (host_function "next" (fun ~this:_ args -> resume (Sent (arg args))));
+  set_own o "return" (host_function "return" (fun ~this:_ args -> resume (Returned (arg args))));
+  set_own o "throw" (host_function "throw" (fun ~this:_ args -> resume (Thrown (arg args))));
+  set_own o "@@iterator" (host_function "[Symbol.iterator]" (fun ~this:_ _ -> self));
+  self
 
 (* o.k: the property, or what its getter gives *)
 and get (t : t) (target : value) (k : string) : value =
@@ -404,7 +510,7 @@ and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) 
             Option.iter (fun (pt, default) -> destructure t s this pt (or_default v default) bind) part;
             go more left
       in
-      go parts (items_of v)
+      go parts (items_of t v)
 
 and closure (s : scope) (this : value) (f : A.func) : value =
   let c = { func = f; scope = s; this = (if f.arrow then Some this else None) } in
@@ -441,7 +547,7 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
         | e :: more, v :: left -> part e v; go more left
         | e :: more, [] -> part e Undefined; go more []
       in
-      go es (items_of v)
+      go es (items_of t v)
   | Object props ->
       List.iter
         (fun (pr : A.property) ->
@@ -491,7 +597,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       let body () = match exec_block t frame this c.func.body with Return v -> v | _ -> Undefined in
       (* an async function: its body a coroutine, run to its first
        * await; the call gives its promise *)
-      (match if c.func.async then Js_promise.async (Option.get t.promises) body else body () with
+      (match if c.func.generator then generator t body else if c.func.async then Js_promise.async (Option.get t.promises) body else body () with
       | result ->
           t.depth <- t.depth - 1;
           t.line <- line;
@@ -523,9 +629,9 @@ and hoist (s : scope) (body : A.stmt list) : unit =
     | If (_, a, b) -> names a @ (match b with Some b -> names b | None -> [])
     | While (_, b) | With (_, b) -> names b
     | For (init, _, _, b) -> (match init with Some i -> names i | None -> []) @ names b
-    | For_of (Var_kind, x, _, b) -> pattern_names x @ names b
+    | For_of (Var_kind, x, _, b) | For_await (Var_kind, x, _, b) -> pattern_names x @ names b
     | For_in (Declared (Var_kind, x), _, b) -> x :: names b
-    | For_of (_, _, _, b) | For_in (_, _, b) | Do_while (b, _) | Labeled (_, b) -> names b
+    | For_of (_, _, _, b) | For_await (_, _, _, b) | For_in (_, _, b) | Do_while (b, _) | Labeled (_, b) -> names b
     | Switch (_, cases) -> List.concat_map (fun (_, body) -> List.concat_map names body) cases
     | Try (a, handler, finally) ->
         List.concat_map names a
@@ -619,19 +725,34 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
               loop next
       in
       loop first
-  | For_of (kind, x, xs, body) ->
-      let items = items_of (eval xs) in
-      let rec loop items =
-        match items with
-        | [] -> Normal
-        | v :: rest -> (
-            let it = new_scope s in
-            (* a var's, or a name's already there: set; else this turn's own *)
-            let bind x v = match (kind, lookup s x) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
-            destructure t it this x v bind;
-            match after (exec t it this body) with None -> loop rest | Some o -> o)
+  | For_of (kind, x, xs, body) | For_await (kind, x, xs, body) ->
+      (* one item at a time: what is gone through may never end (a
+       * generator), and a break tells it to stop *)
+      let ended = ref Normal in
+      let turn (v : value) : bool =
+        let it = new_scope s in
+        (* a var's, or a name's already there: set; else this turn's own *)
+        let bind x v = match (kind, lookup s x) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
+        destructure t it this x v bind;
+        match after (exec t it this body) with None -> true | Some o -> ended := o; false
       in
-      loop items
+      let xs = eval xs in
+      (match st.stmt with
+      | For_await _ -> (
+          let await v = Js_promise.await (Option.get t.promises) v in
+          match (match xs with Object _ -> get t xs "@@asyncIterator" | _ -> Undefined) with
+          (* its own way of giving items late: next() is a promise of { value, done } *)
+          | Object { kind = Closure _ | Host_function _; _ } as make ->
+              let it = call_value t make ~this:xs [] in
+              let next = get t it "next" in
+              let rec go () =
+                let r = await (call_value t next ~this:it []) in
+                if (not (truthy (get t r "done"))) && turn (get t r "value") then go ()
+              in
+              go ()
+          | _ -> iterate t xs (fun v -> turn (await v)))
+      | _ -> iterate t xs turn);
+      !ended
   (* for (k in o): each key, a string; a var's, or a name's or a
    * property's, set before each turn *)
   | For_in (target, o, body) ->
@@ -649,7 +770,7 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
       loop
         (match eval o with
         | Object { kind = Proxy (tg, h); _ } as o -> (
-            match trap t h "ownKeys" with Some f -> List.map to_string (items_of (call_value t f ~this:(Object h) [ Object tg ])) | None -> enumerable_keys o)
+            match trap t h "ownKeys" with Some f -> List.map to_string (items_of t (call_value t f ~this:(Object h) [ Object tg ])) | None -> enumerable_keys o)
         | o -> enumerable_keys o)
   (* the first case that is === the value, and from there every
    * statement to a break, the next cases' too; no case: the default *)
@@ -731,12 +852,12 @@ let default_budget = 10_000_000
 
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = { vars = Hashtbl.create 64; parent = None; subject = None; in_with = false } in
-  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0 } in
+  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = [] } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
   (* new Function(params, body); an async one's constructor makes async ones *)
   let compile ~async params body = eval_in_run t (Printf.sprintf "(%sfunction anonymous(%s\n) {\n%s\n})" (if async then "async " else "") params body) in
-  t.protos <- Some (Js_builtins.install ~call ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~items:items_of ~compile ~log ~seed ?now define);
+  t.protos <- Some (Js_builtins.install ~call ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~items:(fun v -> items_of t v) ~compile ~log ~seed ?now define);
   (* the prototype of async functions: Object.getPrototypeOf(async
    * function () {}).constructor is how a library gets to make one
    * from a text (Alpine) *)
@@ -745,12 +866,17 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
     (host_function "AsyncFunction" (fun ~this:_ args ->
          match List.rev (List.map to_string args) with [] -> compile ~async:true "" "" | body :: params -> compile ~async:true (String.concat "," (List.rev params)) body));
   declare globals "%async" ~constant:true (Object async_proto);
+  (* eval(text): the text run as a program, its last expression's
+   * value; of anything else, the thing itself. In the global scope
+   * always: the names of the function calling it are not seen (a
+   * "direct" eval's are, in JavaScript) *)
+  define "eval" (host_function "eval" (fun ~this:_ args -> match args with String text :: _ -> eval_in_run t text | v :: _ -> v | [] -> Undefined));
   (* the helpers libraries look for: Symbol, Map, Object.defineProperty... *)
   Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x))
-    ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~has:(has_property t) define;
+    ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~has:(has_property t) ~items:(fun v -> items_of t v) define;
   (* a rejection nobody handled, said as an error is *)
   let report v = log ("Uncaught (in promise) " ^ match v with Object o -> (match (get_own o "name", get_own o "message") with Some (String n), Some (String m) -> n ^ ": " ^ m | _ -> display v) | v -> display v) in
-  t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:items_of ~report define);
+  t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:(fun v -> items_of t v) ~report define);
   (* the global object, by its standard name (a page's window is the browser's) *)
   define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Hashtbl.find_opt globals.vars k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
   t
@@ -796,6 +922,7 @@ let call (t : t) (f : value) ~(this : value) (args : value list) : (value, error
   guarded t (fun () -> call_value t f ~this args)
 
 let promise (t : t) = Js_promise.make (Option.get t.promises)
+let items = items_of
 
 let global (t : t) (x : string) : value option = Option.map (fun b -> b.value) (Hashtbl.find_opt t.globals.vars x)
 let define (t : t) (x : string) (v : value) : unit = declare t.globals x ~constant:false v

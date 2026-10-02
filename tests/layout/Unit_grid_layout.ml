@@ -45,7 +45,11 @@ let tests =
             (Css_grid.areas (Css_syntax.components_of "'siteNotice  siteNotice' 'columnStart pageContent' 'footer footer'"));
           let placed css = Css_grid.placement (Css_syntax.components_of css) in
           Alcotest.(check bool) "a name" true (placed "pageContent" = Area "pageContent");
-          Alcotest.(check bool) "row / column" true (placed "2 / 1" = Cell { row = 2; column = 1 });
+          Alcotest.(check bool) "row / column" true (placed "2 / 1" = Lines { row = (Line 2, Auto); column = (Line 1, Auto) });
+          Alcotest.(check bool) "its four lines" true (placed "1 / 2 / span 2 / -1" = Lines { row = (Line 1, Span 2); column = (Line 2, Line (-1)) });
+          let axis css = Css_grid.axis (Css_syntax.components_of css) in
+          Alcotest.(check bool) "grid-column's: a line and a span, a span alone, to the end" true
+            ([ axis "1 / span 4"; axis "span 2"; axis "1 / -1"; axis "3" ] = [ (Line 1, Span 4); (Span 2, Auto); (Line 1, Line (-1)); (Line 3, Auto) ]);
           Alcotest.(check bool) "auto" true (placed "auto" = Auto_placed));
       Testo.create "the worked example: an area's rectangle" (fun () ->
           let placed, rows, columns = Grid_layout.place ~rows:3 ~columns:2 ~areas:wikipedia [ Area "siteNotice"; Area "columnStart"; Area "pageContent"; Area "footer" ] in
@@ -54,13 +58,31 @@ let tests =
             [ ((0, 0), (1, 2)); ((1, 0), (1, 1)); ((1, 1), (1, 1)); ((2, 0), (1, 2)) ]
             (as_pairs placed));
       Testo.create "the next free cell, row by row; a row added; a name unknown" (fun () ->
-          let placed, rows, columns = Grid_layout.place ~rows:0 ~columns:3 ~areas:[] [ Auto_placed; Cell { row = 1; column = 2 }; Auto_placed; Auto_placed; Area "nowhere" ] in
+          let placed, rows, columns = Grid_layout.place ~rows:0 ~columns:3 ~areas:[] [ Auto_placed; Lines { row = (Line 1, Auto); column = (Line 2, Auto) }; Auto_placed; Auto_placed; Area "nowhere" ] in
           Alcotest.(check (pair int int)) "2 rows of 3" (2, 3) (rows, columns);
           Alcotest.check cells "the cell said is skipped by the others"
             [ ((0, 0), (1, 1)); ((0, 1), (1, 1)); ((0, 2), (1, 1)); ((1, 0), (1, 1)); ((1, 1), (1, 1)) ]
             (as_pairs placed);
           let _, rows, columns = Grid_layout.place ~rows:0 ~columns:0 ~areas:[] [ Auto_placed; Auto_placed ] in
           Alcotest.(check (pair int int)) "no column said: one, a row an item" (2, 1) (rows, columns));
+      Testo.create "lines and spans: a page on twelve columns" (fun () ->
+          let col first last : Css_grid.placement = Lines { row = (Auto, Auto); column = (first, last) } in
+          Alcotest.(check (list (pair (option int) int))) "an item along an axis of 12" [ (Some 0, 4); (None, 2); (Some 0, 12); (Some 8, 4); (Some 2, 1); (Some 9, 3) ]
+            (List.map (Grid_layout.along 12) [ (Line 1, Span 4); (Span 2, Auto); (Line 1, Line (-1)); (Line 9, Line 13); (Line 3, Auto); (Span 3, Line (-1)) ]);
+          (* a lead of 8 and a side of 4; then one across; then three cards of 4, wherever is free *)
+          let placed, rows, columns =
+            Grid_layout.place ~rows:0 ~columns:12 ~areas:[]
+              [ col (Line 1) (Span 8); col (Line 9) (Span 4); col (Line 1) (Line (-1)); col (Span 4) Auto; col (Span 4) Auto; col (Span 4) Auto; col (Span 8) Auto ]
+          in
+          Alcotest.(check (pair int int)) "four rows of twelve" (4, 12) (rows, columns);
+          Alcotest.check cells "side by side; the wide one a row of its own; the cards in a row; what does not fit, on the next"
+            [ ((0, 0), (1, 8)); ((0, 8), (1, 4)); ((1, 0), (1, 12)); ((2, 0), (1, 4)); ((2, 4), (1, 4)); ((2, 8), (1, 4)); ((3, 0), (1, 8)) ]
+            (as_pairs placed);
+          let placed, _, _ =
+            Grid_layout.place ~rows:0 ~columns:3 ~areas:[]
+              [ Lines { row = (Line 1, Span 2); column = (Line 1, Auto) }; Auto_placed; Auto_placed; Auto_placed ]
+          in
+          Alcotest.check cells "one two rows high: the others go round it" [ ((0, 0), (2, 1)); ((0, 1), (1, 1)); ((0, 2), (1, 1)); ((1, 1), (1, 1)) ] (as_pairs placed));
       Testo.create "the worked example: Wikipedia's columns" (fun () ->
           let page = tracks "12.25rem minmax(0, 1fr)" in
           Alcotest.check sizes "196, and the fr the rest" [ 196.; 1180. ]

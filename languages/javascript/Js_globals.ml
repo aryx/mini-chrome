@@ -161,7 +161,7 @@ let symbol () : value =
 
 (* a Map's or a Set's constructor: each object made keeps its entries
  * (a Set's: its values, each its own key) in a list, the first first *)
-let collection ~(call : value -> this:value -> value list -> value) (name : string) ~(map : bool) : value =
+let collection ~(call : value -> this:value -> value list -> value) ~(items : value -> value list) (name : string) ~(map : bool) : value =
   let proto = new_object () in
   let make ~this args =
     let o = match this with Object o -> o | _ -> throw "TypeError" (Printf.sprintf "Constructor %s requires 'new'" name) in
@@ -177,27 +177,20 @@ let collection ~(call : value -> this:value -> value list -> value) (name : stri
         Bool there);
     def "clear" (fun _ -> entries := []; Undefined);
     def "forEach" (fun args -> List.iter (fun (k, v) -> ignore (call (arg args 0) ~this:(arg args 1) [ v; k; this ])) !entries; Undefined);
-    def "keys" (fun _ -> array (List.map fst !entries));
-    def "values" (fun _ -> array (List.map snd !entries));
-    def "entries" (fun _ -> array (List.map pair !entries));
+    def "keys" (fun _ -> Js_builtins.iterator (List.map fst !entries));
+    def "values" (fun _ -> Js_builtins.iterator (List.map snd !entries));
+    def "entries" (fun _ -> Js_builtins.iterator (List.map pair !entries));
     if map then (
       def "get" (fun args -> match List.find_opt (fun (k, _) -> same_value k (arg args 0)) !entries with Some (_, v) -> v | None -> Undefined);
       def "set" (fun args -> put (arg args 0) (arg args 1); this))
     else def "add" (fun args -> put (arg args 0) (arg args 0); this);
     (* what a for-of and a spread go through: a Map's pairs, a Set's values *)
-    set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> array (if map then List.map pair !entries else List.map fst !entries)));
+    set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Js_builtins.iterator (if map then List.map pair !entries else List.map fst !entries)));
     set_own o "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this:_ _ -> Number (float_of_int (List.length !entries))), Undefined) });
     (* new Map([[k, v], ...]), new Set([v, ...]) *)
     (match arg args 0 with
-    | Object ({ kind = Array _; _ } as a) -> List.iter (fun item -> if map then put (own item "0") (own item "1") else put item item) (array_items a)
-    | Object src -> (
-        match get_own src "@@iterator" with
-        | Some f -> (
-            match call f ~this:(Object src) [] with
-            | Object ({ kind = Array _; _ } as a) -> List.iter (fun item -> if map then put (own item "0") (own item "1") else put item item) (array_items a)
-            | _ -> ())
-        | None -> ())
-    | _ -> ());
+    | Undefined | Null -> ()
+    | src -> List.iter (fun item -> if map then put (own item "0") (own item "1") else put item item) (items src));
     Undefined
   in
   let c = fn name make in
@@ -243,7 +236,7 @@ let reflect ~(call : value -> this:value -> value list -> value) ~(lookup : stri
 (*****************************************************************************)
 
 let install ~(call : value -> this:value -> value list -> value) ~(lookup : string -> value option) ~(get : value -> string -> value)
-    ~(put : value -> string -> value -> unit) ~(has : value -> string -> bool) (define : string -> value -> unit) : unit =
+    ~(put : value -> string -> value -> unit) ~(has : value -> string -> bool) ~(items : value -> value list) (define : string -> value -> unit) : unit =
   let add name statics = match lookup name with Some (Object o) -> List.iter (fun (k, v) -> set_own o k v) statics | _ -> () in
   add "Object" object_statics;
   (* and what every object has from Object.prototype *)
@@ -266,19 +259,26 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
   (* typed arrays (ES2015) are arrays here: of zeros for a length, else
    * of the items given; no buffer under them, no wrapping of a number
    * too big for its type *)
+  (* what they all inherit from, as in an engine: Object.getPrototypeOf(Int8Array),
+   * whose prototype a library adds its methods to *)
+  let typed = match fn "TypedArray" (fun ~this:_ _ -> throw "TypeError" "Abstract class TypedArray not directly constructable") with Object o -> o | _ -> assert false in
+  set_own typed "prototype" (Object (new_object ()));
   List.iter
     (fun name ->
-      define name
-        (fn name (fun ~this:_ args ->
-             match arg args 0 with
-             | Number n -> array (List.init (max 0 (int_of_float n)) (fun _ -> Number 0.))
-             | Object ({ kind = Array _; _ } as a) -> array (array_items a)
-             | _ -> array [])))
+      let c =
+        fn name (fun ~this:_ args ->
+            match arg args 0 with
+            | Number n -> array (List.init (max 0 (int_of_float n)) (fun _ -> Number 0.))
+            | Object ({ kind = Array _; _ } as a) -> array (array_items a)
+            | _ -> array [])
+      in
+      (match c with Object c -> c.proto <- Some typed | _ -> ());
+      define name c)
     [ "Uint8Array"; "Int8Array"; "Uint8ClampedArray"; "Uint16Array"; "Int16Array"; "Uint32Array"; "Int32Array"; "Float32Array"; "Float64Array" ];
   define "Proxy" proxy;
   define "Reflect" (reflect ~call ~lookup ~get ~put ~has);
   define "Symbol" (symbol ());
-  define "Map" (collection ~call "Map" ~map:true);
-  define "WeakMap" (collection ~call "WeakMap" ~map:true);
-  define "Set" (collection ~call "Set" ~map:false);
-  define "WeakSet" (collection ~call "WeakSet" ~map:false)
+  define "Map" (collection ~call ~items "Map" ~map:true);
+  define "WeakMap" (collection ~call ~items "WeakMap" ~map:true);
+  define "Set" (collection ~call ~items "Set" ~map:false);
+  define "WeakSet" (collection ~call ~items "WeakSet" ~map:false)

@@ -3,7 +3,10 @@
 ; line of source at fault (Js_survey.mli). Not a test, run by hand:
 ;   dune build scripts/js/Js_survey.exe
 ;   ./_build/default/scripts/js/Js_survey.exe jquery.js hn.js ...
-(executable
- (name Js_survey)
+;
+; Page_scripts.exe: a saved page's scripts run with no window, their
+; console and their requests printed (Page_scripts.mli)
+(executables
+ (names Js_survey Page_scripts)
  (flags (:standard -open Network))
  (libraries unix lang_html javascript browser_www browser_dom network elm_playground elm_playground_software))

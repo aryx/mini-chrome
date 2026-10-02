@@ -4,7 +4,8 @@
 ; element's host object, Script_element its members since the first
 ; DOM, Script_events an event of a script's own, Script_document
 ; document, Script_window window and its globals, Script_fetch and
-; XMLHttpRequest a script asking the network; their types in
+; XMLHttpRequest a script asking the network, Script_url
+; URLSearchParams; their types in
 ; Script_types; Browser_script the tasks (the scripts run, an event
 ; dispatched, the timers) and what the browser asks of them.
 (library

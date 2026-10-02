@@ -56,8 +56,8 @@
    **Map and Set** keep their entries in a list, in the order they
    came: get and has look through it (SameValueZero: === but NaN is
    NaN). Right for the tens of entries a page has; a hash table is the
-   real one. keys(), values() and entries() give arrays, not iterators:
-   a for-of or a spread goes through them the same. WeakMap and WeakSet
+   real one. keys(), values() and entries() give iterators over what
+   was there when they were asked (Js_builtins.iterator). WeakMap and WeakSet
    are Map and Set: nothing is collected.
 
    **A proxy** (ES2015) is an object seen through a handler's traps:
@@ -86,12 +86,14 @@ val is_symbol : string -> bool
  * [define]d, their statics added to the constructors [lookup] finds
  * (Object, Array, Number: Js_builtins'); [call] a function called (a
  * Map's forEach); [get], [put] and [has], the interpreter's, through a
- * proxy's traps (Reflect's) *)
+ * proxy's traps (Reflect's); [items], of what can be gone through
+ * (new Set(iterable)) *)
 val install :
   call:(Js_value.value -> this:Js_value.value -> Js_value.value list -> Js_value.value) ->
   lookup:(string -> Js_value.value option) ->
   get:(Js_value.value -> string -> Js_value.value) ->
   put:(Js_value.value -> string -> Js_value.value -> unit) ->
   has:(Js_value.value -> string -> bool) ->
+  items:(Js_value.value -> Js_value.value list) ->
   (string -> Js_value.value -> unit) ->
   unit

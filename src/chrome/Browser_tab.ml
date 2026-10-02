@@ -274,22 +274,6 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       fetch_more cfg network
         ({ tab with queue = urls; sheet_urls = sheets @ tab.sheet_urls; media_urls = media @ tab.media_urls; total = List.length urls + List.length tab.in_flight }, cmd)
 
-(* the requests the page's scripts queued (XMLHttpRequest, fetch):
- * sent, logged; each one's answer comes back by its number ([got_answer]) *)
-let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cmd) : t * 'msg Cmd.t) : t * 'msg Cmd.t =
-  match tab.script with
-  | Some s -> (
-      match Browser_script.take_requests s with
-      | [] -> (tab, cmd)
-      | requests ->
-          let tab = List.fold_left (fun tab (r : Script_types.request) -> logged ~status:0 Fetch r.url tab) tab requests in
-          let send (r : Script_types.request) =
-            let k = cfg.got_answer r.rid r.url in
-            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post network r.url ~content_type ~body k | None -> Fetch.get network r.url k))
-          in
-          (tab, Cmd.batch (cmd :: List.map send requests)))
-  | None -> (tab, cmd)
-
 let load_images cfg network tab = with_pictures cfg network ({ tab with images = true }, Cmd.none)
 
 (*****************************************************************************)
@@ -338,6 +322,33 @@ let visit ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : stri
   | Shown p when post = None && fragment <> None && target = fst (Browser_url.split_fragment p.url) ->
       (to_fragment cfg (relaid cfg tab), Cmd.none)
   | _ -> load ?post cfg network target tab
+
+(* what a task of the page's scripts leaves for the browser to do: the
+ * requests they queued (XMLHttpRequest, fetch) sent and logged, each
+ * one's answer to come back by its number ([got_answer]); and the page
+ * left for another, if a script said so (location.href = url) *)
+let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cmd) : t * 'msg Cmd.t) : t * 'msg Cmd.t =
+  match tab.script with
+  | Some s -> (
+      let navigation = Browser_script.take_navigation s in
+      let tab, cmd =
+      match Browser_script.take_requests s with
+      | [] -> (tab, cmd)
+      | requests ->
+          let tab = List.fold_left (fun tab (r : Script_types.request) -> logged ~status:0 Fetch r.url tab) tab requests in
+          let send (r : Script_types.request) =
+            let k = cfg.got_answer r.rid r.url in
+            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post network r.url ~content_type ~body k | None -> Fetch.get network r.url k))
+          in
+          (tab, Cmd.batch (cmd :: List.map send requests))
+      in
+      match navigation with
+      | Some (url, replace) ->
+          Logs.info (fun m -> m "a script goes to %s" url);
+          let tab, go = if replace then load cfg network url tab else visit cfg network url tab in
+          (tab, Cmd.batch [ cmd; go ])
+      | None -> (tab, cmd))
+  | None -> (tab, cmd)
 
 let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (tab : t) : t * 'msg Cmd.t =
   match e.kept with

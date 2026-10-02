@@ -35,6 +35,22 @@ let obj_of (fields : (string * value) list) : value =
 let fn = host_function
 let array (vs : value list) : value = Object (new_array vs)
 
+(* an iterator over values known already: next() gives each as
+ * { value, done: false }, then { done: true }; it is its own
+ * [Symbol.iterator]() -- what an array's values(), a Map's keys() give *)
+let iterator (vs : value list) : value =
+  let left = ref vs in
+  let o = new_object () in
+  set_own o "next"
+    (fn "next" (fun ~this:_ _ ->
+         let r = new_object () in
+         (match !left with
+         | v :: rest -> left := rest; set_own r "value" v; set_own r "done" (Bool false)
+         | [] -> set_own r "value" Undefined; set_own r "done" (Bool true));
+         Object r));
+  set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Object o));
+  Object o
+
 (* a string's this, as the method sees it *)
 let this_string (this : value) : string = to_string this
 
@@ -284,6 +300,12 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
   let each (arr : obj) (f : value) (k : value -> int -> unit) : unit =
     List.iteri (fun i v -> k (call f ~this:Undefined [ v; Number (float_of_int i); Object arr ]) i) (array_items arr)
   in
+  (* its iterators: of its items, its indices, its pairs *)
+  let indices arr = List.mapi (fun i _ -> Number (float_of_int i)) (array_items arr) in
+  def "@@iterator" (fun arr _ _ -> iterator (array_items arr));
+  def "values" (fun arr _ _ -> iterator (array_items arr));
+  def "keys" (fun arr _ _ -> iterator (indices arr));
+  def "entries" (fun arr _ _ -> iterator (List.map2 (fun i v -> array [ i; v ]) (indices arr) (array_items arr)));
   def "push" (fun arr items args ->
       set_items items (array_items arr @ args);
       Number (float_of_int items.length));
@@ -570,7 +592,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
          (* a text read into values (Js_json) *)
          ("parse", fn "parse" (fun ~this:_ args -> Js_json.parse (to_string (arg args 0)))) ]);
   constructor "Object"
-    (fun ~this:_ args -> match arg args 0 with Object _ as o -> o | _ -> Object (new_object ()))
+    (fun ~this:_ args -> match arg args 0 with (Object _ | Symbol _) as o -> o | _ -> Object (new_object ()))
     objects
     [ ("create",
        fn "create" (fun ~this:_ args ->

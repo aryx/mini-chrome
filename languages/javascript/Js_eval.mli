@@ -141,6 +141,9 @@ val call_in_run : t -> Js_value.value -> this:Js_value.value -> Js_value.value l
 val get : t -> Js_value.value -> string -> Js_value.value
 val promise : t -> Js_value.value * (Js_value.value -> unit) * (Js_value.value -> unit)
 
+(* the items of what can be gone through (an array, a Set, a generator) *)
+val items : t -> Js_value.value -> Js_value.value list
+
 (* a global, read and defined (the host's: document, and window's) *)
 val global : t -> string -> Js_value.value option
 val define : t -> string -> Js_value.value -> unit

@@ -64,6 +64,10 @@ let tests =
           Alcotest.(check (list bool)) "max-width 800, min-width 600, print, not print, screen and (min-width: 1000px), print or screen"
             [ false; true; false; true; false; true ]
             (List.map query [ "(max-width: 800px)"; "(min-width: 600px)"; "print"; "not print"; "screen and (min-width: 1000px)"; "print, screen" ]);
+          Alcotest.(check (list bool)) "Level 4's ranges: width >= 768px, width<=calc(48rem - .02px), 600px <= width <= 1000px, width < 976px, height > 100px, screen and (width>=48rem)"
+            [ true; false; true; false; true; true ]
+            (List.map query [ "(width >= 768px)"; "(width<=calc(48rem - .02px))"; "(600px <= width <= 1000px)"; "(width < 976px)"; "(height > 100px)"; "screen and (width>=48rem)" ]);
+          Alcotest.check color "a rule in a @layer counts" (255, 0, 0) (rgb (style "@layer base { p { color: red } }" "<p id=p>" "p").color);
           Alcotest.check color "a rule for phones asleep" (0, 0, 0)
             (rgb (style "@media (max-width: 800px) { p { color: red } }" "<p id=p>" "p").color));
       Testo.create "the browser's own sheet" (fun () ->

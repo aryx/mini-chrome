@@ -138,7 +138,8 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
                 match global "document" with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
             | "scrollTo" | "scrollBy" | "scroll" | "focus" | "blur" -> fn k (fun _ -> Undefined)
             | k -> global k);
-        set = (fun k v -> Js_eval.define t.engine k v);
+        (* window.location = url goes there, as location.href = url *)
+        set = (fun k v -> match (k, v) with "location", String url -> t.navigation <- Some (Browser_url.resolve t.base url, false) | _ -> Js_eval.define t.engine k v);
         show = (fun () -> "Window");
       }
   in

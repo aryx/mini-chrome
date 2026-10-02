@@ -43,6 +43,8 @@ val node_of : t -> value -> node
  * hash, origin), with searchParams and toString; the page's own *)
 val url_parts : string -> (string * string) list
 val url_object : string -> value
+(* location: its parts, and href =, assign, replace, reload, which note
+ * where the script sends the page (the page's state's navigation) *)
 val location : t -> value
 
 (* the first element named so, at any depth *)

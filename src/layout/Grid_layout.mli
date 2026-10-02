@@ -82,6 +82,11 @@
  * many of each *)
 type cell = { row : int; column : int; rows : int; columns : int }
 
+(* an item along one axis of so many tracks: its first track (from 0)
+ * if its lines say one, and how many it takes -- "1 / span 4" is
+ * (Some 0, 4), "span 2" (None, 2), "1 / -1" of 12 tracks (Some 0, 12) *)
+val along : int -> Css_grid.line * Css_grid.line -> int option * int
+
 (* [place ~rows ~columns ~areas placements]: each item's cells, in the
  * items' order, and the grid's rows and columns: at least [rows] by
  * [columns] (the tracks the style sheet says), and those the areas and

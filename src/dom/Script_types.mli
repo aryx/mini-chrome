@@ -53,6 +53,12 @@ type t = {
   (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
   mutable waiting : (int * ((answer, string) result -> unit)) list;
   mutable next_request : int;
+  (* where a script sent the page (location.href = ..., location.replace):
+   * the address, and whether it takes the page's place in the history *)
+  mutable navigation : (string * bool) option;
+  (* the <script> element whose script is running: document.currentScript,
+   * how a loader finds where its own file came from *)
+  mutable current_script : node option;
   (* document.cookie, read and assigned to: the browser's jar,
    * for the page's address, without its HttpOnly cookies *)
   cookies : (unit -> string) * (string -> unit);

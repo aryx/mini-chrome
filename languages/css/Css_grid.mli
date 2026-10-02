@@ -41,9 +41,18 @@
    Read: grid-template-columns and -rows (lengths, fr, min-content,
    max-content, auto, minmax(), repeat(n, ...), fit-content() as auto),
    grid-template-areas, the shorthand grid-template as "rows / columns"
-   (Computed cuts it), and grid-area as a name or as "row / column".
-   Not read: line names ("[main-start]"), repeat(auto-fill, ...),
-   spans ("span 2"), grid-row and grid-column, grid-auto-flow (rows),
+   (Computed cuts it), grid-area as a name or as its four lines, and
+   grid-row and grid-column as "start / end", each a line's number
+   (negative from the end: "1 / -1" is the whole width) or "span n" --
+   how a page on a grid of twelve columns says "this one takes four":
+
+     .lead  { grid-column: 1 / span 8 }     columns 1 to 8
+     .side  { grid-column: 9 / span 4 }     columns 9 to 12
+     .wide  { grid-column: 1 / -1 }         all of them
+     .card  { grid-column: span 3 }         three, wherever is free
+
+   Not read: line names ("[main-start]"), repeat(auto-fill, ...), the
+   four longhands (grid-row-start...), grid-auto-flow (rows),
    grid-auto-rows and -columns (auto).
 
    Reference: W3C, CSS Grid Layout Module Level 1, sections 7.2 (the
@@ -67,9 +76,21 @@ val tracks : Css_values.context -> Css_syntax.component list -> track list
  * cell of no area) *)
 val areas : Css_syntax.component list -> string list list
 
-(* where an item goes: where the next free cell is, in the area of that
- * name, or at a row and a column (from 1, as CSS counts its lines) *)
-type placement = Auto_placed | Area of string | Cell of { row : int; column : int }
+(* one end of an item along an axis: wherever (auto), at a line of the
+ * grid -- counted from 1, the first track being between lines 1 and 2;
+ * negative from the end, -1 the last line -- or so many tracks from
+ * its other end ("span 3") *)
+type line = Auto | Line of int | Span of int
 
-(* grid-area's value *)
+(* where an item goes: where the next free cell is, in the area of that
+ * name, or between lines: its start and its end along the rows, and
+ * along the columns *)
+type placement = Auto_placed | Area of string | Lines of { row : line * line; column : line * line }
+
+(* grid-area's value: a name, or row-start / column-start / row-end /
+ * column-end *)
 val placement : Css_syntax.component list -> placement
+
+(* grid-row's or grid-column's value, "start / end": "2", "1 / 3",
+ * "1 / span 4", "span 2", "1 / -1" *)
+val axis : Css_syntax.component list -> line * line

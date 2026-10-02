@@ -60,7 +60,7 @@ let document (t : t) : value =
           | "images" -> named "img"
           | "links" -> named "a"
           | "styleSheets" -> nodes_array t []
-          | "currentScript" -> Null
+          | "currentScript" -> ( match t.current_script with Some s -> wrap t s | None -> Null)
           | "createDocumentFragment" -> method_ k (fun _ -> wrap t (make fragment_name))
           | "createComment" -> method_ k (fun args -> wrap t (make comment_name ~text:(str (arg args 0))))
           | "createElementNS" -> method_ k (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 1)))))

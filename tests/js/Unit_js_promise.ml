@@ -119,4 +119,11 @@ let tests =
             function depth(n) { return n === 0 ? 0 : 1 + depth(n - 1) }
             (async () => { log(depth(1500)); try { depth(5000) } catch (e) { log(e.name) } })()|} "1500 | RangeError")
       ;
+      Testo.create "for await" (fun () ->
+          check "each item awaited, in order; the caller goes on meanwhile" {|
+            (async () => { for await (const x of [Promise.resolve(1), 2, new Promise(r => r(3))]) log(x); log('end') })(); log('out')|} "out | 1 | 2 | 3 | end";
+          check "what gives its items late itself: Symbol.asyncIterator" {|
+            const ticks = { [Symbol.asyncIterator]() { let n = 0; return { next() { return Promise.resolve(n < 2 ? { value: 't' + n++, done: false } : { done: true }) } } } };
+            (async () => { for await (const t of ticks) log(t); for await (const t of ticks) { log('once ' + t); break } })()|} "t0 | t1 | once t0";
+          check "a rejection is the loop's to catch" {|(async () => { try { for await (const x of [1, Promise.reject('no')]) log(x) } catch (e) { log('caught ' + e) } })()|} "1 | caught no");
     ]

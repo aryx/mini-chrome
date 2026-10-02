@@ -34,6 +34,8 @@ type expr =
   | Regex of string * string
   | Template of string list * expr list
   | Spread of expr
+  | Tagged of expr * string list * expr list
+  | Yield of bool * expr option
   | Class of class_
   | Super_call of expr list
   | Super_member of string
@@ -47,6 +49,7 @@ and func = {
   rest : pattern option;
   body : stmt list;
   arrow : bool;
+  generator : bool;
   async : bool;
 }
 
@@ -61,7 +64,7 @@ and key = Key of string | Computed of expr
 and class_ = { class_name : string option; parent : expr option; ctor : func option; members : member list }
 
 and member = { static : bool; key : key; what : member_kind }
-and member_kind = Method of func | Get of func | Set of func | Field of expr option
+and member_kind = Method of func | Get of func | Set of func | Field of expr option | Static_block of stmt list
 
 and pattern =
   | Bind of string
@@ -90,6 +93,7 @@ and statement =
   | Throw of expr
   | Try of stmt list * (string option * stmt list) option * stmt list option
   | For_of of let_kind * pattern * expr * stmt
+  | For_await of let_kind * pattern * expr * stmt
   | Class_decl of class_
 
 and for_target = Declared of let_kind * string | Target of expr
@@ -144,6 +148,8 @@ let rec expr_to_string (e : expr) : string =
   | Function { arrow = true; async; params; rest = None; body = [ { stmt = Return (Some e); _ } ]; _ } ->
       p "%s(%s) => %s" (if async then "async " else "") (list param_to_string params) (expr_to_string e)
   | Spread e -> "..." ^ expr_to_string e
+  | Tagged (tag, strings, es) -> p "%s`%s`%s" (expr_to_string tag) (String.concat "${}" strings) (if es = [] then "" else p " [%s]" (list expr_to_string es))
+  | Yield (delegate, e) -> p "(yield%s%s)" (if delegate then "*" else "") (match e with Some e -> " " ^ expr_to_string e | None -> "")
   | Opt e -> expr_to_string e ^ "?"
   | Optional e -> expr_to_string e
   | Await e -> p "(await %s)" (expr_to_string e)
@@ -180,7 +186,8 @@ and class_to_string (c : class_) : string =
                | Get f -> " get " ^ func_to_string f
                | Set f -> " set " ^ func_to_string f
                | Field (Some e) -> " = " ^ expr_to_string e
-               | Field None -> "")
+               | Field None -> ""
+               | Static_block body -> " " ^ body_to_string body)
            c.members))
 
 and key_to_string (k : key) : string = match k with Key k -> k | Computed e -> "[" ^ expr_to_string e ^ "]"
@@ -199,7 +206,7 @@ and param_to_string ((pt, default) : pattern * expr option) : string =
 
 and func_to_string (f : func) : string =
   Printf.sprintf "%s%s [%s] [%s]"
-    ((if f.async then "Async " else "") ^ if f.arrow then "Arrow" else "Function")
+    ((if f.async then "Async " else "") ^ if f.arrow then "Arrow" else if f.generator then "Generator" else "Function")
     (match f.name with Some n -> " " ^ n | None -> "")
     (String.concat "; " (List.map param_to_string f.params @ match f.rest with Some r -> [ "..." ^ pattern_to_string r ] | None -> []))
     (body_to_string f.body)
@@ -224,6 +231,7 @@ and stmt_to_string (s : stmt) : string =
   | With (o, b) -> p "With (%s, %s)" (e o) (stmt_to_string b)
   | For (init, test, update, b) ->
       p "For (%s, %s, %s, %s)" (opt stmt_to_string init) (opt e test) (opt e update) (stmt_to_string b)
+  | For_await (k, x, xs, b) -> "await " ^ stmt_to_string { s with stmt = For_of (k, x, xs, b) }
   | For_of (k, x, xs, b) -> p "For_of (%s %s, %s, %s)" (kind_to_string k) (pattern_to_string x) (e xs) (stmt_to_string b)
   | For_in (Declared (k, x), o, b) -> p "For_in (%s %s, %s, %s)" (kind_to_string k) x (e o) (stmt_to_string b)
   | For_in (Target x, o, b) -> p "For_in (%s, %s, %s)" (e x) (e o) (stmt_to_string b)

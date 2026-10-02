@@ -57,6 +57,10 @@
  * Array.prototype.indexOf.call(a, x)), or adds its own *)
 type protos = { strings : Js_value.obj; arrays : Js_value.obj; objects : Js_value.obj; functions : Js_value.obj; regexps : Js_value.obj; numbers : Js_value.obj }
 
+(* an iterator over these values: next(), and itself as its
+ * [Symbol.iterator]() *)
+val iterator : Js_value.value list -> Js_value.value
+
 (* a RegExp object of [re], its prototype [proto]: a literal's *)
 val regexp_value : Js_value.obj -> Js_regexp.t -> Js_value.value
 

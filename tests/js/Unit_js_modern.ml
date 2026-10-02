@@ -93,4 +93,53 @@ let tests =
           check "a getter alone: assigning does nothing" "var o = { get now() { return 7 } }; o.now = 1; o.now" "7";
           check "inherited" "var base = { get full() { return this.first + ' ' + this.last } }; var p = Object.create(base); p.first = 'Ada'; p.last = 'L'; [p.full]" "[\"Ada L\"]";
           check "++ on one" "var n = 0; var o = { get c() { return n }, set c(x) { n = x } }; o.c++; o.c += 10; n" "11");
+      Testo.create "tagged templates" (fun () ->
+          check "the tag is called with the strings, then each value" {|function tag(strings, a, b) { return strings.join('|') + ' ' + a + ' ' + b + ' ' + strings.raw.length }
+            tag`x${1}y${2}z`|} "x|y|z 1 2 3";
+          check "a method as a tag keeps its object; no value at all" {|var o = { p: '<', t(s) { return this.p + s[0] + '>' } }; [o.t`in`, (s => s.length)`a`]|} {|["<in>", 1]|};
+          check "what a styling library does with one" {|function css(strings) { var vs = [].slice.call(arguments, 1); return strings.map(function (s, i) { return s + (vs[i] || '') }).join('') }
+            var c = 'red'; css`color: ${c}; margin: ${4}px`|} "color: red; margin: 4px");
+      Testo.create "logical assignment" (fun () ->
+          check "only when it would change something" {|var a = 0, b = 1, c = null, d = 2, calls = 0; function v() { calls++; return 9 }
+            a ||= v(); b ||= v(); c ??= v(); d ??= v(); b &&= v(); a &&= 5; [a, b, c, d, calls]|} "[5, 9, 9, 2, 3]";
+          check "on a property" {|var o = { n: 0 }; o.n ||= 7; o.m ??= []; o.m.push(1); [o.n, o.m]|} "[7, [1]]");
+      Testo.create "generators" (fun () ->
+          check "the body runs a yield at a time; what next() gives" {|var log = [];
+            function* g() { log.push('start'); var x = yield 1; log.push('got ' + x); yield 2; return 3 }
+            var it = g(); log.push('made'); var a = it.next(); var b = it.next('hello'); var c = it.next(); var d = it.next();
+            [log, [a.value, a.done], [b.value, b.done], [c.value, c.done], [d.value, d.done]]|}
+            {|[["made", "start", "got hello"], [1, false], [2, false], [3, true], [undefined, true]]|};
+          check "in a for-of, a spread, a pattern, Array.from" {|function* upto(n) { for (var i = 1; i <= n; i++) yield i }
+            var sum = 0; for (var x of upto(4)) sum += x; var [a, b] = upto(9); [sum, [...upto(3)], a, b, Array.from(upto(2)), Math.max(...upto(5))]|}
+            "[10, [1, 2, 3], 1, 2, [1, 2], 5]";
+          check "one that never ends, left by a break: its finally runs" {|var log = [];
+            function* naturals() { var n = 0; try { while (true) yield n++ } finally { log.push('closed') } }
+            for (var n of naturals()) { if (n === 3) break } log.push(n); log|} {|["closed", 3]|};
+          check "yield* gives each of another; a method; an object's own iterator" {|
+            function* inner() { yield 'a'; yield 'b' }
+            var o = { *each() { yield 0; yield* inner(); yield* [1, 2] }, [Symbol.iterator]: function* () { yield 'x'; yield 'y' } };
+            class Tree { constructor(v, kids) { this.v = v; this.kids = kids || [] } *[Symbol.iterator]() { yield this.v; for (var k of this.kids) yield* k } }
+            [[...o.each()], [...o], [...new Tree(1, [new Tree(2, [new Tree(3)]), new Tree(4)])]]|} {|[[0, "a", "b", 1, 2], ["x", "y"], [1, 2, 3, 4]]|};
+          check "throw() into one; return() ends it; a throw inside is next()'s" {|
+            function* g() { try { yield 1 } catch (e) { yield 'caught ' + e } yield 3 }
+            var a = g(); a.next(); var caught = a.throw('boom').value; var ended = a.return(7); var after = a.next();
+            function* bad() { yield 1; throw new Error('inside') } var b = bad(); b.next(); var said; try { b.next() } catch (e) { said = e.message }
+            [caught, [ended.value, ended.done], after.done, said]|} {|["caught boom", [7, true], true, "inside"]|};
+          check "yield is a name elsewhere" {|var yield = 5; yield + 1|} "6");
+      Testo.create "the iteration protocol" (fun () ->
+          check "an object with next(), by hand" {|var countdown = { [Symbol.iterator]() { var n = 3; return { next() { return n > 0 ? { value: n--, done: false } : { value: undefined, done: true } } } } };
+            [[...countdown], Array.from(countdown, x => x * 2)]|} "[[3, 2, 1], [6, 4, 2]]";
+          check "an array's iterators; a Map's and a Set's" {|var it = ['a', 'b'][Symbol.iterator](); var first = it.next().value;
+            var m = new Map([['k', 1], ['l', 2]]);
+            [first, [...['x', 'y'].entries()], [...['x', 'y'].keys()], m.keys().next().value, [...m.values()], [...new Set(m.keys())], new Map(m).get('l'), [...new Set('aab')]]|}
+            {|["a", [[0, "x"], [1, "y"]], [0, 1], "k", [1, 2], ["k", "l"], 2, ["a", "b"]]|};
+          check "what is not iterable" {|var r; try { [...{}] } catch (e) { r = e.name } r|} "TypeError");
+      Testo.create "names and spaces beyond ASCII" (fun () ->
+          check "a name in another alphabet; a no-break space between tokens" "var caf\xc3\xa9 = 1, \xcf\x80 = 3;\xc2\xa0caf\xc3\xa9 + \xcf\x80" "4");
+      Testo.create "classes: a static block, one with no name that extends" (fun () ->
+          check "static { }: run once, this the class" {|class A { static count = 1; static { this.count += 10; this.made = typeof A } } [A.count, A.made]|} {|[11, "function"]|};
+          check "class extends B { } as a value" {|class B { hi() { return 'b' } } var C = class extends B { hi() { return super.hi() + 'c' } }; new C().hi()|} "bc");
+      Testo.create "in, inside a for's first part" (fun () ->
+          check "between brackets and in a function's body it is the operator" {|var o = { x: 1 }, r = [];
+            for (var i = 0, a = ['x' in o], f = function () { return 'y' in o }, t = ('x' in o); i < 1; i++) r.push(a[0], f(), t); r|} "[true, false, true]");
     ]

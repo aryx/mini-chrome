@@ -64,14 +64,27 @@ let areas (value : component list) : string list list =
       | _ -> None)
     value
 
-type placement = Auto_placed | Area of string | Cell of { row : int; column : int }
+type line = Auto | Line of int | Span of int
+type placement = Auto_placed | Area of string | Lines of { row : line * line; column : line * line }
+
+(* a line's word: a number, "span n", or auto *)
+let line (cs : component list) : line =
+  match Css_values.parts cs with
+  | [ Token (Number n) ] when n <> 0. -> Line (int_of_float n)
+  | [ Token (Ident span); Token (Number n) ] when String.lowercase_ascii span = "span" && n >= 1. -> Span (int_of_float n)
+  | [ Token (Ident span) ] when String.lowercase_ascii span = "span" -> Span 1
+  | _ -> Auto
+
+let axis (value : component list) : line * line =
+  match split_on (Delim '/') value with [ one ] -> (line one, Auto) | first :: last :: _ -> (line first, line last) | [] -> (Auto, Auto)
 
 let placement (value : component list) : placement =
-  let line (cs : component list) = match Css_values.parts cs with [ Token (Number n) ] when n >= 1. -> Some (int_of_float n) | _ -> None in
   match split_on (Delim '/') value with
   | [ one ] -> (
       match Css_values.parts one with
-      | [ Token (Ident name) ] when String.lowercase_ascii name <> "auto" -> Area name
-      | _ -> ( match line one with Some row -> Cell { row; column = 1 } | None -> Auto_placed))
-  | row :: column :: _ -> ( match (line row, line column) with Some row, Some column -> Cell { row; column } | _ -> Auto_placed)
-  | [] -> Auto_placed
+      | [ Token (Ident name) ] when (match String.lowercase_ascii name with "auto" | "span" -> false | _ -> true) -> Area name
+      | _ -> ( match line one with Auto -> Auto_placed | l -> Lines { row = (l, Auto); column = (Auto, Auto) }))
+  (* row-start / column-start / row-end / column-end *)
+  | parts ->
+      let at i = match List.nth_opt parts i with Some cs -> line cs | None -> Auto in
+      Lines { row = (at 0, at 2); column = (at 1, at 3) }

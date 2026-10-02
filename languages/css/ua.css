@@ -51,3 +51,7 @@ a:visited       { color: #551A8B; text-decoration: underline }
 button, input[type=submit], input[type=button], input[type=reset] { padding: 1px 6px; border: 2px outset #c0c0c0; background-color: #e0e0e0 }
 input, textarea, select { border: 2px inset #c0c0c0; padding: 1px 2px; background-color: white }
 mark            { background-color: yellow }
+/* <details>: folded until it is opened -- only its <summary> shows.
+   (Opening it is a click on the summary, which sets its open
+   attribute: the browser's, not done yet.) */
+details:not([open]) > :not(summary) { display: none }

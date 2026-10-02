@@ -115,6 +115,8 @@ let instance_of (ps : Js_builtins.protos) (v : value) (f : value) : bool =
   | Object o, Object p ->
       let rec up (x : obj) = match proto_of ps x with Some q -> q == p || up q | None -> false in
       up o
+  (* a symbol is one of Symbol's *)
+  | Symbol _, _ -> ( match f with Object { kind = Host_function ("Symbol", _); _ } -> true | _ -> false)
   | _ -> false
 
 let rec set (target : value) (k : string) (v : value) : unit =

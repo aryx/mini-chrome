@@ -47,7 +47,7 @@ let tests =
             {|["hidden", ["a"], 1, "[\"a\"]"]|};
           check "React's test" {|var hasSymbol = typeof Symbol === 'function' && Symbol.for; var el = hasSymbol ? Symbol.for('react.element') : 0xeac7; typeof el|} {|symbol|});
       Testo.create "Map and Set" (fun () ->
-          check "a Map: any value as a key, in the order set" {|var k = {}, m = new Map(); m.set('a', 1).set(k, 2).set(NaN, 3); m.set('a', 10); [m.get('a'), m.get(k), m.get(NaN), m.get({}), m.has(k), m.size, m.keys().length]|}
+          check "a Map: any value as a key, in the order set" {|var k = {}, m = new Map(); m.set('a', 1).set(k, 2).set(NaN, 3); m.set('a', 10); [m.get('a'), m.get(k), m.get(NaN), m.get({}), m.has(k), m.size, [...m.keys()].length]|}
             "[10, 2, 3, undefined, true, 3, 3]";
           check "delete, clear" {|var m = new Map([[1, 'one'], [2, 'two']]); var gone = [m.delete(1), m.delete(1)]; var left = m.size; m.clear(); [gone, left, m.size]|} "[[true, false], 1, 0]";
           check "a for-of, a pattern, a spread, forEach" {|var m = new Map([['a', 1], ['b', 2]]); var r = []; for (const [k, v] of m) r.push(k + v); m.forEach(function (v, k) { r.push(k + '=' + v) }); [r, [...m].length, [...m.keys()]]|}

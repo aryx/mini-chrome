@@ -317,7 +317,11 @@ small page (`uses` in `Js_survey.ml`: a library that loads is not yet
 one that works). When a feature changes a
 site's or a script's colour, change its cell, and the date.
 `scripts/sites/dump_sites.sh` dumps them all to look at;
-`scripts/js/Js_survey.exe` runs the scripts.
+`scripts/js/Js_survey.exe` runs the scripts, and
+`scripts/js/Page_scripts.exe` a saved page's own, with no window: the
+way to find what a real site's script stops on (`mini-curl -o` the
+page, run it, read the first error; `-v` on the browser itself says
+the same console).
 
 ## The budget
 

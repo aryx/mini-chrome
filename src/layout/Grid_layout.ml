@@ -29,35 +29,71 @@ let area_of (areas : string list list) (name : string) : cell option =
     areas;
   Option.map (fun (r0, c0, r1, c1) -> { row = r0; column = c0; rows = r1 - r0 + 1; columns = c1 - c0 + 1 }) !found
 
+(* an item along one axis of [n] tracks said: its first track if it
+ * says one (from 0), and how many it takes *)
+let along (n : int) ((first, last) : Css_grid.line * Css_grid.line) : int option * int =
+  (* a line as an index: 1 is before track 0; -1 after the last *)
+  let index k = if k > 0 then k - 1 else max 0 (n + 1 + k) in
+  match (first, last) with
+  | Line a, Line b -> let a = index a and b = index b in (Some (min a b), max 1 (abs (b - a)))
+  | Line a, Span k -> (Some (index a), k)
+  | Line a, Auto -> (Some (index a), 1)
+  | Span k, Line b -> (Some (max 0 (index b - k)), k)
+  | Auto, Line b -> (Some (max 0 (index b - 1)), 1)
+  | (Span k, _ | Auto, Span k) -> (None, k)
+  | Auto, Auto -> (None, 1)
+
 let place ~(rows : int) ~(columns : int) ~(areas : string list list) (placements : Css_grid.placement list) : cell list * int * int =
+  let said_rows = max rows (List.length areas) in
   let columns = List.fold_left (fun m row -> max m (List.length row)) (max 1 columns) areas in
-  (* where an item says it goes; a name that no area has is no place *)
-  let said (p : Css_grid.placement) : cell option =
+  (* what an item says: its first row and column if it says them, and
+   * how many of each; a name that no area has says nothing *)
+  let said (p : Css_grid.placement) : int option * int * int option * int =
     match p with
-    | Area name -> area_of areas name
-    | Cell { row; column } -> Some { row = row - 1; column = column - 1; rows = 1; columns = 1 }
-    | Auto_placed -> None
+    | Area name -> ( match area_of areas name with Some c -> (Some c.row, c.rows, Some c.column, c.columns) | None -> (None, 1, None, 1))
+    | Lines { row; column } ->
+        let r, rs = along said_rows row and c, cs = along columns column in
+        (r, rs, c, cs)
+    | Auto_placed -> (None, 1, None, 1)
   in
-  let explicit = List.map said placements in
-  let columns = List.fold_left (fun m c -> match c with Some c -> max m (c.column + c.columns) | None -> m) columns explicit in
+  let wanted = List.map said placements in
+  (* as many columns as the widest item needs *)
+  let columns = List.fold_left (fun m (_, _, c, cs) -> max m (Option.value c ~default:0 + cs)) columns wanted in
   let taken : (int * int, unit) Hashtbl.t = Hashtbl.create 16 in
   let take (c : cell) = for r = c.row to c.row + c.rows - 1 do for k = c.column to c.column + c.columns - 1 do Hashtbl.replace taken (r, k) () done done in
-  List.iter (Option.iter take) explicit;
-  (* the others: the next free cell, row by row *)
+  let free r c rs cs =
+    c + cs <= columns
+    && (let ok = ref true in
+        for i = r to r + rs - 1 do for k = c to c + cs - 1 do if Hashtbl.mem taken (i, k) then ok := false done done;
+        !ok)
+  in
+  (* those that say both first: the others go round them *)
+  List.iter (fun w -> match w with Some r, rs, Some c, cs -> take { row = r; column = c; rows = rs; columns = cs } | _ -> ()) wanted;
+  (* the others, in order: the next place that is free, row by row from
+   * where the last one went *)
   let cursor = ref 0 in
   let cells =
     List.map
-      (fun (c : cell option) ->
-        match c with
-        | Some c -> c
-        | None ->
-            while Hashtbl.mem taken (!cursor / columns, !cursor mod columns) do incr cursor done;
-            let c = { row = !cursor / columns; column = !cursor mod columns; rows = 1; columns = 1 } in
-            take c;
-            c)
-      explicit
+      (fun (w : int option * int * int option * int) ->
+        match w with
+        | Some r, rs, Some c, cs -> { row = r; column = c; rows = rs; columns = cs }
+        | r, rs, c, cs ->
+            let rec find (at : int) : cell =
+              let row = at / columns and column = at mod columns in
+              let row_ok = match r with Some r -> row = r | None -> true and column_ok = match c with Some c -> column = c | None -> true in
+              if row_ok && column_ok && free row column rs cs then { row; column; rows = rs; columns = cs }
+              (* a row said and no room left in it: at its end, the grid wider *)
+              else if (match r with Some r -> row > r | None -> false) then { row = Option.get r; column = columns; rows = rs; columns = cs }
+              else find (at + 1)
+            in
+            let cell = find (match r with Some r -> r * columns | None -> !cursor) in
+            if r = None then cursor := (cell.row * columns) + cell.column;
+            take cell;
+            cell)
+      wanted
   in
-  let rows = List.fold_left (fun m (c : cell) -> max m (c.row + c.rows)) (max rows (List.length areas)) cells in
+  let rows = List.fold_left (fun m (c : cell) -> max m (c.row + c.rows)) said_rows cells in
+  let columns = List.fold_left (fun m (c : cell) -> max m (c.column + c.columns)) columns cells in
   (cells, rows, columns)
 
 (*****************************************************************************)

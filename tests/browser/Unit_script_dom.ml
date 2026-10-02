@@ -128,4 +128,35 @@ let tests =
               history.pushState({}, "", "/x");
               [localStorage.getItem("k"), localStorage.getItem("nope"), localStorage.length, sessionStorage.length, matchMedia("(min-width: 1px)").matches, typeof performance.now(), typeof requestAnimationFrame]|}
             {|["1", null, 2, 0, false, "number", "function"]|});
+      Testo.create "a script sends the page elsewhere" (fun () ->
+          let t = Browser_script.create ~base:"http://site.test/a/page.html?q=1#top" (Html_tree.of_string "<body></body>") in
+          let ask s = match Browser_script.eval t s with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in
+          Alcotest.(check string) "location's parts" {|["http:", "site.test", "/a/page.html", "?q=1", "#top", "http://site.test"]|}
+            (ask "[location.protocol, location.host, location.pathname, location.search, location.hash, location.origin]");
+          Alcotest.(check (option (pair string bool))) "nowhere yet" None (Browser_script.take_navigation t);
+          ignore (ask {|location.href = "next.html"|});
+          Alcotest.(check (option (pair string bool))) "href =: there, the page left kept in the history" (Some ("http://site.test/a/next.html", false)) (Browser_script.take_navigation t);
+          Alcotest.(check (option (pair string bool))) "taken once" None (Browser_script.take_navigation t);
+          ignore (ask {|location.replace("/other")|});
+          Alcotest.(check (option (pair string bool))) "replace: in its place" (Some ("http://site.test/other", true)) (Browser_script.take_navigation t);
+          ignore (ask {|window.location = "https://else.test/"; location.assign("last")|});
+          Alcotest.(check (option (pair string bool))) "the last said wins" (Some ("http://site.test/a/last", false)) (Browser_script.take_navigation t));
+      Testo.create "URLSearchParams" (fun () ->
+          check "the worked example" {|const p = new URLSearchParams("q=caf%C3%A9+au+lait&lang=fr"); const q = p.get("q");
+            p.set("lang", "en"); p.append("page", 2); [q, p.toString(), new URLSearchParams({ a: 1, b: "x y" }).toString()]|}
+            {|["café au lait", "q=caf%C3%A9+au+lait&lang=en&page=2", "a=1&b=x+y"]|};
+          check "a list: a name several times; gone through as pairs; from pairs, from another, from a ?query" {|
+            const p = new URLSearchParams("?a=1&a=2&b=3"); p.delete("b"); p.append("c", "4");
+            [p.getAll("a"), p.get("nope"), p.has("c"), [...p].map(kv => kv.join("=")), [...p.keys()], new URLSearchParams([["x", "1"]]).get("x"), new URLSearchParams(p).toString()]|}
+            {|[["1", "2"], null, true, ["a=1", "a=2", "c=4"], ["a", "a", "c"], "1", "a=1&a=2&c=4"]|});
+      Testo.create "what a page whose scripts run does not show; the script running" (fun () ->
+          let t = Browser_script.create (Html_tree.of_string "<body><noscript><p id=no>enable scripts</p></noscript><p id=yes>content</p><script id=me>var mine = document.currentScript.id</script></body>") in
+          Browser_script.run_scripts t;
+          let ids = List.filter_map (Dom.attribute "id") (Dom.find_all "p" (Browser_script.tree t)) in
+          Alcotest.(check (list string)) "a <noscript>'s content is not in the page laid out" [ "yes" ] ids;
+          Alcotest.(check string) "document.currentScript, while it runs and after" {|["me", null]|}
+            (match Browser_script.eval t "[mine, document.currentScript]" with Ok v -> Js_value.display v | Error e -> e.message);
+          check "DOMParser: HTML read into a page of its own" {|const d = new DOMParser().parseFromString("<p class=a>one</p><p>two</p>", "text/html");
+            [d.body.children.length, d.querySelector("p.a").textContent, d.querySelectorAll("p").length, document.querySelectorAll("p").length]|}
+            {|[2, "one", 2, 0]|});
     ]

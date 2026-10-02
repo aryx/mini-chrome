@@ -23,6 +23,33 @@ type media = { width : float; height : float }
 let feature (m : media) (inside : component list) : bool =
   let ctx : Css_values.context = { em = 16.; rem = 16.; viewport_width = m.width; viewport_height = m.height } in
   let len cs = match Css_values.parts cs with [ c ] -> Option.map (fun (l : Css_values.length) -> l.px) (Css_values.length ctx c) | _ -> None in
+  (* Media Queries Level 4's ranges: (width >= 600px), (400px <= width
+   * <= 800px) -- the comparisons written as such, where Level 3 had
+   * only min- and max- *)
+  let rec chain (cs : component list) : (float option * string) list =
+    let operand (c : component) =
+      match c with
+      | Token (Ident n) when String.lowercase_ascii n = "width" -> Some m.width
+      | Token (Ident n) when String.lowercase_ascii n = "height" -> Some m.height
+      | c -> len [ c ]
+    in
+    match cs with
+    | [] -> []
+    | c :: Token (Delim (('<' | '>' | '=') as op)) :: Token (Delim '=') :: rest -> (operand c, String.make 1 op ^ "=") :: chain rest
+    | c :: Token (Delim (('<' | '>' | '=') as op)) :: rest -> (operand c, String.make 1 op) :: chain rest
+    | [ c ] -> [ (operand c, "") ]
+    | _ -> [ (None, "") ]
+  in
+  let rec holds (l : (float option * string) list) : bool =
+    match l with
+    | (Some a, op) :: ((Some b, _) :: _ as rest) ->
+        (match op with "<" -> a < b | "<=" -> a <= b | ">" -> a > b | ">=" -> a >= b | "=" -> a = b | _ -> false) && holds rest
+    | [ (Some _, "") ] -> true
+    | _ -> false
+  in
+  let ranged = List.exists (fun (c : component) -> match c with Token (Delim ('<' | '>' | '=')) -> true | _ -> false) inside in
+  if ranged then holds (chain (Css_values.parts inside))
+  else
   match split_on Colon (trim inside) with
   | [ name; value ] -> (
       let name = String.lowercase_ascii (to_string (trim name)) and v = String.lowercase_ascii (to_string (trim value)) in
@@ -82,6 +109,10 @@ let rec flatten (m : media) (origin : origin) (rules : Css_syntax.rule list) : (
        * close enough, and what a page puts there is usually its
        * modern layout, which it would rather have *)
       | At_rule { name = "supports"; block = Some b; _ } -> flatten m origin (rules_of_block b)
+      (* @layer name { rules }: the rules, as if written there (the
+       * layers' order, which lets a sheet rank its own parts under one
+       * another whatever their specificity, is not kept) *)
+      | At_rule { name = "layer"; block = Some b; _ } -> flatten m origin (rules_of_block b)
       | At_rule _ -> [])
     rules
 

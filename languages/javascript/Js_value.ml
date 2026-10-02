@@ -170,10 +170,31 @@ let strict_equal (a : value) (b : value) : bool =
 (* Showing values *)
 (*****************************************************************************)
 
+(* a string between quotes, as a console shows one inside an array: its
+ * quotes, backslashes and line ends escaped, its letters of any
+ * alphabet as they are (OCaml's %S would write "café" as its bytes'
+ * numbers) *)
+let quoted (s : string) : string =
+  let b = Buffer.create (String.length s + 2) in
+  Buffer.add_char b '"';
+  String.iter
+    (fun c ->
+      match c with
+      | '"' -> Buffer.add_string b "\\\""
+      | '\\' -> Buffer.add_string b "\\\\"
+      | '\n' -> Buffer.add_string b "\\n"
+      | '\t' -> Buffer.add_string b "\\t"
+      | '\r' -> Buffer.add_string b "\\r"
+      | c when c < ' ' -> Buffer.add_string b (Printf.sprintf "\\x%02x" (Char.code c))
+      | c -> Buffer.add_char b c)
+    s;
+  Buffer.add_char b '"';
+  Buffer.contents b
+
 let display (v : value) : string =
   let rec go ~top (seen : obj list) (v : value) =
     match v with
-    | String s -> if top then s else Printf.sprintf "%S" s
+    | String s -> if top then s else quoted s
     | Object { kind = Proxy (t, _); _ } -> go ~top seen (Object t)
     | Object o when List.memq o seen -> "[Circular]"
     | Object ({ kind = Array _; _ } as o) -> "[" ^ String.concat ", " (List.map (go ~top:false (o :: seen)) (array_items o)) ^ "]"

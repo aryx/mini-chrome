@@ -103,4 +103,7 @@ let tests =
             var later; with (scope) { n = n + 1; later = function () { return n } }
             [later(), log, typeof missing]|} {|[2, ["get n", "set n", "get n"], "undefined"]|};
           check "with is a name elsewhere; with of nothing" {|var o = { with: 1 }, r; try { with (null) { } } catch (e) { r = [o.with, e.name] } r|} {|[1, "TypeError"]|});
+      Testo.create "eval" (fun () ->
+          check "a text run, its last value; anything else given back" {|var g = 2; [eval('g * 21'), eval('var made = 1; made + 1'), made, eval(7), typeof eval]|} {|[42, 2, 1, 7, "function"]|};
+          check "its mistakes are the caller's to catch" {|var r; try { eval('(') } catch (e) { r = e.name } r|} "SyntaxError");
     ]

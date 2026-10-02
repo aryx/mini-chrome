@@ -46,7 +46,7 @@
                               |
        layout  <--  Dom  <--freeze (when changed)
 
-   **The code** is nine modules over Script_types' types, each using
+   **The code** is ten modules over Script_types' types, each using
    only those before it:
 
      Script_dom       the copy: thawed, changed, frozen, its HTML, a
@@ -64,6 +64,7 @@
      Script_fetch     a script asking the network: the request out,
                       the answer back, who may read it (CORS); fetch
      XMLHttpRequest   the same request, the first way
+     Script_url       URLSearchParams
      Browser_script   this one: the tasks (the page's scripts, an event
                       dispatched, the timers) and what the browser asks
 
@@ -185,6 +186,11 @@ val advance : t -> float -> unit
 (* the GETs XMLHttpRequest and fetch queued since the last call, the
  * oldest first, resolved: for the browser to send (their answers are
  * not given back) *)
+(* where a script sent the page since the last time (location.href =
+ * url, assign, replace, reload): the address, and whether it takes
+ * the page's place in the history instead of being after it *)
+val take_navigation : t -> (string * bool) option
+
 val take_requests : t -> Script_types.request list
 
 (* [answer t rid result]: the answer of the request of that number (its

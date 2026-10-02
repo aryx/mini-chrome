@@ -140,7 +140,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; navigation = None; current_script = None; cookies;
       more = (fun _ _ -> None); dispatch = (fun _ _ -> false); once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -176,6 +176,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
    * ([take_requests]), their answers given back ([answer]) *)
   XMLHttpRequest.install t (Js_eval.define engine);
   Script_fetch.install t (Js_eval.define engine);
+  Script_url.install t (Js_eval.define engine);
   t
 
 let eval (t : t) (text : string) : (value, Js_eval.error) result =
@@ -198,12 +199,14 @@ let script_sources (t : t) : string list =
 let run_scripts ?(source = fun (_ : string) -> None) (t : t) : unit =
   List.iter
     (fun (s : node) ->
-      match attribute s "src" with
+      t.current_script <- Some s;
+      (match attribute s "src" with
       | Some src -> (
           match source (Browser_url.resolve t.base src) with
           | Some text -> ignore (eval t text)
           | None -> say t (Printf.sprintf "<script src=\"%s\"> could not be had" src))
-      | None -> ignore (eval t (text_content s)))
+      | None -> ignore (eval t (text_content s)));
+      t.current_script <- None)
     (List.filter (fun e -> e.name = "script" && runnable e) (elements t.root));
   (* then the document is loaded: its listeners told *)
   List.iter
@@ -222,8 +225,13 @@ let tree (t : t) : Dom.element =
       | Netscape -> (n.attributes, [])
       | Core -> List.partition (fun a -> Dtd.attribute_origin n.name a = Dtd.Core) n.attributes
     in
-    (* a comment is not the page's *)
-    let children = List.filter_map (fun c -> if is_text c then Some (Dom.Text c.text) else if is_element c then Some (Dom.Element (go c)) else None) n.children in
+    (* a comment is not the page's; nor what is in a <noscript>, written
+     * for a browser that runs no script, which this page's does *)
+    let children =
+      List.filter_map
+        (fun c -> if is_text c then Some (Dom.Text c.text) else if is_element c && c.name <> "noscript" then Some (Dom.Element (go c)) else None)
+        n.children
+    in
     let e : Dom.element = { name = n.name; attributes; extensions; origin; children } in
     pairs := (e, n) :: !pairs;
     e
@@ -274,6 +282,11 @@ let take_requests (t : t) : request list =
   let r = List.rev t.requests in
   t.requests <- [];
   r
+
+let take_navigation (t : t) : (string * bool) option =
+  let n = t.navigation in
+  t.navigation <- None;
+  n
 
 let take_alerts (t : t) : string list =
   let a = List.rev t.alerts in
