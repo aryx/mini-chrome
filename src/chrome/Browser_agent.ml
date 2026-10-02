@@ -10,10 +10,7 @@
 
 (* See Browser_agent.mli *)
 
-let opera_mini = "Opera/9.80 (J2ME/MIDP; Opera Mini/9.80 (S60; SymbOS; Opera Mobi/23.348; U; en) Presto/2.5.25 Version/10.54"
-
-let table =
-  [ ("google.com", opera_mini, "its search answers a browser it does not know with a script to run and no result; an old Opera Mini, with plain HTML") ]
+let table : (string * string * string) list = []
 
 let for_host (host : string) : string =
   let host = String.lowercase_ascii host in

@@ -13,10 +13,9 @@
 let tests =
   Testo.categorize "Browser agent"
     [
-      Testo.create "its own name to everybody, but for the sites of the table" (fun () ->
-          let own h = Browser_agent.for_host h = Http.default_agent in
-          Alcotest.(check (list bool)) "example.com, a site whose name ends the same, a host under Google, Google, whatever the case"
-            [ true; true; false; false; false ]
-            (List.map own [ "example.com"; "notgoogle.com"; "www.google.com"; "google.com"; "WWW.Google.COM" ]);
-          Alcotest.(check bool) "each line says why it is there" true (List.for_all (fun (_, agent, why) -> agent <> "" && String.length why > 20) Browser_agent.table));
+      Testo.create "its own name to everybody; the table is empty" (fun () ->
+          Alcotest.(check (list bool)) "example.com, Google, a host under it"
+            [ true; true; true ]
+            (List.map (fun h -> Browser_agent.for_host h = Http.default_agent) [ "example.com"; "google.com"; "www.google.com" ]);
+          Alcotest.(check int) "no site is given another name" 0 (List.length Browser_agent.table));
     ]

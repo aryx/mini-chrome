@@ -18,23 +18,30 @@
    a name it does not. Ours is one it does not.
 
    So the browser says its own name, [Http.default_agent], to
-   everybody, but for the sites listed in [table], to which it says a
-   name they send a page it can show:
+   everybody, and has a table, [table], of the sites it would give
+   another name to, each with the reason. The table is empty, and here
+   is the one that was in it:
 
-     www.google.com   a search, asked by a browser it does not know,
-                      is answered by a program to run (a challenge:
-                      docs/sites.md) and no result. To the Opera Mini
-                      of old phones, which ran no such program, it
-                      still sends the results as plain HTML. We say
-                      that name to Google, and only to Google.
+     google.com   a search, asked by a browser Google does not know, is
+                  answered by a program to run (a challenge:
+                  docs/sites.md) and no result. To the Opera Mini of
+                  old phones, which ran no such program, it sent the
+                  results as plain HTML. Said to be that one, a search
+                  worked -- when the consent page before it was
+                  refused; accepted, the search answered 403. A false
+                  name that works by one path and not by another, for
+                  a site that does not want to be read by what it does
+                  not know: taken out the day it went in. The omnibox
+                  searches elsewhere (Window_tabs.search_url).
 
-   It is a false name, said knowingly: the same thing every browser's
-   User-Agent has been since 1996, with less history behind it. The
-   page that comes is the one made for a small browser with no
-   scripts, which is what this one is to Google. The list is short on
-   purpose and each line says why it is there; a site is not added to
-   get round a refusal that is meant (a paywall, a robots rule), only
-   where the plain page exists and the name alone keeps it away.
+   road-not-taken:
+   The lesson is the user agent's own. A name borrowed gets the page
+   made for that name, with what its owner did not need and without
+   what the borrower does; and a site that sorts its readers by name
+   will sort them again tomorrow by something else. A line goes in
+   the table only where a plain page exists, the name alone keeps it
+   away, and it works by every path -- and never to get past a
+   refusal that is meant (a paywall, a robots rule).
 
    What a page's script reads, navigator.userAgent, is another matter
    (Script_window) and says the browser's own.

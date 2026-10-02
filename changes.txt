@@ -111,6 +111,11 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- Google's search is left alone: the name of an old Opera Mini got
+  plain results by one path and a 403 by another, so the browser says
+  its own name to google.com again (Browser_agent's table is empty,
+  the mechanism and the story stay). The omnibox's searches were
+  never Google's: Wikipedia's, or DuckDuckGo's
 - text beyond ASCII (Glyph_unicode): a letter with a mark is its
   Hershey letter and the mark's strokes, above a small letter or a
   capital, below, or across -- Latin-1 and Latin Extended-A, the

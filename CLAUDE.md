@@ -255,8 +255,9 @@ which returns the messages of the requests answered (`Got`,
 `Got_picture`, each carrying its tab's id). `http://` is
 `Http_request`, a non-blocking state machine stepped each frame
 (each request's User-Agent is `Browser_agent.for_host`'s: the
-browser's own name, but for the few sites of its table, each with the
-reason -- Google, which sends results only to names it knows);
+browser's own name, but for the sites of its table, each with its
+reason -- empty: Google was in it for a day, and why it is not is
+told there);
 `https://` is the blocking `Http_client` over our TLS, on `Worker`'s
 pool of four threads. A page is shown at once, then laid out again as
 each style sheet, script and picture arrives.

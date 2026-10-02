@@ -25,16 +25,16 @@ then look at the pictures and correct the rows.
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 9 of 16 | the web of the 1990s, the text-only sites, Hacker News, Google's search, Wikipedia |
+| 🟢 | 8 of 16 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia |
 | 🟡 | 5 of 16 | DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
-| 🔴 | 2 of 16 | one that does not load (a TLS handshake), one whose page is unusable |
+| 🔴 | 3 of 16 | one that does not load (a TLS handshake), one whose page is unusable, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
 1. **JavaScript**: 8 sites have scripts that are not run. None of the
    🟢 ones needs them to be read; every modern site does to be *used*
-   (Google's search is used as the page it sends to a small browser
-   with none).
+   and Google will not search without. The omnibox searches
+   Wikipedia, or DuckDuckGo (`search=duckduckgo`).
 2. **CSS**: 5 sites laid out wrong, in places or wholly.
 3. **Text**: the Latin alphabet's letters are all there (accents,
    quotes, dashes: `Glyph_unicode`); every other script is a `?`,
@@ -59,7 +59,7 @@ Oldest web first, then by how much they ask.
 | **Project Gutenberg** | 🟢 | 🟡 read; its search and menus not tried | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
 | **Wikipedia** (an article) | 🟢 | 🟢 read, in English and in French; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🟡 the accented letters are there; the phonetic signs and the names in other scripts (Greek, Cyrillic, Chinese) are `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
 | **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟢 | ⚪ |
-| **Google** | 🟢 a search works, from the home page to the results | 🟢 a query typed and sent, the consent page answered once (a form posted, its cookie kept), the results read and followed | 🟢 said to be an old Opera Mini (`Browser_agent`): to a browser it does not know Google sends a script to run and no result | 🟢 | 🟢 flexbox, a field that is a flex item | 🟢 | ⚪ none needed: the page sent to that name is plain HTML. (Its challenge for the others, 63 KB of obfuscated script, loads and runs here and gives no token) |
+| **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then a page of script only | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 a search answers our browser with a challenge: an obfuscated program (63 KB) that must compute a token before any result is sent. It loads and runs here without an error, and gives no token. Said to be an old Opera Mini, the browser was sent plain results by one path (the consent refused) and a 403 by the other (accepted): tried, and taken out (`Browser_agent.mli`) |
 | **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
 | **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🔴 not run: its scripts are modules (`<script type=module>`), and each file's last commit comes by them |
 | **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP: no decoder, empty frames |
