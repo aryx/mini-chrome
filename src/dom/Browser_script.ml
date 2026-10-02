@@ -32,62 +32,82 @@ let report (t : t) (e : Js_eval.error) : unit =
 (* Events *)
 (*****************************************************************************)
 
-(* a handler run, a task of its own: its error in the console, not the
- * next handler's business; whether it returned false (DOM level 0's way
- * to cancel, onclick="...; return false") *)
-let run_handler (t : t) (f : value) ~(this : value) (event : value) : bool =
-  match Js_eval.call t.engine f ~this [ event ] with
+(* a handler run. The browser's event (a click, a timer) is a task of
+ * its own: the engine's budget renewed, its jobs run after. One
+ * dispatched by a script ([nested]) is in that script's run. Either
+ * way its error is said in the console, not the next handler's
+ * business; whether it returned false (DOM level 0's way to cancel,
+ * onclick="...; return false") *)
+let run_handler ?(nested = false) (t : t) (f : value) ~(this : value) (event : value) : bool =
+  let result =
+    if nested then try Ok (Js_eval.call_in_run t.engine f ~this [ event ]) with Throw v -> Error (Js_eval.error_of t.engine v)
+    else Js_eval.call t.engine f ~this [ event ]
+  in
+  match result with
   | Ok (Bool false) -> true
   | Ok _ -> false
   | Error e -> report t e; false
 
 (* onclick="..." compiled once into a function of event, as browsers
  * do: the attribute's text is the function's body *)
-let attribute_handler (t : t) (n : node) (typ : string) : value option =
+let attribute_handler ?(nested = false) (t : t) (n : node) (typ : string) : value option =
   match attribute n ("on" ^ typ) with
   | None -> None
   | Some src -> (
       match List.assoc_opt src n.compiled with
       | Some f -> Some f
       | None -> (
-          match Js_eval.eval t.engine ("(function (event) {\n" ^ src ^ "\n})") with
+          let text = "(function (event) {\n" ^ src ^ "\n})" in
+          match if nested then (try Ok (Js_eval.eval_in_run t.engine text) with Throw v -> Error (Js_eval.error_of t.engine v)) else Js_eval.eval t.engine text with
           | Ok f ->
               n.compiled <- (src, f) :: n.compiled;
               Some f
           | Error e -> report t e; None))
 
-(* an event dispatched at [target]: its handlers, then its parent's, up
- * to the document (bubbling), unless one stops it; whether one
- * prevented the default *)
-let dispatch (t : t) (target : node) (typ : string) (fields : (string * value) list) : bool =
-  let prevented = ref false and stopped = ref false and stopped_now = ref false in
-  let ev = new_object () in
-  set_own ev "type" (String typ);
-  set_own ev "target" (wrap t target);
-  List.iter (fun (k, v) -> set_own ev k v) fields;
-  set_own ev "defaultPrevented" (Bool false);
-  set_own ev "preventDefault" (host_function "preventDefault" (fun ~this:_ _ -> prevented := true; set_own ev "defaultPrevented" (Bool true); Undefined));
-  set_own ev "stopPropagation" (host_function "stopPropagation" (fun ~this:_ _ -> stopped := true; Undefined));
-  (* and the other handlers of the same element not run either *)
-  set_own ev "stopImmediatePropagation" (host_function "stopImmediatePropagation" (fun ~this:_ _ -> stopped := true; stopped_now := true; Undefined));
-  let event = Object ev in
-  let handle this (listeners : (string * value) list) (extra : value option) =
+(* an event (Script_events) dispatched at [target] (None: the
+ * document): its handlers, then, if it bubbles, its parent's, up to
+ * the document, unless one stops it; whether one prevented the
+ * default. What the event says of itself is its properties, read
+ * after each handler *)
+let dispatch_event ?(nested = false) (t : t) (target : node option) (event : value) : bool =
+  let ev = match event with Object o -> o | _ -> throw "TypeError" "parameter 1 is not of type 'Event'" in
+  let typ = match get_own ev "type" with Some v -> to_string v | None -> "" in
+  let flag = Script_events.flag event in
+  let document = Js_eval.global t.engine "document" |> Option.value ~default:Undefined in
+  set_own ev "target" (match target with Some n -> wrap t n | None -> document);
+  let prevent () = set_own ev "defaultPrevented" (Bool true) in
+  let handle this (listeners : (string * value) list) ~(remove : value -> unit) (extra : value option) =
     set_own ev "currentTarget" this;
-    List.iter (fun (ty, f) -> if ty = typ && (not !stopped_now) && run_handler t f ~this event then prevented := true) listeners;
-    Option.iter (fun f -> if (not !stopped_now) && run_handler t f ~this event then prevented := true) extra
+    List.iter
+      (fun (ty, f) ->
+        if ty = typ && not (flag "@@immediate") then (
+          (* { once: true }: gone before it is called *)
+          if List.exists (fun (ty', g) -> ty' = typ && g == f) t.once then (
+            t.once <- List.filter (fun (ty', g) -> not (ty' = typ && g == f)) t.once;
+            remove f);
+          (* a listener is a function, or an object with handleEvent *)
+          let f, this = match f with Object ({ kind = Plain; _ } as o) -> ( match get_own o "handleEvent" with Some h -> (h, f) | None -> (f, this)) | _ -> (f, this) in
+          if run_handler ~nested t f ~this event then prevent ()))
+      listeners;
+    Option.iter (fun f -> if (not (flag "@@immediate")) && run_handler ~nested t f ~this event then prevent ()) extra
   in
   let rec up (n : node option) =
     match n with
-    | Some n when not !stopped ->
+    | Some n when not (flag "cancelBubble") ->
         (* el.onclick = f, else onclick="..." *)
-        let on = match List.assoc_opt ("on" ^ typ) n.expando with Some (Object _ as f) -> Some f | _ -> attribute_handler t n typ in
-        handle (wrap t n) n.listeners on;
-        up n.parent
+        let on = match List.assoc_opt ("on" ^ typ) n.expando with Some (Object _ as f) -> Some f | _ -> attribute_handler ~nested t n typ in
+        handle (wrap t n) n.listeners ~remove:(fun f -> n.listeners <- List.filter (fun (ty, g) -> not (ty = typ && g == f)) n.listeners) on;
+        if flag "bubbles" then up n.parent
     | _ -> ()
   in
-  up (Some target);
-  if not !stopped then handle (Js_eval.global t.engine "document" |> Option.value ~default:Undefined) t.document_listeners None;
-  !prevented
+  up target;
+  if (target = None || flag "bubbles") && not (flag "cancelBubble") then
+    handle document t.document_listeners ~remove:(fun f -> t.document_listeners <- List.filter (fun (ty, g) -> not (ty = typ && g == f)) t.document_listeners) None;
+  flag "defaultPrevented"
+
+(* an event of the browser's: a click, a key *)
+let dispatch (t : t) (target : node) (typ : string) (fields : (string * value) list) : bool =
+  dispatch_event t (Some target) (Script_events.make ~bubbles:true typ fields)
 
 (* the node a frozen element came from *)
 let node_of_element (t : t) (e : Dom.element) : node option = List.find_map (fun (e', n) -> if e' == e then Some n else None) t.frozen
@@ -120,41 +140,28 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; cookies }
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; cookies;
+      more = (fun _ _ -> None); dispatch = (fun _ _ -> false); once = []; protos = [] }
   in
+  t.more <- Script_element.get t;
+  t.dispatch <- dispatch_event ~nested:true t;
   (* Date's clock: the page's, from [epoch] *)
   clock := (fun () -> epoch +. t.now);
   lines := say t;
   let define name f = Js_eval.define engine name (host_function name (fun ~this:_ args -> f args)) in
-  Js_eval.define engine "document" (document t);
+  (* window and what a library looks for on it, the classes of the
+   * host objects first: document is one *)
+  let (_ : value) = Script_window.install t ~viewport (Js_eval.define engine) in
+  Script_events.install (Js_eval.define engine);
+  Js_eval.define engine "document" (Script_document.document t);
   define "setTimeout" (fun args -> add_timer t args ~repeat:false);
   define "setInterval" (fun args -> add_timer t args ~repeat:true);
   define "clearTimeout" (clear_timer t);
   define "clearInterval" (clear_timer t);
+  (* the next frame: a timer of a sixtieth of a second *)
+  define "requestAnimationFrame" (fun args -> add_timer t [ arg args 0; Number 16. ] ~repeat:false);
+  define "cancelAnimationFrame" (clear_timer t);
   define "alert" (fun args -> t.alerts <- str (arg args 0) :: t.alerts; Undefined);
-  (* window: the global object -- a global read or set through it; its
-   * listeners the document's, its size the window's *)
-  let window =
-    host_object
-      {
-        class_name = "Window";
-        get =
-          (fun k ->
-            match k with
-            | "innerWidth" -> Number (fst viewport)
-            | "innerHeight" -> Number (snd viewport)
-            | "location" -> location t
-            | "document" -> Option.value (Js_eval.global engine "document") ~default:Undefined
-            | "addEventListener" | "removeEventListener" -> (
-                match Js_eval.global engine "document" with Some (Object { kind = Host_object h; _ }) -> h.get k | _ -> Undefined)
-            | "scrollTo" | "scrollBy" -> method_ k (fun _ -> Undefined)
-            | k -> Option.value (Js_eval.global engine k) ~default:Undefined);
-        set = (fun k v -> Js_eval.define engine k v);
-        show = (fun () -> "Window");
-      }
-  in
-  Js_eval.define engine "window" window;
-  Js_eval.define engine "self" window;
   Js_eval.define engine "location" (location t);
   Js_eval.define engine "navigator"
     (let o = new_object () in
@@ -232,7 +239,8 @@ let tree (t : t) : Dom.element =
       | Netscape -> (n.attributes, [])
       | Core -> List.partition (fun a -> Dtd.attribute_origin n.name a = Dtd.Core) n.attributes
     in
-    let children = List.map (fun c -> if is_text c then Dom.Text c.text else Dom.Element (go c)) n.children in
+    (* a comment is not the page's *)
+    let children = List.filter_map (fun c -> if is_text c then Some (Dom.Text c.text) else if is_element c then Some (Dom.Element (go c)) else None) n.children in
     let e : Dom.element = { name = n.name; attributes; extensions; origin; children } in
     pairs := (e, n) :: !pairs;
     e

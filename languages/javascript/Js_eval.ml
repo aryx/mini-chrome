@@ -212,6 +212,20 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Logical ("&&", a, b) -> let v = eval_expr t s this a in if truthy v then eval_expr t s this b else v
   | Logical ("??", a, b) -> ( match eval_expr t s this a with Undefined | Null -> eval_expr t s this b | v -> v)
   | Logical (_, a, b) -> let v = eval_expr t s this a in if truthy v then v else eval_expr t s this b
+  (* claude: o.k = v, o[k] = v: o (and k) first, then v, as written --
+   * "(b = {...}).x = b.y", in a minified jQuery, needs b made before
+   * b.y is read *)
+  | Assign ("=", Member (o, k), v) ->
+      let o = eval_expr t s this o in
+      let v = eval_expr t s this v in
+      put t o k v;
+      v
+  | Assign ("=", Index (o, k), v) ->
+      let o = eval_expr t s this o in
+      let k = key_of (eval_expr t s this k) in
+      let v = eval_expr t s this v in
+      put t o k v;
+      v
   | Assign ("=", target, v) ->
       let v = eval_expr t s this v in
       assign t s this target v;

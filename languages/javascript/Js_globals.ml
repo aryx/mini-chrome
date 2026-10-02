@@ -213,6 +213,18 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
   add "Number" number_statics;
   add "Array" [ ("of", fn "of" (fun ~this:_ args -> array args)) ];
   define "isFinite" (fn "isFinite" (fun ~this:_ args -> let f = to_number (arg args 0) in Bool (not (Float.is_nan f || Float.abs f = Float.infinity))));
+  (* typed arrays (ES2015) are arrays here: of zeros for a length, else
+   * of the items given; no buffer under them, no wrapping of a number
+   * too big for its type *)
+  List.iter
+    (fun name ->
+      define name
+        (fn name (fun ~this:_ args ->
+             match arg args 0 with
+             | Number n -> array (List.init (max 0 (int_of_float n)) (fun _ -> Number 0.))
+             | Object ({ kind = Array _; _ } as a) -> array (array_items a)
+             | _ -> array [])))
+    [ "Uint8Array"; "Int8Array"; "Uint8ClampedArray"; "Uint16Array"; "Int16Array"; "Uint32Array"; "Int32Array"; "Float32Array"; "Float64Array" ];
   define "Symbol" (symbol ());
   define "Map" (collection ~call "Map" ~map:true);
   define "WeakMap" (collection ~call "WeakMap" ~map:true);

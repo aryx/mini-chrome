@@ -108,6 +108,23 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the DOM libraries ask for (src/dom): an element's members since the
+  first DOM (Script_element: matches, closest, contains, append,
+  prepend, before, after, replaceWith, cloneNode, dataset,
+  hasAttribute, attributes, compareDocumentPosition, the properties
+  that are attributes), comments and fragments, selectors in a tree
+  not in the page; events of a script's own (Script_events: new
+  Event, new CustomEvent, createEvent, dispatchEvent, click(), once,
+  handleEvent; an event bubbles only if it says so); the document as
+  a node (Script_document); window's globals (Script_window: the
+  classes Node, Element, HTMLElement... for instanceof and their
+  prototypes, getComputedStyle, localStorage, MutationObserver,
+  matchMedia, history, performance, requestAnimationFrame), window
+  the global object. A host object falls through to its prototype.
+  JavaScript: a regular expression's source and flags, typed arrays
+  (as arrays), an assignment's target read before its value.
+  Js_survey uses each library in a page: jQuery, Vue, Alpine and
+  htmx now load; htmx, Preact, Mithril and React work
 - src/dom: what a page's scripts see (Script_types, Script_dom,
   Script_host, Browser_script), out of src/www: the language in
   languages/javascript, JavaScript in a browser in a directory of its own

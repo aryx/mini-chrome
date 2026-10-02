@@ -14,6 +14,12 @@
    at its first mistake, so the survey is run again after each
    addition: the next mistake shows.
 
+   A library that loads is then used ([uses] in the .ml: for a file
+   whose name starts with "jquery", "vue", "preact"... a small page, a
+   script asking the library for something, and the answer it must
+   give): "ok, and used: works", or USE and where it stopped. Loading
+   only says the library is defined.
+
    A parse error's line is the engine's; for a script of one long line
    (a minified one) the columns round the mistake cannot be shown, and
    the message alone says what token stopped it.

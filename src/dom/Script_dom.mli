@@ -26,6 +26,15 @@ open Script_types
 val text_name : string
 val is_text : node -> bool
 
+(* a comment (its text kept, never shown) and a fragment (a parent for
+ * nodes on their way into a tree) are nodes too, and not elements *)
+val comment_name : string
+val fragment_name : string
+val is_element : node -> bool
+
+(* the top of the tree a node is in *)
+val top : node -> node
+
 (* a node of its own, no parent yet: an element named so, or a text *)
 val make : ?text:string -> ?attributes:(string * string) list -> string -> node
 
@@ -59,7 +68,11 @@ val parse_fragment : string -> node list
 (* {1 Selectors} *)
 
 (* the elements matching a selector, in document order, among those
- * under [within] (itself not): matched on the frozen tree, with their
- * ancestors, as the page's style sheets are. A selector that cannot be
- * read is JavaScript's SyntaxError, thrown *)
+ * under [within] (not itself): matched with their ancestors, as the
+ * page's style sheets are (Css.matches), in the tree [within] is in --
+ * the page's, or one a script made and has not put in the page. A
+ * selector that does not parse: a SyntaxError thrown *)
 val select : t -> string -> within:node -> node list
+
+(* whether a node itself matches a selector (el.matches, el.closest) *)
+val matches : string -> node -> bool

@@ -62,6 +62,11 @@ let regexp_value (proto : obj) (re : Js_regexp.t) : value =
   let o = { (new_object ()) with kind = Regexp re } in
   o.proto <- Some proto;
   set_own o "lastIndex" (Number 0.);
+  (* claude: what it was made of: re.source, re.flags, re.global... *)
+  let flags = Js_regexp.flags re in
+  set_own o "source" (String (Js_regexp.source re));
+  set_own o "flags" (String flags);
+  List.iter (fun (name, c) -> set_own o name (Bool (String.contains flags c))) [ ("global", 'g'); ("ignoreCase", 'i'); ("multiline", 'm'); ("sticky", 'y'); ("unicode", 'u'); ("dotAll", 's') ];
   Object o
 
 let compile (source : string) (flags : string) : Js_regexp.t =

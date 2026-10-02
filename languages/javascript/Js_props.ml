@@ -45,7 +45,7 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
           set_own p "constructor" (Object o);
           set_own o "prototype" (Object p);
           Object p
-      | Host_object h, _ -> h.get k
+      | Host_object h, _ -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v)
       | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
 
 let get (ps : Js_builtins.protos) (target : value) (k : string) : value =
@@ -61,7 +61,9 @@ let get (ps : Js_builtins.protos) (target : value) (k : string) : value =
       | "length", _ -> Number (float_of_int a.length)
       | _, Some i -> if i < a.length then a.elements.(i) else Undefined
       | _ -> from_chain ps o k)
-  | Object { kind = Host_object h; _ } -> h.get k
+  (* claude: a host object's own answer, else what the prototype it
+   * was given has (an element's: Element.prototype, and what a library
+   * added to it) *)
   | Object o -> from_chain ps o k
   | Number _ -> from_chain ps ps.numbers k
   | Bool _ -> Undefined

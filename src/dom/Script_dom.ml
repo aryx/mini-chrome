@@ -18,6 +18,13 @@ open Script_types
 
 let text_name = "#text"
 let is_text (n : node) : bool = n.name = text_name
+
+(* claude: two more that are not elements: a comment (its text kept,
+ * never shown), and a fragment, a parent for nodes on their way into
+ * a tree (appended, its children go in its place) *)
+let comment_name = "#comment"
+let fragment_name = "#document-fragment"
+let is_element (n : node) : bool = n.name = "" || n.name.[0] <> '#'
 let make ?(text = "") ?(attributes = []) (name : string) : node =
   { name; text; attributes; children = []; parent = None; expando = []; wrapper = None; listeners = []; compiled = [] }
 
@@ -41,13 +48,18 @@ let rec freeze (n : node) : Dom.element =
     | Netscape -> (n.attributes, [])
     | Core -> List.partition (fun a -> Dtd.attribute_origin n.name a = Dtd.Core) n.attributes
   in
-  let children = List.map (fun c -> if is_text c then Dom.Text c.text else Dom.Element (freeze c)) n.children in
+  let children = List.filter_map (fun c -> if is_text c then Some (Dom.Text c.text) else if is_element c then Some (Dom.Element (freeze c)) else None) n.children in
   { name = n.name; attributes; extensions; origin; children }
 
 (* every element under [n] ([n] too), in document order *)
-let rec elements (n : node) : node list = if is_text n then [] else n :: List.concat_map elements n.children
+let rec elements (n : node) : node list = (if is_element n then [ n ] else []) @ List.concat_map elements n.children
 
-let rec text_content (n : node) : string = if is_text n then n.text else String.concat "" (List.map text_content n.children)
+let rec text_content (n : node) : string =
+  if is_text n then n.text else String.concat "" (List.map text_content (List.filter (fun c -> c.name <> comment_name) n.children))
+
+(* the top of the tree a node is in: the page's root, or that of a
+ * tree a script made and has not put in the page *)
+let rec top (n : node) : node = match n.parent with Some p -> top p | None -> n
 let attribute (n : node) (k : string) : string option = List.assoc_opt k n.attributes
 
 let set_attribute (n : node) (k : string) (v : string) : unit =
@@ -78,6 +90,8 @@ let escape ?(quote = false) (s : string) : string =
 
 let rec html_of (n : node) : string =
   if is_text n then escape n.text
+  else if n.name = comment_name then "<!--" ^ n.text ^ "-->"
+  else if n.name = fragment_name then inner_html n
   else
     let attrs = String.concat "" (List.map (fun (k, v) -> Printf.sprintf " %s=\"%s\"" k (escape ~quote:true v)) n.attributes) in
     Printf.sprintf "<%s%s>%s%s" n.name attrs (inner_html n) (if Dtd.is_void n.name then "" else "</" ^ n.name ^ ">")
@@ -94,21 +108,30 @@ let parse_fragment (s : string) : node list =
 (* Selectors *)
 (*****************************************************************************)
 
-(* the elements matching a selector, in document order, among those
- * under [within]: matched on the frozen tree, with its ancestors, as
- * the page's style sheets are (Css.matches) *)
-let select (t : t) (selector : string) ~(within : node) : node list =
+(* the elements matching a selector, in document order, among those of
+ * [n]'s tree that [keep]: matched on the frozen tree, with their
+ * ancestors, as the page's style sheets are (Css.matches). The tree
+ * is the one [n] is in: the page's, or one a script made and has not
+ * put in the page (jQuery tries its selectors on such a one) *)
+let matching (selector : string) (n : node) ~(keep : node -> bool) : node list =
   match Css.parse (selector ^ " {}") with
   | [] -> throw "SyntaxError" (Printf.sprintf "'%s' is not a valid selector" selector)
   | rules ->
-      let inside = elements within in
       let found = ref [] in
       let rec go (ancestors : Dom.element list) (n : node) =
-        if not (is_text n) then (
+        if is_element n then (
           let e = freeze n in
-          if List.memq n inside && n != within && List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules then
-            found := n :: !found;
+          if keep n && List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules then found := n :: !found;
           List.iter (go (e :: ancestors)) n.children)
+        else if n.name = fragment_name then List.iter (go ancestors) n.children
       in
-      go [] t.root;
+      go [] (top n);
       List.rev !found
+
+(* those under [within] *)
+let select (_ : t) (selector : string) ~(within : node) : node list =
+  let inside = elements within in
+  matching selector within ~keep:(fun n -> n != within && List.memq n inside)
+
+(* whether [n] itself matches *)
+let matches (selector : string) (n : node) : bool = matching selector n ~keep:(fun c -> c == n) <> []

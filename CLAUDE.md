@@ -202,7 +202,10 @@ to V8, for teaching, and the way to run a script with no page.
 
 The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
-objects (`Script_host`), and freezes it back when it changed; the page
+objects (`Script_host`; `Script_element`, `Script_events`,
+`Script_document` and `Script_window` for what libraries ask: a new
+member of an element, a new global of `window`, goes in the one it is
+of), and freezes it back when it changed; the page
 is then laid out again whole (`Browser_page.with_tree`). The
 JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
@@ -304,7 +307,9 @@ unless it is specific to a browser (then `src/chrome`, as
 `docs/sites.md` is where the browser stands on the real web: a row a
 site, a column a part (network, HTML, CSS, text, JavaScript), each
 cell green, yellow or red with what is missing; and the same for
-twelve real scripts given to the engine. When a feature changes a
+twelve real scripts given to the engine, each library then used in a
+small page (`uses` in `Js_survey.ml`: a library that loads is not yet
+one that works). When a feature changes a
 site's or a script's colour, change its cell, and the date.
 `scripts/sites/dump_sites.sh` dumps them all to look at;
 `scripts/js/Js_survey.exe` runs the scripts.

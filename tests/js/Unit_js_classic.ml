@@ -74,4 +74,7 @@ let tests =
             "[\"try\", 1, \"finally\"]";
           check "with no catch, the error goes on after it" "var n = 0; try { try { throw new Error('x') } finally { n = 1 } } catch (e) { n += 10 } n" "11";
           check "catch without a name" "var n = 0; try { throw 1 } catch { n = 1 } n" "1");
+      Testo.create "an assignment's order: the target, then the value" (fun () ->
+          check "the object first" {|var b; (b = { p: { eq: 1 } }).p.nth = b.p.eq; b.p.nth|} "1";
+          check "and the key" {|var log = [], o = {}; function f(x) { log.push(x); return x } o[f('k')] = f('v'); log|} "[\"k\", \"v\"]");
     ]

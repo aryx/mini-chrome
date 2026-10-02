@@ -1,7 +1,9 @@
 ; claude: JavaScript in a browser: what a page's scripts see and do,
 ; over the language (languages/javascript, which knows nothing of
-; pages). Script_dom is the page's mutable copy, Script_host the host
-; objects (an element, document, location), their types in
+; pages). Script_dom is the page's mutable copy; Script_host an
+; element's host object, Script_element its members since the first
+; DOM, Script_events an event of a script's own, Script_document
+; document, Script_window window and its globals; their types in
 ; Script_types; Browser_script the tasks (the scripts run, an event
 ; dispatched, the timers) and what the browser asks of them.
 (library

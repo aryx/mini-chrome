@@ -47,4 +47,16 @@ type t = {
   (* claude: document.cookie, read and assigned to: the browser's jar,
    * for the page's address, without its HttpOnly cookies *)
   cookies : (unit -> string) * (string -> unit);
+  (* claude: an element's members past the first DOM's (Script_element:
+   * matches, closest, append, dataset...), asked when Script_host has
+   * none of that name; and an event dispatched by a script
+   * (el.dispatchEvent(ev), el.click(); None: at the document), whether
+   * it was prevented. Both set by Browser_script, which is after them *)
+  mutable more : node -> string -> value option;
+  mutable dispatch : node option -> value -> bool;
+  (* addEventListener's { once: true }: the listeners to remove when called *)
+  mutable once : (string * value) list;
+  (* the prototypes of the host objects, by kind ("element", "text",
+   * "comment", "fragment"): HTMLElement.prototype... (Script_window) *)
+  mutable protos : (string * obj) list;
 }

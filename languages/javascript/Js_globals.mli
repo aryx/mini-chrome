@@ -17,8 +17,15 @@
      Array.of
      Symbol(), Symbol.for, Symbol.iterator
      Map, Set, WeakMap, WeakSet
+     Uint8Array, Int32Array, Float64Array ...
 
-   Three of them are less than the real thing, and say so:
+   Four of them are less than the real thing, and say so:
+
+   **A typed array is an array**: new Uint8Array(4) is four zeros, new
+   Uint8Array([1, 2]) a copy. There is no ArrayBuffer under it, and a
+   number is not wrapped to its type's range: right for the tables of
+   small numbers a library keeps in one (Vue's tokenizer), not for
+   bytes.
 
    **Object.defineProperty** sets a value, or a getter and a setter
    (Js_value's Accessor). Its flags -- writable, enumerable,

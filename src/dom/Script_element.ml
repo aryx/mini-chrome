@@ -1,0 +1,170 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Script_element.mli *)
+open Js_value
+open Script_types
+open Script_dom
+open Script_host
+
+(* a copy of a node: its name, text and attributes; its subtree if
+ * [deep]; not its listeners, nor what a script set on it *)
+let rec clone ~(deep : bool) (n : node) : node =
+  let c = make n.name ~text:n.text ~attributes:n.attributes in
+  if deep then (
+    c.children <- List.map (clone ~deep) n.children;
+    adopt c c.children);
+  c
+
+(* a node, every node under it, in document order *)
+let rec all (n : node) : node list = n :: List.concat_map all n.children
+
+let rec inside (n : node) (ancestor : node) : bool = n == ancestor || match n.parent with Some p -> inside p ancestor | None -> false
+
+(* the numbers of compareDocumentPosition: disconnected 1, preceding 2,
+ * following 4, contains 8, contained by 16 *)
+let position (n : node) (other : node) : float =
+  if n == other then 0.
+  else if top n != top other then 1.
+  else if inside n other then 10.
+  else if inside other n then 20.
+  else
+    let rec first (l : node list) = match l with x :: _ when x == n -> 4. | x :: _ when x == other -> 2. | _ :: rest -> first rest | [] -> 1. in
+    first (all (top n))
+
+let rect () : value =
+  let o = new_object () in
+  List.iter (fun k -> set_own o k (Number 0.)) [ "x"; "y"; "top"; "left"; "right"; "bottom"; "width"; "height" ];
+  Object o
+
+(* el.dataset: its data-* attributes, by their names in camelCase *)
+let dataset (t : t) (n : node) : value =
+  host_object
+    {
+      class_name = "DOMStringMap";
+      get = (fun k -> match attribute n ("data-" ^ kebab k) with Some v -> String v | None -> Undefined);
+      set = (fun k v -> set_attribute n ("data-" ^ kebab k) (str v); touch t);
+      show = (fun () -> "DOMStringMap");
+    }
+
+let get (t : t) (n : node) (k : string) : value option =
+  let opt (c : node option) = match c with Some c -> wrap t c | None -> Null in
+  let m (f : value list -> value) = Some (method_ k f) in
+  (* a method's arguments as nodes: a string is a text *)
+  let nodes (args : value list) : value list = List.map (fun a -> match a with Object _ -> a | v -> wrap t (make text_name ~text:(str v))) args in
+  let children_elements () = List.filter is_element n.children in
+  match k with
+  | "matches" | "webkitMatchesSelector" | "msMatchesSelector" -> m (fun args -> Bool (is_element n && matches (str (arg args 0)) n))
+  | "closest" ->
+      m (fun args ->
+          let sel = str (arg args 0) in
+          let rec up (c : node option) = match c with Some c when is_element c -> if matches sel c then wrap t c else up c.parent | _ -> Null in
+          up (Some n))
+  | "contains" -> m (fun args -> Bool (match arg args 0 with Object _ as o -> inside (node_of t o) n | _ -> false))
+  | "compareDocumentPosition" -> m (fun args -> Number (position n (node_of t (arg args 0))))
+  | "isConnected" -> Some (Bool (top n == t.root))
+  | "getRootNode" -> m (fun _ -> if top n == t.root then Option.value (Js_eval.global t.engine "document") ~default:Null else wrap t (top n))
+  | "hasChildNodes" -> m (fun _ -> Bool (n.children <> []))
+  | "lastElementChild" -> Some (opt (List.nth_opt (List.rev (children_elements ())) 0))
+  | "childElementCount" -> Some (Number (float_of_int (List.length (children_elements ()))))
+  | "localName" -> Some (String n.name)
+  | "namespaceURI" -> Some (String "http://www.w3.org/1999/xhtml")
+  | "cloneNode" -> m (fun args -> wrap t (clone ~deep:(truthy (arg args 0)) n))
+  (* where nodes go: in it, or beside it in its parent *)
+  | "append" -> m (fun args -> List.iter (fun c -> ignore (insert t n c ~before:None)) (nodes args); Undefined)
+  | "prepend" ->
+      m (fun args ->
+          let first = List.nth_opt n.children 0 in
+          List.iter (fun c -> ignore (insert t n c ~before:first)) (nodes args);
+          Undefined)
+  | "before" | "after" | "replaceWith" ->
+      m (fun args ->
+          (match n.parent with
+          | None -> ()
+          | Some p ->
+              let rec next (l : node list) = match l with x :: rest when x == n -> List.nth_opt rest 0 | _ :: rest -> next rest | [] -> None in
+              let before = if k = "after" then next p.children else Some n in
+              List.iter (fun c -> ignore (insert t p c ~before)) (nodes args);
+              if k = "replaceWith" then (detach n; touch t));
+          Undefined)
+  | "replaceChildren" ->
+      m (fun args ->
+          List.iter (fun c -> c.parent <- None) n.children;
+          n.children <- [];
+          List.iter (fun c -> ignore (insert t n c ~before:None)) (nodes args);
+          touch t;
+          Undefined)
+  | "replaceChild" ->
+      m (fun args ->
+          let old = node_of t (arg args 1) in
+          ignore (insert t n (arg args 0) ~before:(Some old));
+          detach old;
+          arg args 1)
+  | "insertAdjacentElement" | "insertAdjacentText" ->
+      m (fun args ->
+          let c = match nodes [ arg args 1 ] with c :: _ -> c | [] -> Undefined in
+          (match (String.lowercase_ascii (str (arg args 0)), n.parent) with
+          | "beforeend", _ -> ignore (insert t n c ~before:None)
+          | "afterbegin", _ -> ignore (insert t n c ~before:(List.nth_opt n.children 0))
+          | "beforebegin", Some p -> ignore (insert t p c ~before:(Some n))
+          | "afterend", Some p ->
+              let rec next (l : node list) = match l with x :: rest when x == n -> List.nth_opt rest 0 | _ :: rest -> next rest | [] -> None in
+              ignore (insert t p c ~before:(next p.children))
+          | _ -> ());
+          c)
+  (* attributes *)
+  | "hasAttribute" -> m (fun args -> Bool (attribute n (String.lowercase_ascii (str (arg args 0))) <> None))
+  | "hasAttributes" -> m (fun _ -> Bool (n.attributes <> []))
+  | "getAttributeNames" -> m (fun _ -> Object (new_array (List.map (fun (a, _) -> String a) n.attributes)))
+  | "getAttributeNode" -> m (fun args -> match attribute n (str (arg args 0)) with Some v -> let o = new_object () in set_own o "name" (arg args 0); set_own o "value" (String v); set_own o "specified" (Bool true); Object o | None -> Null)
+  | "attributes" ->
+      Some
+        (Object
+           (new_array
+              (List.map
+                 (fun (a, v) ->
+                   let o = new_object () in
+                   set_own o "name" (String a);
+                   set_own o "value" (String v);
+                   Object o)
+                 n.attributes)))
+  | "toggleAttribute" ->
+      m (fun args ->
+          let a = String.lowercase_ascii (str (arg args 0)) in
+          let on = match arg args 1 with Undefined -> attribute n a = None | v -> truthy v in
+          (if on then (if attribute n a = None then set_attribute n a "") else n.attributes <- List.remove_assoc a n.attributes);
+          touch t;
+          Bool on)
+  (* with a namespace (an SVG's): the same attributes *)
+  | "getAttributeNS" -> m (fun args -> match attribute n (str (arg args 1)) with Some v -> String v | None -> Null)
+  | "setAttributeNS" -> m (fun args -> set_attribute n (str (arg args 1)) (str (arg args 2)); touch t; Undefined)
+  | "removeAttributeNS" -> m (fun args -> n.attributes <- List.remove_assoc (str (arg args 1)) n.attributes; touch t; Undefined)
+  | "dataset" -> Some (dataset t n)
+  | k when List.mem_assoc k reflected -> (
+      match (attribute n (List.assoc k reflected), k, n.name) with
+      | Some v, _, _ -> Some (String v)
+      | None, ("title" | "lang" | "dir"), _ -> Some (String "")
+      | None, "type", "input" -> Some (String "text")
+      | None, "type", "button" -> Some (String "submit")
+      | None, "type", ("select" | "textarea") -> Some (String (if n.name = "select" then "select-one" else "textarea"))
+      | None, _, _ -> None)
+  | k when List.mem_assoc k reflected_flags -> Some (Bool (attribute n (List.assoc k reflected_flags) <> None))
+  (* no boxes here: the layout is the browser's, after the script *)
+  | "getBoundingClientRect" -> m (fun _ -> rect ())
+  | "getClientRects" -> m (fun _ -> Object (new_array []))
+  | "offsetWidth" | "offsetHeight" | "offsetTop" | "offsetLeft" | "clientWidth" | "clientHeight" | "clientTop" | "clientLeft" | "scrollTop" | "scrollLeft" | "scrollWidth" | "scrollHeight" ->
+      Some (Number 0.)
+  | "offsetParent" -> Some Null
+  | "tabIndex" -> Some (Number (-1.))
+  (* events of a script's own *)
+  | "dispatchEvent" -> m (fun args -> Bool (not (t.dispatch (Some n) (arg args 0))))
+  | "click" -> m (fun _ -> ignore (t.dispatch (Some n) (Script_events.make ~bubbles:true "click" [])); Undefined)
+  | "normalize" -> m (fun _ -> Undefined)
+  | _ -> None

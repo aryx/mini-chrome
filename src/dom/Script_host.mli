@@ -44,6 +44,26 @@ val node_of : t -> value -> node
 val url_object : string -> value
 val location : t -> value
 
-(* document: getElementById, querySelector(All), createElement,
- * createTextNode, body, title, ... *)
-val document : t -> value
+(* the first element named so, at any depth *)
+val find : node -> string -> node option
+
+(* the properties that are an attribute (el.type, el.htmlFor: "for"),
+ * and those that say whether one is there (el.disabled): each with
+ * its attribute's name *)
+val reflected : (string * string) list
+val reflected_flags : (string * string) list
+
+(* a node's host objects, as an array *)
+val nodes_array : t -> node list -> value
+
+(* [insert t parent child ~before]: child put in parent, before a
+ * child of it or at the end, moved if it was elsewhere; a fragment's
+ * children in its place. The child *)
+val insert : t -> node -> value -> before:node option -> value
+
+(* addEventListener's third argument read: { once: true } noted *)
+val listening_once : t -> value list -> unit
+
+(* backgroundColor, the property; background-color, the CSS (and an
+ * attribute: dataset.userId is data-user-id) *)
+val kebab : string -> string

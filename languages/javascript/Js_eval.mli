@@ -71,6 +71,9 @@ val create : ?log:(string -> unit) -> ?seed:int -> ?now:(unit -> float) -> unit 
  * and it *)
 type error = { line : int; message : string }
 
+(* what a thrown value is as an error, on the line now running *)
+val error_of : t -> Js_value.value -> error
+
 (* [run t program]: its statements run in the global scope; the value
  * of the last expression statement run (undefined if none): what a
  * console prints after a line typed *)

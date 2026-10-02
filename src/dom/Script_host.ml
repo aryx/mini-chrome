@@ -24,6 +24,11 @@ let node_of (t : t) (v : value) : node =
   | Object o -> ( match Hashtbl.find_opt t.nodes o.id with Some n -> n | None -> throw "TypeError" "parameter 1 is not of type 'Node'")
   | _ -> throw "TypeError" "parameter 1 is not of type 'Node'"
 
+(* the properties that are an attribute of the same name, or almost,
+ * and those that say whether an attribute is there *)
+let reflected = [ ("name", "name"); ("type", "type"); ("title", "title"); ("lang", "lang"); ("dir", "dir"); ("rel", "rel"); ("target", "target"); ("placeholder", "placeholder"); ("alt", "alt"); ("action", "action"); ("method", "method"); ("role", "role"); ("htmlFor", "for") ]
+let reflected_flags = [ ("disabled", "disabled"); ("selected", "selected"); ("hidden", "hidden"); ("readOnly", "readonly"); ("required", "required"); ("multiple", "multiple"); ("open", "open") ]
+
 (* backgroundColor, the property; background-color, the CSS *)
 let kebab (s : string) : string =
   String.concat "" (List.map (fun c -> if c >= 'A' && c <= 'Z' then "-" ^ String.make 1 (Char.lowercase_ascii c) else String.make 1 c) (List.init (String.length s) (String.get s)))
@@ -51,13 +56,15 @@ let rec wrap (t : t) (n : node) : value =
   | Some v -> v
   | None ->
       let v = host_object { class_name = (if is_text n then "Text" else "HTMLElement"); get = get t n; set = set t n; show = (fun () -> show n) } in
-      (match v with Object o -> Hashtbl.replace t.nodes o.id n | _ -> ());
+      let kind = if is_text n then "text" else if n.name = comment_name then "comment" else if n.name = fragment_name then "fragment" else "element" in
+      (match v with Object o -> Hashtbl.replace t.nodes o.id n; o.proto <- List.assoc_opt kind t.protos | _ -> ());
       n.wrapper <- Some v;
       v
 
 (* how the console shows an element: its start tag *)
 and show (n : node) : string =
   if is_text n then Printf.sprintf "%S" n.text
+  else if not (is_element n) then n.name
   else "<" ^ n.name ^ String.concat "" (List.map (fun (k, v) -> Printf.sprintf " %s=\"%s\"" k v) n.attributes) ^ ">"
 
 and nodes_array (t : t) (ns : node list) : value = Object (new_array (List.map (wrap t) ns))
@@ -65,14 +72,15 @@ and nodes_array (t : t) (ns : node list) : value = Object (new_array (List.map (
 and method_ (name : string) (f : value list -> value) : value = host_function name (fun ~this:_ args -> f args)
 
 and get (t : t) (n : node) (k : string) : value =
-  let elements_of ns = List.filter (fun c -> not (is_text c)) ns in
+  let elements_of ns = List.filter is_element ns in
   let opt = function Some c -> wrap t c | None -> Null in
   match k with
-  | "tagName" | "nodeName" -> String (if is_text n then "#text" else String.uppercase_ascii n.name)
-  | "nodeType" -> Number (if is_text n then 3. else 1.)
+  | "tagName" | "nodeName" -> String (if is_element n then String.uppercase_ascii n.name else n.name)
+  | "nodeType" -> Number (if is_text n then 3. else if n.name = comment_name then 8. else if n.name = fragment_name then 11. else 1.)
+  | "ownerDocument" -> Option.value (Js_eval.global t.engine "document") ~default:Null
   | "id" -> String (Option.value (attribute n "id") ~default:"")
   | "className" -> String (Option.value (attribute n "class") ~default:"")
-  | "textContent" | "innerText" | "data" | "nodeValue" -> String (text_content n)
+  | "textContent" | "innerText" | "data" | "nodeValue" -> String (if is_element n || n.name = fragment_name then text_content n else n.text)
   | "innerHTML" -> String (inner_html n)
   | "outerHTML" -> String (html_of n)
   | "value" -> String (if n.name = "textarea" then text_content n else Option.value (attribute n "value") ~default:"")
@@ -151,13 +159,21 @@ and get (t : t) (n : node) (k : string) : value =
   | "addEventListener" ->
       method_ k (fun args ->
           n.listeners <- n.listeners @ [ (str (arg args 0), arg args 1) ];
+          listening_once t args;
           Undefined)
   | "removeEventListener" ->
       method_ k (fun args ->
           let typ = str (arg args 0) and f = arg args 1 in
           n.listeners <- List.filter (fun (ty, g) -> not (ty = typ && strict_equal g f)) n.listeners;
           Undefined)
-  | _ -> Option.value (List.assoc_opt k n.expando) ~default:Undefined
+  (* what a script set on it; else the members of Script_element *)
+  | _ -> ( match List.assoc_opt k n.expando with Some v -> v | None -> Option.value (t.more n k) ~default:Undefined)
+
+(* addEventListener(type, f, { once: true }): noted, to be removed when called *)
+and listening_once (t : t) (args : value list) : unit =
+  match arg args 2 with
+  | Object o when (match get_own o "once" with Some v -> truthy v | None -> false) -> t.once <- (str (arg args 0), arg args 1) :: t.once
+  | _ -> ()
 
 (* whether an element has every class of [wanted] *)
 and has_classes (e : node) (wanted : string list) : bool =
@@ -198,11 +214,17 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
   | "id" -> set_attribute n "id" (str v); touch t
   | "className" -> set_attribute n "class" (str v); touch t
   | "textContent" | "innerText" | "data" | "nodeValue" ->
-      if is_text n then (n.text <- str v; touch t) else replace_children [ make text_name ~text:(str v) ]
+      if is_text n || n.name = comment_name then (n.text <- str v; touch t) else replace_children [ make text_name ~text:(str v) ]
   | "innerHTML" -> replace_children (parse_fragment (str v))
   | "value" -> if n.name = "textarea" then replace_children [ make text_name ~text:(str v) ] else (set_attribute n "value" (str v); touch t)
   | "checked" ->
       (if truthy v then set_attribute n "checked" "" else n.attributes <- List.remove_assoc "checked" n.attributes);
+      touch t
+  (* a property that is an attribute: el.type = "radio", el.disabled = true *)
+  | k when List.mem_assoc k reflected -> set_attribute n (List.assoc k reflected) (str v); touch t
+  | k when List.mem_assoc k reflected_flags ->
+      let a = List.assoc k reflected_flags in
+      (if truthy v then set_attribute n a "" else n.attributes <- List.remove_assoc a n.attributes);
       touch t
   | _ -> n.expando <- (k, v) :: List.remove_assoc k n.expando
 
@@ -210,6 +232,9 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
  * was elsewhere; never inside itself *)
 and insert (t : t) (parent : node) (child_v : value) ~(before : node option) : value =
   let child = node_of t child_v in
+  (* a fragment: its children, in its place *)
+  if child.name = fragment_name then (List.iter (fun c -> ignore (insert t parent (wrap t c) ~before)) child.children; child_v)
+  else
   let rec inside (p : node option) = match p with Some p -> p == child || inside p.parent | None -> false in
   if inside (Some parent) then throw "HierarchyRequestError" "The new child element contains the parent.";
   detach child;
@@ -257,66 +282,3 @@ let url_object (href : string) : value =
   Object o
 
 let location (t : t) : value = url_object t.base
-
-let document (t : t) : value =
-  let root = t.root in
-  let title () = find root "title" in
-  host_object
-    {
-      class_name = "HTMLDocument";
-      get =
-        (fun k ->
-          match k with
-          | "body" -> ( match find root "body" with Some b -> wrap t b | None -> Null)
-          | "head" -> ( match find root "head" with Some h -> wrap t h | None -> Null)
-          | "documentElement" -> wrap t root
-          | "title" -> String (match title () with Some n -> String.trim (text_content n) | None -> "")
-          | "getElementById" ->
-              method_ k (fun args ->
-                  let id = str (arg args 0) in
-                  match List.find_opt (fun e -> attribute e "id" = Some id) (elements root) with Some e -> wrap t e | None -> Null)
-          | "querySelector" -> method_ k (fun args -> match select t (str (arg args 0)) ~within:root with e :: _ -> wrap t e | [] -> Null)
-          | "querySelectorAll" -> method_ k (fun args -> nodes_array t (select t (str (arg args 0)) ~within:root))
-          | "createElement" -> method_ k (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 0)))))
-          | "getElementsByClassName" | "getElementsByTagName" -> get t root k
-          | "location" -> location t
-          | "URL" -> String t.base
-          (* claude: "a=1; b=2", the browser's for this page *)
-          | "cookie" -> String (fst t.cookies ())
-          | "referrer" -> String ""
-          | "readyState" -> String "complete"
-          | "defaultView" -> Option.value (Js_eval.global t.engine "window") ~default:Undefined
-          | "createTextNode" -> method_ k (fun args -> wrap t (make text_name ~text:(str (arg args 0))))
-          | "addEventListener" ->
-              method_ k (fun args ->
-                  t.document_listeners <- t.document_listeners @ [ (str (arg args 0), arg args 1) ];
-                  Undefined)
-          | "removeEventListener" ->
-              method_ k (fun args ->
-                  let typ = str (arg args 0) and f = arg args 1 in
-                  t.document_listeners <- List.filter (fun (ty, g) -> not (ty = typ && strict_equal g f)) t.document_listeners;
-                  Undefined)
-          | _ -> Undefined);
-      set =
-        (fun k v ->
-          match (k, title ()) with
-          (* claude: document.cookie = "name=value; Path=/": one cookie
-           * set (not the whole string replaced: its odd meaning) *)
-          | "cookie", _ -> snd t.cookies (str v)
-          | "title", Some n ->
-              n.children <- [ make text_name ~text:(str v) ];
-              adopt n n.children;
-              touch t
-          | "title", None -> (
-              match find root "head" with
-              | Some h ->
-                  let n = make "title" in
-                  n.children <- [ make text_name ~text:(str v) ];
-                  adopt n n.children;
-                  h.children <- h.children @ [ n ];
-                  adopt h [ n ];
-                  touch t
-              | None -> ())
-          | _ -> ());
-      show = (fun () -> "#document");
-    }

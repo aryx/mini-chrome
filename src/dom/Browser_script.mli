@@ -30,11 +30,28 @@
                               |
        layout  <--  Dom  <--freeze (when changed)
 
-   **The code** is three modules over Script_types' types, each using
-   only those before it: Script_dom (the copy: thawed, changed, frozen,
-   its HTML, a selector's elements), Script_host (the host objects: an
-   element's, document, location, a URL), and this one, the tasks (the
-   page's scripts, events, timers) and what the browser asks.
+   **The code** is seven modules over Script_types' types, each using
+   only those before it:
+
+     Script_dom       the copy: thawed, changed, frozen, its HTML, a
+                      selector's elements
+     Script_host      an element's host object as the first DOM had it
+                      (parentNode, appendChild, getAttribute), location,
+                      a URL
+     Script_events    an event as a script makes one (new CustomEvent)
+     Script_element   an element's members since (matches, closest,
+                      append, cloneNode, dataset, dispatchEvent)
+     Script_document  document
+     Script_window    window and its globals (the classes Node,
+                      HTMLElement...; getComputedStyle, localStorage,
+                      MutationObserver, matchMedia)
+     Browser_script   this one: the tasks (the page's scripts, an event
+                      dispatched, the timers) and what the browser asks
+
+   Two of them are reached from one before: an element's later members
+   (Script_host asks Script_element) and an event a script dispatches
+   (Script_element asks this module), through two functions kept in the
+   page's state and set here.
 
    **The scripts** of the page, its <script> elements, run in order once
    the page is read -- as the attribute defer asks, rather than as the
