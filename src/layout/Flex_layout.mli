@@ -9,6 +9,7 @@
    with their sizes, numbers in and numbers out (as Table_layout is for
    a table's columns):
 
+   cs-history:
    Why it exists. CSS2's layout was made for documents: blocks down the
    page, text in lines. Putting three boxes side by side, of equal
    height, one of them taking the room left, had no direct way: for

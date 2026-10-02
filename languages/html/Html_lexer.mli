@@ -1,5 +1,6 @@
 (* Html_lexer: a page's text cut into tokens -- tags, text, comments.
 
+   cs-history:
    Where the rules came from. HTML (Tim Berners-Lee, CERN, 1990; "HTML
    Tags", 1991, had eighteen of them) borrowed its angle brackets from
    SGML (ISO 8879, 1986, Charles Goldfarb's Standard Generalized Markup

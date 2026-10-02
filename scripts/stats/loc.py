@@ -20,7 +20,9 @@
 # The opening comment of an .mli is the module's documentation, and
 # where its history and references are told: counted in the budget,
 # and said apart at the end, for the day the budget is of the code
-# alone.
+# alone. In it, a paragraph that is around the module rather than the
+# module's own (its history, how browsers do it today) has a tag
+# before it (docs/tags.md: cs-history:, modern:, ...): counted by tag.
 #
 # Each line is counted once, as code (it has some code, maybe a
 # comment too), comment (only a comment, or inside one) or blank.
@@ -168,6 +170,29 @@ def teaching(path, text):
     return text.count("\n", start, i) + 1
 
 
+# the theme tags of docs/tags.md: on a line of its own in a comment,
+# before the paragraph it is about
+TAGS = ["cs-history", "modern", "others", "evolution", "design",
+        "terminology", "why-win", "comeback", "road-not-taken", "reframe",
+        "wib", "why-study"]
+
+
+def tagged(text):
+    """{tag: lines} of the paragraphs under a tag: the tag's line and
+    those after it, to the next blank line."""
+    counts = defaultdict(int)
+    current = None
+    for line in text.splitlines():
+        word = line.strip()
+        if word.endswith(":") and word[:-1] in TAGS:
+            current = word[:-1]
+        elif not word or word == "*)":
+            current = None
+        if current:
+            counts[current] += 1
+    return counts
+
+
 def files():
     out = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard",
@@ -196,6 +221,7 @@ def main():
     stats = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     largest = []  # (lines, path), the browser's
     taught = 0  # the browser's .mli files' opening comments, in lines
+    themes = defaultdict(int)  # of which under each tag of docs/tags.md
     for path in files():
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
@@ -214,6 +240,8 @@ def main():
         if group == "browser":
             largest.append((code + comment + blank, path))
             taught += teaching(path, text)
+            for t, n in tagged(text).items():
+                themes[t] += n
 
     def total(subs):
         t = defaultdict(int)
@@ -255,6 +283,9 @@ def main():
     print(f"  of which {taught:,} are the interfaces' opening comments"
           f" (the idea, the history, the references);"
           f" {used - taught:,} without them")
+    if themes:
+        print(f"  tagged (docs/tags.md): {sum(themes.values()):,} lines -- "
+              + ", ".join(f"{t} {themes[t]:,}" for t in TAGS if themes[t]))
 
 
 if __name__ == "__main__":

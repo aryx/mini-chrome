@@ -342,8 +342,8 @@ an algorithm (a memo, a laziness, an index) stay runnable: the simple
 function as `xxx_simple`, the fast one as `xxx_opti`, and `xxx`
 choosing on `Mini_opti.enabled` (our own switch, `libs/opti`, set by
 `opti=off`; not `tiny_libs`' `Opti`, whose name it cannot share), with
-a test that the two agree. The comments start `claude: opti:` and give
-the numbers measured.
+a test that the two agree. The comments start `opti:` (`claude: opti:`
+in the older ones) and give the numbers measured.
 
 ## Conventions
 
@@ -361,6 +361,17 @@ the numbers measured.
   out rather than guessed. A famous name of the web gets its own
   module, to be seen in the tree (`XMLHttpRequest`). These lines are
   welcome: `make loc` says how many they are, apart.
+- A paragraph of that comment that is around the module rather than
+  the module's own has a theme tag on a line of its own before it:
+  `cs-history:` (who, when, why it mattered), `modern:` (how the real
+  browsers do it), `others:`, `evolution:`, `design:`... the
+  vocabulary of principia's `Tags.tex`, told for this repository in
+  `docs/tags.md`. One tag a paragraph at most; a fact in passing is
+  not tagged; `make loc` counts the tagged lines by tag.
+- Comments are not tagged `claude:` here (the global rule for
+  projects written by hand): all of mini-chrome is Claude's. The
+  `claude:` of older comments are of before this was said. An
+  optimization's comment starts `opti:`.
 - Tests are `tests/<suite>/Unit_<module>.ml` exporting `tests`
   (`Testo.categorize`, Alcotest checks), listed by hand in that suite's
   `Test.ml`. `tests/network_unix` forks its own localhost HTTP server

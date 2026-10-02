@@ -1,5 +1,6 @@
 (* Js_lexer: JavaScript's text cut into tokens.
 
+   cs-history:
    Two things here are JavaScript's own, both from its first days. The
    newline that may end a statement: semicolons were made optional so
    that a page's author, not a programmer, would not be stopped by one

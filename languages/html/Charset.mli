@@ -4,6 +4,7 @@
    they encode the text. "é" is one byte in Latin-1 (ISO 8859-1, the
    web's default until HTML5), two in UTF-8:
 
+   cs-history:
    How the web got here. ASCII (1963) is seven bits, English's
    letters; every country then used the eighth bit for its own (ISO
    8859-1 for Western Europe, 1987; Windows-1252, Microsoft's variant

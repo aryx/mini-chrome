@@ -3,6 +3,7 @@
    (notes_javascript.md sections 4 and 7.) Seven kinds, less symbol
    and bigint:
 
+   cs-history:
    The kinds are those of 1995, and their oddities with them. A number
    is a float, the only kind of number until BigInt (2020): the first
    engine had integers inside but the language never showed them.

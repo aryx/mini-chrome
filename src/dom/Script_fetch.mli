@@ -38,6 +38,7 @@
    scheme, host and port as its page -- the same-origin policy, the
    one rule the web's security stands on.
 
+   cs-history:
    It was too strict for pages that had a good reason to ask another
    site (a map, a font, an API), and for ten years they went around it:
    a <script> element may come from anywhere, so a server wrapped its
@@ -59,6 +60,7 @@
    GET and POST only (what the browser's Fetch sends); a script's own
    request headers are not sent, but a POST's Content-Type.
 
+   cs-history:
    fetch itself is of 2015 (Chrome 42, Firefox 39; the Fetch Standard,
    Anne van Kesteren, WHATWG): the same request as XMLHttpRequest's,
    as a promise, and the standard where what a browser's every request

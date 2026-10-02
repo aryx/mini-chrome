@@ -7,6 +7,7 @@
    it). Html_tree builds it from the tokens; nothing here knows HTML's
    rules, only the shape:
 
+   cs-history:
    The name is a standard's. When scripts came to pages, each browser
    gave them its own view of the page: Netscape 2 and 3 (1995, 1996)
    only the forms, images and links ("DOM Level 0", named afterwards);

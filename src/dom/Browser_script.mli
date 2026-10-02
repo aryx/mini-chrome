@@ -1,5 +1,6 @@
 (* Browser_script: a page's scripts, and the page they see -- the DOM.
 
+   cs-history:
    What scripts were given, in order. Netscape 2 (1995) let a script
    reach the page's forms, and write into the page as it loaded
    (document.write); Netscape 3 its images (the "rollover", a picture

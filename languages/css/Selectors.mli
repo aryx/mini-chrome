@@ -1,5 +1,6 @@
 (* Selectors: which elements a rule is for -- CSS's selectors, Level 3.
 
+   evolution:
    How they grew. CSS1 (1996) could name an element by its type, its
    class, its id, and by an ancestor ("ul li"). CSS2 (1998) added the
    child (>), the next sibling (+), attributes ([href]) and :first-child;

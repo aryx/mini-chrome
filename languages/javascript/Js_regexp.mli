@@ -1,6 +1,7 @@
 (* Js_regexp: JavaScript's regular expressions, the part pages use -- a
    pattern read into a tree, matched by backtracking.
 
+   cs-history:
    Where they came from. Stephen Kleene's "regular sets" (1951, 1956)
    were a mathematician's notation for what a finite automaton
    accepts; Ken Thompson made them a tool, compiling an expression to

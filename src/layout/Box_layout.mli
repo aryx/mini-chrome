@@ -8,6 +8,7 @@
    picture, a control, where it goes), so that Hit, the form controls
    and the drawing of words work on both ([as_html_layout]).
 
+   cs-history:
    Where the box model came from. Before CSS a page was laid out by
    its tags (Html_layout.mli: Mosaic's flow) and, from 1995, by tables
    used for what they were not meant for (Table_layout.mli). CSS1

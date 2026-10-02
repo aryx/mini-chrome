@@ -22,6 +22,7 @@
    the body suspends or ends; [suspend] returns when the body is
    resumed. So nothing of the interpreter needs a lock.
 
+   others:
    OCaml 4.14 has no stack to set aside but a thread's: a coroutine
    here is a thread, held by a mutex and a condition so that it only
    runs between a [resume] and the [suspend] that follows. (OCaml 5's

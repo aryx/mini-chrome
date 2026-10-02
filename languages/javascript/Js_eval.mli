@@ -1,5 +1,6 @@
 (* Js_eval: a JavaScript program run, by walking its tree.
 
+   cs-history:
    The language. Brendan Eich wrote the first JavaScript in ten days
    of May 1995, at Netscape, which wanted a language for the people
    who wrote pages, to go with Java for the people who wrote programs:
@@ -16,6 +17,7 @@
    since. The ten days show still -- in ==, in var's scope, in typeof
    null -- because nothing a page relies on can be taken back.
 
+   modern:
    How it is run here is the simplest way: the tree is walked, each
    node's rule applied. An engine compiles the tree first -- Eich's
    own to a bytecode that it then interpreted, as SpiderMonkey, its

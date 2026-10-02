@@ -3,13 +3,15 @@
    JSON is the notation of JavaScript's own literals, cut down to what
    every language can read: objects, arrays, strings in double quotes,
    numbers, true, false, null -- and nothing else (no undefined, no
-   function, no comment, no comma after the last item). Douglas
-   Crockford named it and wrote it down in 2001 (json.org; RFC 4627 in
-   2006), observing that he had not invented it but found it: pages
-   were already sending such text to each other and reading it with
-   eval. That was the danger -- eval runs whatever it is given -- and
-   why his json2.js (2007), then the language itself (JSON.parse and
-   JSON.stringify, ES5, 2009), got a reader that only reads. It
+   function, no comment, no comma after the last item).
+
+   cs-history:
+   Douglas Crockford named it and wrote it down in 2001 (json.org; RFC
+   4627 in 2006), observing that he had not invented it but found it:
+   pages were already sending such text to each other and reading it
+   with eval. That was the danger -- eval runs whatever it is given --
+   and why his json2.js (2007), then the language itself (JSON.parse
+   and JSON.stringify, ES5, 2009), got a reader that only reads. It
    replaced XML as what an XMLHttpRequest brings back, though the XML
    stayed in the name.
 

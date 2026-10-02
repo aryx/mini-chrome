@@ -1,5 +1,6 @@
 (* Html_tree: tokens to a tree, the page's mistakes repaired.
 
+   cs-history:
    Why a browser repairs. SGML let a DTD say that a tag may be left
    out when it can be inferred (</p>, </li>, <body>), and HTML used
    that from the start: a page with no <html> is a correct page. But

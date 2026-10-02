@@ -140,7 +140,9 @@ tools/                small programs beside the browser, made of its
 tests/                tools, html, css, js, layout, browser, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
-                      threads next to Chrome's); history.md: how it came
+                      threads next to Chrome's); tags.md: the theme tags of the
+                      interfaces' comments (cs-history:, modern:...);
+                      history.md: how it came
                       to be; notes_debugging_techniques.txt: how a
                       page that looks wrong, or slow, was looked into;
                       plan_performance.md: where a load's time goes,

@@ -1,5 +1,6 @@
 (* Css_syntax: a style sheet's text read -- tokens, then rules and blocks.
 
+   design:
    A syntax made to be skipped. CSS1 (1996) already said how to read
    what a browser does not know: a declaration with an unknown property
    or a value it cannot read is dropped, alone; a rule with a selector

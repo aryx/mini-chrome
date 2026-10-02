@@ -1,6 +1,7 @@
 (* XMLHttpRequest: a script asking its server, the first way -- "XHR",
    the object the web's applications were built on.
 
+   cs-history:
    Where it came from. Until 1999 a page got something new from its
    server in one way: by being replaced. A link, a form: a whole new
    page. (The tricks around that -- a hidden frame reloaded, an image's
@@ -15,6 +16,7 @@
    object, XMLHttpRequest (2000 to 2002); Safari (2004) and Opera
    (2005) followed.
 
+   cs-history:
    For five years almost nobody used it. Then Gmail (April 2004),
    Google Suggest and Google Maps (February 2005) showed a page that
    talked to its server while one typed and dragged; Jesse James
@@ -25,6 +27,7 @@
    requests to other origins (CORS: Script_fetch.mli) and progress.
    What came back stopped being XML within those years: JSON (Js_json.mli).
 
+   modern:
    Where it stands. fetch (2015, Script_fetch) is the same request as a
    promise, and what new code writes. XMLHttpRequest is still what old
    code, jQuery and htmx use, and the one of the two that can say how

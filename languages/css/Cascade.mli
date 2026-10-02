@@ -2,6 +2,7 @@
    wins -- over the browser's style sheet and the page's, @media
    evaluated, the rules indexed.
 
+   cs-history:
    The word in the name. Håkon Wium Lie proposed "Cascading HTML Style
    Sheets" at CERN in October 1994, days before Netscape's first
    release; Bert Bos joined him, and CSS1 was a W3C Recommendation in

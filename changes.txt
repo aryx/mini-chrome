@@ -361,6 +361,11 @@
   placemat (Charset), XMLHttpRequest and Ajax, the same-origin policy
   and CORS (Script_fetch), JSON. make loc says the interfaces'
   opening comments apart (4,401 lines of 26,797)
+- docs/tags.md: theme tags before the paragraphs of an interface's
+  comment that are around the module, not the module's own
+  (cs-history:, modern:, others:, evolution:, design:..., principia's
+  vocabulary); make loc counts the tagged lines by tag. No claude:
+  tag on new comments: all of mini-chrome is Claude's
 - the layout of mmm: languages/ (html, css, javascript), libs/
   (richtext, typeset), src/ by role, each folder a library in the
   order they depend on each other (url, layout, display, www, viewers,
