@@ -372,7 +372,8 @@ the same console).
 
 ## The budget
 
-The browser is to stay under 30,000 lines of OCaml: `languages/`,
+The browser is to stay under 40,000 lines of OCaml (30,000 until its
+own decoders of pictures, video, sound and compression were in it): `languages/`,
 `libs/` and `src/`, their `.mli` files, comments and blank lines
 included; not `tests/`, `scripts/` nor `tools/`, and not the opening
 comment of an `.mli` (the module's documentation, where it teaches:

@@ -119,6 +119,8 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the budget is 40,000 lines (it was 30,000): the browser now has
+  its own decoders of pictures, video, sound and compression
 - a WebM's sound: its Vorbis track played with its picture (Webm: a
   sound track's rate, channels and its three headers, Xiph-laced;
   Media gives them to Vorbis). A WebM of sound alone and an .ogg file
