@@ -147,6 +147,10 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
    |  Worker's pool: 4 threads (Fetch)                              |
    |    an https:// fetch, whole (TCP, our TLS, HTTP), blocking     |
    |    a host's name resolved (getaddrinfo)                        |
+   |                                                                |
+   |  a thread per async function stopped at an await               |
+   |    (Js_coroutine): a stack kept aside, asleep; it runs only    |
+   |    while the main thread waits for it                          |
    +----------------------------------------------------------------+
 ```
 
@@ -162,6 +166,14 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
   host's name. `http://` needs no thread: `Http_request` is a
   non-blocking state machine stepped on the main thread at each frame.
   The main thread polls the pool's jobs at each `Tick`.
+- **A thread per async function waiting** (`Js_coroutine`). A script's
+  `async` function that reaches an `await` must stop in its middle and
+  go on later; the interpreter walks the tree by OCaml's calls, so
+  that is a second stack, and OCaml 4.14 has none to set aside but a
+  thread's. It is a coroutine, not concurrency: the main thread sleeps
+  while the function's body runs, and the body sleeps the rest of the
+  time, so the interpreter needs no lock. One that awaits a promise
+  nobody settles sleeps until the program ends.
 - **No domains, so one core.** Nothing calls `Domain.spawn`. With
   OCaml 4.14 all threads share the runtime's lock; with OCaml 5 they
   all live in one domain, which comes to the same: only one thread runs

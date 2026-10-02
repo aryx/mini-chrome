@@ -162,7 +162,9 @@ let display (v : value) : string =
     | Object o when List.memq o seen -> "[Circular]"
     | Object ({ kind = Array _; _ } as o) -> "[" ^ String.concat ", " (List.map (go ~top:false (o :: seen)) (array_items o)) ^ "]"
     | Object ({ kind = Plain; _ } as o) ->
-        "{" ^ String.concat ", " (List.map (fun k -> k ^ ": " ^ go ~top:false (o :: seen) (Option.get (get_own o k))) (keys o)) ^ "}"
+        (* claude: not a symbol's key ("@@...": a Map's iterator, a promise's state) *)
+        let shown = List.filter (fun k -> not (String.length k >= 2 && String.sub k 0 2 = "@@")) (keys o) in
+        "{" ^ String.concat ", " (List.map (fun k -> k ^ ": " ^ go ~top:false (o :: seen) (Option.get (get_own o k))) shown) ^ "}"
     | Object { kind = Closure { func = { name; _ }; _ }; _ } -> "function " ^ Option.value name ~default:"(anonymous)"
     | Object { kind = Host_function (name, _); _ } -> "function " ^ name
     | Object { kind = Host_object h; _ } -> h.show ()

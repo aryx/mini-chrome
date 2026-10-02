@@ -39,6 +39,7 @@ type expr =
   | Super_member of string
   | Opt of expr
   | Optional of expr
+  | Await of expr
 
 and func = {
   name : string option;
@@ -46,6 +47,7 @@ and func = {
   rest : pattern option;
   body : stmt list;
   arrow : bool;
+  async : bool;
 }
 
 and property =
@@ -138,11 +140,12 @@ let rec expr_to_string (e : expr) : string =
              | Setter (k, f) -> "set " ^ key_to_string k ^ ": " ^ func_to_string f
              | Spread_prop e -> "..." ^ expr_to_string e)
            props)
-  | Function { arrow = true; params; rest = None; body = [ { stmt = Return (Some e); _ } ]; _ } ->
-      p "(%s) => %s" (list param_to_string params) (expr_to_string e)
+  | Function { arrow = true; async; params; rest = None; body = [ { stmt = Return (Some e); _ } ]; _ } ->
+      p "%s(%s) => %s" (if async then "async " else "") (list param_to_string params) (expr_to_string e)
   | Spread e -> "..." ^ expr_to_string e
   | Opt e -> expr_to_string e ^ "?"
   | Optional e -> expr_to_string e
+  | Await e -> p "(await %s)" (expr_to_string e)
   | Class c -> class_to_string c
   | Super_call args -> p "(super(%s))" (list expr_to_string args)
   | Super_member k -> "(super." ^ k ^ ")"
@@ -195,7 +198,7 @@ and param_to_string ((pt, default) : pattern * expr option) : string =
 
 and func_to_string (f : func) : string =
   Printf.sprintf "%s%s [%s] [%s]"
-    (if f.arrow then "Arrow" else "Function")
+    ((if f.async then "Async " else "") ^ if f.arrow then "Arrow" else "Function")
     (match f.name with Some n -> " " ^ n | None -> "")
     (String.concat "; " (List.map param_to_string f.params @ match f.rest with Some r -> [ "..." ^ pattern_to_string r ] | None -> []))
     (body_to_string f.body)

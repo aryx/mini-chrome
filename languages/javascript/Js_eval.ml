@@ -15,6 +15,7 @@ module A = Js_ast
 type t = {
   globals : scope;
   mutable protos : Js_builtins.protos option; (* set once the built-ins are *)
+  mutable promises : Js_promise.t option; (* the same: the jobs waiting *)
   mutable line : int; (* of the statement running: an error's *)
   mutable steps : int; (* left in this run's budget *)
   mutable budget : int;
@@ -152,6 +153,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       | _ -> Undefined)
   | Opt e -> ( match eval_expr t s this e with Undefined | Null -> raise Short_circuit | v -> v)
   | Optional e -> ( try eval_expr t s this e with Short_circuit -> Undefined)
+  | Await e -> Js_promise.await (Option.get t.promises) (eval_expr t s this e)
   | Unary (op, x) -> (
       match op with
       (* typeof of an undeclared name is "undefined", not an error *)
@@ -275,8 +277,8 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
     match (c.ctor, c.parent) with
     | Some f, Some _ -> f
     | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
-    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false }
-    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false }
+    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; async = false }
+    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; async = false }
   in
   let made = closure cs this { ctor with name = c.class_name } in
   let f = match made with Object f -> f | _ -> assert false in
@@ -408,6 +410,10 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       let frame = new_scope c.scope in
       (* arguments, the var's hoisted, then the parameters *)
       if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
+      (* claude: a function expression's own name, in its body (var f =
+       * function again(n) { ... again(n - 1) }), unless the name is
+       * already somebody's *)
+      (match c.func.name with Some n when lookup c.scope n = None -> declare frame n ~constant:false fn | _ -> ());
       hoist frame c.func.body;
       let bind x v = declare frame x ~constant:false v in
       let rec params (ps : (A.pattern * A.expr option) list) (args : value list) =
@@ -425,11 +431,14 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       let line = t.line in
       (* the caller's line back when the call returns; not when it
        * throws, so that the error keeps the line it was thrown on *)
-      (match exec_block t frame this c.func.body with
+      let body () = match exec_block t frame this c.func.body with Return v -> v | _ -> Undefined in
+      (* an async function: its body a coroutine, run to its first
+       * await; the call gives its promise *)
+      (match if c.func.async then Js_promise.async (Option.get t.promises) body else body () with
       | result ->
           t.depth <- t.depth - 1;
           t.line <- line;
-          (match result with Return v -> v | _ -> Undefined)
+          result
       | exception e ->
           t.depth <- t.depth - 1;
           raise e)
@@ -629,12 +638,15 @@ let default_budget = 10_000_000
 
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = { vars = Hashtbl.create 64; parent = None } in
-  let t = { globals; protos = None; line = 0; steps = default_budget; budget = default_budget; depth = 0 } in
+  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0 } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
   t.protos <- Some (Js_builtins.install ~call ~log ~seed ?now define);
   (* the helpers libraries look for: Symbol, Map, Object.defineProperty... *)
   Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x)) define;
+  (* a rejection nobody handled, said as an error is *)
+  let report v = log ("Uncaught (in promise) " ^ match v with Object o -> (match (get_own o "name", get_own o "message") with Some (String n), Some (String m) -> n ^ ": " ^ m | _ -> display v) | v -> display v) in
+  t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:items_of ~report define);
   (* the global object, by its standard name (a page's window is the browser's) *)
   define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Hashtbl.find_opt globals.vars k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
   t
@@ -652,10 +664,12 @@ let error_of (t : t) (v : value) : error =
   in
   { line = t.line; message }
 
-(* a run or a call, its budget renewed, its throws caught *)
+(* a run or a call, its budget renewed, its throws caught; then the
+ * jobs it left (the thens of the promises it settled) *)
 let guarded (t : t) (f : unit -> value) : (value, error) result =
   t.steps <- t.budget;
   t.depth <- 0;
+  Fun.protect ~finally:(fun () -> Js_promise.drain (Option.get t.promises)) @@ fun () ->
   match f () with
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)

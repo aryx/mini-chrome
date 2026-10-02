@@ -81,6 +81,17 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript: promises (Js_promise: new Promise, then, catch, finally,
+  Promise.resolve, reject, all, allSettled, race, any; a thenable
+  followed; queueMicrotask) and their jobs, run after each script,
+  handler and timer; async functions, arrows and methods, and await
+  (ES2017): an async function's body is a coroutine (Js_coroutine: a
+  thread asleep but between a resume and its suspend, OCaml 4.14
+  having no other stack to set aside). A rejection nobody handles is
+  said on the console. A function expression's own name is bound in
+  its body. Object.keys leaves out a symbol's key. Alpine parses;
+  Vue and Alpine now stop on what the page lacks (Uint8Array,
+  MutationObserver)
 - JavaScript: classes (a constructor, methods, getters and setters,
   static members, fields, extends with super(...) and super.m(),
   private names read as names) and optional chaining (a?.b, a?.[k],

@@ -30,6 +30,13 @@
    because it crosses calls, the host's OCaml ones included (a callback
    throwing inside forEach).
 
+   **Later.** An async function's call runs its body as a coroutine
+   (Js_coroutine), up to its first await, and gives a promise of what
+   it will return; await suspends the body until the promise awaited
+   is settled. What promises have to do when they are settled is a
+   queue of jobs (Js_promise), run to its end after each [run] and
+   each [call]: when the script has returned, never in its middle.
+
    **this.** In o.f(), f runs with this bound to o; in f(), to
    undefined; an arrow has no this of its own, it keeps the one of
    where it was written -- why event handlers are written as arrows.

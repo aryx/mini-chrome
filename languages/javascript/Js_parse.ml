@@ -21,6 +21,8 @@ type t = {
   mutable pos : int;
   (* in a for's first part: "in" is the for's, not an operator *)
   mutable no_in : bool;
+  (* in an async function's body: "await" is the operator, not a name *)
+  mutable in_async : bool;
 }
 
 (*****************************************************************************)
@@ -188,16 +190,31 @@ and loop (p : t) (min : int) (left : expr) : expr =
       | _ -> left)
   | _ -> left
 
+(* a function's body read by [f]: await is the operator in an async
+ * one's, a name in another's, whatever the function around is *)
+and body_in : 'a. t -> async:bool -> (unit -> 'a) -> 'a =
+ fun p ~async f ->
+  let outer = p.in_async in
+  p.in_async <- async;
+  let x = f () in
+  p.in_async <- outer;
+  x
+
 (* after a ".": a name, and a keyword is one too (o.default, e.catch) *)
 and property_name (p : t) : string =
   match (advance p).kind with Name x | Keyword x -> x | _ -> p.pos <- p.pos - 1; unexpected p "a property name"
 
 (* what can start an expression *)
 and prefix (p : t) : expr =
-  if arrow_ahead p then arrow p
+  let word_async = (peek p).kind = Name "async" in
+  (* async function ..., async x => ..., async (a, b) => ...; else async is a name *)
+  if word_async && (peek_at p 1).kind = Keyword "function" then (p.pos <- p.pos + 2; Function (func p ~arrow:false ~async:true))
+  else if word_async && (p.pos <- p.pos + 1; arrow_ahead p || (p.pos <- p.pos - 1; false)) then arrow p ~async:true
+  else if arrow_ahead p then arrow p ~async:false
   else
     let t = advance p in
     match t.kind with
+    | Name "await" when p.in_async -> Await (expression p prefix_power)
     | Number f -> Number f
     | String s -> String s
     (* super(a), super.m: the class's parent *)
@@ -213,7 +230,7 @@ and prefix (p : t) : expr =
     | Keyword "null" -> Null
     | Keyword "this" -> This
     | Keyword (("typeof" | "void" | "delete") as op) -> Unary (op, expression p prefix_power)
-    | Keyword "function" -> Function (func p ~arrow:false)
+    | Keyword "function" -> Function (func p ~arrow:false ~async:false)
     | Punct (("-" | "+" | "!" | "~") as op) -> Unary (op, expression p prefix_power)
     | Punct (("++" | "--") as op) -> Update (op, true, target p (expression p prefix_power))
     | Punct "(" ->
@@ -250,7 +267,7 @@ and prefix (p : t) : expr =
           ( strings,
             List.map
               (fun (tokens : Js_lexer.token list) ->
-                let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false } in
+                let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false; in_async = p.in_async } in
                 let e = expression inner 0 in
                 if (peek inner).kind <> Eof then unexpected inner "'}'";
                 e)
@@ -294,6 +311,12 @@ and key (p : t) : key =
       Computed e
   | _ -> p.pos <- p.pos - 1; unexpected p "a property name"
 
+(* m(params) { body }, of an object literal or a class: what is after
+ * its key *)
+and method_ (p : t) (k : key) ~(async : bool) : func =
+  let ps, rest = params p in
+  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async (fun () -> block_body p); arrow = false; async }
+
 (* one property of an object literal *)
 and property (p : t) : property =
   let next = (peek_at p 1).kind in
@@ -308,8 +331,13 @@ and property (p : t) : property =
       ignore (advance p);
       let k = key p in
       let ps, rest = params p in
-      let f = { name = None; params = ps; rest; body = block_body p; arrow = false } in
+      let f = { name = None; params = ps; rest; body = body_in p ~async:false (fun () -> block_body p); arrow = false; async = false } in
       if which = "get" then Getter (k, f) else Setter (k, f)
+  (* async m() { } *)
+  | Name "async" when accessor ->
+      ignore (advance p);
+      let k = key p in
+      Prop (k, Function (method_ p k ~async:true))
   | _ -> (
       let k = key p in
       match ((peek p).kind, k) with
@@ -317,9 +345,7 @@ and property (p : t) : property =
           ignore (advance p);
           Prop (k, expression p 1)
       (* m() { }: a method *)
-      | Punct "(", _ ->
-          let ps, rest = params p in
-          Prop (k, Function { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = block_body p; arrow = false })
+      | Punct "(", _ -> Prop (k, Function (method_ p k ~async:false))
       (* { a }: a: a; { a = 1 }, in a pattern: its default *)
       | Punct "=", Key x ->
           ignore (advance p);
@@ -401,20 +427,20 @@ and params (p : t) : (pattern * expr option) list * pattern option =
   inside p (fun () -> go [])
 
 (* x => ..., (a, b) => ...: a body in braces, or an expression returned *)
-and arrow (p : t) : expr =
+and arrow (p : t) ~(async : bool) : expr =
   let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p), None) ], None) in
   let line = (peek p).line in
   expect p "=>";
   let body =
-    if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ]
+    body_in p ~async (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
   in
-  Function { name = None; params = ps; rest; body; arrow = true }
+  Function { name = None; params = ps; rest; body; arrow = true; async }
 
 (* function name? (params) { body }: what is after the keyword *)
-and func (p : t) ~(arrow : bool) : func =
+and func (p : t) ~(arrow : bool) ~(async : bool) : func =
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
   let ps, rest = params p in
-  { name; params = ps; rest; body = block_body p; arrow }
+  { name; params = ps; rest; body = body_in p ~async (fun () -> block_body p); arrow; async }
 
 (* class Name extends Parent { members }: what is after the keyword. A
  * member: [static] then a method m() { }, an accessor get k() { } or
@@ -433,8 +459,9 @@ and class_ (p : t) : class_ =
       let modifier w = (peek p).kind = Name w && (match (peek_at p 1).kind with Punct ("(" | "=" | ";" | "}") -> false | _ -> true) in
       let static = modifier "static" && (ignore (advance p); true) in
       let accessor = if modifier "get" then (ignore (advance p); Some `Get) else if modifier "set" then (ignore (advance p); Some `Set) else None in
+      let async = modifier "async" && (ignore (advance p); true) in
       let k = key p in
-      let method_ () = let ps, rest = params p in { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = block_body p; arrow = false } in
+      let method_ () = method_ p k ~async in
       match (accessor, (peek p).kind, k) with
       | None, Punct "(", Key "constructor" when not static ->
           ctor := Some (method_ ());
@@ -490,9 +517,10 @@ and statement (p : t) : stmt =
       let ds = declarations p in
       end_statement p;
       s (Let (let_kind k, ds))
-  | Keyword "function" ->
-      ignore (advance p);
-      let f = func p ~arrow:false in
+  | Keyword "function" | Name "async" when is_keyword p "function" || (peek_at p 1).kind = Keyword "function" ->
+      let async = not (is_keyword p "function") in
+      p.pos <- p.pos + if async then 2 else 1;
+      let f = func p ~arrow:false ~async in
       if f.name = None then fail p "a function declaration needs a name";
       s (Function_decl f)
   | Keyword "return" ->
@@ -654,7 +682,7 @@ let with_tokens (text : string) (f : t -> 'a) : ('a, error) result =
   match Js_lexer.tokenize text with
   | exception Js_lexer.Error (line, message) -> Error { line; message }
   | tokens -> (
-      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false } in
+      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false; in_async = false } in
       match f p with x -> Ok x | exception Error e -> Error e)
 
 let parse (text : string) : (program, error) result =

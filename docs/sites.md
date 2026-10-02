@@ -83,8 +83,8 @@ running; 🔴 does not parse.
 | jQuery 3.7 slim (minified) | 🟡 | `Cannot read properties of undefined (reading 'pseudos')` |
 | htmx 1.9 | 🟡 | `document.createEvent` is not a function |
 | example.com's `s.js` | 🟡 | parses; in the survey's empty page it stops at the paragraph it expects |
-| Vue 3 (minified) | 🟡 | `Promise` is not defined |
-| Alpine 3 | 🔴 | `async function` |
+| Vue 3 (minified) | 🟡 | `Uint8Array` is not defined |
+| Alpine 3 | 🟡 | `MutationObserver` is not defined |
 
 Running to its end in an empty page is not the library working: it is
 defined, nothing of it was called.
@@ -99,14 +99,18 @@ How it moved, the same day:
 | regular expressions: lookaheads, lookbehinds, backreferences, named groups, the flags s, u, y | 3 | 7 | 2 |
 | the globals libraries look for (`Symbol`, `Map`, `Set`, `Object.defineProperty`, `isFinite`...), an undeclared name assigned to | 6 | 4 | 2 |
 | classes (`extends`, `super`, fields, statics), optional chaining | 6 | 5 | 1 |
+| promises and their jobs, `async` functions and `await` | 6 | 6 | 0 |
 
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **Promises and `async` functions** (Vue, Alpine), **and what jQuery
-  and htmx expect of `window` and `document`**: the scripts above;
-  then the sites' own scripts can be tried (`scripts=`).
+- **What the libraries expect of `window` and `document`** (jQuery's
+  `document` inside its selector engine, htmx's `createEvent`,
+  Alpine's `MutationObserver`, Vue's `Uint8Array`): every script of
+  the survey now parses, and what stops six of them is the page's, not
+  the language's; then the sites' own scripts can be tried
+  (`scripts=`).
 - **Brotli**: Berkshire Hathaway (and a server that will not send
   gzip).
 - **The TLS handshake Craigslist refuses**: to look into.

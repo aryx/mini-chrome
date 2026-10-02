@@ -86,16 +86,20 @@ type expr =
    * (Member (Member (Opt a, b), c)) *)
   | Opt of expr
   | Optional of expr
+  (* ES2017: in an async function, await p stops the function until
+   * the promise p is settled; its value (Js_promise) *)
+  | Await of expr
 
 (* a function: its name if it has one, its parameters, its body; an
  * arrow's expression body is [Return e]; an arrow has no this of its
- * own *)
+ * own; an async one may await *)
 and func = {
   name : string option;
   params : (pattern * expr option) list; (* ES1: names; ES2015: patterns, each with its default: (a, b = 1) *)
   rest : pattern option; (* ES2015: (...xs), the arguments left *)
   body : stmt list;
   arrow : bool; (* ES2015 *)
+  async : bool; (* ES2017: async function f() { }, async x => ..., async m() { }: it gives a promise *)
 }
 
 (* a property of an object literal: its key and its value ("k" alone is

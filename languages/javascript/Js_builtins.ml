@@ -539,7 +539,8 @@ let install ~(call : value -> this:value -> value list -> value) ~(log : string 
           fn "keys" (fun ~this:_ args ->
               match arg args 0 with
               | Object ({ kind = Array a; _ }) -> array (List.init a.length (fun i -> String (string_of_int i)))
-              | Object o -> array (List.map (fun k -> String k) (keys o))
+              (* claude: not a symbol's key ("@@...": Js_globals) *)
+              | Object o -> array (List.filter_map (fun k -> if String.length k >= 2 && String.sub k 0 2 = "@@" then None else Some (String k)) (keys o))
               | _ -> array [])) ];
   constructor "Array"
     (fun ~this:_ args -> match args with [ Number n ] -> array (List.init (int_of_float n) (fun _ -> Undefined)) | _ -> array args)

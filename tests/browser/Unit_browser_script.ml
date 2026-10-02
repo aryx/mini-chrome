@@ -142,6 +142,17 @@ let tests =
           ignore (value t "clearInterval(i)");
           Browser_script.advance t 1000.;
           Alcotest.(check string) "cleared" "[1, 3]" (value t "[a, b]"));
+      Testo.create "promises: a timer awaited" (fun () ->
+          let t =
+            page
+              "<p id=out></p><script>const sleep = ms => new Promise(done => setTimeout(done, ms));\nlet said = [];\nasync function steps() { said.push(\"start\"); await sleep(100); said.push(\"100\"); await sleep(100); said.push(\"200\"); document.getElementById(\"out\").textContent = said.join(\" \") }\nsteps().then(() => said.push(\"done\"))</script>"
+          in
+          Alcotest.(check string) "up to its first await" "[\"start\"]" (value t "said");
+          Browser_script.advance t 150.;
+          Alcotest.(check string) "the timer's function resolved it: the function goes on" "[\"start\", \"100\"]" (value t "said");
+          Browser_script.advance t 100.;
+          Alcotest.(check string) "to its end, and its promise's then" "[\"start\", \"100\", \"200\", \"done\"]" (value t "said");
+          Alcotest.(check string) "the page changed from it" "start 100 200" (value t "document.getElementById(\"out\").textContent"));
       Testo.create "alert, and DOMContentLoaded" (fun () ->
           let t = page "<script>document.addEventListener(\"DOMContentLoaded\", () => alert(\"ready\"));\nalert(\"first\")</script>" in
           Alcotest.(check (list string)) "queued in order" [ "first"; "ready" ] (Browser_script.take_alerts t);
