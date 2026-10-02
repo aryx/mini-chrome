@@ -138,7 +138,8 @@ let header (s : string) : header =
         let l = if not segmented then level else if absolute then seg_filter.(seg) else level + seg_filter.(seg) in
         let l = if use_deltas then l + !ref_delta + (if small then !mode_delta else 0) else l in
         let l = clip 0 63 l in
-        if l = 0 then (0, 0, 0)
+        (* a frame of level 0 is not filtered at all, whatever is added *)
+        if l = 0 || level = 0 then (0, 0, 0)
         else
           let inner = if sharpness > 4 then l lsr 2 else if sharpness > 0 then l lsr 1 else l in
           let inner = max 1 (if sharpness > 0 then min inner (9 - sharpness) else inner) in
@@ -443,6 +444,55 @@ let rgb (y : int) (u : int) (v : int) : int * int * int =
   let c8 v = if v < 0 then 0 else if v > 16383 then 255 else v asr 6 in
   (c8 (hi y 19077 + hi v 26149 - 14234), c8 (hi y 19077 - hi u 6419 - hi v 13320 + 8708), c8 (hi y 19077 + hi u 33050 - 17685))
 
+(* a macroblock's edges smoothed, in a frame whose blocks are all
+ * there: its left edge, its inner vertical ones, its top edge, its
+ * inner horizontal ones. [filter]: the limit, the inner limit and the
+ * threshold of a sharp step; a limit of 0: not filtered. The inner
+ * edges only if [inner_edges] (the macroblock had coefficients, or was
+ * predicted block by block) *)
+let filter_macroblock ~(simple : bool) (yp : Bytes.t) (up : Bytes.t) (vp : Bytes.t) ~(ys : int) ~(cs : int) ~(mx : int) ~(my : int) ((limit, inner, hev) : int * int * int)
+    ~(inner_edges : bool) : unit =
+  if limit > 0 then (
+    let edges plane stride x y size ~inner_at =
+      let run ~across o step ~macroblock ~limit =
+        for k = 0 to size - 1 do filter_edge plane (o + (k * across)) step ~simple ~macroblock ~limit ~inner ~hev done
+      in
+      let o = (y * stride) + x in
+      if mx > 0 then run ~across:stride o 1 ~macroblock:true ~limit:(limit + 4);
+      if inner_edges then List.iter (fun d -> run ~across:stride (o + d) 1 ~macroblock:false ~limit) inner_at;
+      if my > 0 then run ~across:1 o stride ~macroblock:true ~limit:(limit + 4);
+      if inner_edges then List.iter (fun d -> run ~across:1 (o + (d * stride)) stride ~macroblock:false ~limit) inner_at
+    in
+    edges yp ys (mx * 16) (my * 16) 16 ~inner_at:[ 4; 8; 12 ];
+    if not simple then (
+      edges up cs (mx * 8) (my * 8) 8 ~inner_at:[ 4 ];
+      edges vp cs (mx * 8) (my * 8) 8 ~inner_at:[ 4 ]))
+
+(* the three planes as a picture: each pixel's luma with the chroma of
+ * its place between the four chroma samples round it (9, 3, 3 and 1
+ * sixteenths) *)
+let image ~(width : int) ~(height : int) ~(ys : int) ~(cs : int) (yp : Bytes.t) (up : Bytes.t) (vp : Bytes.t) : Rgba_image.t =
+  let img = Rgba_image.create ~width ~height in
+  let cw = (width + 1) / 2 and ch = (height + 1) / 2 in
+  let chroma plane cx cy = Char.code (Bytes.unsafe_get plane ((clip 0 (ch - 1) cy * cs) + clip 0 (cw - 1) cx)) in
+  for y = 0 to height - 1 do
+    (* the chroma row nearer, and the other one *)
+    let near = y / 2 and far = if y land 1 = 0 then (y / 2) - 1 else (y / 2) + 1 in
+    for x = 0 to width - 1 do
+      let cnear = x / 2 and cfar = if x land 1 = 0 then (x / 2) - 1 else (x / 2) + 1 in
+      let mix plane =
+        ((9 * chroma plane cnear near) + (3 * chroma plane cfar near) + (3 * chroma plane cnear far) + chroma plane cfar far + 8) asr 4
+      in
+      let r, g, bl = rgb (Char.code (Bytes.unsafe_get yp ((y * ys) + x))) (mix up) (mix vp) in
+      let o = 4 * ((y * width) + x) in
+      img.rgba.{o} <- r;
+      img.rgba.{o + 1} <- g;
+      img.rgba.{o + 2} <- bl;
+      img.rgba.{o + 3} <- 255
+    done
+  done;
+  img
+
 (*****************************************************************************)
 (* Entry point *)
 (*****************************************************************************)
@@ -547,49 +597,10 @@ let decode (s : string) : Rgba_image.t =
       done
     done
   done;
-  (* the edges between blocks smoothed, once the whole frame is there:
-   * a macroblock's left edge, its inner vertical ones, its top edge,
-   * its inner horizontal ones *)
+  (* the edges between blocks smoothed, once the whole frame is there *)
   for my = 0 to mbh - 1 do
     for mx = 0 to mbw - 1 do
-      let limit, inner, hev = mb_filter.((my * mbw) + mx) in
-      if limit > 0 then (
-        let simple = h.simple_filter in
-        let edges plane stride x y size ~inner_at =
-          let run ~across o step ~macroblock ~limit =
-            for k = 0 to size - 1 do filter_edge plane (o + (k * across)) step ~simple ~macroblock ~limit ~inner ~hev done
-          in
-          let o = (y * stride) + x in
-          if mx > 0 then run ~across:stride o 1 ~macroblock:true ~limit:(limit + 4);
-          if mb_inner.((my * mbw) + mx) then List.iter (fun d -> run ~across:stride (o + d) 1 ~macroblock:false ~limit) inner_at;
-          if my > 0 then run ~across:1 o stride ~macroblock:true ~limit:(limit + 4);
-          if mb_inner.((my * mbw) + mx) then List.iter (fun d -> run ~across:1 (o + (d * stride)) stride ~macroblock:false ~limit) inner_at
-        in
-        edges yp ys (mx * 16) (my * 16) 16 ~inner_at:[ 4; 8; 12 ];
-        if not simple then (
-          edges up cs (mx * 8) (my * 8) 8 ~inner_at:[ 4 ];
-          edges vp cs (mx * 8) (my * 8) 8 ~inner_at:[ 4 ]))
+      filter_macroblock ~simple:h.simple_filter yp up vp ~ys ~cs ~mx ~my mb_filter.((my * mbw) + mx) ~inner_edges:mb_inner.((my * mbw) + mx)
     done
   done;
-  (* colours: each pixel's luma with the chroma of its place between
-   * the four chroma samples round it (9, 3, 3 and 1 sixteenths) *)
-  let img = Rgba_image.create ~width:h.width ~height:h.height in
-  let cw = (h.width + 1) / 2 and ch = (h.height + 1) / 2 in
-  let chroma plane cx cy = Char.code (Bytes.unsafe_get plane ((clip 0 (ch - 1) cy * cs) + clip 0 (cw - 1) cx)) in
-  for y = 0 to h.height - 1 do
-    (* the chroma row nearer, and the other one *)
-    let near = y / 2 and far = if y land 1 = 0 then (y / 2) - 1 else (y / 2) + 1 in
-    for x = 0 to h.width - 1 do
-      let cnear = x / 2 and cfar = if x land 1 = 0 then (x / 2) - 1 else (x / 2) + 1 in
-      let mix plane =
-        ((9 * chroma plane cnear near) + (3 * chroma plane cfar near) + (3 * chroma plane cnear far) + chroma plane cfar far + 8) asr 4
-      in
-      let r, g, bl = rgb (Char.code (Bytes.unsafe_get yp ((y * ys) + x))) (mix up) (mix vp) in
-      let o = 4 * ((y * h.width) + x) in
-      img.rgba.{o} <- r;
-      img.rgba.{o + 1} <- g;
-      img.rgba.{o + 2} <- bl;
-      img.rgba.{o + 3} <- 255
-    done
-  done;
-  img
+  image ~width:h.width ~height:h.height ~ys ~cs yp up vp

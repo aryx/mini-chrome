@@ -11,7 +11,7 @@ is about the shape of the running program.
 languages/   html, xml, css, javascript,      text in, values out; no window
              json
 libs/        dom, gui, richtext, network,     general, not a browser's
-             images, compression
+             images, video, compression
 src/         url, layout, display, www, dom,  the browser, by role
              viewers, about, chrome, window, main
 tools/       node, curl, httpd, lynx,         programs beside the browser, made of

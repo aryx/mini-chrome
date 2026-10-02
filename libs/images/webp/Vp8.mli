@@ -125,11 +125,11 @@
    (a browser's calls) made VP8 one of its two required codecs in
    2014, so every browser decodes it yet.
 
-   road-not-taken:
-   The frames between key frames -- a macroblock guessed from where it
-   was in an earlier frame, a motion vector saying where -- are the
-   other half of RFC 6386 and of a video player; not read here, where
-   a frame that is not a key frame is refused.
+   The frames between key frames -- a macroblock predicted from where
+   it was in an earlier frame, a motion vector saying where -- are the
+   other half of RFC 6386 and of a video player: libs/video's
+   Vp8_video, which decodes them with this module's parts. Here a
+   frame that is not a key frame is refused.
 
    Reference: RFC 6386; its sections 7 (the boolean decoder), 9 (the
    frame's header), 11 and 12 (the modes and the guesses), 13 and 14
@@ -139,3 +139,65 @@
  * chunk. Raises [Failure] or [Invalid_argument] on bytes that are not
  * one. *)
 val decode : string -> Rgba_image.t
+
+(*****************************************************************************)
+(* {1 The parts a video's decoder shares} *)
+(*****************************************************************************)
+
+(* What follows is this module's insides, given out for libs/video's
+ * Vp8_video: a video's frames are decoded with the same boolean
+ * decoder, tokens, transforms, guesses and filter; what a frame
+ * predicted from another adds is told there. *)
+
+(* the boolean decoder over a part of the bytes: from, size *)
+type bools
+
+val bools : string -> int -> int -> bools
+
+(* a boolean that is false with probability p in 256; as 0 or 1; one
+ * of probability a half; [literal b n], n of those as a number, the
+ * high bit first; [signed b n], the same then its sign *)
+val bool : bools -> int -> bool
+val bit : bools -> int -> int
+val flag : bools -> bool
+val literal : bools -> int -> int
+val signed : bools -> int -> int
+
+(* [tree b t probs]: a walk down a tree written as an array (a
+ * positive entry the index of the next pair, a negative or zero one a
+ * leaf, its value negated), each branch read with [probs (i / 2)] *)
+val tree : bools -> int array -> (int -> int) -> int
+
+(* the modes of a whole block and of a 4 x 4 one, and the tree of the
+ * second *)
+val dc_pred : int
+val v_pred : int
+val h_pred : int
+val tm_pred : int
+val b_dc : int
+val b_tm : int
+val b_ve : int
+val b_he : int
+val bmode_tree : int array
+
+(* a block's coefficients: see the .ml *)
+val coefficients : bools -> int array -> kind:int -> ctx:int -> dc:int -> ac:int -> first:int -> int array -> int -> int
+val inverse_wht : int array -> int array -> unit
+
+(* [add_residue c at plane stride x y]: the block of coefficients at
+ * [at], transformed back and added to the 4 x 4 pixels at (x, y) *)
+val add_residue : int array -> int -> Bytes.t -> int -> int -> int -> unit
+
+(* [predict_block plane stride x y size mode], [predict_4x4 plane
+ * stride x y ~right_y mode]: a block guessed from its neighbours *)
+val predict_block : Bytes.t -> int -> int -> int -> int -> int -> unit
+val predict_4x4 : Bytes.t -> int -> int -> int -> right_y:int -> int -> unit
+
+(* a macroblock's edges smoothed: [filter] its limit, inner limit and
+ * threshold (limit 0: none) *)
+val filter_macroblock :
+  simple:bool -> Bytes.t -> Bytes.t -> Bytes.t -> ys:int -> cs:int -> mx:int -> my:int -> int * int * int -> inner_edges:bool -> unit
+
+(* the three planes, luma [ys] wide and chroma [cs], as a picture of
+ * [width] by [height] *)
+val image : width:int -> height:int -> ys:int -> cs:int -> Bytes.t -> Bytes.t -> Bytes.t -> Rgba_image.t

@@ -107,6 +107,10 @@ libs/images           the picture formats born of the web. PNG (Png:
                       fills and strokes; from an <svg> of a page or a
                       file, one tree). GIF and JPEG are
                       elm-playground's
+libs/video            video as the web has it: a WebM file's frames found
+                      (Webm) and decoded (Vp8_video: VP8's frames
+                      predicted from others, over libs/images' Vp8);
+                      not yet played by the browser
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style): what the pen drawing a letter is told
@@ -172,7 +176,7 @@ tools/                small programs beside the browser, made of its
                       typeset   lines broken by Knuth and Plass
                                 (mini-mosaic's wrap=pretty)
                       platform  the window the three are linked with
-tests/                tools, html, xml, css, js, layout, browser, images, compression, network, network_unix
+tests/                tools, html, xml, css, js, layout, browser, images, video, compression, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
                       threads next to Chrome's); history.md: how it

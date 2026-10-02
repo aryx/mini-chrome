@@ -1,0 +1,8 @@
+; the tests of libs/video, run by 'make test': WebM clips made by
+; libvpx (data/make.sh says how), each decoded frame against the raw
+; video ffmpeg's own decoder gives for it
+(test
+ (name Test)
+ (deps (glob_files data/*.webm) (glob_files data/*.md5))
+ (flags (:standard -open Images))
+ (libraries alcotest testo mini_video images tiny_libs.graphics_rgba))

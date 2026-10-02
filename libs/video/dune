@@ -1,0 +1,9 @@
+; video as the web has it: a WebM file's frames found (Webm) and
+; decoded (Vp8_video: VP8, the frames predicted from others; a key
+; frame's parts are libs/images' Vp8, the still picture's). Pure OCaml,
+; bytes in and pictures out.
+(library
+ (name mini_video)
+ (wrapped false)
+ (flags (:standard -open Images)) ; Vp8, Vp8_tables (libs/images/dune)
+ (libraries images tiny_libs.graphics_rgba))

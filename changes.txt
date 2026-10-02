@@ -119,6 +119,16 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- video, the web's (libs/video, not yet played by <video>): a WebM
+  file's frames found (Webm: EBML, Matroska's tracks, clusters and
+  blocks) and VP8's decoded whole (Vp8_video: the frames predicted
+  from the last, golden and altref frames, the modes from the
+  neighbours' vectors, split macroblocks, quarter pixels by the
+  six-tap filter, the loop filter by reference and mode), over the
+  still picture's parts (libs/images' Vp8). Every frame of seven
+  clips made by libvpx is ffmpeg's decoder's, to the byte
+  (tests/video). A still or a frame of filter level 0 is no longer
+  filtered (it was, by what its deltas added)
 - ES modules: import and export in the language (Js_module: a
   module's own scope, live bindings, circles, every form of export,
   import(), import.meta.url), and in a page: <script type=module>,
