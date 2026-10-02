@@ -64,6 +64,7 @@
      Script_fetch     a script asking the network: the request out,
                       the answer back, who may read it (CORS); fetch
      XMLHttpRequest   the same request, the first way
+     WebSocket        a connection that stays, messages both ways
      Script_url       URLSearchParams
      Browser_script   this one: the tasks (the page's scripts, an event
                       dispatched, the timers) and what the browser asks
@@ -190,6 +191,15 @@ val advance : t -> float -> unit
  * url, assign, replace, reload): the address, and whether it takes
  * the page's place in the history instead of being after it *)
 val take_navigation : t -> (string * bool) option
+
+(* what the page's WebSockets asked since the last call, the oldest
+ * first (WebSocket.mli): for the browser to do *)
+val take_socket_asks : t -> Script_types.socket_ask list
+
+(* [socket_event t id event]: what the connection of the socket of
+ * that number said, given to the script -- a task: onopen, onmessage,
+ * onclose called. False when the page has no such socket. *)
+val socket_event : t -> int -> Websocket_client.event -> bool
 
 val take_requests : t -> Script_types.request list
 

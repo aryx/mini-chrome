@@ -45,14 +45,18 @@ type 'msg t = {
   jar : Cookie_jar.t;
   (* what the browser says it is to each host (User-Agent) *)
   agent : (string -> string) option;
+  (* the pages' WebSockets, stepped with the requests *)
+  sockets : 'msg Web_sockets.t;
 }
 
 (* four threads, Netscape's four connections: at most four names
  * resolved or https:// fetches waiting at once, the others queued *)
 let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent () : 'msg t =
-  { in_flight = []; pool = (if threads then Some (Worker.create 4) else None); jar; agent }
+  let pool = if threads then Some (Worker.create 4) else None in
+  { in_flight = []; pool; jar; agent; sockets = Web_sockets.create ?pool () }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar
+let sockets (t : 'msg t) : 'msg Web_sockets.t = t.sockets
 
 (* https://, by Http_client over our own TLS 1.3 (Tls_client, Tls13) --
  * blocking, so the frame waits while it fetches, or on a thread of the
@@ -119,4 +123,4 @@ let step (t : 'msg t) : 'msg list =
                | Some (Error e) -> Left (k (Error (Network_error (Printexc.to_string e))))))
   in
   t.in_flight <- pending;
-  finished
+  finished @ Web_sockets.step t.sockets

@@ -47,6 +47,8 @@ and msg =
   | Got_picture of int * string * (Fetch.response, Fetch.error) result
   | Got_answer of int * int * string * (Fetch.response, Fetch.error) result (* a tab's script's request: the tab, the request's number, its URL *)
   | Start_fetch of msg Fetch.request (* a tab's request, to start *)
+  | Socket of int * Script_types.socket_ask (* a tab's script's WebSocket: opened, sent to, closed *)
+  | Got_socket of int * int * Websocket_client.event (* what it said: the tab, the socket's number *)
   | Tick of float
   | Key of string
   | Key_up of string

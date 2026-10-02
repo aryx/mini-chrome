@@ -47,6 +47,7 @@ type 'msg config = {
   got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
   (* the answer to a script's request, by its number and its URL *)
   got_answer : int -> string -> (Fetch.response, Fetch.error) result -> 'msg;
+  socket : Script_types.socket_ask -> 'msg;
   fetch : 'msg Fetch.request -> 'msg;
   connections : int;
   visible : int;
@@ -342,6 +343,8 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
           in
           (tab, Cmd.batch (cmd :: List.map send requests))
       in
+      (* its WebSockets' asks, handed to the program as they are *)
+      let cmd = match Browser_script.take_socket_asks s with [] -> cmd | asks -> Cmd.batch (cmd :: List.map (fun a -> Cmd.Msg (cfg.socket a)) asks) in
       match navigation with
       | Some (url, replace) ->
           Logs.info (fun m -> m "a script goes to %s" url);
@@ -497,6 +500,15 @@ let got_answer (cfg : 'msg config) (network : < Cap.network ; .. >) (rid : int) 
         | Ok r -> Ok { Script_types.status = r.status; headers = r.headers; body = r.body; final = r.url }
         | Error e -> Error (Fetch.error_to_string e));
       after_task cfg network tab
+
+(* what a script's WebSocket's connection said: given to the script, a
+ * task. The script of another page (this one came after) does not
+ * know the socket: closed, the page it was for being gone *)
+let got_socket (cfg : 'msg config) (network : < Cap.network ; .. >) (id : int) (event : Websocket_client.event) (tab : t) : t * 'msg Cmd.t =
+  let gone = match event with Closed _ -> Cmd.none | _ -> Cmd.Msg (cfg.socket (Socket_close (id, 1001, ""))) in
+  match tab.script with
+  | Some s when Browser_script.socket_event s id event -> after_task cfg network tab
+  | _ -> (tab, gone)
 
 let form_effect (cfg : 'msg config) (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (tab : t) :
     t * 'msg Cmd.t =

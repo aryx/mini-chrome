@@ -124,6 +124,14 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Start_fetch r ->
       Fetch.perform m.fetches r;
       (m, Cmd.none)
+  | Got_socket (id, sid, event) -> on_tab m id (fun cfg tab -> Browser_tab.got_socket cfg network sid event tab)
+  | Socket (id, ask) ->
+      let sockets = Fetch.sockets m.fetches in
+      (match ask with
+      | Socket_open (sid, url, origin) -> Web_sockets.open_ sockets network ~key:(id, sid) ~origin url (fun event -> Got_socket (id, sid, event))
+      | Socket_send (sid, message) -> Web_sockets.send sockets (id, sid) message
+      | Socket_close (sid, code, reason) -> Web_sockets.close sockets (id, sid) ~code ~reason);
+      (m, Cmd.none)
   | Tick time ->
       (* the shown tab's timers on the frame clock (the others wait, as
        * Chrome slows a hidden tab's) *)

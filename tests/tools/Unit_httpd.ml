@@ -46,6 +46,33 @@ let tests caps =
           contains "said in a page" "/nope.html" "404 Not Found";
           status "only GET" ~meth:"POST" "/" 405;
           status "and DELETE" ~meth:"DELETE" "/notes/a.txt" 405);
+      Testo.create "a WebSocket: the echo, by Websocket_client" (fun () ->
+          Testutil_httpd.with_server caps Testutil_httpd.site (fun base ->
+              let url = "ws" ^ String.sub base 4 (String.length base - 4) ^ "/echo" in
+              match Websocket_client.connect ~origin:base caps url with
+              | Error why -> Alcotest.fail why
+              | Ok socket ->
+                  (* said before it is open: kept, and sent then *)
+                  Websocket_client.send socket "hello";
+                  let rec until (wanted : Websocket_client.event -> bool) (seen : Websocket_client.event list) (tries : int) =
+                    if List.exists wanted seen || tries = 0 then seen
+                    else (
+                      Unix.sleepf 0.01;
+                      until wanted (seen @ Websocket_client.step socket) (tries - 1))
+                  in
+                  let seen = until (fun e -> e = Message "hello") [] 300 in
+                  Alcotest.(check bool) "opened, then our message back" true (seen = [ Opened; Message "hello" ]);
+                  let big = String.make 70000 'x' in
+                  Websocket_client.send socket big;
+                  Alcotest.(check bool) "a message of 70,000 bytes, its length in 8 bytes" true (until (fun e -> e = Message big) [] 300 = [ Message big ]);
+                  Websocket_client.close ~code:1000 ~reason:"done" socket;
+                  Alcotest.(check bool) "closed by both: clean, our code and reason back" true
+                    (until (fun e -> match e with Closed _ -> true | _ -> false) [] 300 = [ Closed { code = 1000; reason = "done"; clean = true } ]);
+                  Alcotest.(check bool) "nothing after" true (Websocket_client.step socket = []));
+          Testutil_httpd.with_server caps Testutil_httpd.site (fun base ->
+              match Websocket_client.connect caps ("ws://127.0.0.1:1/") with
+              | Ok _ -> Alcotest.fail "connected to nothing"
+              | Error _ -> ignore base));
       Testo.create "content types" (fun () ->
           Alcotest.(check (list string)) "by the extension, whatever its case; unknown: bytes"
             [ "text/html; charset=utf-8"; "text/css"; "text/javascript"; "image/png"; "image/jpeg"; "application/octet-stream" ]

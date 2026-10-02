@@ -112,7 +112,9 @@ libs/richtext         a look (Style), text laid out on pages
 libs/typeset          lines broken, greedy or by Knuth and Plass
 libs/network          URLs, HTTP/1.1, cookies, TLS 1.3 and the sockets: a
                       GET that never blocks, stepped each frame
-                      (Http_request)
+                      (Http_request); WebSocket, its handshake and
+                      frames (Websocket) and a connection stepped
+                      each frame (Websocket_client)
 src/url/              links resolved (Browser_url)
 src/layout/           where everything goes: CSS's box model (Box_layout,
                       over Box_tree, Box_inline and Box_flow), flexbox,
@@ -125,7 +127,7 @@ src/dom/              JavaScript in a browser: the DOM a page's scripts
                       see (Script_dom, Script_host, Script_element,
                       Script_events, Script_document), window's globals
                       (Script_window), a script asking the network
-                      (XMLHttpRequest, Script_fetch) and their tasks (Browser_script:
+                      (XMLHttpRequest, Script_fetch, WebSocket) and their tasks (Browser_script:
                       the scripts, the events, the timers)
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube
@@ -151,7 +153,8 @@ tools/                small programs beside the browser, made of its
                       curl   mini-curl: a URL fetched and printed, by our
                              own HTTP, TLS, gzip and cookies (-v, -i, -L)
                       httpd  mini-httpd: a directory's files served, the
-                             other end of the conversation
+                             other end of the conversation; a
+                             WebSocket asked for is an echo
                       lynx   mini-lynx: a page as text in the terminal,
                              its links numbered, a number typed to follow
 tests/                tools, html, xml, css, js, layout, browser, images, compression, network, network_unix

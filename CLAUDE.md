@@ -150,7 +150,7 @@ browser, made of its libraries, each a library (its logic, tested in
 `tests/tools`) and a main of a few lines: `tools/node` (`mini-node`,
 the JavaScript engine in a terminal), `tools/curl` (`mini-curl`, a URL
 fetched by our HTTP and TLS; `-v` to see a request that fails in the
-browser), `tools/httpd` (`mini-httpd`, a directory served: the pages
+browser), `tools/httpd` (`mini-httpd`, a directory served, and an echo for a WebSocket: the pages
 of a test or a demonstration, instead of `python3 -m http.server`),
 `tools/lynx` (`mini-lynx`, a page as text over `Line_mode`). The
 browser is the subject of this repository, and a program that is not
@@ -210,6 +210,9 @@ The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
 objects (`Script_host`; `Script_element`, `Script_events`,
 `Script_document` and `Script_window` for what libraries ask;
+`WebSocket` for a socket that stays open (its asks and what the
+connection says go the same way: `take_socket_asks`, the program's
+`Web_sockets` in the `Fetch.t`, stepped each frame, `Got_socket`);
 `XMLHttpRequest` and `Script_fetch` for a script asking the network,
 whose requests the tab sends (`take_requests`) and answers by their
 number (`Got_answer`, `Browser_script.answer`: a task, then a layout),
@@ -419,6 +422,7 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   `libs/compression` has Brotli (`Brotli`, `Brotli_dictionary`, and
   the dictionary's 120 KB in the binary, `Brotli_words`); gzip,
   Zstandard and `Huffman` stay `tiny_libs.compression`'s.
+  `libs/network` has `Websocket`.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
   The Playground itself links `tiny_libs`' `Png` (textures, a frame

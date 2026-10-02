@@ -61,6 +61,10 @@ val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> 
 
 val jar : 'msg t -> Cookie_jar.t
 
+(* the pages' WebSockets (Web_sockets), which [step] steps too: what
+ * they say comes among the answers *)
+val sockets : 'msg t -> 'msg Web_sockets.t
+
 (* the request started *)
 val perform : 'msg t -> 'msg request -> unit
 

@@ -42,6 +42,14 @@
                        and nothing above the directory is ever named
      POST /x           405: only GET
 
+   And one thing that is not a file: a request that asks to become a
+   WebSocket (Upgrade: websocket, at any path) is agreed to
+   (Websocket.response: 101, and the proof that the key was read) and
+   the connection kept: each message is sent back as it came, until
+   the client closes -- an echo, the hello world of sockets, and the
+   server side of Websocket.mli in thirty lines. While it lasts
+   nobody else is served: one connection at a time.
+
    A query (?v=2) is dropped, %20 decoded. One connection at a time,
    closed after its answer; it listens on 127.0.0.1 alone: a server for
    the pages on one's own machine, not for the Internet.
@@ -70,4 +78,9 @@ val listen : < Cap.network ; .. > -> port:int -> Unix.file_descr * int
 
 (* connections accepted for ever, one at a time, each request answered
  * for [root]; [log] is told each: "GET /x 200 1234" *)
+(* [echo fd key]: the WebSocket handshake answered on a connection
+ * whose request had that Sec-WebSocket-Key, then each message
+ * echoed until the close; how many were *)
+val echo : Unix.file_descr -> string -> int
+
 val serve : < Cap.open_in ; .. > -> root:string -> ?log:(string -> unit) -> Unix.file_descr -> 'a

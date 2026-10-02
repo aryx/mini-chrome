@@ -110,6 +110,38 @@ let read_request (fd : Unix.file_descr) : Network.Http.parsed_request =
   in
   go ()
 
+(* the key of a request that asks to become a WebSocket *)
+let websocket_key (r : Network.Http.request) : string option =
+  match Network.Http.header "Upgrade" r.headers with
+  | Some u when String.lowercase_ascii u = "websocket" -> Network.Http.header "Sec-WebSocket-Key" r.headers
+  | _ -> None
+
+(* a WebSocket's server, the simplest: the handshake answered, then
+ * each message sent back as it came, until the client closes (or
+ * says nothing for a minute); how many it echoed *)
+let echo (fd : Unix.file_descr) (key : string) : int =
+  let send (s : string) = ignore (Unix.write_substring fd s 0 (String.length s)) in
+  send (Network.Websocket.response ~key);
+  Unix.setsockopt_float fd Unix.SO_RCVTIMEO 60.;
+  let buffer = Bytes.create 4096 in
+  let rec go (inbox : string) (count : int) : int =
+    match Network.Websocket.decode inbox with
+    | Frame (f, used) -> (
+        let rest = String.sub inbox used (String.length inbox - used) in
+        (* what the client masked comes back unmasked: a server's frames are *)
+        match f.opcode with
+        | Text | Binary -> send (Network.Websocket.encode f); go rest (count + 1)
+        | Ping -> send (Network.Websocket.encode { f with opcode = Pong }); go rest count
+        | Close -> send (Network.Websocket.encode f); count
+        | Pong | Continuation -> go rest count)
+    | Bad _ -> count
+    | Incomplete -> (
+        match Unix.read fd buffer 0 4096 with
+        | 0 -> count
+        | n -> go (inbox ^ Bytes.sub_string buffer 0 n) count)
+  in
+  go "" 0
+
 let serve (caps : < Cap.open_in ; .. >) ~(root : string) ?(log = fun _ -> ()) (sock : Unix.file_descr) : 'a =
   (* a client that left before its answer: an error of the write, not
    * a signal that ends the program *)
@@ -119,15 +151,22 @@ let serve (caps : < Cap.open_in ; .. >) ~(root : string) ?(log = fun _ -> ()) (s
     (* a client that says nothing does not hold the others for ever *)
     Unix.setsockopt_float fd Unix.SO_RCVTIMEO 5.;
     (try
-       let said, (response : Network.Http.response) =
-         match read_request fd with
-         | Request (r, _, _) -> (r.meth ^ " " ^ r.target, answer caps ~root r)
-         | Bad why -> ("?", page 400 why)
-         | Incomplete -> ("?", page 400 "not a whole request")
-       in
-       let bytes = Network.Http.response_to_string response in
-       ignore (Unix.write_substring fd bytes 0 (String.length bytes));
-       log (Printf.sprintf "%s %d %d" said response.status (String.length response.body))
+       let request = read_request fd in
+       match request with
+       | Request (r, _, _) when websocket_key r <> None ->
+           log (Printf.sprintf "%s %s 101, a WebSocket" r.meth r.target);
+           let echoed = echo fd (Option.get (websocket_key r)) in
+           log (Printf.sprintf "%s: closed, %d messages echoed" r.target echoed)
+       | _ ->
+           let said, (response : Network.Http.response) =
+             match request with
+             | Request (r, _, _) -> (r.meth ^ " " ^ r.target, answer caps ~root r)
+             | Bad why -> ("?", page 400 why)
+             | Incomplete -> ("?", page 400 "not a whole request")
+           in
+           let bytes = Network.Http.response_to_string response in
+           ignore (Unix.write_substring fd bytes 0 (String.length bytes));
+           log (Printf.sprintf "%s %d %d" said response.status (String.length response.body))
      with Unix.Unix_error _ | Sys_error _ -> ());
     (try Unix.close fd with Unix.Unix_error _ -> ());
     loop ()

@@ -111,6 +111,15 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- WebSocket: new WebSocket(url) for a page's scripts (src/dom's
+  WebSocket: readyState, send, close, the open, message, error and
+  close events), ws:// and wss://. The script asks, the program does:
+  Web_sockets (in the Fetch.t) keeps the connections, each made on a
+  thread then stepped every frame (libs/network's Websocket_client,
+  over Websocket, the protocol, from elm-playground: the handshake
+  with the page's Origin, masked frames, fragments, ping, the closing
+  handshake). mini-httpd answers a WebSocket with an echo. Tried on
+  it and on wss://echo.websocket.org over our TLS
 - PNG is the browser's own too, copied from elm-playground to be
   told here: Png in libs/images (now wrapped, as libs/network: the
   Playground links its own Png), with PngSuite

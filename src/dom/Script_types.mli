@@ -33,6 +33,11 @@ type node = {
 type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *) }
 type answer = { status : int; headers : (string * string) list; body : string; final : string (* the URL, after the redirections *) }
 
+(* what a script's WebSocket asks of the browser: a connection opened
+ * (its number, by which what it says comes back; its address; the
+ * page's origin), a message sent, a close (its code and reason) *)
+type socket_ask = Socket_open of int * string * string | Socket_send of int * string | Socket_close of int * int * string
+
 type timer = { tid : int; mutable due : float; every : float option; fn : value }
 
 type t = {
@@ -53,6 +58,8 @@ type t = {
   (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
   mutable waiting : (int * ((answer, string) result -> unit)) list;
   mutable next_request : int;
+  mutable socket_asks : socket_ask list; (* WebSocket's, for the browser; the newest first *)
+  mutable sockets : (int * (Websocket_client.event -> unit)) list; (* the open ones: what to tell each *)
   (* where a script sent the page (location.href = ..., location.replace):
    * the address, and whether it takes the page's place in the history *)
   mutable navigation : (string * bool) option;

@@ -131,6 +131,8 @@ let receive (t : t) : string =
   t.machine <- m;
   data
 
+let ended (t : t) : bool = t.eof || t.closed
+
 let close (t : t) : unit =
   if not t.closed then begin
     let m, alert = Tls13.close t.machine in

@@ -113,6 +113,10 @@ type 'msg config = {
   got : string -> (Fetch.response, Fetch.error) result -> 'msg;
   got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
   got_answer : int -> string -> (Fetch.response, Fetch.error) result -> 'msg; (* a script's request's, by its number *)
+  (* what a script's WebSocket asks (opened, a message sent, closed),
+   * for the program to do (Web_sockets); what the socket says comes
+   * back by [got_socket] *)
+  socket : Script_types.socket_ask -> 'msg;
   (* a request for the program to carry out (Fetch): the tab asks for
    * what it needs by a message, never touching a socket *)
   fetch : 'msg Fetch.request -> 'msg;
@@ -159,6 +163,12 @@ val got : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetc
  * fetch), of that number and URL: given to the script, the page laid
  * out again if the script changed it *)
 val got_answer : 'msg config -> < Cap.network ; .. > -> int -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
+
+(* [got_socket cfg network id event]: what the connection of the
+ * script's WebSocket of that number said, given to the script -- a
+ * task, as an answer. A socket the page does not know (a page left
+ * for this one) is closed. *)
+val got_socket : 'msg config -> < Cap.network ; .. > -> int -> Websocket_client.event -> t -> t * 'msg Cmd.t
 
 val got_picture : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
 

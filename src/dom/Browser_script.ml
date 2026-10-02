@@ -140,7 +140,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; navigation = None; current_script = None; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; navigation = None; current_script = None; cookies;
       more = (fun _ _ -> None); dispatch = (fun _ _ -> false); once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -176,6 +176,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
    * ([take_requests]), their answers given back ([answer]) *)
   XMLHttpRequest.install t (Js_eval.define engine);
   Script_fetch.install t (Js_eval.define engine);
+  WebSocket.install t (Js_eval.define engine);
   Script_url.install t (Js_eval.define engine);
   t
 
@@ -277,6 +278,20 @@ let advance (t : t) (ms : float) : unit =
 let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
   let give = host_function "answer" (fun ~this:_ _ -> Script_fetch.answer t rid result; Undefined) in
   match Js_eval.call t.engine give ~this:Undefined [] with Ok _ -> () | Error e -> report t e
+
+(* what a socket's connection said, given to the script: a task, as an
+ * answer is; false when the page has no such socket (it is another
+ * page's, gone) *)
+let socket_event (t : t) (id : int) (e : Websocket_client.event) : bool =
+  let known = ref false in
+  let give = host_function "socket" (fun ~this:_ _ -> known := WebSocket.tell t id e; Undefined) in
+  (match Js_eval.call t.engine give ~this:Undefined [] with Ok _ -> () | Error e -> report t e);
+  !known
+
+let take_socket_asks (t : t) : socket_ask list =
+  let a = List.rev t.socket_asks in
+  t.socket_asks <- [];
+  a
 
 let take_requests (t : t) : request list =
   let r = List.rev t.requests in

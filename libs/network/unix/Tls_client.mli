@@ -51,6 +51,13 @@ val receive : t -> string
 
 val close : t -> unit
 
+(* whether the other side is gone: the connection closed, by it or by
+ * [close] (a lasting connection asks; [exchange] reads until then) *)
+val ended : t -> bool
+
+(* [random n]: n bytes of the kernel's randomness (/dev/urandom) *)
+val random : int -> string
+
 (* [exchange caps ~host ~port request]: connect, send [request], read
  * until the server closes (or [timeout] seconds of silence) *)
 val exchange : ?trust:X509.t list -> ?timeout:float -> < Cap.network ; .. > -> host:string -> port:int -> string -> (string, string) result

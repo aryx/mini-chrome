@@ -48,6 +48,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     got = (fun url r -> Got (id, url, r));
     got_picture = (fun url r -> Got_picture (id, url, r));
     got_answer = (fun rid url r -> Got_answer (id, rid, url, r));
+    socket = (fun ask -> Socket (id, ask));
     fetch = (fun r -> Start_fetch r);
     connections = 6;
     visible = (match List.find_opt (fun t -> t.id = id) m.tabs with Some t -> visible_lines m t.tab | None -> 0);
@@ -154,6 +155,7 @@ let open_tab (network : < Cap.network ; .. >) (url : string) (m : model) : model
   load network target m
 
 let close_tab (network : < Cap.network ; .. >) (id : int) (m : model) : model * msg Cmd.t =
+  Web_sockets.close_tab (Fetch.sockets m.fetches) id;
   match List.filter (fun t -> t.id <> id) m.tabs with
   | [] -> open_tab network home { m with tabs = [] }
   | rest ->
