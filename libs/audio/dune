@@ -1,0 +1,10 @@
+; sound as the web has it: Vorbis decoded (Vorbis: codebooks, floors
+; and residues, the MDCT, windows overlapped) and Ogg's pages cut into
+; packets (Ogg) -- <audio>'s first free codec and a WebM's first
+; sound. Pure OCaml, bytes in and samples out. Copies of
+; elm-playground's (tiny_libs.audio_vorbis, not linked here: two
+; modules of one name do not link), to diverge.
+(library
+ (name mini_audio)
+ (wrapped false)
+ (libraries mini_opti))
