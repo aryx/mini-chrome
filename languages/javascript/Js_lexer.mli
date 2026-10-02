@@ -60,6 +60,10 @@ and token = {
 exception Error of int * string
 
 (* the words that are not names *)
+(* a code point as UTF-8's bytes, what a \u escape stands for; half of
+ * a surrogate pair too, as its three bytes *)
+val utf_8 : int -> string
+
 val keywords : string list
 
 (* the tokens of a script, ending with Eof; Error on a mistake *)

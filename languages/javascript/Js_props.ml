@@ -83,7 +83,9 @@ and inherited (ps : Js_builtins.protos) (o : obj) (k : string) : bool = match pr
  * not show; nor a prototype's "constructor") *)
 let enumerable_keys (v : value) : string list =
   let rec chain (o : obj) (seen : string list) : string list =
-    let own = List.filter (fun k -> not (List.mem k seen)) (keys o) in
+    (* not a symbol's key ("@@...": Js_globals) *)
+    let symbol k = String.length k >= 2 && k.[0] = '@' && k.[1] = '@' in
+    let own = List.filter (fun k -> not (List.mem k seen || symbol k)) (keys o) in
     own @ match o.proto with Some p -> List.filter (( <> ) "constructor") (chain p (seen @ own)) | None -> []
   in
   match v with

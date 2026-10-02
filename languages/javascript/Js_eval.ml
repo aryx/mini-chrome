@@ -78,10 +78,15 @@ let rec describe (e : A.expr) : string =
 
 (* what a for-of, a ...spread or an array pattern goes through: an
  * array's items, a string's characters *)
-let items_of (v : value) : value list =
+let rec items_of (v : value) : value list =
   match v with
   | Object ({ kind = Array _; _ } as o) -> array_items o
   | String str -> List.init (String.length str) (fun i -> String (String.make 1 str.[i]))
+  (* its Symbol.iterator, here a function giving the items (a Map's, a Set's) *)
+  | Object ({ kind = Plain; _ } as o) -> (
+      match get_own o "@@iterator" with
+      | Some (Object { kind = Host_function (_, f); _ }) -> items_of (f ~this:v [])
+      | _ -> throw "TypeError" (display v ^ " is not iterable"))
   | v -> throw "TypeError" (display v ^ " is not iterable")
 
 let tick (t : t) : unit =
@@ -276,7 +281,10 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
       match lookup s x with
       | Some { constant = true; _ } -> throw "TypeError" "Assignment to constant variable."
       | Some b -> b.value <- v
-      | None -> throw "ReferenceError" (x ^ " is not defined"))
+      (* a name nobody declared, assigned to: a global made, as scripts
+       * not in strict mode have always relied on (Wikipedia's "RLQ = ...").
+       * Before: ReferenceError, strict mode's answer *)
+      | None -> declare t.globals x ~constant:false v)
   | Member (o, k) -> put t (eval_expr t s this o) k v
   | Index (o, k) ->
       let o = eval_expr t s this o in
@@ -539,7 +547,12 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = { vars = Hashtbl.create 64; parent = None } in
   let t = { globals; protos = None; line = 0; steps = default_budget; budget = default_budget; depth = 0 } in
   let call f ~this args = call_value t f ~this args in
-  t.protos <- Some (Js_builtins.install ~call ~log ~seed ?now (fun x v -> declare globals x ~constant:false v));
+  let define x v = declare globals x ~constant:false v in
+  t.protos <- Some (Js_builtins.install ~call ~log ~seed ?now define);
+  (* the helpers libraries look for: Symbol, Map, Object.defineProperty... *)
+  Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x)) define;
+  (* the global object, by its standard name (a page's window is the browser's) *)
+  define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Hashtbl.find_opt globals.vars k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
   t
 
 (* the error a console shows: an error object as "Name: message", any
@@ -563,6 +576,10 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)
   | exception Stack_overflow -> Error { line = t.line; message = "RangeError: Maximum call stack size exceeded" }
+  (* claude: a mistake of the engine's own (an OCaml exception a
+   * built-in let through): the script's error, never the browser's end *)
+  | exception ((Invalid_argument _ | Failure _ | Not_found | Division_by_zero) as e) ->
+      Error { line = t.line; message = "InternalError: " ^ Printexc.to_string e }
 
 let run (t : t) (program : A.program) : (value, error) result =
   guarded t (fun () ->

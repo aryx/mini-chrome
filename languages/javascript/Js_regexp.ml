@@ -76,18 +76,14 @@ let parse (p : string) : node list list * int * (string * int) list =
             match int_of_string_opt ("0x" ^ String.sub p (!pos + 1) (close - !pos - 1)) with
             | Some cp ->
                 pos := close + 1;
-                let b = Buffer.create 4 in
-                Buffer.add_utf_8_uchar b (Uchar.of_int cp);
-                `Chars (Buffer.contents b)
+                `Chars (Js_lexer.utf_8 cp)
             | None -> `Char 'u')
         | None -> `Char 'u')
     | 'u' when !pos + 4 <= n -> (
         match int_of_string_opt ("0x" ^ String.sub p !pos 4) with
         | Some cp ->
             pos := !pos + 4;
-            let b = Buffer.create 4 in
-            Buffer.add_utf_8_uchar b (Uchar.of_int cp);
-            `Chars (Buffer.contents b)
+            `Chars (Js_lexer.utf_8 cp)
         | None -> `Char 'u')
     | 'x' when !pos + 2 <= n -> (
         match int_of_string_opt ("0x" ^ String.sub p !pos 2) with Some c -> pos := !pos + 2; `Char (Char.chr c) | None -> `Char 'x')

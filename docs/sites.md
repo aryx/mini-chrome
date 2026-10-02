@@ -76,15 +76,18 @@ running; 🔴 does not parse.
 | Hacker News' `hn.js` | 🟢 | |
 | Preact 10 (minified) | 🟢 | |
 | Mithril 2 | 🟢 | |
+| React 18 (minified) | 🟢 | |
+| Underscore 1.13 | 🟢 | |
+| Wikipedia's startup module | 🟢 | |
 | jQuery 3.7 | 🟡 | `Cannot read properties of undefined (reading 'createElement')`: its document, not found |
 | jQuery 3.7 slim (minified) | 🟡 | `Cannot read properties of undefined (reading 'pseudos')` |
-| Underscore 1.13 | 🟡 | `isFinite` is not defined |
-| Wikipedia's startup module | 🟡 | `NORLQ is not defined` |
-| React 18 (minified) | 🟡 | `Symbol` is not defined |
 | htmx 1.9 | 🟡 | `document.createEvent` is not a function |
 | example.com's `s.js` | 🟡 | parses; in the survey's empty page it stops at the paragraph it expects |
 | Alpine 3 | 🔴 | optional chaining: `a?.b` |
 | Vue 3 (minified) | 🔴 | `class` |
+
+Running to its end in an empty page is not the library working: it is
+defined, nothing of it was called.
 
 How it moved, the same day:
 
@@ -94,13 +97,14 @@ How it moved, the same day:
 | the language of 1999 (the comma operator, `in` and for-in, the bits, `switch`, `do`, labels, `finally`) | 2 | 5 | 5 |
 | template literals, destructuring, default and rest parameters, spread, an object literal's short forms, getters and setters | 2 | 8 | 2 |
 | regular expressions: lookaheads, lookbehinds, backreferences, named groups, the flags s, u, y | 3 | 7 | 2 |
+| the globals libraries look for (`Symbol`, `Map`, `Set`, `Object.defineProperty`, `isFinite`...), an undeclared name assigned to | 6 | 4 | 2 |
 
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **`class`, optional chaining, `Symbol` and a few globals, and what
-  jQuery expects of `window` and `document`**: the scripts above;
+- **`class`, optional chaining, and what jQuery and htmx expect of
+  `window` and `document`**: the scripts above;
   then the sites' own scripts can be tried (`scripts=`).
 - **Brotli**: Berkshire Hathaway (and a server that will not send
   gzip).

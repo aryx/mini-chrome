@@ -8,4 +8,4 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"javascript" (fun _env -> Unit_js_lexer.tests @ Unit_js_parse.tests @ Unit_js_eval.tests @ Unit_js_es5.tests @ Unit_js_classic.tests @ Unit_js_modern.tests @ Unit_json.tests)
+let () = Testo.interpret_argv ~project_name:"javascript" (fun _env -> Unit_js_lexer.tests @ Unit_js_parse.tests @ Unit_js_eval.tests @ Unit_js_es5.tests @ Unit_js_classic.tests @ Unit_js_modern.tests @ Unit_js_globals.tests @ Unit_json.tests)

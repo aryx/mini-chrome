@@ -48,7 +48,14 @@ let is_name_char c = is_name_start c || is_digit c
 (* a code point as UTF-8's bytes: a string's \u escape *)
 let utf_8 (cp : int) : string =
   let b = Buffer.create 4 in
-  Buffer.add_utf_8_uchar b (Uchar.of_int cp);
+  (* by hand, not Buffer.add_utf_8_uchar: half of a surrogate pair
+   * (\uD800, in a library's regular expressions) is no character, and
+   * is written as its three bytes all the same *)
+  let add n = Buffer.add_char b (Char.chr n) in
+  if cp < 0x80 then add cp
+  else if cp < 0x800 then (add (0xC0 lor (cp lsr 6)); add (0x80 lor (cp land 0x3F)))
+  else if cp < 0x10000 then (add (0xE0 lor (cp lsr 12)); add (0x80 lor ((cp lsr 6) land 0x3F)); add (0x80 lor (cp land 0x3F)))
+  else (add (0xF0 lor ((cp lsr 18) land 7)); add (0x80 lor ((cp lsr 12) land 0x3F)); add (0x80 lor ((cp lsr 6) land 0x3F)); add (0x80 lor (cp land 0x3F)));
   Buffer.contents b
 
 let tokenize (s : string) : token list =

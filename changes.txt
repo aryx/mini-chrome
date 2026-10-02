@@ -81,6 +81,14 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript, what libraries look for first (Js_globals): Object's
+  defineProperty (a value, or a getter and a setter), entries, values,
+  getOwnPropertyNames and the like, Number's and isFinite, Symbol (a
+  unique string), Map, Set, WeakMap and WeakSet (in a for-of and a
+  spread too), globalThis. An undeclared name assigned to makes a
+  global, as scripts not in strict mode rely on. A mistake of the
+  engine's own is the script's error, not the program's end. React,
+  Underscore and Wikipedia's startup module run to their end
 - JavaScript's regular expressions: lookaheads (?=x) (?!x) and
   lookbehinds (?<=x) (?<!x), backreferences \1 and named groups
   (?<name>x) \k<name>, the flags s (the dot takes a newline), u (the
