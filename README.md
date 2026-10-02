@@ -179,8 +179,9 @@ tools/                small programs beside the browser, made of its
 tests/                tools, html, xml, css, js, layout, browser, images, video, compression, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
-                      threads next to Chrome's); history.md: how it
-                      came to be; sites.md: the sites it shows, and
+                      threads next to Chrome's); dependencies.md: what
+                      it stands on outside this repository, by kind;
+                      history.md: how it came to be; sites.md: the sites it shows, and
                       what each lacks, by part, in colours; tags.md:
                       the theme tags of the interfaces' comments
                       (cs-history:, modern:...)

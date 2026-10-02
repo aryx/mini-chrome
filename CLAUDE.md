@@ -16,6 +16,10 @@ it came to be, the decisions taken on the way, and what was next;
 Model-View-Update loop, the chrome's pieces in `libs/gui` and their
 style, the one process and its threads next to Chrome's, the
 capabilities). Keep it true when one of those changes.
+`docs/dependencies.md` lists what is used from outside this
+repository (the Playground, each `tiny_libs` library and its modules,
+opam, C, the machine) and what was brought in: keep it true when a
+`dune` file's libraries change.
 
 ## Commands
 

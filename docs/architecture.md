@@ -2,8 +2,10 @@
 
 How the program is put together, and how that compares with the real
 Chrome. `README.md` lists the folders, `CLAUDE.md` the page's pipeline
-and the build's wiring, `docs/history.md` how it came to be; this file
-is about the shape of the running program.
+and the build's wiring, `docs/history.md` how it came to be,
+`docs/dependencies.md` what it stands on that is not in this
+repository (the Playground, its libraries by kind, opam, C, the
+machine); this file is about the shape of the running program.
 
 ## One program, three layers
 
