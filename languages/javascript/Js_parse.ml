@@ -16,7 +16,12 @@ type error = { line : int; message : string }
 exception Error of error
 
 (* the tokens, and where the parser is in them *)
-type t = { tokens : Js_lexer.token array; mutable pos : int }
+type t = {
+  tokens : Js_lexer.token array;
+  mutable pos : int;
+  (* in a for's first part: "in" is the for's, not an operator *)
+  mutable no_in : bool;
+}
 
 (*****************************************************************************)
 (* Tokens *)
@@ -52,21 +57,33 @@ let name (p : t) : string =
 (* Expressions: Pratt *)
 (*****************************************************************************)
 
+(* as tight as <: instanceof and in too, which are words *)
+let relational = 10
+
 (* an infix operator's binding power, and whether it is right-associative *)
+let assignments = [ "="; "+="; "-="; "*="; "/="; "%="; "**="; "<<="; ">>="; ">>>="; "&="; "|="; "^=" ]
+
 let infix (op : string) : (int * bool) option =
   match op with
-  | "=" | "+=" | "-=" | "*=" | "/=" | "%=" -> Some (1, true)
+  | "," -> Some (0, false)
+  | op when List.mem op assignments -> Some (1, true)
   | "?" -> Some (2, true)
-  | "||" -> Some (3, false)
-  | "&&" -> Some (4, false)
-  | "===" | "!==" | "==" | "!=" -> Some (5, false)
-  | "<" | ">" | "<=" | ">=" -> Some (6, false)
-  | "+" | "-" -> Some (7, false)
-  | "*" | "/" | "%" -> Some (8, false)
+  | "??" -> Some (3, false)
+  | "||" -> Some (4, false)
+  | "&&" -> Some (5, false)
+  | "|" -> Some (6, false)
+  | "^" -> Some (7, false)
+  | "&" -> Some (8, false)
+  | "===" | "!==" | "==" | "!=" -> Some (9, false)
+  | "<" | ">" | "<=" | ">=" -> Some (relational, false)
+  | "<<" | ">>" | ">>>" -> Some (11, false)
+  | "+" | "-" -> Some (12, false)
+  | "*" | "/" | "%" -> Some (13, false)
+  | "**" -> Some (14, true)
   | _ -> None
 
-let prefix_power = 9
-let postfix_power = 10
+let prefix_power = 15
+let postfix_power = 16
 
 (* what an assignment or ++ may change *)
 let target (p : t) (e : expr) : expr =
@@ -95,6 +112,15 @@ let rec expression (p : t) (min : int) : expr =
   let left = prefix p in
   loop p min left
 
+(* between brackets, "in" is the operator, whatever is outside *)
+and inside : 'a. t -> (unit -> 'a) -> 'a =
+ fun p f ->
+  let outer = p.no_in in
+  p.no_in <- false;
+  let x = f () in
+  p.no_in <- outer;
+  x
+
 (* the operators binding at least as tight as [min], each taking the
  * left side so far *)
 and loop (p : t) (min : int) (left : expr) : expr =
@@ -116,9 +142,9 @@ and loop (p : t) (min : int) (left : expr) : expr =
       loop p min (Call (left, args))
   (* x++, but not x on one line and ++y on the next: [no LineTerminator here] *)
   (* x instanceof F: as tight as < *)
-  | Keyword "instanceof" when 6 >= min ->
+  | Keyword (("instanceof" | "in") as op) when relational >= min && not (op = "in" && p.no_in) ->
       ignore (advance p);
-      loop p min (Binary ("instanceof", left, expression p 7))
+      loop p min (Binary (op, left, expression p (relational + 1)))
   | Punct (("++" | "--") as op) when postfix_power >= min && not t.newline_before ->
       ignore (advance p);
       loop p min (Update (op, false, target p left))
@@ -130,12 +156,15 @@ and loop (p : t) (min : int) (left : expr) : expr =
           let e =
             match op with
             | "?" ->
-                (* the middle as if in parentheses, then the rest *)
-                let a = expression p 0 in
+                (* the middle as if in parentheses (but no comma), then the rest *)
+                let a = expression p 1 in
                 expect p ":";
-                Conditional (left, a, expression p next)
-            | "=" | "+=" | "-=" | "*=" | "/=" | "%=" -> Assign (op, target p left, expression p next)
-            | "&&" | "||" -> Logical (op, left, expression p next)
+                (* each side may be an assignment: c ? a = 1 : b = 2 *)
+                ignore next;
+                Conditional (left, a, expression p 1)
+            | "," -> Comma (left, expression p next)
+            | op when List.mem op assignments -> Assign (op, target p left, expression p next)
+            | "&&" | "||" | "??" -> Logical (op, left, expression p next)
             | _ -> Binary (op, left, expression p next)
           in
           loop p min e
@@ -155,12 +184,12 @@ and prefix (p : t) : expr =
     | Keyword "false" -> Bool false
     | Keyword "null" -> Null
     | Keyword "this" -> This
-    | Keyword "typeof" -> Unary ("typeof", expression p prefix_power)
+    | Keyword (("typeof" | "void" | "delete") as op) -> Unary (op, expression p prefix_power)
     | Keyword "function" -> Function (func p ~arrow:false)
-    | Punct (("-" | "+" | "!") as op) -> Unary (op, expression p prefix_power)
+    | Punct (("-" | "+" | "!" | "~") as op) -> Unary (op, expression p prefix_power)
     | Punct (("++" | "--") as op) -> Update (op, true, target p (expression p prefix_power))
     | Punct "(" ->
-        let e = expression p 0 in
+        let e = inside p (fun () -> expression p 0) in
         expect p ")";
         e
     | Punct "[" ->
@@ -326,8 +355,48 @@ and statement (p : t) : stmt =
       ignore (advance p);
       expect p "(";
       s (for_rest p)
-  | Keyword "break" -> ignore (advance p); end_statement p; s Break
-  | Keyword "continue" -> ignore (advance p); end_statement p; s Continue
+  | Keyword (("break" | "continue") as k) ->
+      ignore (advance p);
+      (* its label, if one follows on the line *)
+      let label = match (peek p).kind with Name l when not (peek p).newline_before -> ignore (advance p); Some l | _ -> None in
+      end_statement p;
+      s (if k = "break" then Break label else Continue label)
+  | Keyword "do" ->
+      ignore (advance p);
+      let body = statement p in
+      if not (is_keyword p "while") then unexpected p "while";
+      ignore (advance p);
+      expect p "(";
+      let c = expression p 0 in
+      expect p ")";
+      if is_punct p ";" then ignore (advance p);
+      s (Do_while (body, c))
+  | Keyword "switch" ->
+      ignore (advance p);
+      expect p "(";
+      let e = expression p 0 in
+      expect p ")";
+      expect p "{";
+      (* a case's statements: up to the next case, default or } *)
+      let rec body acc = if is_keyword p "case" || is_keyword p "default" || is_punct p "}" then List.rev acc else body (statement p :: acc) in
+      let rec cases acc =
+        if is_punct p "}" then (ignore (advance p); List.rev acc)
+        else if is_keyword p "case" then (
+          ignore (advance p);
+          let test = expression p 0 in
+          expect p ":";
+          cases ((Some test, body []) :: acc))
+        else if is_keyword p "default" then (
+          ignore (advance p);
+          expect p ":";
+          cases ((None, body []) :: acc))
+        else unexpected p "case, default or '}'"
+      in
+      s (Switch (e, cases []))
+  (* a label: "outer: for (...)" *)
+  | Name l when (peek_at p 1).kind = Punct ":" ->
+      p.pos <- p.pos + 2;
+      s (Labeled (l, statement p))
   | Keyword "throw" ->
       ignore (advance p);
       let e = expression p 0 in
@@ -336,16 +405,18 @@ and statement (p : t) : stmt =
   | Keyword "try" ->
       ignore (advance p);
       let body = block_body p in
-      if not (is_keyword p "catch") then unexpected p "catch (finally: an exercise)";
-      ignore (advance p);
-      expect p "(";
-      let x = name p in
-      expect p ")";
-      let handler = block_body p in
-      if is_keyword p "finally" then fail p "finally is not supported here (an exercise)";
-      s (Try (body, x, handler))
-  | Keyword (("class" | "switch" | "do" | "delete" | "in" | "instanceof" | "void") as k) ->
-      fail p (Printf.sprintf "'%s' is not supported here (plan_tiny_firefox.md: what is left out)" k)
+      let handler =
+        if is_keyword p "catch" then (
+          ignore (advance p);
+          (* catch (e) { }, or catch { } *)
+          let x = if is_punct p "(" then (ignore (advance p); let x = name p in expect p ")"; Some x) else None in
+          Some (x, block_body p))
+        else None
+      in
+      let finally = if is_keyword p "finally" then (ignore (advance p); Some (block_body p)) else None in
+      if handler = None && finally = None then unexpected p "catch or finally";
+      s (Try (body, handler, finally))
+  | Keyword "class" -> fail p "class is not supported here (an exercise: prototypes and new are)"
   | _ ->
       let e = expression p 0 in
       end_statement p;
@@ -360,8 +431,16 @@ and for_rest (p : t) : statement =
       let xs = expression p 0 in
       expect p ")";
       For_of (let_kind k, x, xs, statement p)
-  | _ ->
+  | Keyword (("let" | "const" | "var") as k), Name x, Keyword "in" ->
+      p.pos <- p.pos + 3;
+      let o = expression p 0 in
+      expect p ")";
+      For_in (Declared (let_kind k, x), o, statement p)
+  | _ -> (
       let line = (peek p).line in
+      (* the first part: "in" there is the for's (for (k in o), for
+       * (o.k in o)), not the operator *)
+      p.no_in <- true;
       let init =
         match (peek p).kind with
         | Punct ";" -> None
@@ -370,12 +449,23 @@ and for_rest (p : t) : statement =
             Some { line; stmt = Let (let_kind k, declarations p) }
         | _ -> Some { line; stmt = Expr (expression p 0) }
       in
-      expect p ";";
-      let test = if is_punct p ";" then None else Some (expression p 0) in
-      expect p ";";
-      let update = if is_punct p ")" then None else Some (expression p 0) in
-      expect p ")";
-      For (init, test, update, statement p)
+      p.no_in <- false;
+      match init with
+      | Some { stmt = Expr e; _ } when is_keyword p "in" ->
+          ignore (advance p);
+          let o = expression p 0 in
+          expect p ")";
+          For_in (Target (target p e), o, statement p)
+      | _ -> for_parts p init)
+
+(* for (init; test; update) body: after the first part *)
+and for_parts (p : t) (init : stmt option) : statement =
+  expect p ";";
+  let test = if is_punct p ";" then None else Some (expression p 0) in
+  expect p ";";
+  let update = if is_punct p ")" then None else Some (expression p 0) in
+  expect p ")";
+  For (init, test, update, statement p)
 
 (*****************************************************************************)
 (* Entry points *)
@@ -385,7 +475,7 @@ let with_tokens (text : string) (f : t -> 'a) : ('a, error) result =
   match Js_lexer.tokenize text with
   | exception Js_lexer.Error (line, message) -> Error { line; message }
   | tokens -> (
-      let p = { tokens = Array.of_list tokens; pos = 0 } in
+      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false } in
       match f p with x -> Ok x | exception Error e -> Error e)
 
 let parse (text : string) : (program, error) result =

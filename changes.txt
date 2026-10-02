@@ -76,6 +76,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript, the rest of the language of 1999: the comma operator,
+  the bits (& | ^ ~ << >> >>> and their assignments), ** and ??, in
+  and for (k in o), delete and void, do-while, switch, labels (break
+  and continue to one), finally and a catch without a name; a
+  conditional's sides may be assignments. Of twelve real scripts
+  (scripts/js/Js_survey), jQuery, Mithril, Underscore and Wikipedia's
+  now parse, and Preact runs
 - a link of several words is underlined whole, the spaces between its
   words too, as browsers draw it: one line a run of words
   (Browser_draw.decorations), where each letter drew its own piece and

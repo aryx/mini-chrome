@@ -37,16 +37,31 @@
          left <- (left op right)
 
      power  operators                         associativity
-       1    = += -= *= /= %=                  right: a = b = 1 is a = (b = 1)
+       0    ,                                 left: a, b is a done, then b's value
+       1    = += -= ... >>>= &= |= ^=         right: a = b = 1 is a = (b = 1)
        2    ? :                               right
-       3    ||                                left
-       4    &&                                left
-       5    === !== == !=                     left
-       6    < > <= >=                         left
-       7    + -                               left: 1 - 2 - 3 is (1 - 2) - 3
-       8    * / %                             left
-       9    prefix - + ! typeof ++ --         (prefix)
-      10    postfix . [ ] ( ) ++ --           left: a.b(c)[d] is ((a.b)(c))[d]
+       3    ??                                left
+       4    ||                                left
+       5    &&                                left
+       6    |                                 left
+       7    ^                                 left
+       8    &                                 left
+       9    === !== == !=                     left
+      10    < > <= >= in instanceof           left
+      11    << >> >>>                         left
+      12    + -                               left: 1 - 2 - 3 is (1 - 2) - 3
+      13    * / %                             left
+      14    **                                right: 2 ** 3 ** 2 is 2 ** 9
+      15    prefix - + ! ~ typeof void delete ++ --
+      16    postfix . [ ] ( ) ++ --           left: a.b(c)[d] is ((a.b)(c))[d]
+
+   Where a comma separates things (a call's arguments, an array's
+   items, a var's names), each is read from power 1: the comma is then
+   not an operator. And the two sides of ? : are read from 1 too, so
+   that each may be an assignment (c ? a = 1 : b = 2).
+
+   "in" is an operator, and also the word of for (k in o): in a for's
+   first part it is the for's, unless inside brackets.
 
    Left-associative: the right side is read with power + 1, so the next
    operator of the same power stops it and becomes the loop's next;

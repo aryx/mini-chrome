@@ -31,6 +31,7 @@ type expr =
   | Call of expr * expr list
   | New of expr * expr list
   | Regex of string * string
+  | Comma of expr * expr (* a, b: a for what it does, b's value *)
 
 and func = { name : string option; params : string list; body : stmt list; arrow : bool }
 and stmt = { line : int; stmt : statement }
@@ -44,12 +45,23 @@ and statement =
   | While of expr * stmt
   | For of stmt option * expr option * expr option * stmt
   | For_of of let_kind * string * expr * stmt
-  | Break
-  | Continue
+  (* for (var k in o), for (k in o), for (o.k in o) *)
+  | For_in of for_target * expr * stmt
+  | Do_while of stmt * expr
+  (* switch (e) { case a: ...; default: ... }: a case's test (None: the
+   * default) and its statements, which fall into the next's *)
+  | Switch of expr * (expr option * stmt list) list
+  | Labeled of string * stmt
+  | Break of string option (* its label, if it names one *)
+  | Continue of string option
   | Throw of expr
-  | Try of stmt list * string * stmt list
+  (* try, catch (its name, if it takes one) and finally: one of the two
+   * at least *)
+  | Try of stmt list * (string option * stmt list) option * stmt list option
   | Block of stmt list
   | Empty
+
+and for_target = Declared of let_kind * string | Target of expr
 
 and let_kind = Let_kind | Const_kind | Var_kind
 
@@ -103,6 +115,7 @@ let rec expr_to_string (e : expr) : string =
   | Call (f, args) -> p "(%s(%s))" (expr_to_string f) (list expr_to_string args)
   | New (f, args) -> p "(new %s(%s))" (expr_to_string f) (list expr_to_string args)
   | Regex (r, f) -> p "/%s/%s" r f
+  | Comma (a, b) -> p "(%s, %s)" (expr_to_string a) (expr_to_string b)
 
 and func_to_string (f : func) : string =
   Printf.sprintf "%s%s [%s] [%s]"
@@ -129,9 +142,21 @@ and stmt_to_string (s : stmt) : string =
   | For (init, test, update, b) ->
       p "For (%s, %s, %s, %s)" (opt stmt_to_string init) (opt e test) (opt e update) (stmt_to_string b)
   | For_of (k, x, xs, b) -> p "For_of (%s %s, %s, %s)" (kind_to_string k) x (e xs) (stmt_to_string b)
-  | Break -> "Break"
-  | Continue -> "Continue"
+  | For_in (Declared (k, x), o, b) -> p "For_in (%s %s, %s, %s)" (kind_to_string k) x (e o) (stmt_to_string b)
+  | For_in (Target x, o, b) -> p "For_in (%s, %s, %s)" (e x) (e o) (stmt_to_string b)
+  | Do_while (b, c) -> p "Do_while (%s, %s)" (stmt_to_string b) (e c)
+  | Switch (x, cases) ->
+      p "Switch (%s, %s)" (e x)
+        (list (fun (test, body) -> p "%s [%s]" (match test with Some t -> "case " ^ e t | None -> "default") (body_to_string body)) cases)
+  | Labeled (l, b) -> p "%s: %s" l (stmt_to_string b)
+  | Break None -> "Break"
+  | Break (Some l) -> "Break " ^ l
+  | Continue None -> "Continue"
+  | Continue (Some l) -> "Continue " ^ l
   | Throw x -> "Throw " ^ e x
-  | Try (body, x, handler) -> p "Try [%s] catch %s [%s]" (body_to_string body) x (body_to_string handler)
+  | Try (body, handler, finally) ->
+      p "Try [%s]%s%s" (body_to_string body)
+        (match handler with Some (x, h) -> p " catch %s [%s]" (Option.value x ~default:"_") (body_to_string h) | None -> "")
+        (match finally with Some f -> p " finally [%s]" (body_to_string f) | None -> "")
   | Block body -> p "Block [%s]" (body_to_string body)
   | Empty -> "Empty"

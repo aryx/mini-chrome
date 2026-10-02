@@ -21,9 +21,11 @@
      Keyword let  Name s  Punct =  String "a"  Punct +  String "b"  Punct ;
      Name x (a newline before)  Punct =>  Name x  Punct ===  Number 1
 
-   Not read (the plan's out of scope): regular expression literals (a
-   '/' is always division here: telling /re/ from a division needs the
-   parser's help, one of JavaScript's lexing traps), template literals
+   A '/' is a regular expression's where a value may start (after an
+   operator, a "(" or a keyword), and a division after a value: one of
+   JavaScript's lexing traps, told here by the token before.
+
+   Not read: template literals
    (`...`, an error saying so), BigInt (10n), numeric separators
    (1_000), and identifiers beyond ASCII letters, digits, _ and $.
 

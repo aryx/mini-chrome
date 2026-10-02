@@ -24,7 +24,7 @@ type t = {
 type error = { line : int; message : string }
 
 (* how a statement ended *)
-type outcome = Normal | Return of value | Break | Continue
+type outcome = Normal | Return of value | Break of string option | Continue of string option
 
 let max_depth = 2_000
 
@@ -108,6 +108,33 @@ let get (t : t) (target : value) (k : string) : value =
   | Number _ -> from_chain t (protos t).numbers k
   | Bool _ -> Undefined
 
+(* whether an object has a property, its own or its prototypes': k in o *)
+let rec has (t : t) (o : obj) (k : string) : bool =
+  get_own o k <> None
+  ||
+  match o.kind with
+  | Array a -> k = "length" || (match index_of_key k with Some i -> i < a.length | None -> false) || inherited t o k
+  | Host_object h -> h.get k <> Undefined
+  | _ -> inherited t o k
+
+and inherited (t : t) (o : obj) (k : string) : bool = match proto_of t o with Some p -> has t p k | None -> false
+
+(* the keys for (k in v) goes through: an array's indices, a string's;
+ * an object's own, in the order they were set, then those of the
+ * prototypes it was given (not the built-in ones', whose methods do
+ * not show; nor a prototype's "constructor") *)
+let enumerable_keys (v : value) : string list =
+  let rec chain (o : obj) (seen : string list) : string list =
+    let own = List.filter (fun k -> not (List.mem k seen)) (keys o) in
+    own @ match o.proto with Some p -> List.filter (( <> ) "constructor") (chain p (seen @ own)) | None -> []
+  in
+  match v with
+  | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ chain o []
+  | Object { kind = Host_object _; _ } -> []
+  | Object o -> chain o []
+  | String s -> List.init (String.length s) string_of_int
+  | _ -> []
+
 (* whether F's prototype is in v's chain: v instanceof F *)
 let instance_of (t : t) (v : value) (f : value) : bool =
   match (v, get t f "prototype") with
@@ -162,6 +189,15 @@ let set (target : value) (k : string) (v : value) : unit =
 (* Operators *)
 (*****************************************************************************)
 
+(* a number as the 32 bits the bitwise operators work on: its integer
+ * part, modulo 2^32 (NaN and the infinities: 0) *)
+let to_int32 (v : value) : int32 =
+  let f = to_number v in
+  if Float.is_nan f || Float.abs f = Float.infinity then 0l
+  else Int64.to_int32 (Int64.of_float (Float.rem (Float.trunc f) 4294967296.))
+
+let of_int32 (i : int32) : value = Number (Int32.to_float i)
+
 let arithmetic (op : string) (a : value) (b : value) : value =
   match op with
   | "+" -> (
@@ -172,6 +208,17 @@ let arithmetic (op : string) (a : value) (b : value) : value =
   | "*" -> Number (to_number a *. to_number b)
   | "/" -> Number (to_number a /. to_number b)
   | "%" -> Number (Float.rem (to_number a) (to_number b))
+  | "**" -> Number (Float.pow (to_number a) (to_number b))
+  (* the bits: both sides made 32-bit integers, the answer one too; a
+   * shift's count is its low five bits; >>> fills with zeros, so its
+   * answer is not negative *)
+  | "&" -> of_int32 (Int32.logand (to_int32 a) (to_int32 b))
+  | "|" -> of_int32 (Int32.logor (to_int32 a) (to_int32 b))
+  | "^" -> of_int32 (Int32.logxor (to_int32 a) (to_int32 b))
+  | "<<" -> of_int32 (Int32.shift_left (to_int32 a) (Int32.to_int (to_int32 b) land 31))
+  | ">>" -> of_int32 (Int32.shift_right (to_int32 a) (Int32.to_int (to_int32 b) land 31))
+  | ">>>" ->
+      Number (Int64.to_float (Int64.logand (Int64.of_int32 (Int32.shift_right_logical (to_int32 a) (Int32.to_int (to_int32 b) land 31))) 0xFFFFFFFFL))
   | "<" | ">" | "<=" | ">=" -> (
       let cmp =
         match (to_primitive a, to_primitive b) with
@@ -231,6 +278,15 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
           | _ -> String (typeof (eval_expr t s this x)))
       | "!" -> Bool (not (truthy (eval_expr t s this x)))
       | "-" -> Number (-.to_number (eval_expr t s this x))
+      | "~" -> of_int32 (Int32.lognot (to_int32 (eval_expr t s this x)))
+      | "void" -> ignore (eval_expr t s this x); Undefined
+      (* delete o.k: the property gone from the object itself *)
+      | "delete" -> (
+          let remove o k = match o with Object o -> o.props <- List.filter (fun (k', _) -> k' <> k) o.props | _ -> () in
+          match x with
+          | Member (o, k) -> remove (eval_expr t s this o) k; Bool true
+          | Index (o, k) -> let o = eval_expr t s this o in remove o (key_of (eval_expr t s this k)); Bool true
+          | _ -> Bool true)
       | _ -> Number (to_number (eval_expr t s this x)))
   | Update (op, prefix, target) ->
       let old = to_number (eval_expr t s this target) in
@@ -240,6 +296,12 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Binary ("instanceof", a, f) ->
       let a = eval_expr t s this a in
       Bool (instance_of t a (eval_expr t s this f))
+  | Binary ("in", k, o) -> (
+      let k = key_of (eval_expr t s this k) in
+      match eval_expr t s this o with
+      | Object o -> Bool (has t o k)
+      | v -> throw "TypeError" (Printf.sprintf "Cannot use 'in' operator to search for '%s' in %s" k (display v)))
+  | Comma (a, b) -> ignore (eval_expr t s this a); eval_expr t s this b
   | Binary (op, a, b) ->
       let a = eval_expr t s this a in
       arithmetic op a (eval_expr t s this b)
@@ -258,6 +320,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       (match get t fn "prototype" with Object p -> o.proto <- Some p | _ -> ());
       (match call_value t fn ~this:(Object o) args with Object _ as r -> r | _ -> Object o)
   | Logical ("&&", a, b) -> let v = eval_expr t s this a in if truthy v then eval_expr t s this b else v
+  | Logical ("??", a, b) -> ( match eval_expr t s this a with Undefined | Null -> eval_expr t s this b | v -> v)
   | Logical (_, a, b) -> let v = eval_expr t s this a in if truthy v then v else eval_expr t s this b
   | Assign ("=", target, v) ->
       let v = eval_expr t s this v in
@@ -265,7 +328,8 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       v
   | Assign (op, target, v) ->
       let old = eval_expr t s this target in
-      let v = arithmetic (String.sub op 0 1) old (eval_expr t s this v) in
+      (* "+=" is "+", ">>>=" is ">>>" *)
+      let v = arithmetic (String.sub op 0 (String.length op - 1)) old (eval_expr t s this v) in
       assign t s this target v;
       v
   | Conditional (c, a, b) -> if truthy (eval_expr t s this c) then eval_expr t s this a else eval_expr t s this b
@@ -341,9 +405,13 @@ and hoist (s : scope) (body : A.stmt list) : unit =
     | If (_, a, b) -> names a @ (match b with Some b -> names b | None -> [])
     | While (_, b) -> names b
     | For (init, _, _, b) -> (match init with Some i -> names i | None -> []) @ names b
-    | For_of (Var_kind, x, _, b) -> x :: names b
-    | For_of (_, _, _, b) -> names b
-    | Try (a, _, b) -> List.concat_map names a @ List.concat_map names b
+    | For_of (Var_kind, x, _, b) | For_in (Declared (Var_kind, x), _, b) -> x :: names b
+    | For_of (_, _, _, b) | For_in (_, _, b) | Do_while (b, _) | Labeled (_, b) -> names b
+    | Switch (_, cases) -> List.concat_map (fun (_, body) -> List.concat_map names body) cases
+    | Try (a, handler, finally) ->
+        List.concat_map names a
+        @ (match handler with Some (_, h) -> List.concat_map names h | None -> [])
+        @ (match finally with Some f -> List.concat_map names f | None -> [])
     | Block b -> List.concat_map names b
     | _ -> []
   in
@@ -361,10 +429,20 @@ and exec_block (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome
   in
   go body
 
-and exec (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
+(* [labels]: those of the statement, if it is a loop: "continue l" with
+ * one of them goes on with it *)
+and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
   t.line <- st.line;
   tick t;
   let eval = eval_expr t s this in
+  (* a loop's body ran: whether the loop goes on (None), or how it ends *)
+  let after (o : outcome) : outcome option =
+    match o with
+    | Normal | Continue None -> None
+    | Continue (Some l) when List.mem l labels -> None
+    | Break None -> Some Normal
+    | leave -> Some leave
+  in
   match st.stmt with
   | Expr e -> ignore (eval e); Normal
   | Let (Var_kind, decls) ->
@@ -387,9 +465,12 @@ and exec (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
       else match b with Some b -> exec t (new_scope s) this b | None -> Normal)
   | While (c, body) ->
       let rec loop () =
-        if truthy (eval c) then
-          match exec t (new_scope s) this body with Break -> Normal | Return v -> Return v | Normal | Continue -> loop ()
-        else Normal
+        if truthy (eval c) then match after (exec t (new_scope s) this body) with None -> loop () | Some o -> o else Normal
+      in
+      loop ()
+  | Do_while (body, c) ->
+      let rec loop () =
+        match after (exec t (new_scope s) this body) with None -> if truthy (eval c) then loop () else Normal | Some o -> o
       in
       loop ()
   | For (init, test, update, body) ->
@@ -400,10 +481,9 @@ and exec (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
         let ok = match test with Some c -> truthy (eval_expr t it this c) | None -> true in
         if not ok then Normal
         else
-          match exec t (new_scope it) this body with
-          | Break -> Normal
-          | Return v -> Return v
-          | Normal | Continue ->
+          match after (exec t (new_scope it) this body) with
+          | Some o -> o
+          | None ->
               let next = copy_scope it in
               Option.iter (fun u -> ignore (eval_expr t next this u)) update;
               loop next
@@ -422,19 +502,65 @@ and exec (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
         | v :: rest -> (
             let it = new_scope s in
             declare it x ~constant:(kind = Const_kind) v;
-            match exec t it this body with Break -> Normal | Return v -> Return v | Normal | Continue -> loop rest)
+            match after (exec t it this body) with None -> loop rest | Some o -> o)
       in
       loop items
-  | Break -> Break
-  | Continue -> Continue
+  (* for (k in o): each key, a string; a var's, or a name's or a
+   * property's, set before each turn *)
+  | For_in (target, o, body) ->
+      let rec loop keys =
+        match keys with
+        | [] -> Normal
+        | k :: rest -> (
+            let it = new_scope s in
+            (match target with
+            | Declared (Var_kind, x) -> ( match lookup s x with Some b -> b.value <- String k | None -> declare s x ~constant:false (String k))
+            | Declared (kind, x) -> declare it x ~constant:(kind = Const_kind) (String k)
+            | Target e -> assign t s this e (String k));
+            match after (exec t it this body) with None -> loop rest | Some o -> o)
+      in
+      loop (enumerable_keys (eval o))
+  (* the first case that is === the value, and from there every
+   * statement to a break, the next cases' too; no case: the default *)
+  | Switch (e, cases) -> (
+      let v = eval e in
+      let sc = new_scope s in
+      let rec from (cases : (A.expr option * A.stmt list) list) =
+        match cases with
+        | [] -> None
+        | (Some test, _) :: rest when not (strict_equal v (eval_expr t sc this test)) -> from rest
+        | (None, _) :: rest -> from rest
+        | found -> Some found
+      in
+      let rec default (cases : (A.expr option * A.stmt list) list) =
+        match cases with [] -> [] | (None, _) :: _ as found -> found | _ :: rest -> default rest
+      in
+      let run = match from cases with Some found -> found | None -> default cases in
+      match exec_block t sc this (List.concat_map snd run) with Break None -> Normal | o -> o)
+  | Labeled (l, body) -> ( match exec ~labels:(l :: labels) t s this body with Break (Some l') when l' = l -> Normal | o -> o)
+  | Break l -> Break l
+  | Continue l -> Continue l
   | Throw e -> raise (Throw (eval e))
-  | Try (body, x, handler) -> (
-      match exec_block t (new_scope s) this body with
-      | outcome -> outcome
-      | exception Throw v ->
-          let h = new_scope s in
-          declare h x ~constant:false v;
-          exec_block t h this handler)
+  (* finally runs however the rest ended, and its own ending wins if
+   * it is not the normal one *)
+  | Try (body, handler, finally) ->
+      let finish (ended : unit -> outcome) : outcome =
+        match finally with
+        | None -> ended ()
+        | Some f -> (
+            let run () = exec_block t (new_scope s) this f in
+            match ended () with
+            | o -> ( match run () with Normal -> o | leave -> leave)
+            | exception e -> ( match run () with Normal -> raise e | leave -> leave))
+      in
+      finish (fun () ->
+          match exec_block t (new_scope s) this body with
+          | outcome -> outcome
+          | exception Throw v when handler <> None ->
+              let x, h = Option.get handler in
+              let scope = new_scope s in
+              Option.iter (fun x -> declare scope x ~constant:false v) x;
+              exec_block t scope this h)
   | Block body -> exec_block t (new_scope s) this body
   | Empty -> Normal
 
@@ -492,7 +618,7 @@ let run (t : t) (program : A.program) : (value, error) result =
               match exec t t.globals Undefined st with
               | Normal -> ()
               | Return _ -> throw "SyntaxError" "Illegal return statement"
-              | Break | Continue -> throw "SyntaxError" "Illegal break or continue statement"))
+              | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
         program;
       !last)
 
