@@ -27,7 +27,7 @@ let tests =
     [
       Testo.create "the request of the diagram" (fun () ->
           Alcotest.(check string) "bytes"
-            "GET /images/turtle.gif HTTP/1.1\r\nHost: elm-lang.org\r\nUser-Agent: elm_playground\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+            "GET /images/turtle.gif HTTP/1.1\r\nHost: elm-lang.org\r\nUser-Agent: elm_playground\r\nAccept-Encoding: gzip, br, zstd\r\nConnection: close\r\n\r\n"
             (Http.request_to_string (Http.get ~host:"elm-lang.org" "/images/turtle.gif")));
       Testo.create "the status line" (fun () ->
           Alcotest.(check (triple string int string)) "200" ("HTTP/1.1", 200, "OK") (ok (Http.parse_status_line "HTTP/1.1 200 OK"));
@@ -67,13 +67,23 @@ let tests =
           Alcotest.(check string) "a 304 has no body to decompress" "" (body_of [ "HTTP/1.1 304 Not Modified"; "Content-Encoding: gzip" ] "");
           let r = ok (Http.parse_response ("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 25\r\n\r\n" ^ hi_gz)) in
           Alcotest.(check (option string)) "the headers are the server's" (Some "25") (Http.header "Content-Length" r.headers));
+      Testo.create "Content-Encoding: br, zstd" (fun () ->
+          let of_hex h = String.init (String.length h / 2) (fun i -> Char.chr (int_of_string ("0x" ^ String.sub h (2 * i) 2))) in
+          (* the same three lines, by "brotli" and by "zstd" *)
+          let text = String.concat "" (List.init 3 (fun _ -> "<p>Hello, compressed web. The quick brown fox jumps over the lazy dog, and the dog does not mind.</p>\n")) in
+          let br = of_hex "1b3101288c94ee3ea2648424b3aa1b6ab3cca809739e801407a1415ce6f2eae480f9bf5dc2a02581e612b8170da71c71ab2489aebfbce8f0b3d576ec41b56f5a64ce88d4cc293c8e3904c7d27f81ce0b41870e6ec5fa0d28" in
+          let zstd = of_hex "28b52ffd04580503001206151a80491d803d21bb914c721730232862df19d02ad66d1b0e3a17180024038771e8ac3ec736ffcafc0e9326e657c5225175f39419f1b65c50a189138ad19952c3e24087ba19d4501cf5dc9a59ae2f4d57ca02248f02009369a056aa9d666e806a95" in
+          Alcotest.(check string) "Brotli, with its dictionary's words" text (body_of [ "HTTP/1.1 200 OK"; "Content-Encoding: br" ] br);
+          Alcotest.(check string) "Zstandard" text (body_of [ "HTTP/1.1 200 OK"; "Content-Encoding: zstd"; Printf.sprintf "Content-Length: %d" (String.length zstd) ] zstd);
+          Alcotest.(check bool) "a stream cut short is an error, not an exception" true
+            (Result.is_error (Http.parse_response ("HTTP/1.1 200 OK\r\nContent-Encoding: br\r\n\r\n" ^ String.sub br 0 20))));
       Testo.create "refused: folded headers, another coding, a corrupt gzip" (fun () ->
           Alcotest.(check bool) "folded" true
             (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nX-A: 1\r\n  2\r\n\r\n"));
           Alcotest.(check bool) "space before the colon" true
             (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nX-A : 1\r\n\r\n"));
-          Alcotest.(check bool) "brotli" true
-            (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: br\r\n\r\n..."));
+          Alcotest.(check bool) "a coding we do not ask for" true
+            (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: compress\r\n\r\n..."));
           Alcotest.(check bool) "not a gzip stream" true
             (Result.is_error (Http.parse_response "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\n\r\n..."));
           Alcotest.(check bool) "a gzip stream cut short" true

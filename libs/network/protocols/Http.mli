@@ -11,7 +11,7 @@
      GET /images/turtle.gif HTTP/1.1      HTTP/1.1 200 OK
      Host: elm-lang.org                   Content-Type: image/gif
      User-Agent: elm_playground           Content-Length: 1523
-     Accept-Encoding: gzip                Connection: close
+     Accept-Encoding: gzip, br, zstd      Connection: close
      Connection: close
      (empty line)                         (empty line)
                                           GIF89a... (1523 bytes)
@@ -68,7 +68,11 @@
    (Wikipedia's article on OCaml, 354 KB, comes as 64). The coding is
    under the framing: the chunks are joined, or Content-Length's bytes
    taken (the length is the compressed one), and then the whole is a
-   gzip stream (tiny_libs' Gzip: DEFLATE in RFC 1952's wrapper).
+   gzip stream (tiny_libs' Gzip: DEFLATE in RFC 1952's wrapper). We
+   ask for two more, "Accept-Encoding: gzip, br, zstd": Brotli (RFC
+   7932, with its dictionary of 120 KB of the web's common words) and
+   Zstandard (RFC 8878), tiny_libs' Brotli and Zstd, which some servers
+   send to whoever says "Mozilla" whatever was asked.
    [response.body] is the page, decompressed; its headers are the
    server's, untouched. The worked example, "hi" (Gzip.mli's 25 bytes):
 
@@ -116,7 +120,7 @@ type request = {
 
 (* a GET of [target] from [host] ("elm-lang.org", or "localhost:8001"
  * for a port that isn't the default), with the headers above: Host,
- * User-Agent, Accept-Encoding: gzip, Connection: close; and "Cookie:
+ * User-Agent, Accept-Encoding: gzip, br, zstd, Connection: close; and "Cookie:
  * [cookie]" if there is one to send (Cookie.header) *)
 val get : ?cookie:string -> host:string -> string -> request
 

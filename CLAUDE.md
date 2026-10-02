@@ -356,9 +356,11 @@ the numbers measured.
   `plan_tiny_chrome.md` lists the target sites and what each needs.
 - `libs/network` is a copy of elm-playground's networking meant to
   diverge here (cookies, done: `Cookie`, `Cookie_jar`; keep-alive); the cryptography stays
-  `tiny_libs.crypto`, and gzip (`Http` decompresses a body with
-  `Content-Encoding: gzip`) is `tiny_libs.compression`'s `Gzip`, which
-  is in elm-playground after 0.3.3: a compression is not a browser's.
+  `tiny_libs.crypto`, and the compressions (`Http` decompresses a body with
+  `Content-Encoding: gzip`, `br` or `zstd`) are `tiny_libs.compression`'s
+  `Gzip`, `Brotli` (its dictionary a library of its own,
+  `compression_brotli_words`) and `Zstd`, which
+  are in elm-playground after 0.3.3: a compression is not a browser's.
 - `tiny_languages` cannot be linked here: its libraries stand on its
   own JavaScript, whose unwrapped modules (`Js_ast`, `Js_lexer`, ...)
   have the names of ours. What is needed from it is copied

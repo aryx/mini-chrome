@@ -38,7 +38,7 @@ let tests caps =
              let heads = List.filter (fun l -> String.starts_with ~prefix:"> GET" l || String.starts_with ~prefix:"< HTTP" l) said in
              Alcotest.(check (list string)) "-L -v: each request and each answer"
                [ "> GET /notes HTTP/1.1"; "< HTTP/1.1 301 Moved Permanently"; "> GET /notes/ HTTP/1.1"; "< HTTP/1.1 200 OK" ] heads;
-             Alcotest.(check bool) "the request's headers said too" true (List.mem "> Accept-Encoding: gzip" said);
+             Alcotest.(check bool) "the request's headers said too" true (List.mem "> Accept-Encoding: gzip, br, zstd" said);
              Alcotest.(check (pair int bool)) "and the listing printed" (0, true) (status, String.length out > 0 && String.sub out 0 15 = "<!doctype html>")));
       Testo.create "-f, -o, -d"
         (with_site (fun base ->

@@ -25,5 +25,6 @@
    caps ; Cap.network, which every function opening a socket takes
    logs ; -v: the roots' file read
    tiny_libs.crypto ; the hashes, ciphers and signatures of TLS
-   tiny_libs.compression ; Gzip: a body with Content-Encoding: gzip
+   tiny_libs.compression ; Gzip, Brotli, Zstd: a body with Content-Encoding: gzip, br, zstd
+   tiny_libs.compression_brotli_words ; Brotli's dictionary
    tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)

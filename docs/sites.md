@@ -26,8 +26,8 @@ then look at the pictures and correct the rows.
 | | Sites | |
 |---|---|---|
 | 🟢 | 7 of 16 | the web of the 1990s, the text-only sites, Hacker News |
-| 🟡 | 4 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub: readable, not right |
-| 🔴 | 5 of 16 | two that do not load (Brotli, a TLS handshake), two whose page is unusable, and Google: its page shows, a search does not |
+| 🟡 | 5 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway: readable, not right |
+| 🔴 | 4 of 16 | one that does not load (a TLS handshake), two whose page is unusable, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -47,7 +47,7 @@ Oldest web first, then by how much they ask.
 |---|---|---|---|---|---|---|---|
 | **info.cern.ch** (the first web page, 1991) | 🟢 | 🟢 read | 🟢 http | 🟢 | ⚪ | 🟢 | ⚪ |
 | **Space Jam** (1996, kept as it was) | 🟢 | 🟢 looked at | 🟢 14 requests | 🟢 tables, image links | ⚪ attributes only | 🟢 | ⚪ a date in the footer |
-| **Berkshire Hathaway** (a page of the 1990s, still) | 🔴 does not load | 🔴 | 🔴 answers in Brotli (`br`) though only gzip is asked for | ? | ? | ? | ⚪ |
+| **Berkshire Hathaway** (a page of the 1990s, still) | 🟡 readable, its links work; the heading is not as in Chrome | 🟢 | 🟢 answers in Brotli (`br`), whatever is asked | 🟡 the heading's first letter (a `<font size>` in a centred block) on a line of its own, the heading not centred; a table cell's small line over the link above it | 🟢 | 🟢 | ⚪ |
 | **example.com** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 grid, `light-dark()`, `100vh` | 🟢 | 🔴 its script is not run (spread, a `/u` regexp): no icon, no translations |
 | **Hacker News** | 🟢 | 🟢 read; signing in and voting not tried | 🟢 | 🟢 tables, attributes | 🟢 | 🟢 | 🟢 `hn.js` runs (folding, votes not tried) |
 | **Lobsters** | 🟡 | 🟢 read | 🟢 29 requests | 🟢 | 🟡 a story's second line is cut in two, its "caches" link on a line of its own | 🟢 | 🔴 not run |
@@ -111,6 +111,6 @@ How it moved, the same day:
   the survey now parses, and what stops six of them is the page's, not
   the language's; then the sites' own scripts can be tried
   (`scripts=`).
-- **Brotli**: Berkshire Hathaway (and a server that will not send
-  gzip).
+- **The heading of Berkshire Hathaway** (a 1990s table and `<font>`),
+  now that its Brotli is read.
 - **The TLS handshake Craigslist refuses**: to look into.

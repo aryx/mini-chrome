@@ -33,7 +33,7 @@ type request = { meth : string; target : string; headers : header list }
 let get ?cookie ~(host : string) (target : string) : request =
   { meth = "GET"; target;
     headers =
-      [ ("Host", host); ("User-Agent", "elm_playground"); ("Accept-Encoding", "gzip") ]
+      [ ("Host", host); ("User-Agent", "elm_playground"); ("Accept-Encoding", "gzip, br, zstd") ]
       @ (match cookie with Some c -> [ ("Cookie", c) ] | None -> [])
       @ [ ("Connection", "close") ] }
 
@@ -165,15 +165,17 @@ let body ~(status : int) (headers : header list) (rest : string) : (string, stri
         | Some n -> Error (Printf.sprintf "Http: bad Content-Length %S" n))
 
 (* claude: the body as the server had it before "Content-Encoding":
- * gzip's (we ask for no other, Accept-Encoding: gzip), once the
- * framing is undone; a body of nothing (a 304) is not a gzip stream *)
+ * gzip's, Brotli's or Zstandard's (the three we ask for,
+ * Accept-Encoding), once the framing is undone; a body of nothing (a
+ * 304) is not a compressed stream *)
 let decoded (headers : header list) (body : string) : (string, string) result =
   match Option.map String.lowercase_ascii (header "Content-Encoding" headers) with
   | None | Some "identity" -> Ok body
-  | Some ("gzip" | "x-gzip") when body = "" -> Ok ""
-  | Some ("gzip" | "x-gzip") -> (
+  | Some ("gzip" | "x-gzip" | "br" | "zstd") when body = "" -> Ok ""
+  | Some (("gzip" | "x-gzip" | "br" | "zstd") as coding) -> (
+      let decompress = match coding with "br" -> Brotli.decompress ~dictionary:Brotli_words.bytes | "zstd" -> Zstd.decompress | _ -> Gzip.decompress in
       (* Inflate reads past the end of a stream cut short *)
-      try Ok (Gzip.decompress body) with Failure e | Invalid_argument e -> Error ("Http: " ^ e))
+      try Ok (decompress body) with Failure e | Invalid_argument e -> Error (Printf.sprintf "Http: %s: %s" coding e))
   | Some ce -> Error (Printf.sprintf "Http: content coding %S not supported" ce)
 
 let parse_response (s : string) : (response, string) result =

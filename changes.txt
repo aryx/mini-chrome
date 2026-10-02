@@ -5,6 +5,10 @@
 # (with direction from me)
 
 ** networking (its own)
+- a body in Brotli or Zstandard is read (Content-Encoding: br, zstd;
+  tiny_libs' Brotli, with its dictionary, and Zstd, elm-playground
+  after 0.3.3), and asked for: Accept-Encoding: gzip, br, zstd.
+  Berkshire Hathaway, which answers in Brotli whatever is asked, loads
 - cookies (RFC 6265): a response's Set-Cookie kept (Domain, Path,
   Expires and Max-Age, Secure, HttpOnly), said back in the Cookie
   header of the requests to its site, a redirection's before the next
