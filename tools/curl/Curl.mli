@@ -18,6 +18,8 @@
      mini-curl -d "a=1&b=2" URL             a POST, the body a form's fields
      mini-curl -o file URL                  the body to a file
      mini-curl -f URL                       a status of 400 or more is a failure (exit 22), nothing printed
+     mini-curl -A "Lynx/2.8" URL            the name said in User-Agent: what a server sends may
+                                            depend on it (Browser_agent.mli)
 
    Worked example (tests/tools/Unit_curl.ml), a server whose /old
    answers "301, Location: new":

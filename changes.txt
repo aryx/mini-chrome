@@ -111,6 +111,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a Google search works: the browser says it is an old Opera Mini to
+  google.com (Browser_agent: a name by host, each with why), which is
+  then sent results as plain HTML where a browser it does not know
+  gets a script to run. A request's User-Agent can be given
+  (Http.get ?agent, through Http_client, Http_request and Fetch;
+  mini-curl -A). A form's control that is a block or a flex item is
+  laid out and can be clicked; a hidden input is never shown
 - GitHub, BBC News: the pages laid out as theirs. Media Queries Level
   4's ranges (@media (width >= 48rem), (400px <= width <= 800px));
   @layer's rules read; a grid item between lines (grid-column: 1 /

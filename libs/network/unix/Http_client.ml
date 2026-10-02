@@ -12,7 +12,7 @@
 
 let ( let* ) = Result.bind
 
-let prepare ?post ?jar (url : Url.t) : (string * int * string, string) result =
+let prepare ?post ?jar ?agent (url : Url.t) : (string * int * string, string) result =
   match (url.scheme, url.authority, Url.port url) with
   | Some ("http" | "https"), Some (a : Url.authority), Some port ->
       (* the Host header says the port only when it isn't the default *)
@@ -24,10 +24,12 @@ let prepare ?post ?jar (url : Url.t) : (string * int * string, string) result =
       let target = Url.request_target url in
       (* the cookies kept for that URL, said back *)
       let cookie = Option.bind jar (fun jar -> Cookie_jar.header jar url) in
+      (* what it says it is, to this host *)
+      let agent = Option.map (fun f -> f a.host) agent in
       let bytes =
         match post with
-        | None -> Http.request_to_string (Http.get ?cookie ~host:host_header target)
-        | Some (content_type, body) -> Http.request_to_string ~body (Http.post ?cookie ~host:host_header ~content_type ~body target)
+        | None -> Http.request_to_string (Http.get ?cookie ?agent ~host:host_header target)
+        | Some (content_type, body) -> Http.request_to_string ~body (Http.post ?cookie ?agent ~host:host_header ~content_type ~body target)
       in
       Ok (host, port, bytes)
   | Some ("http" | "https"), _, _ -> Error (Printf.sprintf "%s: no host" (Url.to_string url))
@@ -35,8 +37,8 @@ let prepare ?post ?jar (url : Url.t) : (string * int * string, string) result =
 
 (* one request, no redirection followed: over TCP, or inside TLS for
    https:// (Tls_client, our own TLS 1.3) *)
-let get_once ?post ?jar ?timeout (caps : < Cap.network ; .. >) (url : Url.t) : (Http.response, string) result =
-  let* host, port, request = prepare ?post ?jar url in
+let get_once ?post ?jar ?agent ?timeout (caps : < Cap.network ; .. >) (url : Url.t) : (Http.response, string) result =
+  let* host, port, request = prepare ?post ?jar ?agent url in
   let* (response : Http.response) =
     if url.scheme = Some "https" then
       let* answer = Tls_client.exchange ?timeout caps ~host ~port request in
@@ -54,9 +56,9 @@ let get_once ?post ?jar ?timeout (caps : < Cap.network ; .. >) (url : Url.t) : (
 
 let once = get_once
 
-let fetch ?post ?jar ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >) (s : string) : (string * Http.response, string) result =
+let fetch ?post ?jar ?agent ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >) (s : string) : (string * Http.response, string) result =
   let rec follow ?post (url : Url.t) (left : int) =
-    let* (response : Http.response) = get_once ?post ?jar ?timeout caps url in
+    let* (response : Http.response) = get_once ?post ?jar ?agent ?timeout caps url in
     match (Http.is_redirect response.status, Http.header "Location" response.headers) with
     | true, Some location ->
         if left = 0 then Error (Printf.sprintf "%s: too many redirections" s)
@@ -69,5 +71,5 @@ let fetch ?post ?jar ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >)
   let* url = Url.parse s in
   follow ?post url max_redirects
 
-let get ?jar ?max_redirects ?timeout (caps : < Cap.network ; .. >) (s : string) : (Http.response, string) result =
-  Result.map snd (fetch ?jar ?max_redirects ?timeout caps s)
+let get ?jar ?agent ?max_redirects ?timeout (caps : < Cap.network ; .. >) (s : string) : (Http.response, string) result =
+  Result.map snd (fetch ?jar ?agent ?max_redirects ?timeout caps s)

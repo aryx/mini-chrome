@@ -49,6 +49,8 @@ let tests caps =
              let file = Filename.temp_file "mini-curl" ".html" in
              let status, out, _ = curl caps [ "-o"; file; base ^ "/" ] in
              Alcotest.(check (triple int string string)) "-o: the body in the file, nothing printed" (0, "", index) (status, out, In_channel.with_open_bin file In_channel.input_all);
+             let _, _, said = curl caps [ "-v"; "-A"; "Lynx/2.8"; base ^ "/" ] in
+             Alcotest.(check (pair bool bool)) "-A: the name it says" (true, false) (List.mem "> User-Agent: Lynx/2.8" said, List.mem "> User-Agent: elm_playground" said);
              let _, out, said = curl caps [ "-v"; "-d"; "a=1&b=2"; base ^ "/" ] in
              Alcotest.(check (pair bool bool)) "-d: a POST (which this server refuses)" (true, true)
                (List.mem "> POST / HTTP/1.1" said && List.mem "> Content-Length: 7" said, List.mem "< HTTP/1.1 405 Method Not Allowed" said && out <> "")));

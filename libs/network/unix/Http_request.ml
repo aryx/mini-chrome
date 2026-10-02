@@ -34,6 +34,7 @@ type t = {
   (* where getaddrinfo is called: a pool's thread, or this one *)
   resolver : Worker.t option;
   jar : Cookie_jar.t option; (* the cookies said, and kept *)
+  agent : (string -> string) option; (* what it says it is, to a host *)
 }
 
 (*****************************************************************************)
@@ -75,7 +76,7 @@ let begin_request (t : t) : state =
      thread: this machine speaks to plain sockets only *)
   if t.url.scheme = Some "https" then Done (Error (Bad_url (Url.to_string t.url ^ ": https:// is Http_client's (blocking), not this machine's")))
   else
-  match Http_client.prepare ?post:t.post ?jar:t.jar t.url with
+  match Http_client.prepare ?post:t.post ?jar:t.jar ?agent:t.agent t.url with
   | Error why -> Done (Error (Bad_url why))
   | Ok (host, port, request) -> (
       t.request <- request;
@@ -114,7 +115,7 @@ let answered (t : t) (bytes : string) : state =
 (* Entry points *)
 (*****************************************************************************)
 
-let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver ?jar (caps : < Cap.network ; .. >) (s : string) : t =
+let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver ?jar ?agent (caps : < Cap.network ; .. >) (s : string) : t =
   let t =
     {
       caps = (caps :> Cap.network);
@@ -126,6 +127,7 @@ let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver ?jar (caps : < C
       deadline = Unix.gettimeofday () +. timeout;
       resolver;
       jar;
+      agent;
     }
   in
   (match Url.parse s with

@@ -28,7 +28,9 @@ let tests =
       Testo.create "the request of the diagram" (fun () ->
           Alcotest.(check string) "bytes"
             "GET /images/turtle.gif HTTP/1.1\r\nHost: elm-lang.org\r\nUser-Agent: elm_playground\r\nAccept-Encoding: gzip, br, zstd\r\nConnection: close\r\n\r\n"
-            (Http.request_to_string (Http.get ~host:"elm-lang.org" "/images/turtle.gif")));
+            (Http.request_to_string (Http.get ~host:"elm-lang.org" "/images/turtle.gif"));
+          Alcotest.(check (option string)) "another name said, when one is given" (Some "Lynx/2.8")
+            (Http.header "User-Agent" (Http.get ~agent:"Lynx/2.8" ~host:"a" "/").headers));
       Testo.create "the status line" (fun () ->
           Alcotest.(check (triple string int string)) "200" ("HTTP/1.1", 200, "OK") (ok (Http.parse_status_line "HTTP/1.1 200 OK"));
           Alcotest.(check (triple string int string))

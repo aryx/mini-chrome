@@ -41,6 +41,16 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
       link = (if e.name = "a" then Dom.attribute "href" e else None); counter = 0; decorations = [] }
   in
   (match s.display with
+  (* a form's control laid out as a block (display: block, or an item
+   * of a flex container: Google's search field): a line of its own
+   * with the control on it, as wide as the block if its width is said *)
+  | _ when e.name = "input" || e.name = "select" || e.name = "textarea" -> (
+      match Html_layout.control_size env.metrics (look_of s ~link:None) e with
+      | Some (w, h) when s.visible ->
+          let w = if s.width <> Auto || content <> None then cw else Float.min w cw in
+          add_word ctx (word_style s ~link:None) ~glue:false "" w ~owner:e ~boxed:(Ctl { element = e; control_height = h });
+          flush_inline ctx
+      | _ -> ())
   | Flex | Inline_flex -> flex_children ctx e s
   | Grid -> grid_children ctx e s
   | _ ->

@@ -43,12 +43,14 @@ type 'msg t = {
   (* the browser's cookies: said with each request, kept from
    * each answer (Cookie_jar) *)
   jar : Cookie_jar.t;
+  (* what the browser says it is to each host (User-Agent) *)
+  agent : (string -> string) option;
 }
 
 (* four threads, Netscape's four connections: at most four names
  * resolved or https:// fetches waiting at once, the others queued *)
-let create ?(threads = true) ?(jar = Cookie_jar.create ()) () : 'msg t =
-  { in_flight = []; pool = (if threads then Some (Worker.create 4) else None); jar }
+let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent () : 'msg t =
+  { in_flight = []; pool = (if threads then Some (Worker.create 4) else None); jar; agent }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar
 
@@ -58,16 +60,16 @@ let jar (t : 'msg t) : Cookie_jar.t = t.jar
  * the redirections, the status, the headers, the body's bytes. *)
 let is_https (url : string) : bool = String.length url >= 8 && String.lowercase_ascii (String.sub url 0 8) = "https://"
 
-let https_get ?post (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
-  match Http_client.fetch ?post ~jar caps url with
+let https_get ?post ?agent (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
+  match Http_client.fetch ?post ~jar ?agent caps url with
   | Ok (url, response) -> Ok { url; status = response.status; headers = response.headers; body = response.body }
   | Error why -> Error (Network_error why)
 
 (* the blocking fetch: at once, the frame waiting, or on a thread *)
 let blocking ?post (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
   match t.pool with
-  | None -> Now (k (https_get ?post t.jar caps url))
-  | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post t.jar caps url), k)
+  | None -> Now (k (https_get ?post ?agent:t.agent t.jar caps url))
+  | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post ?agent:t.agent t.jar caps url), k)
 
 (* what -v shows: each request as it starts, and its answer
  * (said when it is handed back, in step: not on a thread of the pool) *)
@@ -82,7 +84,7 @@ let perform (t : 'msg t) (r : 'msg request) : unit =
   let k (a : answer) = said r.url a; r.k a in
   let f =
     if is_https r.url then blocking ?post:r.post t r.caps r.url k
-    else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool ~jar:t.jar r.caps r.url, k)
+    else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool ~jar:t.jar ?agent:t.agent r.caps r.url, k)
   in
   t.in_flight <- t.in_flight @ [ f ]
 

@@ -140,13 +140,17 @@ type request = {
 
 (* a GET of [target] from [host] ("elm-lang.org", or "localhost:8001"
  * for a port that isn't the default), with the headers above: Host,
- * User-Agent, Accept-Encoding: gzip, br, zstd, Connection: close; and "Cookie:
+ * User-Agent ([agent], else [default_agent]), Accept-Encoding: gzip,
+ * br, zstd, Connection: close; and "Cookie:
  * [cookie]" if there is one to send (Cookie.header) *)
-val get : ?cookie:string -> host:string -> string -> request
+(* what a request says it comes from when nothing else is given *)
+val default_agent : string
+
+val get : ?cookie:string -> ?agent:string -> host:string -> string -> request
 
 (* a POST of [body] to [target]: get's headers, and the body's
  * Content-Type and Content-Length (a form's fields, Urlencoded) *)
-val post : ?cookie:string -> host:string -> content_type:string -> body:string -> string -> request
+val post : ?cookie:string -> ?agent:string -> host:string -> content_type:string -> body:string -> string -> request
 
 (* the bytes to send: the request line, the headers, the empty line,
  * and the body if there is one (a POST's) *)

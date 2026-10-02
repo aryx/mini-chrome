@@ -77,7 +77,7 @@ val start :
   ?timeout:float ->
   ?post:string * string ->
   ?resolver:Worker.t ->
-  ?jar:Cookie_jar.t ->
+  ?jar:Cookie_jar.t -> ?agent:(string -> string) ->
   < Cap.network ; .. > ->
   string ->
   t

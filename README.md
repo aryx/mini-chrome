@@ -117,7 +117,8 @@ src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
                       the history, the developer tools, each site's zoom
                       (Browser_zoom), what the right click's menu offers
                       (Browser_menu), what is kept between runs
-                      (Browser_profile)
+                      (Browser_profile), what it says it is to each
+                      site (Browser_agent)
 src/window/           the window as a Model-View-Update program over
                       those and libs/gui's pieces: Window_model (the
                       state, the messages), Window_layout (where each

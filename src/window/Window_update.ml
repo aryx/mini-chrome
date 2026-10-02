@@ -38,7 +38,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
-      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ();
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
       screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false; grab = None }
   in

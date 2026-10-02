@@ -37,23 +37,26 @@
 (* the final response (whatever its status, 404 included: the caller
  * decides), or why there is none: a URL we can't get, a network error,
  * a response that doesn't parse, too many redirections *)
-val get : ?jar:Cookie_jar.t -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (Http.response, string) result
+val get : ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (Http.response, string) result
 (* with a [jar], each request says the cookies kept for its
  * URL, and each answer's Set-Cookie is kept: a redirection's before
  * the next request is made *)
 
+(* [agent]: what each request says it is (its User-Agent), given the
+ * host it goes to; Http.default_agent without *)
+
 (* the same, and the URL the redirections led to; with [post] (its
  * content type and body), the first request a POST *)
 val fetch :
-  ?post:string * string -> ?jar:Cookie_jar.t -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (string * Http.response, string) result
+  ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (string * Http.response, string) result
 
 (* one request and its answer, a redirection given as it is
  * (a 301 and its Location), not followed: what [fetch] does at each
  * step (tools/curl shows them one by one) *)
-val once : ?post:string * string -> ?jar:Cookie_jar.t -> ?timeout:float -> < Cap.network ; .. > -> Url.t -> (Http.response, string) result
+val once : ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?timeout:float -> < Cap.network ; .. > -> Url.t -> (Http.response, string) result
 
 (* what to connect to and what to send for [url]: the host for the
  * resolver, the port, the request's bytes (a GET; a POST of [post], its
  * content type and body); Error for a URL that isn't http:// or
  * https:// (the message says why) *)
-val prepare : ?post:string * string -> ?jar:Cookie_jar.t -> Url.t -> (string * int * string, string) result
+val prepare : ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> Url.t -> (string * int * string, string) result

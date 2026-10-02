@@ -79,6 +79,18 @@ let tests =
           Alcotest.(check (option (pair string bool))) "on the field, inside its inline-block" (Some ("", true)) (at (field.x +. 5.));
           Alcotest.(check (option (pair string bool))) "on the word before" (Some ("q:", false)) (at 5.);
           Alcotest.(check (option (pair string bool))) "on the word after" (Some ("go", false)) (at ((List.find (fun (f : Html_layout.fragment) -> f.text = "go") (Box_tree.fragments p)).x +. 2.)));
+      Testo.create "a field that is a block, or an item of a flex container (Google's, on a phone)" (fun () ->
+          let p =
+            page ~width:400.
+              {|<body style="margin: 0"><form><div style="display: flex"><div id=box style="flex: 1; display: flex"><input id=q name=q style="display: block; width: 100%; border: none; padding: 0"></div><b id=go style="width: 40px">go</b></div></form>|}
+          in
+          let layout = Box_tree.as_html_layout p in
+          let fields = List.filter (fun (f : Html_layout.fragment) -> f.control <> None) (Box_tree.fragments p) in
+          Alcotest.(check int) "one control on the page" 1 (List.length fields);
+          let field = List.hd fields in
+          Alcotest.check near "as wide as its block: the room the button leaves" (box "box" p).width field.width;
+          Alcotest.(check bool) "and under the pointer, at its middle" true
+            (match Hit.fragment_at layout ~x:(field.x +. (field.width /. 2.)) ~y:(field.baseline -. 2.) with Some f -> f.control <> None | None -> false));
       Testo.create "an inline-block: shrink-to-fit, in the line" (fun () ->
           let p = page {|<body style="margin: 0">a <span id=s style="display: inline-block; padding: 2px">bcd</span> e|} in
           let s = box "s" p in

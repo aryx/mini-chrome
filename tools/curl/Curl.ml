@@ -17,10 +17,11 @@ type options = {
   fail : bool; (* -f *)
   data : string option; (* -d *)
   output : string option; (* -o *)
+  agent : string option; (* -A *)
   url : string option;
 }
 
-let usage = "usage: mini-curl [-i] [-L] [-v] [-f] [-d data] [-o file] url"
+let usage = "usage: mini-curl [-i] [-L] [-v] [-f] [-d data] [-o file] [-A agent] url"
 
 let rec options (o : options) (args : string list) : (options, string) result =
   match args with
@@ -31,6 +32,7 @@ let rec options (o : options) (args : string list) : (options, string) result =
   | ("-f" | "--fail") :: rest -> options { o with fail = true } rest
   | ("-d" | "--data") :: data :: rest -> options { o with data = Some data } rest
   | ("-o" | "--output") :: file :: rest -> options { o with output = Some file } rest
+  | ("-A" | "--user-agent") :: agent :: rest -> options { o with agent = Some agent } rest
   | flag :: _ when String.length flag > 1 && flag.[0] = '-' -> Error (Printf.sprintf "%s: not a flag of mine\n%s" flag usage)
   | url :: rest -> if o.url = None then options { o with url = Some url } rest else Error usage
 
@@ -52,12 +54,12 @@ let run (caps : < Cap.network ; Cap.open_out ; Cap.stdout ; Cap.stderr ; .. >) ?
    * with a GET, ten at most *)
   let rec fetch (o : options) ?post (url : Url.t) (left : int) : (Http.response list, string) result =
     (if o.verbose then
-       match Http_client.prepare ?post ~jar url with
+       match Http_client.prepare ?post ~jar ?agent:(Option.map (fun a _ -> a) o.agent) url with
        | Ok (host, port, bytes) ->
            complain (Printf.sprintf "* %s, port %d%s" host port (if url.scheme = Some "https" then ", TLS 1.3" else ""));
            List.iter (fun l -> complain ("> " ^ l)) (request_lines bytes)
        | Error _ -> ());
-    let* (r : Http.response) = Http_client.once ?post ~jar caps url in
+    let* (r : Http.response) = Http_client.once ?post ~jar ?agent:(Option.map (fun a _ -> a) o.agent) caps url in
     if o.verbose then List.iter (fun l -> complain ("< " ^ l)) (head_lines r);
     match (o.follow && Http.is_redirect r.status, Http.header "Location" r.headers) with
     | true, Some location ->
@@ -69,7 +71,7 @@ let run (caps : < Cap.network ; Cap.open_out ; Cap.stdout ; Cap.stderr ; .. >) ?
     | _ -> Ok [ r ]
   in
   let result =
-    let* o = options { head = false; follow = false; verbose = false; fail = false; data = None; output = None; url = None } args in
+    let* o = options { head = false; follow = false; verbose = false; fail = false; data = None; output = None; agent = None; url = None } args in
     let* url = Option.to_result ~none:usage o.url in
     (* example.com is http://example.com *)
     let url = if String.contains url ':' && (String.starts_with ~prefix:"http://" url || String.starts_with ~prefix:"https://" url) then url else "http://" ^ url in
