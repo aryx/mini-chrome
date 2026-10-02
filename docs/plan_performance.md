@@ -112,7 +112,7 @@ With the switch come:
   `Page_bench` and `load_timeline.sh`, said in the comment, in the
   table at the end of this plan, and in `changes.txt`.
 
-The comments of all three kinds start `claude: opti:` (`grep -rn
+The comments of all three kinds start `opti:` (`grep -rn
 "opti:"`).
 
 ## The steps

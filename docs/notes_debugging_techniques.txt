@@ -2,7 +2,7 @@ Debugging a page that looks wrong
 ================================
 
 This file is about the *technique*, not the specific bugs (see git log
-and the "claude:" comments in the source for those). Kept so the
+and the comments in the source for those). Kept so the
 approach can be reused the next time a page does not look as it does
 in Chrome. A session adds a section; the first is below.
 
