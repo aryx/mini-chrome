@@ -52,6 +52,8 @@ let get_once ?post ?jar ?timeout (caps : < Cap.network ; .. >) (url : Url.t) : (
   Option.iter (fun jar -> Cookie_jar.received jar url response.headers) jar;
   Ok response
 
+let once = get_once
+
 let fetch ?post ?jar ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >) (s : string) : (string * Http.response, string) result =
   let rec follow ?post (url : Url.t) (left : int) =
     let* (response : Http.response) = get_once ?post ?jar ?timeout caps url in

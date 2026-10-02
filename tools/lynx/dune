@@ -1,0 +1,16 @@
+; claude: a program beside the browser (tools/). mini-lynx: a page as
+; text in a terminal, a number after each link to follow it -- the
+; browser's network, its HTML reader and the Line Mode Browser's
+; layout (languages/html's Line_mode), no window.
+(library
+ (name mini_lynx)
+ (wrapped false)
+ (modules Lynx)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries network lang_html browser_url caps unix))
+
+(executable
+ (name MiniLynx)
+ (public_name mini-lynx)
+ (modules MiniLynx)
+ (libraries mini_lynx caps unix))

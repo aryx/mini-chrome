@@ -1,0 +1,9 @@
+; claude: the tests of tools/, the programs beside the browser
+; (mini-node, mini-curl, mini-httpd, mini-lynx), run by 'make test':
+; the worked examples of their .mlis. mini-curl and mini-lynx are
+; tried on mini-httpd's server, forked on a temporary directory
+; (Testutil_httpd): nothing needs the Internet.
+(test
+ (name Test)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries unix caps alcotest testo network mini_node mini_curl mini_httpd mini_lynx))

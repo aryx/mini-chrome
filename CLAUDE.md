@@ -22,17 +22,20 @@ capabilities). Keep it true when one of those changes.
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all seven suites
+make test              # dune runtest -f, all eight suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
+./bin/mini-curl -v URL # the network stack alone: the request and the answer's head
+./bin/mini-httpd DIR   # a directory served on http://127.0.0.1:8000/
+./bin/mini-lynx URL    # a page as text, its links numbered (-dump: no prompt)
 make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5.1)
 ```
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
 runner, the suites being `html`, `css`, `js`, `layout`, `browser`,
-`network`, `network_unix`):
+`network`, `network_unix`, `tools`):
 
 ```bash
 dune build @tests/css/runtest --force
@@ -137,7 +140,13 @@ Each folder is one dune library, listed in the README in dependency
 order: `languages/` (html, css, javascript, json) → `libs/` (gui, richtext,
 typeset, network) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). `tools/` has the small programs beside the
-browser, made of its libraries (`tools/node`: `mini-node`): the
+browser, made of its libraries, each a library (its logic, tested in
+`tests/tools`) and a main of a few lines: `tools/node` (`mini-node`,
+the JavaScript engine in a terminal), `tools/curl` (`mini-curl`, a URL
+fetched by our HTTP and TLS; `-v` to see a request that fails in the
+browser), `tools/httpd` (`mini-httpd`, a directory served: the pages
+of a test or a demonstration, instead of `python3 -m http.server`),
+`tools/lynx` (`mini-lynx`, a page as text over `Line_mode`). The
 browser is the subject of this repository, and a program that is not
 part of it goes there, not in `src/`. `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the

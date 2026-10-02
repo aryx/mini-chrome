@@ -1,0 +1,92 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Curl.mli *)
+
+type options = {
+  head : bool; (* -i *)
+  follow : bool; (* -L *)
+  verbose : bool; (* -v *)
+  fail : bool; (* -f *)
+  data : string option; (* -d *)
+  output : string option; (* -o *)
+  url : string option;
+}
+
+let usage = "usage: mini-curl [-i] [-L] [-v] [-f] [-d data] [-o file] url"
+
+let rec options (o : options) (args : string list) : (options, string) result =
+  match args with
+  | [] -> Ok o
+  | ("-i" | "--include") :: rest -> options { o with head = true } rest
+  | ("-L" | "--location") :: rest -> options { o with follow = true } rest
+  | ("-v" | "--verbose") :: rest -> options { o with verbose = true } rest
+  | ("-f" | "--fail") :: rest -> options { o with fail = true } rest
+  | ("-d" | "--data") :: data :: rest -> options { o with data = Some data } rest
+  | ("-o" | "--output") :: file :: rest -> options { o with output = Some file } rest
+  | flag :: _ when String.length flag > 1 && flag.[0] = '-' -> Error (Printf.sprintf "%s: not a flag of mine\n%s" flag usage)
+  | url :: rest -> if o.url = None then options { o with url = Some url } rest else Error usage
+
+(* "HTTP/1.1 200 OK" and the headers, a line each *)
+let head_lines (r : Http.response) : string list =
+  Printf.sprintf "%s %d %s" r.version r.status r.reason :: List.map (fun (k, v) -> k ^ ": " ^ v) r.headers
+
+(* a request's head: its bytes up to the empty line, a line each *)
+let request_lines (bytes : string) : string list =
+  let rec go lines = match lines with [] | "" :: _ -> [] | l :: rest -> l :: go rest in
+  go (List.map (fun l -> if String.ends_with ~suffix:"\r" l then String.sub l 0 (String.length l - 1) else l) (String.split_on_char '\n' bytes))
+
+let run (caps : < Cap.network ; Cap.open_out ; Cap.stdout ; Cap.stderr ; .. >) ?print ?complain (args : string list) : int =
+  let print = match print with Some p -> p | None -> let (_ : Cap.Console_.stdout) = caps#stdout in print_string in
+  let complain = match complain with Some c -> c | None -> let (_ : Cap.Console_.stderr) = caps#stderr in prerr_endline in
+  let ( let* ) = Result.bind in
+  let jar = Cookie_jar.create () in
+  (* one request at a time, each said with -v; a redirection followed
+   * with a GET, ten at most *)
+  let rec fetch (o : options) ?post (url : Url.t) (left : int) : (Http.response list, string) result =
+    (if o.verbose then
+       match Http_client.prepare ?post ~jar url with
+       | Ok (host, port, bytes) ->
+           complain (Printf.sprintf "* %s, port %d%s" host port (if url.scheme = Some "https" then ", TLS 1.3" else ""));
+           List.iter (fun l -> complain ("> " ^ l)) (request_lines bytes)
+       | Error _ -> ());
+    let* (r : Http.response) = Http_client.once ?post ~jar caps url in
+    if o.verbose then List.iter (fun l -> complain ("< " ^ l)) (head_lines r);
+    match (o.follow && Http.is_redirect r.status, Http.header "Location" r.headers) with
+    | true, Some location ->
+        if left = 0 then Error "too many redirections"
+        else
+          let* next = Url.parse location in
+          let* rest = fetch o (Url.resolve url next) (left - 1) in
+          Ok (r :: rest)
+    | _ -> Ok [ r ]
+  in
+  let result =
+    let* o = options { head = false; follow = false; verbose = false; fail = false; data = None; output = None; url = None } args in
+    let* url = Option.to_result ~none:usage o.url in
+    (* example.com is http://example.com *)
+    let url = if String.contains url ':' && (String.starts_with ~prefix:"http://" url || String.starts_with ~prefix:"https://" url) then url else "http://" ^ url in
+    let* parsed = Url.parse url in
+    let post = Option.map (fun d -> ("application/x-www-form-urlencoded", d)) o.data in
+    let* answers = fetch o ?post parsed 10 in
+    let last = List.nth answers (List.length answers - 1) in
+    if o.fail && last.status >= 400 then (complain (Printf.sprintf "mini-curl: the server answered %d" last.status); Ok 22)
+    else (
+      (* -i: every answer's head, a redirection's too, as curl -i -L *)
+      if o.head then List.iter (fun r -> print (String.concat "\r\n" (head_lines r) ^ "\r\n\r\n")) answers;
+      match o.output with
+      | None -> print last.body; Ok 0
+      | Some file -> (
+          let (_ : Cap.FS_.open_out) = caps#open_out file in
+          match Out_channel.with_open_bin file (fun ch -> output_string ch last.body) with
+          | () -> Ok 0
+          | exception Sys_error why -> Error why))
+  in
+  match result with Ok status -> status | Error why -> complain ("mini-curl: " ^ why); 1

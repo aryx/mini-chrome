@@ -45,4 +45,9 @@ let tests =
           check ~width:10 "a rule" "<p>a<hr>b" [ "a"; ""; "----------"; "b" ]);
       Testo.create "not shown: the head, scripts, styles" (fun () ->
           check "only the body's text" "<title>T</title><style>p{}</style><script>x()</script><p>y" [ "y" ]);
+      Testo.create "after 1991: divs, a table's rows" (fun () ->
+          check "a div is a line of its own, with no blank line" "<div>one</div><div>two <span>and</span> more</div>three" [ "one"; "two and more"; "three" ];
+          check "a row a line, its cells words apart" "<table><tr><td>a<td>b<tr><th>c</th><td>d</table>" [ "a b"; "c d" ];
+          check "sections, a form; a template and a drawing not shown" "<nav>menu</nav><main><form>ask <input></form></main><template>no</template><svg><text>no</text></svg>"
+            [ "menu"; "ask" ]);
     ]

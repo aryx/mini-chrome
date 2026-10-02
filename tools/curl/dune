@@ -1,0 +1,15 @@
+; claude: a program beside the browser (tools/). mini-curl: a URL
+; fetched and printed, by the browser's own HTTP, TLS, gzip and
+; cookies (libs/network) -- the network stack with no browser around.
+(library
+ (name mini_curl)
+ (wrapped false)
+ (modules Curl)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries network caps logs unix))
+
+(executable
+ (name MiniCurl)
+ (public_name mini-curl)
+ (modules MiniCurl)
+ (libraries mini_curl caps))

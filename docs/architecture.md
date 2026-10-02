@@ -12,8 +12,9 @@ languages/   html, css, javascript, json      text in, values out; no window
 libs/        gui, richtext, typeset, network  general, not a browser's
 src/         url, layout, display, www, dom,  the browser, by role
              viewers, about, chrome, window, main
-tools/       node                             programs beside the browser, made of
-                                              its libraries: mini-node
+tools/       node, curl, httpd, lynx          programs beside the browser, made of
+                                              its libraries: mini-node, mini-curl,
+                                              mini-httpd, mini-lynx
 ```
 
 JavaScript is in three places, and the cut matters. `languages/javascript`

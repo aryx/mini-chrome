@@ -38,7 +38,11 @@
      - pre: its lines as they are, never broken;
      - a with an href: "[n]" right after its text, n counting from 1;
      - img: its alt text, else "[IMAGE]" (the 1991 browser's word);
-     - hr: a line of dashes.
+     - hr: a line of dashes;
+     - what came after 1991 (for tools/lynx, on today's pages): div,
+       section, article, header, footer, nav, main, form, table and a
+       table's row are lines of their own, with no blank line; a row's
+       cells are words apart; template and svg are not shown.
 
    Reference: the Line Mode Browser's source (libwww's LineMode, CERN,
    1991-1996) and its restoration, line-mode.cern.ch (2013);

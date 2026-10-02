@@ -8,4 +8,9 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"javascript" (fun _env -> Unit_js_lexer.tests @ Unit_js_parse.tests @ Unit_js_eval.tests @ Unit_js_es5.tests @ Unit_js_classic.tests @ Unit_js_modern.tests @ Unit_js_promise.tests @ Unit_js_globals.tests @ Unit_json.tests)
+(* the tests read and write files (temporary directories) and reach
+ * the network (localhost): the capabilities from here *)
+let () =
+  Cap.main (fun caps ->
+      Testo.interpret_argv ~project_name:"tools" (fun _env ->
+          Unit_httpd.tests caps @ Unit_curl.tests caps @ Unit_lynx.tests caps @ Unit_node_host.tests caps))

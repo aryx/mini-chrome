@@ -99,7 +99,17 @@ let rec element (p : printer) ~(pre : bool) (e : Dom.element) : unit =
     p.indent <- p.indent - by
   in
   match e.name with
-  | "head" | "script" | "style" | "title" -> ()
+  | "head" | "script" | "style" | "title" | "template" | "svg" -> ()
+  (* claude: what came after 1991 and is a block: a line of its own. A
+   * table's row is one, its cells words apart on it *)
+  | "div" | "section" | "article" | "header" | "footer" | "nav" | "main" | "aside" | "form" | "table" | "tr" | "center" | "figure" | "details" ->
+      flush p;
+      children ();
+      flush p
+  | "td" | "th" ->
+      end_word p;
+      children ();
+      end_word p
   | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" ->
       blank p;
       p.centred <- true;

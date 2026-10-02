@@ -1,0 +1,15 @@
+; claude: a program beside the browser (tools/). mini-httpd: a
+; directory's files served over HTTP, the other end of the browser's
+; conversation, with the same Http (libs/network) read the other way.
+(library
+ (name mini_httpd)
+ (wrapped false)
+ (modules Httpd)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries network caps unix))
+
+(executable
+ (name MiniHttpd)
+ (public_name mini-httpd)
+ (modules MiniHttpd)
+ (libraries mini_httpd caps unix))
