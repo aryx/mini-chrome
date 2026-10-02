@@ -60,6 +60,27 @@
   </div>
 
   <div class="card">
+    <h2>Grid</h2>
+    <p>Where flexbox says "these, in a row", a grid says its rows and
+    its columns, and each child its place. This small page is
+    <code>grid-template: auto 1fr auto / 120px minmax(0, 1fr)</code>
+    with named areas, as Wikipedia cuts its own: the side column is
+    120 wide and as high as its row, the main one has the rest.</p>
+    <div class="layout">
+      <div class="main">main: <code>grid-area: main</code>, written first in the page, placed here by its name. Its column is <code>minmax(0, 1fr)</code>: what the side leaves.</div>
+      <div class="head">head: across both columns</div>
+      <div class="side">side</div>
+      <div class="foot">foot: its green is <code>light-dark(#e6f4ea, #222)</code></div>
+    </div>
+    <p>Without a place, the children take the next free cell, row by
+    row: six in <code>repeat(3, 1fr)</code>, the fifth sent to the
+    third column by <code>grid-area: 2 / 3</code>.</p>
+    <div class="cells">
+      <div>1</div><div>2</div><div>3</div><div>4</div><div class="sent">5: 2 / 3</div><div>6</div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>SVG</h2>
     <p>Logos and icons are drawings now, not pixels: an SVG inline in the
     page (Chrome's logo, three arcs and two circles), a picture whose

@@ -122,7 +122,9 @@ Discussed but not started when this was written, in the order proposed:
    constant 768, both fixed since; the grid) is in
    `notes_debugging_techniques.txt`.
 2. CSS grid, at least what Wikipedia uses: its contents column is laid
-   out above the article instead of beside it.
+   out above the article instead of beside it. Done (2026-10-02):
+   `Css_grid`, `Grid_layout`, `Box_grid`; and example.com's
+   `place-content: center`.
 3. Speed: a Wikipedia article is slow to lay out, and a resize lays
    every tab out again. Measure first. Measured: the layout is 22 ms,
    the page's shapes built whole at each relayout are the half second,

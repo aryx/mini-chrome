@@ -28,6 +28,15 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 24px 
 .tile.wide { flex: 2 }
 .tiles.wrap { flex-wrap: wrap; justify-content: center }
 .chip { padding: 3px 12px; border: 1px solid var(--line); background: #fafafa; color: var(--accent); text-decoration: none }
+.layout { display: grid; gap: 8px; margin: 10px 0; grid-template: auto 1fr auto / 120px minmax(0, 1fr);
+          grid-template-areas: 'head head' 'side main' 'foot foot' }
+.layout div, .cells div { background: #e8f0fe; border: 1px solid var(--accent); padding: 8px }
+.layout .head { grid-area: head; text-align: center }
+.layout .side { grid-area: side }
+.layout .main { grid-area: main }
+.layout .foot { grid-area: foot; text-align: center; background: light-dark(#e6f4ea, #222) }
+.cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; text-align: center }
+.cells .sent { grid-area: 2 / 3; background: #fef7e0 }
 .svgs svg, .svgs img, .svgs span { vertical-align: middle; margin-right: 24px }
 .vote { display: inline-block; width: 32px; height: 32px;
         background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16' width='32' height='32'%3E%3Cpath d='m2 27 14-29 14 29z' fill='%23999'/%3E%3C/svg%3E") no-repeat }

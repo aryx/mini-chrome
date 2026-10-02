@@ -110,6 +110,13 @@
    container when that is given. A column's items are laid out at their
    width first, their heights then their base sizes.
 
+   **A grid container** (display: grid) puts its children, items as a
+   flex container's, in the cells of its rows and columns: Box_grid,
+   in a module of its own, over Grid_layout's arithmetic (the cells,
+   the tracks' sizes, where each starts) and Css_grid's values; it asks
+   here for an item laid out and for its content measured, which are
+   the recursion's.
+
    **Measuring** (shrink-to-fit, a flex item's base, a table's column)
    lays the content out at a width without limit (its widest line) and
    at 0 (its widest word), and so a few things are taken differently
@@ -119,8 +126,7 @@
    neither growing nor shrinking nor spread by justify-content, and its
    end, its last item's margin included, marked by an empty box.
 
-   Laid out as blocks, and said: grid (the plan's exercise: Wikipedia's
-   contents above its article instead of beside it). Not done: rowspan=,
+   Not done: rowspan=,
    bottom and right of an absolute box whose top and left are auto,
    fixed boxes staying on screen, z-index (the page's order is the
    drawing's), flex's order and baseline alignment.
@@ -149,6 +155,9 @@
      Box_layout   blocks, flex containers, shrink-to-fit, positioned
                   and floated boxes, pictures, tables: the page's tree
                   walked
+
+   and beside them Box_grid, a grid container's items, given the
+   recursion's two functions it needs rather than being in it.
 
    Reference: W3C, CSS 2.1, chapters 8 (the box model, collapsing
    margins), 9 (the visual formatting model: block and inline

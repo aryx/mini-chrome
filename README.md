@@ -1,7 +1,7 @@
 # mini-chrome
 
 A small web browser written from scratch in OCaml, after Google Chrome
-(2008): HTML, CSS (the cascade, the box model, flexbox), a JavaScript
+(2008): HTML, CSS (the cascade, the box model, flexbox, grid), a JavaScript
 engine, SVG, pictures, `<video>` and `<audio>`, tabs, an omnibox and
 developer tools.
 
@@ -100,7 +100,7 @@ libs/network          URLs, HTTP/1.1, TLS 1.3 and the sockets: a GET that
 src/url/              links resolved (Browser_url)
 src/layout/           where everything goes: CSS's box model (Box_layout,
                       over Box_tree, Box_inline and Box_flow), flexbox,
-                      tables, Mosaic's flow; a point back to a link (Hit)
+                      grid (Box_grid, Grid_layout), tables, Mosaic's flow; a point back to a link (Hit)
 src/display/          a page drawn as shapes: Hershey's letters, pictures,
                       boxes (Browser_draw, Browser_boxes)
 src/www/              the page as a document (Browser_page), its scripts

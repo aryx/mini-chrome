@@ -60,6 +60,16 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- CSS grid: display: grid, grid-template-columns and -rows (lengths,
+  fr, min-content, max-content, auto, minmax(), repeat()),
+  grid-template-areas and grid-area (a name, or row / column), the
+  shorthand grid-template, the gaps, the other children in the next
+  free cell; align-items and align-self down an area; place-content
+  (align-content, justify-content). Wikipedia's contents are beside
+  its article, not above it, and its article 948 wide; example.com's
+  text is in the middle of the window. Css_grid (the values),
+  Grid_layout (the arithmetic), Box_grid (the items laid out);
+  about:chrome has its card
 - everything TinyChrome had in elm-playground 0.3.0: HTML read as
   the WHATWG's tokenizer and tree builder do, CSS's cascade (@media,
   var(), calc(), the attributes' hints) and computed styles, CSS 2.1's

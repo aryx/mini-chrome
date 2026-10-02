@@ -138,7 +138,7 @@ keeps every stage in its record (the developer tools show them):
 ```
 bytes -Charset-> text -Html_lexer-> tokens -Html_tree-> Dom tree
       -Cascade-> winning declarations -Computed-> a style record per element
-      -Box_layout (+ Flex_layout)-> boxes -Browser_boxes-> Playground shapes
+      -Box_layout (+ Flex_layout, Grid_layout)-> boxes -Browser_boxes-> Playground shapes
 ```
 
 There are two layout engines, a legacy of the teaching browsers this
@@ -154,7 +154,19 @@ words and floats, a block being laid out): `Box_tree` (a box read),
 `Box_inline` (words set on lines beside floats), `Box_flow` (a block's
 width, margins and content), and `Box_layout` itself, the recursion
 over the page's tree (blocks, flex, shrink-to-fit, positioned boxes,
-tables) that cannot be cut. `Box_layout.mli` tells the whole.
+tables) that cannot be cut. `Box_layout.mli` tells the whole. A grid
+container is beside it, not in it: `Box_grid` lays the items out with
+`Grid_layout`'s numbers (the cells, the tracks' sizes; pure arithmetic,
+as `Flex_layout` and `Table_layout`) and `Css_grid`'s values
+(`languages/css`), and is given the recursion's two functions it needs
+(an item laid out, its content measured) -- the way to add a layout
+without growing `Box_layout`.
+
+The built-in site is the browser's demonstration: `about:chrome`
+(`data/about/chrome.html`, `chrome.css`) has a card for each thing the
+engine does (the box model, the attributes' hints, flexbox, grid,
+SVG), with the CSS that does it said in the card. A new feature of the
+engine gets its card there, or its own page.
 
 The `Dom` tree is an immutable value. `Browser_script` gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host

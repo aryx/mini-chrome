@@ -42,6 +42,7 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   in
   (match s.display with
   | Flex | Inline_flex -> flex_children ctx e s
+  | Grid -> grid_children ctx e s
   | _ ->
       List.iter (walk ctx s (word_style s ~link:ctx.link)) e.children;
       flush_inline ctx);
@@ -70,33 +71,8 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
 and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
   let env = ctx.env in
   let row = match s.flex_direction with Row | Row_reverse -> true | Column | Column_reverse -> false in
-  let no_margins = (Computed.Len Css_values.zero, Computed.Len Css_values.zero, Computed.Len Css_values.zero, Computed.Len Css_values.zero) in
-  (* an item is a block (an inline one "blockified"); a run of text an
-   * anonymous item in the container's style *)
-  let blockify (cs : Computed.t) : Computed.t =
-    { cs with display = (match cs.display with Inline | Inline_block | List_item -> Block | Inline_flex -> Flex | d -> d); float = Side_none }
-  in
-  let items =
-    List.concat_map
-      (fun (n : Dom.node) ->
-        match n with
-        | Text t when String.for_all is_space t -> []
-        | Text t ->
-            [ ( Dom.element "span" [ Text t ],
-                { s with display = Block; margin = no_margins; padding = (Css_values.zero, Css_values.zero, Css_values.zero, Css_values.zero);
-                  border_width = (0., 0., 0., 0.); width = Auto; height = Auto; min_width = Css_values.zero; max_width = Auto;
-                  flex_grow = 0.; flex_shrink = 1.; flex_basis = Auto; background = Css_values.transparent; position = Static;
-                  overflow_hidden = false; align_self = None } ) ]
-        | Element c -> (
-            let cs = env.style c in
-            match cs.display with
-            | Display_none -> []
-            | _ when cs.position = Absolute || cs.position = Fixed ->
-                add_absolute ctx c cs;
-                []
-            | _ -> [ (c, blockify cs) ]))
-      e.children
-  in
+  let no_margins = Box_grid.no_margins in
+  let items = Box_grid.items ~absolute:(add_absolute ctx) env e s in
   let items = match s.flex_direction with Row_reverse | Column_reverse -> List.rev items | _ -> items in
   let items = Array.of_list items in
   let measuring = env.measuring in
@@ -263,6 +239,16 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
   in
   ctx.children <- List.rev boxes;
   ctx.pending <- 0.
+
+(* claude: a grid container's items laid out (Box_grid, over
+ * Grid_layout's arithmetic), which asks here for what is the
+ * recursion's: an item laid out as a block, its content measured *)
+and grid_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
+  let env = ctx.env in
+  Box_grid.children ctx e s
+    ~lay_out:(fun c cs ~x ~y ~width ~content -> fst (layout_block env (ref []) c cs ~cb_x:x ~cb_width:width ~y ~marker:None ?content ()))
+    ~measure:(fun c cs ~available -> shrink env c cs ~available)
+    ~absolute:(add_absolute ctx) ~relative:(relative ctx)
 
 (* shrink-to-fit (CSS 2.1 section 10.3.5): the content's widest line,
  * at most [available], at least its widest word *)
