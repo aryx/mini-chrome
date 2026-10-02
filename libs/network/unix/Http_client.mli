@@ -38,7 +38,7 @@
  * decides), or why there is none: a URL we can't get, a network error,
  * a response that doesn't parse, too many redirections *)
 val get : ?jar:Cookie_jar.t -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (Http.response, string) result
-(* claude: with a [jar], each request says the cookies kept for its
+(* with a [jar], each request says the cookies kept for its
  * URL, and each answer's Set-Cookie is kept: a redirection's before
  * the next request is made *)
 
@@ -47,7 +47,7 @@ val get : ?jar:Cookie_jar.t -> ?max_redirects:int -> ?timeout:float -> < Cap.net
 val fetch :
   ?post:string * string -> ?jar:Cookie_jar.t -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (string * Http.response, string) result
 
-(* claude: one request and its answer, a redirection given as it is
+(* one request and its answer, a redirection given as it is
  * (a 301 and its Location), not followed: what [fetch] does at each
  * step (tools/curl shows them one by one) *)
 val once : ?post:string * string -> ?jar:Cookie_jar.t -> ?timeout:float -> < Cap.network ; .. > -> Url.t -> (Http.response, string) result

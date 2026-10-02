@@ -61,7 +61,7 @@ let tests (caps : < Cap.network ; .. >) =
                 (fun path ->
                   let url = Testutil_server.url port path in
                   let r = Http_request.start ~resolver caps url in
-                  (* claude: nothing resolved yet: start returned at once *)
+                  (* nothing resolved yet: start returned at once *)
                   Alcotest.(check bool) "not done at once" true (Http_request.result r = None);
                   match run_frames r with
                   | Ok r, _, _ -> Alcotest.check response path (ok (Http_client.get caps url)) r
@@ -83,7 +83,7 @@ let tests (caps : < Cap.network ; .. >) =
               match run_frames (Http_request.start caps (Testutil_server.url port "/new?v=2")) with
               | Ok r, _, _ -> Alcotest.check response "joined" (ok (Http.parse_response answer)) r
               | Error _, _, _ -> Alcotest.fail "no response"));
-      (* claude: not on CI's machines: frames counted against the clock,
+      (* not on CI's machines: frames counted against the clock,
        * and a shared machine's clock is anyone's (9 of 10 on macOS) *)
       Testo.create ?skipped:(if Sys.getenv_opt "CI" <> None then Some "a timing: CI's machines are shared" else None)
         "a slow server doesn't stop the frames" (fun () ->

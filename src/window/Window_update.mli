@@ -52,7 +52,7 @@ val init :
   window:int * int ->
   Playground.flags ->
   model * msg Cmd.t
-(* claude: [jar]: the browser's cookies, those kept from the last run in
+(* [jar]: the browser's cookies, those kept from the last run in
  * it (the main's, which saves them: Browser_cookies); an empty one if
  * none is given *)
 

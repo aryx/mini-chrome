@@ -24,7 +24,7 @@ let ink = Gui_kit.ink
 let muted = Gui_kit.muted
 let inspector_blue = Gui_kit.accent
 
-(* claude: the chrome's text, in cells (libs/gui) *)
+(* the chrome's text, in cells (libs/gui) *)
 let monospace = Gui_text.monospace
 
 (* the status bubble: a link's address, or what is loading *)
@@ -45,7 +45,7 @@ let bubble (m : model) : shape list =
 let page_shapes (m : model) (p : Browser_page.t) : shape list =
   let tab = current_tab m in
   let scroll = float_of_int tab.scroll *. line_height and z = zoom_of m tab in
-  (* claude: the screen's dots for a unit of the page, said before any
+  (* the screen's dots for a unit of the page, said before any
    * of its letters is built below (the lines shown, the controls'
    * text, a player's time): each is a picture made for that density
    * (Glyph_picture) *)
@@ -64,11 +64,11 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
   (* what plays in its <video>s and <audio>s, drawn at each frame *)
   @ Browser_media.draw ~now:m.time ~media:(fun u -> List.assoc_opt u tab.media) p
   @ outline)
-  (* claude: what the window shows of the page; a line's shapes are built
+  (* what the window shows of the page; a line's shapes are built
    * here, the first time it is shown (Browser_draw.later) *)
   |> Browser_draw.between ~top:scroll ~bottom:(scroll +. (area_height m /. z))
   |> group
-  (* claude: the page's units made the window's: zoomed, about its top left *)
+  (* the page's units made the window's: zoomed, about its top left *)
   |> scale z
   |> move (area_left m) (area_top m +. (scroll *. z))
   |> fun s -> [ s ]
@@ -84,7 +84,7 @@ let panel (m : model) : shape list =
          ls)
   in
   let header name x active = [ rectangle (if active then white else toolbar) 60. 16. |> move (x +. 30.) (panel_header_y m) ] @ monospace (x +. 4.) (panel_header_y m) ink name in
-  (* claude: the characters a line of [w] units holds: a whole line of
+  (* the characters a line of [w] units holds: a whole line of
    * the panel, or one of its two halves *)
   let chars w = int_of_float (w /. cell) in
   let x = left m +. 10. and half = chars ((width m /. 2.) -. 20.) in
@@ -119,7 +119,7 @@ let view_unscaled (m : model) : shape list =
     | Some i when not editing -> i
     | _ -> String.length omnibox
   in
-  (* claude: the zoom, when not 100%, left of "JS" *)
+  (* the zoom, when not 100%, left of "JS" *)
   let percent = Browser_zoom.label (zoom_of m tab) in
   let shown = Browser_text.tail (int_of_float ((omnibox_w m -. 52. -. (cell *. float_of_int (String.length percent + 1))) /. cell)) omnibox in
   let dark = String.sub shown 0 (min (String.length shown) host_end) in
@@ -147,14 +147,14 @@ let view_unscaled (m : model) : shape list =
   @ bubble m
   @ (match m.menu with Some menu -> Gui_menu.shapes menu ~pointer:m.mouse | None -> [])
 
-(* claude: the window, its units made the screen's dots *)
+(* the window, its units made the screen's dots *)
 let view_simple (m : model) : shape list = [ group (view_unscaled m) |> scale (scale_of m) ]
 
 (*****************************************************************************)
 (* The same view for the same model *)
 (*****************************************************************************)
 
-(* claude: opti: see Window_view.mli. Whether the window moves by itself:
+(* opti: see Window_view.mli. Whether the window moves by itself:
  * a tab's wheel turning while it loads, a video playing -- what the
  * view draws from the model's [time] *)
 let animated (m : model) : bool =

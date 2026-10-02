@@ -1,4 +1,4 @@
-; claude: the browser's window as a Model-View-Update program
+; the browser's window as a Model-View-Update program
 ; (docs/architecture.md): Window_model (the state and the messages),
 ; Window_layout (the model read: where each part is, what is under the
 ; pointer), Window_tabs (the model changed: a tab's settings, one

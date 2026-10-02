@@ -15,7 +15,7 @@ type drawn = (float * float * shape Lazy.t) list
 
 let ready (things : (float * float * shape) list) : drawn = List.map (fun (top, bottom, s) -> (top, bottom, Lazy.from_val s)) things
 
-(* claude: opti: a line's shapes built when the line is first shown
+(* opti: a line's shapes built when the line is first shown
  * (between, below), not all the page's at each relayout: 450 ms to 28
  * on a long page. The whole story, with its picture, is in
  * Browser_draw.mli. The simple way is the other branch: the shape
@@ -78,7 +78,7 @@ let picture_shapes (state : Browser_picture.t option) (color : color) (f : Html_
 let color_of ~(visited : string -> bool) (f : Html_layout.fragment) : int * int * int =
   match f.look.link with Some href when visited href -> f.look.visited_color | _ -> f.look.color
 
-(* claude: the lines under and through a line's words, one for each run
+(* the lines under and through a line's words, one for each run
  * of neighbours that share it -- a link of several words is underlined
  * from its first letter to its last, the spaces between its words too,
  * as browsers draw it. Before, each letter drew its own piece
@@ -305,7 +305,7 @@ let control_shapes ~(value : Dom.element -> Forms.value) ~(focused : bool) (f : 
             | [] -> [])
       | Hidden -> [])
 
-(* claude: opti: the controls of the last layout asked about, kept: as
+(* opti: the controls of the last layout asked about, kept: as
  * Browser_media's players, they are found by reading the page's every
  * fragment, at each frame the view builds (3 ms of a scrolled frame on
  * a Wikipedia article, which has two). Their shapes are still built at

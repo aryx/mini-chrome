@@ -240,7 +240,7 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
   ctx.children <- List.rev boxes;
   ctx.pending <- 0.
 
-(* claude: a grid container's items laid out (Box_grid, over
+(* a grid container's items laid out (Box_grid, over
  * Grid_layout's arithmetic), which asks here for what is the
  * recursion's: an item laid out as a block, its content measured *)
 and grid_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =

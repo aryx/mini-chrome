@@ -50,7 +50,7 @@ let new_array (vs : value list) : obj =
 
 let host_function (name : string) (f : this:value -> value list -> value) : value = Object (make (Host_function (name, f)))
 let host_object (h : host) : value = Object (make (Host_object h))
-(* claude: a proxy's own properties, keys and items are its target's:
+(* a proxy's own properties, keys and items are its target's:
  * what reads an object as it is (JSON, the console, Object.keys) sees
  * through a proxy, without its traps *)
 let rec target (o : obj) : obj = match o.kind with Proxy (t, _) -> target t | _ -> o
@@ -178,7 +178,7 @@ let display (v : value) : string =
     | Object o when List.memq o seen -> "[Circular]"
     | Object ({ kind = Array _; _ } as o) -> "[" ^ String.concat ", " (List.map (go ~top:false (o :: seen)) (array_items o)) ^ "]"
     | Object ({ kind = Plain; _ } as o) ->
-        (* claude: not a symbol's key ("@@...": a Map's iterator, a promise's state) *)
+        (* not a symbol's key ("@@...": a Map's iterator, a promise's state) *)
         let shown = List.filter (fun k -> not (String.length k >= 2 && String.sub k 0 2 = "@@")) (keys o) in
         "{" ^ String.concat ", " (List.map (fun k -> k ^ ": " ^ go ~top:false (o :: seen) (Option.get (get_own o k))) shown) ^ "}"
     | Object { kind = Closure { func = { name; _ }; _ }; _ } -> "function " ^ Option.value name ~default:"(anonymous)"

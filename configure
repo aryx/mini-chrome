@@ -112,7 +112,7 @@ check_c_lib "SDL2"  "sdl2"  "SDL2/SDL.h" "mini-chrome" || true
 if [ "$software" -eq 1 ]; then
     ok "cairo (not needed: --software)"
 elif ! check_c_lib "cairo" "cairo" "cairo.h" "mini-chrome (Cairo's; mini-chrome-software will)"; then
-    # claude: no Cairo, no Cairo platform to install: as --software
+    # no Cairo, no Cairo platform to install: as --software
     warn "going on as with --software: only mini-chrome-software will be built"
     software=1
 fi

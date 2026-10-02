@@ -157,7 +157,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         if l.top < t -. 0.5 || l.top +. l.height > bottom +. 0.5 then None
         else
           let shown = List.filter (fun (f : Html_layout.fragment) -> inside clip f.x l.top f.width 0.) l.fragments in
-          (* claude: opti: the line's place is known now (its top, its
+          (* opti: the line's place is known now (its top, its
            * height: the layout's), its letters' shapes built when a
            * frame first shows it (Browser_draw.later): they were
            * nearly all of a relayout's time, for lines mostly off
@@ -176,7 +176,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         let look = Box_inline.look_of s ~link:None in
         let text = match m with Bullet -> "\xe2\x80\xa2" | Number n -> string_of_int n ^ "." in
         let ink = rgb s.color.r s.color.g s.color.b in
-        (* claude: when shown, as a line's: a number is letters, drawn
+        (* when shown, as a line's: a number is letters, drawn
          * for the screen's density (Glyph_picture), which the view says *)
         let shape () =
           match m with

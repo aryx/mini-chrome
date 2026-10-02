@@ -221,7 +221,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Logical ("&&", a, b) -> let v = eval_expr t s this a in if truthy v then eval_expr t s this b else v
   | Logical ("??", a, b) -> ( match eval_expr t s this a with Undefined | Null -> eval_expr t s this b | v -> v)
   | Logical (_, a, b) -> let v = eval_expr t s this a in if truthy v then v else eval_expr t s this b
-  (* claude: o.k = v, o[k] = v: o (and k) first, then v, as written --
+  (* o.k = v, o[k] = v: o (and k) first, then v, as written --
    * "(b = {...}).x = b.y", in a minified jQuery, needs b made before
    * b.y is read *)
   | Assign ("=", Member (o, k), v) ->
@@ -467,7 +467,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       let frame = new_scope c.scope in
       (* arguments, the var's hoisted, then the parameters *)
       if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
-      (* claude: a function expression's own name, in its body (var f =
+      (* a function expression's own name, in its body (var f =
        * function again(n) { ... again(n - 1) }), unless the name is
        * already somebody's *)
       (match c.func.name with Some n when lookup c.scope n = None -> declare frame n ~constant:false fn | _ -> ());
@@ -778,7 +778,7 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)
   | exception Stack_overflow -> Error { line = t.line; message = "RangeError: Maximum call stack size exceeded" }
-  (* claude: a mistake of the engine's own (an OCaml exception a
+  (* a mistake of the engine's own (an OCaml exception a
    * built-in let through): the script's error, never the browser's end *)
   | exception ((Invalid_argument _ | Failure _ | Not_found | Division_by_zero) as e) ->
       Error { line = t.line; message = "InternalError: " ^ Printexc.to_string e }

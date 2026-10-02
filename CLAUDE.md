@@ -342,8 +342,7 @@ an algorithm (a memo, a laziness, an index) stay runnable: the simple
 function as `xxx_simple`, the fast one as `xxx_opti`, and `xxx`
 choosing on `Mini_opti.enabled` (our own switch, `libs/opti`, set by
 `opti=off`; not `tiny_libs`' `Opti`, whose name it cannot share), with
-a test that the two agree. The comments start `opti:` (`claude: opti:`
-in the older ones) and give the numbers measured.
+a test that the two agree. The comments start `opti:` and give the numbers measured.
 
 ## Conventions
 
@@ -368,9 +367,8 @@ in the older ones) and give the numbers measured.
   vocabulary of principia's `Tags.tex`, told for this repository in
   `docs/tags.md`. One tag a paragraph at most; a fact in passing is
   not tagged; `make loc` counts the tagged lines by tag.
-- Comments are not tagged `claude:` here (the global rule for
-  projects written by hand): all of mini-chrome is Claude's. The
-  `claude:` of older comments are of before this was said. An
+- Comments are not tagged `claude:` here (the global rule is for
+  projects written by hand): all of mini-chrome is Claude's. An
   optimization's comment starts `opti:`.
 - Tests are `tests/<suite>/Unit_<module>.ml` exporting `tests`
   (`Testo.categorize`, Alcotest checks), listed by hand in that suite's

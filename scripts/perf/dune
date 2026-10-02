@@ -1,4 +1,4 @@
-; claude: where a page's load goes, stage by stage (docs/plan_performance.md;
+; where a page's load goes, stage by stage (docs/plan_performance.md;
 ; the technique in docs/notes_debugging_techniques.txt, session 2): not a
 ; test, run by hand, from the repository's root:
 ;   dune build scripts/perf/Page_bench.exe

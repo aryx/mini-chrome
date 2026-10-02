@@ -1,4 +1,4 @@
-; claude: a page drawn as Playground shapes: its letters in Hershey's
+; a page drawn as Playground shapes: its letters in Hershey's
 ; strokes in a look (Stroke_text, Browser_text), its pictures decoded
 ; (Browser_picture: PNG, GIF, JPEG, SVG), Mosaic's way (Browser_draw) and
 ; CSS's boxes (Browser_boxes).

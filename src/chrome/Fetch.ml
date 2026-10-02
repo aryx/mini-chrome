@@ -40,7 +40,7 @@ type 'msg t = {
   mutable in_flight : 'msg in_flight list;
   (* with threads: where what blocks is done *)
   pool : Worker.t option;
-  (* claude: the browser's cookies: said with each request, kept from
+  (* the browser's cookies: said with each request, kept from
    * each answer (Cookie_jar) *)
   jar : Cookie_jar.t;
 }
@@ -69,7 +69,7 @@ let blocking ?post (t : 'msg t) (caps : Cap.network) (url : string) (k : answer 
   | None -> Now (k (https_get ?post t.jar caps url))
   | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post t.jar caps url), k)
 
-(* claude: what -v shows: each request as it starts, and its answer
+(* what -v shows: each request as it starts, and its answer
  * (said when it is handed back, in step: not on a thread of the pool) *)
 let said (url : string) (a : answer) : unit =
   match a with

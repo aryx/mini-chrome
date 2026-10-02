@@ -127,7 +127,7 @@ let source (page : Browser_page.t) (e : Dom.element) : string option =
   let src = match Dom.attribute "src" e with Some s -> Some s | None -> List.find_map (fun (c : Dom.element) -> Dom.attribute "src" c) (Dom.find_all "source" e) in
   Option.map (Browser_url.resolve page.url) src
 
-(* claude: opti: the players of the last layout asked about, kept: they
+(* opti: the players of the last layout asked about, kept: they
  * are found by reading the page's every fragment (12,000 for a
  * Wikipedia article), and the view asks at each frame it builds, twice
  * (draw, plays) -- 12 ms of a scrolled frame's 15, for a page with no

@@ -19,7 +19,7 @@
    A matter of judgment, not a rule (docs/plan_performance.md, "The
    way"): a small optimization is just made, and simple lines replaced
    by a few others can stay in a comment beside them, with no switch.
-   The comments of every kind start "claude: opti:" and give the
+   The comments of every kind start "opti:" and give the
    numbers measured (grep -rn "opti:").
 
    After elm-playground's Opti (tiny_libs.graphics_core; its
@@ -43,7 +43,7 @@
 (* true: the optimized versions (the default) *)
 val enabled : bool ref
 
-(* claude: how a letter of the page is drawn, where there are several
+(* how a letter of the page is drawn, where there are several
  * ways to set against each other (docs/plan_performance.md, step 4b);
  * with [enabled] false, the simple one whatever this says:
  * - Segments: the pen's strokes, a rectangle a segment and a dot a

@@ -1,4 +1,4 @@
-; claude: JavaScript in a browser: what a page's scripts see and do,
+; JavaScript in a browser: what a page's scripts see and do,
 ; over the language (languages/javascript, which knows nothing of
 ; pages). Script_dom is the page's mutable copy; Script_host an
 ; element's host object, Script_element its members since the first

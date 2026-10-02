@@ -120,7 +120,7 @@ type 'msg config = {
   visible : int; (* the page area's lines *)
   line_height : float;
   scripts : string -> bool; (* whether a page's <script>s run (Browser_script), by its URL *)
-  cookies : Cookie_jar.t; (* claude: the browser's cookies: what a page's document.cookie reads and sets *)
+  cookies : Cookie_jar.t; (* the browser's cookies: what a page's document.cookie reads and sets *)
   seed : int; (* Math.random's *)
 }
 
@@ -128,7 +128,7 @@ type 'msg config = {
 val empty : images:bool -> t
 val current_url : t -> string
 
-(* claude: the lines the tab's page (or its source) is long, of
+(* the lines the tab's page (or its source) is long, of
  * [cfg.line_height]: what a scrollbar shows the part of *)
 val line_count : 'msg config -> t -> int
 

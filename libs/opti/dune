@@ -1,4 +1,4 @@
-; claude: the switch between the optimized code and the simple code it
+; the switch between the optimized code and the simple code it
 ; replaced, kept runnable beside it (Mini_opti.mli;
 ; docs/plan_performance.md). One module and no dependency, so that
 ; languages/ and src/layout, which link no graphics library, can read

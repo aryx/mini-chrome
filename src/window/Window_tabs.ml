@@ -23,7 +23,7 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
     (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
     boxes = true;
     width = page_width m /. zoom_of m tab;
-    (* claude: the page area's, less with the panel open: CSS's 100vh *)
+    (* the page area's, less with the panel open: CSS's 100vh *)
     height = area_height m /. zoom_of m tab;
     breaker = Html_layout.greedy;
     visited = (fun url -> List.mem url tab.visited);
@@ -42,7 +42,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     about =
       (fun name ->
         match name with
-        (* claude: the jar as a page, made when asked for *)
+        (* the jar as a page, made when asked for *)
         | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
     got = (fun url r -> Got (id, url, r));
@@ -81,7 +81,7 @@ let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -
   | Some t ->
       let tab, cmd = f (config m id) t.tab in
       let stamped = stamp m.time { t with tab } in
-      (* claude: opti: [f] left the tab as it was (a Tick's task of a
+      (* opti: [f] left the tab as it was (a Tick's task of a
        * page whose scripts did nothing): the model is the one given,
        * not a copy of it, and the view of a page at rest can be seen
        * to be the same (Window_view.view).
@@ -94,7 +94,7 @@ let on_current m f = on_tab m m.current f
 let scrolled (by : int) (m : model) : model = fst (on_current m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))
 let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) - 2)
 
-(* claude: every tab's page laid out again (the window resized, a site
+(* every tab's page laid out again (the window resized, a site
  * zoomed), its scroll moved with the page's new height, to stay near
  * what was read *)
 let relaid_all (m : model) : model =
@@ -107,7 +107,7 @@ let relaid_all (m : model) : model =
   in
   { m with tabs = List.map relaid m.tabs }
 
-(* claude: the profile changed: saved once it has been still for a
+(* the profile changed: saved once it has been still for a
  * second (Tick), so a window dragged to its size is written once, not
  * at each step of the drag; and when the program ends, if it changed
  * since (unsaved, below) *)
@@ -122,7 +122,7 @@ let saved (caps : < Cap.open_out ; .. >) (m : model) : model =
       { m with saved = m.profile }
   | _ -> m
 
-(* claude: the window's size or the scale changed: the screen is the
+(* the window's size or the scale changed: the screen is the
  * window's dots in the program's units, and every page laid out again
  * at its width *)
 let rescreened (m : model) : model =
@@ -130,12 +130,12 @@ let rescreened (m : model) : model =
   let screen = (float_of_int w /. s, float_of_int h /. s) in
   if screen = m.screen then m else relaid_all { m with screen }
 
-(* claude: the shown page's site at the zoom [f] gives from its own *)
+(* the shown page's site at the zoom [f] gives from its own *)
 let zoomed (f : float -> float) (m : model) : model =
   let zooms = Browser_zoom.with_host m.profile.zooms (host_of (current_url m)) (f (zoom_of m (current_tab m))) in
   relaid_all (with_profile { m.profile with zooms } m)
 
-(* claude: the shown page's scrollbar, in lines: the page's, those the
+(* the shown page's scrollbar, in lines: the page's, those the
  * area shows, those scrolled *)
 let scrollbar (m : model) : Gui_scrollbar.t =
   let tab = current_tab m in
@@ -179,7 +179,7 @@ let typed_url (engine : string) (s : string) : string =
   else if String.contains s '.' && not (String.contains s ' ') then "https://" ^ s
   else search_url engine s
 
-(* claude: the panel opened, closed or showing another view; the page
+(* the panel opened, closed or showing another view; the page
  * area's height is the pages' 100vh, so when it changes they are laid
  * out again *)
 let with_panel (panel : panel) (m : model) : model =

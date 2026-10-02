@@ -143,7 +143,7 @@ val create :
   ?cookies:(unit -> string) * (string -> unit) ->
   Dom.element ->
   t
-(* claude: [cookies]: what document.cookie reads ("a=1; b=2") and what
+(* [cookies]: what document.cookie reads ("a=1; b=2") and what
  * an assignment to it does with its string (one "name=value; Path=/"),
  * the browser's jar for this page (none: "", and nothing kept) *)
 

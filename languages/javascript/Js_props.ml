@@ -46,7 +46,7 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
           set_own p "constructor" (Object o);
           set_own o "prototype" (Object p);
           Object p
-      (* claude: a function's name, and how many parameters it declares *)
+      (* a function's name, and how many parameters it declares *)
       | Closure { func; _ }, "name" -> String (Option.value func.name ~default:"")
       | Closure { func; _ }, "length" -> Number (float_of_int (List.length func.params))
       | Host_function (name, _), "name" -> String name
@@ -67,7 +67,7 @@ let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
       | "length", _ -> Number (float_of_int a.length)
       | _, Some i -> if i < a.length then a.elements.(i) else Undefined
       | _ -> from_chain ps o k)
-  (* claude: a host object's own answer, else what the prototype it
+  (* a host object's own answer, else what the prototype it
    * was given has (an element's: Element.prototype, and what a library
    * added to it) *)
   | Object o -> from_chain ps o k

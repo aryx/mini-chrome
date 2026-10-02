@@ -1,4 +1,4 @@
-; claude: a program beside the browser (tools/). mini-httpd: a
+; a program beside the browser (tools/). mini-httpd: a
 ; directory's files served over HTTP, the other end of the browser's
 ; conversation, with the same Http (libs/network) read the other way.
 (library

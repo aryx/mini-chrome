@@ -1,4 +1,4 @@
-; claude: a page's links: an address resolved against the page's
+; a page's links: an address resolved against the page's
 ; (Browser_url), over libs/network's Url (RFC 3986); -open Network: ours,
 ; not the Playground's (libs/network/dune).
 (library

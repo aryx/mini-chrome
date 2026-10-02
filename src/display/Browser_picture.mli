@@ -42,7 +42,7 @@ val broken_size : float
  * image's *)
 val size : t -> (float * float) option
 
-(* claude: [drawn w h img]: the pixels stretched to [w] by [h], centred
+(* [drawn w h img]: the pixels stretched to [w] by [h], centred
  * on the origin; nothing when there is no area to fill -- Hacker News
  * indents a comment with <img src="s.gif" width=0>, a narrow window
  * squeezes a box to nothing -- which Cairo cannot scale to (it raises

@@ -118,7 +118,7 @@ let font_scale (s : string) : float option =
   in
   Option.map (fun n -> scale.(max 1 (min 7 n) - 1)) n
 
-(* claude: the look an extension gives, when honoured *)
+(* the look an extension gives, when honoured *)
 let netscape (l : t) (e : Dom.element) : t =
   let color name = Option.bind (Dom.attribute ~extensions:true name e) color_of_string in
   let set c default = Option.value c ~default in

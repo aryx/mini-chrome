@@ -44,7 +44,7 @@ let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layou
           else None)
         b.lines
     in
-    (* claude: an inline-block is on its line as a fragment of no text,
+    (* an inline-block is on its line as a fragment of no text,
      * its room, and what it holds is in a box under this one: a field
      * in an inline-block (Google's search box, in a <div
      * style="display: inline-block">) was hidden by the room it is in.

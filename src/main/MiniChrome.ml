@@ -47,21 +47,21 @@
  * The arrows, Page Up and Down, Space and the wheel scroll, Backspace
  * goes back.
  *
- * claude: Ctrl and + (or =), Ctrl and -, Ctrl and the wheel **zoom**
+ * Ctrl and + (or =), Ctrl and -, Ctrl and the wheel **zoom**
  * the page, Ctrl and 0 back to 100% (Browser_zoom: Chrome's steps,
  * each site its own zoom). The whole page grows, not its fonts alone:
  * laid out at the window's width divided by the zoom, and drawn
  * scaled; the zoom shows in the omnibox when not 100%.
  *
- * claude: a page longer than the window has a **scrollbar** at its
+ * a page longer than the window has a **scrollbar** at its
  * right (Gui_scrollbar), over the page's edge: its thumb dragged, its
  * track clicked above or below for a page up or down.
  *
- * claude: the words of the command line that are not flags are the
+ * the words of the command line that are not flags are the
  * first pages, a tab each, as Chrome's: an address
  * (mini-chrome news.ycombinator.com) or words to search.
  *
- * claude: the whole window is drawn at a **scale**, a browser's device
+ * the whole window is drawn at a **scale**, a browser's device
  * scale factor: the desktop's (Gui_scale: 2 where GNOME says a screen
  * has twice the dots, and the chrome's letters of 6 could not be read),
  * or the one chosen with Ctrl, Shift and + or - (Ctrl Shift 0: the
@@ -70,12 +70,12 @@
  * view is scaled whole, the pointer and the window's size divided. A
  * site's zoom (Ctrl +) multiplies it, for that site's pages.
  *
- * claude: a **right click** on the page opens Chrome's context menu
+ * a **right click** on the page opens Chrome's context menu
  * (Browser_menu, drawn by libs/gui's Gui_menu): on a link, Open link in new tab (a tab behind the
  * one shown) and Inspect; elsewhere Back, Forward, Reload, Inspect.
  * A click on an item does it; any click, Escape, the wheel close it.
  *
- * claude: the **profile** (Browser_profile) is what is kept from one
+ * the **profile** (Browser_profile) is what is kept from one
  * run to the next, in ~/.config/mini-chrome (Preferences, JSON): the
  * window's size and the sites' zooms, read at the start and written a
  * second after one changes, and when the program ends. It is the one place the
@@ -126,13 +126,13 @@
 open Playground
 open Window_model
 
-(* claude: this file is the program's main: the profile read, the
+(* this file is the program's main: the profile read, the
  * capabilities handed down, the Playground run. The program itself is
  * src/window's: Window_model (the state and the messages),
  * Window_layout (the model read), Window_tabs (the model changed),
  * Window_update and Window_view. *)
 
-(* claude: the profile, read before the window is made (its size is in
+(* the profile, read before the window is made (its size is in
  * it), and where it is saved. One that cannot be read (not JSON: fixed
  * by hand, a brace lost) is left as it is, not written over: this run
  * keeps nothing *)
@@ -145,13 +145,13 @@ let profile_of (caps : < Cap.open_in ; Cap.env ; .. >) (flags : flags) : Browser
       (Browser_profile.empty, None)
   | None -> (Browser_profile.empty, None)
 
-(* claude: the profile not saved yet, and where it goes: what is
+(* the profile not saved yet, and where it goes: what is
  * written when the program ends (main's at_exit). The Playground has
  * no message for the window closed -- it exits -- so the model's last
  * state is kept here, after each update *)
 let unsaved : (string * Browser_profile.t) option ref = ref None
 
-(* claude: the cookies with a date are kept in the profile's directory
+(* the cookies with a date are kept in the profile's directory
  * (Browser_cookies): read into the jar at the start, written when the
  * jar has changed -- at most every few seconds while pages load (each
  * answer may set one), and when the program ends. [written]: the jar's
@@ -200,26 +200,26 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
 let main = Program.main __MODULE__ (fun () ->
   Cap.main (fun caps ->
       let flags = Playground_platform.flags () in
-      (* claude: -v, -debug and -quiet are the Playground's, read by
+      (* -v, -debug and -quiet are the Playground's, read by
        * flags (): Logs' level. A line at a time, the answers coming
        * from the pool's threads too (Tls_client's roots) *)
       let lock = Mutex.create () in
       Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
-      (* claude: opti=off: the simple code, where an optimized one
+      (* opti=off: the simple code, where an optimized one
        * replaced it (Mini_opti.mli) *)
       if List.assoc_opt "opti" flags = Some "off" then begin
         Mini_opti.enabled := false;
         Logs.info (fun m -> m "opti=off: the simple code paths")
       end;
-      (* claude: letters=segments: a letter drawn as its pen's strokes,
+      (* letters=segments: a letter drawn as its pen's strokes,
        * the simple way, rather than as one picture (Glyph_picture) *)
       (match List.assoc_opt "letters" flags with
       | Some "segments" -> Mini_opti.letters := Segments
       | Some "pictures" -> Mini_opti.letters := Pictures
       | _ -> ());
-      (* claude: an application's window: resized, the page is laid out
+      (* an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled. It starts
        * at the size it was last, the profile's (-size WxH, the
        * Playground's, is stronger); the first time at 1280 by 900 of
@@ -234,14 +234,14 @@ let main = Program.main __MODULE__ (fun () ->
       let desktop = Gui_scale.desktop caps in
       let scale = Option.value profile.scale ~default:desktop in
       let window = Option.value profile.window ~default:(int_of_float (1280. *. scale), int_of_float (900. *. scale)) in
-      (* claude: the window closed (the Playground exits), -dump-frame's
+      (* the window closed (the Playground exits), -dump-frame's
        * frame written: what changed in the last second is saved *)
       let jar = cookies_of caps profile_dir in
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
           save_cookies caps ~now:true profile_dir jar;
           Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
-      (* claude: opti: a frame whose view is the list of the frame before
+      (* opti: a frame whose view is the list of the frame before
        * is not drawn again (Window_view.view gives it back when the
        * window has nothing new to show) *)
       Playground_platform.run_app ~flags

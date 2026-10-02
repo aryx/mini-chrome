@@ -1,4 +1,4 @@
-; claude: the browser's networking, from elm-playground's libs/networking
+; the browser's networking, from elm-playground's libs/networking
 ; (its tiny_libs.networking_* libraries), the part a browser needs:
 ; protocols/ (Url, Urlencoded, Http: RFC 3986, forms' queries, HTTP/1.1
 ; messages), tls/ (Asn1, Pem, X509, Tls13: a TLS 1.3 client, pure, bytes

@@ -68,7 +68,7 @@ let tests (caps : < Cap.network ; Cap.open_in ; Cap.exec ; .. >) =
       Testo.create "a page over AES-128-GCM, RSA (PSS)" (fun () ->
           with_server "rsa" "TLS_AES_128_GCM_SHA256" (fun p cert ->
               Alcotest.(check (result string string)) "200" (Ok "HTTP/1.0 200 ok") (page caps ~trust:[ cert ] ~host:"localhost" p)));
-      (* claude: not on CI: macOS's openssl (LibreSSL) does not start its
+      (* not on CI: macOS's openssl (LibreSSL) does not start its
        * s_server with -verify, so there is nothing to connect to *)
       Testo.create ?skipped:(if Sys.getenv_opt "CI" <> None then Some "macOS's openssl: no s_server -verify" else None)
         "a server asking for our certificate: an empty one (Gmail's SMTP)" (fun () ->

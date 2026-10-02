@@ -1,4 +1,4 @@
-; claude: the same program (../MiniChrome.ml, copied at build time, not
+; the same program (../MiniChrome.ml, copied at build time, not
 ; a second source) on the Playground's software platform: every pixel
 ; computed by its own rasterizer, SDL only for the window -- no Cairo.
 ; See ../dune.

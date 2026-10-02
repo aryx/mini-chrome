@@ -1,4 +1,4 @@
-; claude: where everything on a page goes: Html_layout,
+; where everything on a page goes: Html_layout,
 ; blocks stacked and inline content on lines, and Hit, the way back,
 ; from a point to a link; Table_layout; and Box_layout, CSS 2.1's box
 ; model over Computed's styles (its types in Box_types, a box read in

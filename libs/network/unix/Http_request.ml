@@ -33,7 +33,7 @@ type t = {
   deadline : float;
   (* where getaddrinfo is called: a pool's thread, or this one *)
   resolver : Worker.t option;
-  jar : Cookie_jar.t option; (* claude: the cookies said, and kept *)
+  jar : Cookie_jar.t option; (* the cookies said, and kept *)
 }
 
 (*****************************************************************************)

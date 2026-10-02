@@ -16,7 +16,7 @@ open Window_tabs (* the model changed *)
 
 let resolve = Browser_url.resolve
 
-(* claude: the first pages: url=X, and the words of the command line
+(* the first pages: url=X, and the words of the command line
  * that are not a flag's name -- an address or words to search, as
  * typed in the omnibox (the Playground cuts a word at its first =: put
  * back, for an address with a query) *)
@@ -39,10 +39,10 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ();
-      (* claude: until the platform says (Resized, before the first frame) *)
+      (* until the platform says (Resized, before the first frame) *)
       screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false; grab = None }
   in
-  (* claude: a tab a page, the first one shown *)
+  (* a tab a page, the first one shown *)
   let m, cmd =
     List.fold_left (fun (m, cmd) url -> let m, c = open_tab network url m in (m, Cmd.batch [ cmd; c ])) (m, Cmd.none) (first_pages m.engine flags)
   in
@@ -96,7 +96,7 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
         (m, Cmd.batch [ cmd; cmd2 ]))
   | _ -> (m, Cmd.none)
 
-(* claude: what an item of the right click's menu does *)
+(* what an item of the right click's menu does *)
 let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui_menu.t) (action : Browser_menu.action) (m : model) : model * msg Cmd.t =
   match action with
   | Open_in_new_tab url ->
@@ -113,7 +113,7 @@ let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui
 
 let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
-  (* claude: the menu is over a page that stays as it is: closed by what
+  (* the menu is over a page that stays as it is: closed by what
    * moves the page, and by Escape *)
   let m = match msg with Wheel _ | Resized _ | Key ("Escape" | "escape") -> { m with menu = None } | _ -> m in
   Browser_media.install ();
@@ -132,27 +132,27 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
        * Got_picture, as the next messages *)
       let answered = Fetch.step m.fetches in
       (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) answered))
-  (* claude: the wheel's notches, positive scrolling up (the platform's
+  (* the wheel's notches, positive scrolling up (the platform's
    * meaning): the page goes up, so its scroll down the page decreases.
    * The system's natural scrolling, where it is the driver's (X11,
    * libinput), is in the notches already *)
   | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
   | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
-  (* claude: the pointer, from the window's dots to the program's units *)
+  (* the pointer, from the window's dots to the program's units *)
   | Mouse_move (x, y) -> (
       let m = { m with mouse = (x /. scale_of m, y /. scale_of m) } in
-      (* claude: the scrollbar's thumb held: the page follows the pointer *)
+      (* the scrollbar's thumb held: the page follows the pointer *)
       match m.grab with
       | Some grab -> (scrolled (int_of_float (Float.round (Gui_scrollbar.dragged (scrollbar m) ~grab (snd m.mouse))) - (current_tab m).scroll) m, Cmd.none)
       | None -> (m, Cmd.none))
   | Mouse_up -> ({ m with grab = None }, Cmd.none)
-  (* claude: the window's size changed (not the first time, when it is
+  (* the window's size changed (not the first time, when it is
    * told the size it started at): kept in the profile, and every tab's
    * page laid out again at its new width *)
   | Resized (w, h) ->
       let profile = if (w, h) = m.window then m.profile else { m.profile with window = Some (w, h) } in
       (rescreened (with_profile profile { m with window = (w, h) }), Cmd.none)
-  (* claude: a right click on the page: its menu, for what is under the
+  (* a right click on the page: its menu, for what is under the
    * pointer; elsewhere, an open menu closed *)
   | Right_click -> (
       let tab = current_tab m in
@@ -161,13 +161,13 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
           let items = Browser_menu.items ~link:(Option.map (resolve p.url) (hovered m)) ~back:(tab.history.behind <> []) ~forward:(tab.history.ahead <> []) in
           ({ m with menu = Some (Gui_menu.opened ~screen:m.screen ~at:m.mouse items); omnibox = None }, Cmd.none)
       | _ -> ({ m with menu = None }, Cmd.none))
-  (* claude: a click with the menu open is the menu's: on an item, done;
+  (* a click with the menu open is the menu's: on an item, done;
    * anywhere, the menu closed, the page under it not clicked *)
   | Click when m.menu <> None -> (
       let menu = Option.get m.menu in
       let m = { m with menu = None } in
       match Gui_menu.chosen menu m.mouse with Some action -> menu_action network menu action m | None -> (m, Cmd.none))
-  (* claude: a press on the scrollbar: its thumb held until the button
+  (* a press on the scrollbar: its thumb held until the button
    * is let go, or a page up or down *)
   | Click when Gui_scrollbar.at (scrollbar m) m.mouse <> None -> (
       let m = { m with omnibox = None } in
@@ -199,14 +199,14 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
         | None, _, Some Gui_toolbar.Reload -> load network (current_url m) m
         | None, _, Some Gui_toolbar.Stop -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
         | _ -> if page_point m <> None then click_page network m else (m, Cmd.none))
-  (* claude: Ctrl held (SDL's names, or the web's), and the page zoomed;
+  (* Ctrl held (SDL's names, or the web's), and the page zoomed;
    * the character such a key may also type is not the omnibox's *)
   | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)
   | Key ("Left Shift" | "Right Shift" | "left shift" | "right shift" | "Shift") -> ({ m with shift = true }, Cmd.none)
   | Key_up key ->
       let up names = List.mem (String.lowercase_ascii key) names in
       ({ m with ctrl = m.ctrl && not (up [ "left ctrl"; "right ctrl"; "control" ]); shift = m.shift && not (up [ "left shift"; "right shift"; "shift" ]) }, Cmd.none)
-  (* claude: with Shift too, the window's scale: a step of the zoom's
+  (* with Shift too, the window's scale: a step of the zoom's
    * levels, or the desktop's again (0) *)
   | Key key when m.ctrl && m.shift && Browser_zoom.key key <> None ->
       let scale = match Option.get (Browser_zoom.key key) with Reset -> None | change -> Some (Browser_zoom.apply change (scale_of m)) in

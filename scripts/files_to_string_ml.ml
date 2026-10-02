@@ -41,7 +41,7 @@ let () =
           * the newline and the next line's leading blanks *)
          Printf.printf "let %s =\n  \"" (name path);
          let col = ref 0 in
-         (* claude: the characters left of the escape being printed: an
+         (* the characters left of the escape being printed: an
           * escaped backslash is two backslashes, so "just before a
           * backslash" can be the middle of one *)
          let inside = ref 0 in

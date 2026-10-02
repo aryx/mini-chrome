@@ -1,4 +1,4 @@
-; claude: the about: pages, the browser's built-in site (Site.mli): its
+; the about: pages, the browser's built-in site (Site.mli): its
 ; files embedded as strings, data/about/home.html becoming
 ; Site_pages.home at build time, so the browser has something to show
 ; with no network; and the video site of our own, about:tube (Tube,
@@ -76,7 +76,7 @@
     (cat threads.js)
     (echo "|}\n")))))
 
-; claude: bytes that are not text, embedded escaped
+; bytes that are not text, embedded escaped
 ; (scripts/files_to_string_ml.ml): picture.gif becomes
 ; Site_pictures.picture_gif, the same picture in the three formats the
 ; browser decodes; and about:tube's two files made elsewhere (the .mpg by

@@ -2,7 +2,7 @@
 # See also .github/workflows/docker.yml for its use in Github Actions (GHA).
 # coupling: adapted from ~/github/ocaml-elm-playground/Dockerfile
 
-# claude: 24.04, not 22.04: tsdl calls SDL_RenderGetWindow, SDL 2.0.22's,
+# 24.04, not 22.04: tsdl calls SDL_RenderGetWindow, SDL 2.0.22's,
 # and 22.04 has SDL 2.0.20
 FROM ubuntu:24.04
 

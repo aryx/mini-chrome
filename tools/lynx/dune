@@ -1,4 +1,4 @@
-; claude: a program beside the browser (tools/). mini-lynx: a page as
+; a program beside the browser (tools/). mini-lynx: a page as
 ; text in a terminal, a number after each link to follow it -- the
 ; browser's network, its HTML reader and the Line Mode Browser's
 ; layout (languages/html's Line_mode), no window.

@@ -163,7 +163,7 @@ let tests =
             "div's align=, HTML 3.2's" [ ("ab", 172., 17.) ]
             (fragments (page "<div align=right>ab</div>")));
       Testo.create "Netscape's extensions: unknown to Mosaic" (fun () ->
-          (* claude: an unknown tag is ignored, its content shown *)
+          (* an unknown tag is ignored, its content shown *)
           Alcotest.(check (list fragment)) "center, ignored" [ ("ab", 8., 17.) ] (fragments (page "<center>ab</center>"));
           Alcotest.(check (list fragment)) "p's align, ignored" [ ("ab", 8., 28.2) ] (fragments (page "<p align=right>ab"));
           Alcotest.(check (list fragment)) "font size, ignored" [ ("ab", 8., 17.) ] (fragments (page "<font size=7>ab</font>"));
@@ -226,7 +226,7 @@ let tests =
             (List.map (fun (b : Html_layout.box) -> (b.x, b.width)) (blocks "td" p)));
       Testo.create "a table: a centred cell measured, not far away" (fun () ->
           let p = netscape "<table><tr><th>ab</table>" in
-          (* claude: the th's column is its word's 20 and the padding *)
+          (* the th's column is its word's 20 and the padding *)
           Alcotest.(check (list near)) "the column 22 wide" [ 22. ]
             (List.map (fun (b : Html_layout.box) -> b.width) (blocks "th" p)));
       Testo.create "a table: unknown to Mosaic" (fun () ->

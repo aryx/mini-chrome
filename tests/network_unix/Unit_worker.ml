@@ -36,7 +36,7 @@ let tests =
           Alcotest.(check bool) (Printf.sprintf "submitted in %.1f ms: nothing waited" (submitted *. 1000.)) true
             (submitted < 0.01);
           Alcotest.(check (list int)) "each its result" [ 0; 1; 2; 3 ] (List.map Result.get_ok results);
-          (* claude: 0.2 s together; one after the other would be 0.8 *)
+          (* 0.2 s together; one after the other would be 0.8 *)
           Alcotest.(check bool) (Printf.sprintf "all done in %.2f s" took) true (took < 0.5));
       Testo.create "more jobs than threads: queued" (fun () ->
           let pool = Worker.create 2 in

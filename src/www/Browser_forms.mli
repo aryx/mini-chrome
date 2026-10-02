@@ -16,7 +16,7 @@
  * The values are the page's (Browser_page.values), kept with it, so
  * that the history gives a half-filled form back half filled. *)
 
-(* claude: what a click or a key does to a form (outcome, not effect: a
+(* what a click or a key does to a form (outcome, not effect: a
  * keyword since OCaml 5.3) *)
 type outcome =
   | Nothing

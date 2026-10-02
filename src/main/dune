@@ -1,4 +1,4 @@
-; claude: the program: Chrome's window -- the tabs, the omnibox, the
+; the program: Chrome's window -- the tabs, the omnibox, the
 ; developer tools -- around the tabs of src/chrome (MiniChrome.ml).
 ;
 ; Drawn by the Playground, on one of its native platforms, SDL for the

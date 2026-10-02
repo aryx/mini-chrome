@@ -42,7 +42,7 @@
  * autoplay starts here the first time its file is had *)
 val draw : now:float -> media:(string -> string option) -> Browser_page.t -> Browser_draw.drawn
 
-(* claude: whether the page has a <video> or an <audio>: what [draw]
+(* whether the page has a <video> or an <audio>: what [draw]
  * gives then changes with the time *)
 val plays : Browser_page.t -> bool
 

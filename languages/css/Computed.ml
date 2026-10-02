@@ -265,7 +265,7 @@ let expand ((name, value) : string * component list) : (string * component list)
       | None -> [])
   | "overflow" | "overflow-x" | "overflow-y" -> [ ("overflow", value) ]
   | "text-decoration-line" -> [ ("text-decoration", value) ]
-  (* claude: grid-template: "rows / columns"; with strings, the areas
+  (* grid-template: "rows / columns"; with strings, the areas
    * (a row a string, its size after it), then "/ columns" *)
   | "grid-template" -> (
       let strings = List.filter (fun c -> match c with Token (String _) -> true | _ -> false) value in

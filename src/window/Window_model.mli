@@ -19,7 +19,7 @@ type model = {
   tabs : tab list;
   current : int; (* the id of the tab shown *)
   next_id : int;
-  omnibox : Gui_field.t option; (* claude: its text, while it is typed into (libs/gui); None, it shows the page's address *)
+  omnibox : Gui_field.t option; (* its text, while it is typed into (libs/gui); None, it shows the page's address *)
   mouse : float * float;
   time : float;
   css : bool; (* the page's style sheets honoured *)
@@ -29,17 +29,17 @@ type model = {
   engine : string; (* the omnibox's searches: search_url *)
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
-  screen : float * float; (* claude: the window's size in the program's units (its dots, divided by the scale): the page's width *)
-  ctrl : bool; (* claude: a Ctrl key held *)
-  profile : Browser_profile.t; (* claude: what is kept between runs: the window's size, the sites zoomed *)
-  profile_dir : string option; (* claude: where it is saved; None, it is not *)
-  saved : Browser_profile.t; (* claude: the profile as it is on disk *)
-  changed : float; (* claude: when the profile last changed (time) *)
-  menu : Browser_menu.action Gui_menu.t option; (* claude: the right click's menu, while it is open *)
-  window : int * int; (* claude: the window's size, in the screen's dots; [screen] is in the program's units *)
-  desktop : float; (* claude: the desktop's scale (Gui_scale), when none is chosen *)
-  shift : bool; (* claude: a Shift key held *)
-  grab : float option; (* claude: the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
+  screen : float * float; (* the window's size in the program's units (its dots, divided by the scale): the page's width *)
+  ctrl : bool; (* a Ctrl key held *)
+  profile : Browser_profile.t; (* what is kept between runs: the window's size, the sites zoomed *)
+  profile_dir : string option; (* where it is saved; None, it is not *)
+  saved : Browser_profile.t; (* the profile as it is on disk *)
+  changed : float; (* when the profile last changed (time) *)
+  menu : Browser_menu.action Gui_menu.t option; (* the right click's menu, while it is open *)
+  window : int * int; (* the window's size, in the screen's dots; [screen] is in the program's units *)
+  desktop : float; (* the desktop's scale (Gui_scale), when none is chosen *)
+  shift : bool; (* a Shift key held *)
+  grab : float option; (* the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
 }
 
 and msg =

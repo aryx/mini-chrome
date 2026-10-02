@@ -45,7 +45,7 @@ type 'msg config = {
   about : string -> (string * string) option;
   got : string -> (Fetch.response, Fetch.error) result -> 'msg;
   got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
-  (* claude: the answer to a script's request, by its number and its URL *)
+  (* the answer to a script's request, by its number and its URL *)
   got_answer : int -> string -> (Fetch.response, Fetch.error) result -> 'msg;
   fetch : 'msg Fetch.request -> 'msg;
   connections : int;
@@ -115,7 +115,7 @@ let line_count (cfg : 'msg config) (tab : t) : int =
   match (tab.state, tab.view) with
   | Shown p, Page ->
       let lines = int_of_float (Float.ceil (p.layout.height /. cfg.line_height)) in
-      (* claude: a page that fits the window (a body of min-height: 100vh
+      (* a page that fits the window (a body of min-height: 100vh
        * is exactly as high) does not scroll: [cfg.visible] is the whole
        * lines shown, one less than the page's when a part of a line is *)
       if p.layout.height <= (cfg.settings tab).height +. 0.5 then min lines cfg.visible else lines
@@ -153,20 +153,20 @@ let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   | _ -> tab
 
 let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
-  (* claude: the settings of the page that came, not of the one asked for
+  (* the settings of the page that came, not of the one asked for
    * (a redirect to another host, whose zoom is its own) *)
   let tab = { tab with state = Loading url } in
   let p = Browser_page.read (cfg.settings tab) url status content_type bytes in
   if not (cfg.scripts url) then { tab with state = Shown p; script = None; pending_scripts = [] }
   else
-    (* claude: document.cookie: the jar's for the page's address (a page
+    (* document.cookie: the jar's for the page's address (a page
      * of the built-in site has none: no host) *)
     let cookies =
       match Url.parse p.url with
       | Ok url -> ((fun () -> Cookie_jar.script_cookies cfg.cookies url), fun v -> Cookie_jar.set_from_script cfg.cookies url v)
       | Error _ -> ((fun () -> ""), fun _ -> ())
     in
-    (* claude: with -v, what the page's scripts say on their console
+    (* with -v, what the page's scripts say on their console
      * (their errors too) is said on the terminal *)
     let log line = Logs.info (fun m -> m "console: %s" line) in
     let s = Browser_script.create ~log ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
@@ -300,7 +300,7 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
   (* a new page: a new network log *)
   let tab = { tab with scroll = 0; focus = None; queue = []; total = 0; requests = [] } in
   if starts_with "about:" url then
-    (* claude: with -v; the web's pages are said by Fetch *)
+    (* with -v; the web's pages are said by Fetch *)
     let () = Logs.info (fun m -> m "built-in page %s" url) in
     let name, query = Browser_url.split_query (String.sub url 6 (String.length url - 6)) in
     let show bytes content_type =
@@ -472,7 +472,7 @@ let after_task (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : 
         with_pictures cfg network ({ tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus }, Cmd.none)
     | _ -> (tab, Cmd.none))
 
-(* claude: the answer to a request a script made (XMLHttpRequest,
+(* the answer to a request a script made (XMLHttpRequest,
  * fetch): given to the script, a task -- the page laid out again if it
  * changed it, the requests it made in turn sent *)
 let got_answer (cfg : 'msg config) (network : < Cap.network ; .. >) (rid : int) (url : string) (result : (Fetch.response, Fetch.error) result) (tab : t) :

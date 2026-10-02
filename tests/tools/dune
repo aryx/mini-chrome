@@ -1,4 +1,4 @@
-; claude: the tests of tools/, the programs beside the browser
+; the tests of tools/, the programs beside the browser
 ; (mini-node, mini-curl, mini-httpd, mini-lynx), run by 'make test':
 ; the worked examples of their .mlis. mini-curl and mini-lynx are
 ; tried on mini-httpd's server, forked on a temporary directory

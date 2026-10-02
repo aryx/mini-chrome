@@ -226,7 +226,7 @@ let rec color ~(current : color) (cs : component list) : color option =
       | "transparent" -> Some transparent
       | "currentcolor" -> Some current
       | n -> Option.map of_rgb (List.assoc_opt n named))
-  (* claude: light-dark(a, b): a, ours is a light browser (Cascade's
+  (* light-dark(a, b): a, ours is a light browser (Cascade's
    * prefers-color-scheme: light) *)
   | [ Func (f, args) ] when String.lowercase_ascii f = "light-dark" -> (
       match split_on Comma args with [ light; _dark ] -> color ~current light | _ -> None)

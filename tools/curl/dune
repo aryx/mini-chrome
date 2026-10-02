@@ -1,4 +1,4 @@
-; claude: a program beside the browser (tools/). mini-curl: a URL
+; a program beside the browser (tools/). mini-curl: a URL
 ; fetched and printed, by the browser's own HTTP, TLS, gzip and
 ; cookies (libs/network) -- the network stack with no browser around.
 (library

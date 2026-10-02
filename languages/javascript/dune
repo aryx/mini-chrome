@@ -1,4 +1,4 @@
-; claude: a small JavaScript: Js_lexer (the text to tokens), Js_ast (the
+; a small JavaScript: Js_lexer (the text to tokens), Js_ast (the
 ; tree), Js_parse (statements by recursive descent, expressions by Pratt
 ; -- and why not yacc), Js_value (values, objects, the conversions),
 ; Js_eval (the tree walked: scopes, closures, this, the errors),

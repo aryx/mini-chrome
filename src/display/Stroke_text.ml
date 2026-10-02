@@ -20,7 +20,7 @@ let metrics look s =
   let g = Hershey.glyph (char_of s) in
   float_of_int (g.right - g.left) *. scale_of look
 
-(* claude: the line under text, and the one through it: [width] long
+(* the line under text, and the one through it: [width] long
  * from [x], as thick as the look's pen nearly *)
 let line color (look : Style.t) ~x ~width y =
   let pen = if look.bold then look.size /. 7. else look.size /. 16. in
@@ -47,7 +47,7 @@ let glyph_segments color (look : Style.t) s ~x ~baseline =
     |> Playground.rotate (atan2 dy dx *. 180. /. Float.pi)
     |> Playground.move ((x1 +. x2) /. 2.) ((y1 +. y2) /. 2.)
   in
-  (* claude: a round pen: a dot at each point of the stroke fills the
+  (* a round pen: a dot at each point of the stroke fills the
    * joint between two segments and rounds the stroke's ends.
    *
    * old: half the shapes (a stroke of n points was n-1 rectangles, now
@@ -77,7 +77,7 @@ let glyph_segments color (look : Style.t) s ~x ~baseline =
   @ (if look.underline then [ rule (baseline -. (look.size *. 0.18)) ] else [])
   @ if look.strike then [ rule (baseline +. (look.size *. 0.25)) ] else []
 
-(* claude: opti: the letter as one picture made once (Glyph_picture.mli
+(* opti: the letter as one picture made once (Glyph_picture.mli
  * says why and what it costs), its underline and its strike still
  * rectangles: a frame of about:chrome drawn in 8 ms instead of 74. The
  * simple way, the pen's, is glyph_segments above (letters=segments,

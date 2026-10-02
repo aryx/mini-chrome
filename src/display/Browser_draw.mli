@@ -24,7 +24,7 @@ type drawn = (float * float * Playground.shape Lazy.t) list
 (* things whose shapes are built already *)
 val ready : (float * float * Playground.shape) list -> drawn
 
-(* claude: opti: [later f] is a shape built by [f] the first time it is
+(* opti: [later f] is a shape built by [f] the first time it is
  * asked for, and kept; with opti=off (Mini_opti.enabled false) it is
  * built at once, the simple way, as it was. For a line of text.
  *
@@ -113,11 +113,11 @@ val glyphs :
   ?decorated:bool ->
   Html_layout.fragment ->
   Playground.shape list
-(* claude: with [decorated] (true), its underline and its strike too,
+(* with [decorated] (true), its underline and its strike too,
  * its own; false for a line's fragments, whose lines are drawn a run
  * at a time: *)
 
-(* claude: the lines under and through a line's words ([fragments], left
+(* the lines under and through a line's words ([fragments], left
  * to right): one for each run of neighbours of the same link, colour,
  * size and baseline, from the first's left to the last's right -- a
  * link of several words is underlined whole, the spaces between its

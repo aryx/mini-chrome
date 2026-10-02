@@ -31,10 +31,10 @@ let host_of (url : string) : string =
       String.sub rest 0 stop
   | _ -> ""
 
-(* claude: a tab's zoom, its site's *)
+(* a tab's zoom, its site's *)
 let zoom_of (m : model) (tab : Browser_tab.t) : float = Browser_zoom.of_host m.profile.zooms (host_of (Browser_tab.current_url tab))
 
-(* claude: the scale everything is drawn at: the one chosen, else the
+(* the scale everything is drawn at: the one chosen, else the
  * desktop's *)
 let scale_of (m : model) : float = Option.value m.profile.scale ~default:m.desktop
 
@@ -44,7 +44,7 @@ let loading (tab : Browser_tab.t) : bool = (match tab.state with Loading _ -> tr
 (* The window's geometry *)
 (*****************************************************************************)
 
-(* claude: the screen is the window, whatever its size (run_app
+(* the screen is the window, whatever its size (run_app
  * ~window's follows_window), the origin at its centre: everything is placed
  * from its edges -- the tabs and the toolbar hang from the top, the
  * panel sits on the bottom, the page takes what is left, the omnibox
@@ -80,14 +80,14 @@ let omnibox_w (m : model) : float = width m -. 180.
 let js_x (m : model) : float = omnibox_x m +. omnibox_w m -. 30.
 let wrench_x (m : model) : float = -.left m -. 22.
 
-(* claude: the lines of the page that the area shows *)
+(* the lines of the page that the area shows *)
 let visible_lines (m : model) (tab : Browser_tab.t) : int = int_of_float (area_height m /. (line_height *. zoom_of m tab))
 
 (*****************************************************************************)
 (* The pointer, and the pieces built from the model *)
 (*****************************************************************************)
 
-(* claude: a point of the window in the page's units, if it is on the page *)
+(* a point of the window in the page's units, if it is on the page *)
 let page_point_at (m : model) ((mx, my) : float * float) : (float * float) option =
   let z = zoom_of m (current_tab m) in
   if my <= area_top m && my >= area_bottom m then
@@ -104,7 +104,7 @@ let pointed_control (m : model) : Dom.element option =
   | Shown p, Some (x, y) -> ( match Hit.fragment_at p.layout ~x ~y with Some { control = Some c; _ } -> Some c.element | _ -> None)
   | _ -> None
 
-(* claude: the chrome's pieces (libs/gui), built from the model: the
+(* the chrome's pieces (libs/gui), built from the model: the
  * toolbar's buttons, the strip of tabs *)
 let buttons (m : model) : Gui_toolbar.t =
   let tab = current_tab m in

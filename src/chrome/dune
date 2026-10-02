@@ -1,4 +1,4 @@
-; claude: the browser around the page: a tab, its page, how it goes
+; the browser around the page: a tab, its page, how it goes
 ; elsewhere (Browser_tab), the requests in flight over libs/network
 ; (Fetch), the history's two stacks (Browser_history), the developer
 ; tools' panels (Browser_devtools), the page zoom's levels and each

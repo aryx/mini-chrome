@@ -1,4 +1,4 @@
-; claude: what the browser plays rather than lays out: <video> and
+; what the browser plays rather than lays out: <video> and
 ; <audio> (Browser_media), over a file recognized by its bytes and
 ; decoded (Media: MPEG-1 and MP2, MP3, AVI, FLC, Y4M, GIF, WAV, MIDI,
 ; MOD) by tiny_libs' readers.

@@ -62,7 +62,7 @@ let regexp_value (proto : obj) (re : Js_regexp.t) : value =
   let o = { (new_object ()) with kind = Regexp re } in
   o.proto <- Some proto;
   set_own o "lastIndex" (Number 0.);
-  (* claude: what it was made of: re.source, re.flags, re.global... *)
+  (* what it was made of: re.source, re.flags, re.global... *)
   let flags = Js_regexp.flags re in
   set_own o "source" (String (Js_regexp.source re));
   set_own o "flags" (String flags);
@@ -237,7 +237,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
 (* Arrays *)
 (*****************************************************************************)
 
-(* claude: the items of something like an array -- a length and its
+(* the items of something like an array -- a length and its
  * indices (a jQuery object, a proxy of an array, a string's letters) *)
 let like_array ~(get : value -> string -> value) (v : value) : value list =
   match v with
@@ -251,7 +251,7 @@ let mutating = [ "push"; "pop"; "shift"; "unshift"; "splice"; "sort"; "reverse";
 
 let array_methods ~(call : value -> this:value -> value list -> value) ~(get : value -> string -> value) ~(put : value -> string -> value -> unit) : obj =
   let o = new_object () in
-  (* claude: a method of an array works on anything like one
+  (* a method of an array works on anything like one
    * ([].indexOf.call(jQueryObject, el), [].push.apply(it, found)): on
    * a copy of its items, written back to it if the method changes
    * them. Before: a TypeError, "called on something not an array" *)
@@ -523,7 +523,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
   constructor "String" (fun ~this:_ args -> String (match args with [] -> "" | v :: _ -> to_string v)) strings
     [ ("fromCharCode", fn "fromCharCode" (fun ~this:_ args -> String (String.concat "" (List.map (fun v -> String.make 1 (Char.chr (int_of_float (to_number v) land 255))) args)))) ];
   constructor "Number" (fun ~this:_ args -> Number (match args with [] -> 0. | v :: _ -> to_number v)) numbers [];
-  (* claude: new Function("a", "b", "return a + b"): its last argument
+  (* new Function("a", "b", "return a + b"): its last argument
    * the body, those before its parameters; a function of the global
    * scope. Before: an EvalError *)
   constructor "Function"
@@ -567,7 +567,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
               match to_json (arg args 0) with
               | Some s -> String s
               | None -> if arg args 0 = Undefined then Undefined else throw "TypeError" "Converting circular structure to JSON"));
-         (* claude: a text read into values (Js_json) *)
+         (* a text read into values (Js_json) *)
          ("parse", fn "parse" (fun ~this:_ args -> Js_json.parse (to_string (arg args 0)))) ]);
   constructor "Object"
     (fun ~this:_ args -> match arg args 0 with Object _ as o -> o | _ -> Object (new_object ()))
@@ -577,7 +577,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
            let o = new_object () in
            (match arg args 0 with Object p -> o.proto <- Some p | _ -> ());
            Object o));
-      (* claude: the one it was given, else its kind's (Js_props.proto_of) *)
+      (* the one it was given, else its kind's (Js_props.proto_of) *)
       ("getPrototypeOf",
        fn "getPrototypeOf" (fun ~this:_ args ->
            match arg args 0 with
@@ -600,14 +600,14 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
           fn "keys" (fun ~this:_ args ->
               match arg args 0 with
               | Object ({ kind = Array a; _ }) -> array (List.init a.length (fun i -> String (string_of_int i)))
-              (* claude: not a symbol's key ("@@...": Js_globals) *)
+              (* not a symbol's key ("@@...": Js_globals) *)
               | Object o -> array (List.filter_map (fun k -> if String.length k >= 2 && String.sub k 0 2 = "@@" then None else Some (String k)) (keys o))
               | _ -> array [])) ];
   constructor "Array"
     (fun ~this:_ args -> match args with [ Number n ] -> array (List.init (int_of_float n) (fun _ -> Undefined)) | _ -> array args)
     arrays
     [ ("isArray", fn "isArray" (fun ~this:_ args -> Bool (match arg args 0 with Object o -> (match (target o).kind with Array _ -> true | _ -> false) | _ -> false)));
-      (* claude: of what can be gone through (an array, a string, a Set),
+      (* of what can be gone through (an array, a string, a Set),
        * else of what is like an array ({ length: 3 }); each item through
        * the function given, if one is *)
       ("from",

@@ -84,7 +84,7 @@ let document (t : t) : value =
           | "getElementsByClassName" | "getElementsByTagName" -> ( match wrap t root with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
           | "location" -> location t
           | "URL" -> String t.base
-          (* claude: "a=1; b=2", the browser's for this page *)
+          (* "a=1; b=2", the browser's for this page *)
           | "cookie" -> String (fst t.cookies ())
           | "referrer" -> String ""
           | "readyState" -> String "complete"
@@ -104,7 +104,7 @@ let document (t : t) : value =
       set =
         (fun k v ->
           match (k, title ()) with
-          (* claude: document.cookie = "name=value; Path=/": one cookie
+          (* document.cookie = "name=value; Path=/": one cookie
            * set (not the whole string replaced: its odd meaning) *)
           | "cookie", _ -> snd t.cookies (str v)
           | "title", Some n ->

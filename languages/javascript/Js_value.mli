@@ -49,7 +49,7 @@ type value =
   | Bool of bool
   | Number of float
   | String of string
-  (* claude: a symbol (ES2015): a unique value, usable as a property's
+  (* a symbol (ES2015): a unique value, usable as a property's
    * key. What it holds is that key, "@@7:description" or a well-known
    * one's, "@@iterator": a string no script writes *)
   | Symbol of string
@@ -74,7 +74,7 @@ and kind =
    * two functions, undefined for the one it has not. Reading the
    * property calls the first, assigning to it the second (Js_eval) *)
   | Accessor of value * value
-  (* claude: new Proxy(target, handler): the target, seen through the
+  (* new Proxy(target, handler): the target, seen through the
    * handler's traps -- reading a property calls handler.get, setting
    * one handler.set, "k in p" handler.has (Js_eval; a trap the handler
    * has not: the target's own way). What it is otherwise (an array, a
@@ -92,7 +92,7 @@ and items = { mutable elements : value array; mutable length : int }
 and closure = { func : Js_ast.func; scope : scope; this : value option (* an arrow's, captured *) }
 
 (* a frame of names, and the frame around it *)
-(* claude: [subject] is the object of a with (obj) { }: a name that is
+(* [subject] is the object of a with (obj) { }: a name that is
  * a property of it is that property; [in_with] says whether this
  * frame or one around it has one (else no frame is asked) *)
 and scope = { vars : (string, binding) Hashtbl.t; parent : scope option; subject : value option; in_with : bool }

@@ -1,4 +1,4 @@
-; claude: text with looks -- bold, italic, underline, strike, sizes --
+; text with looks -- bold, italic, underline, strike, sizes --
 ; and the page it is laid out on; the look the browser's letters are
 ; drawn in (src/stroke_text). It never sees a font: the widths of the
 ; glyphs are the caller's, as Linebreak's word widths are.

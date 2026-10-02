@@ -22,7 +22,7 @@ let prepare ?post ?jar (url : Url.t) : (string * int * string, string) result =
         if String.starts_with ~prefix:"[" a.host then String.sub a.host 1 (String.length a.host - 2) else a.host
       in
       let target = Url.request_target url in
-      (* claude: the cookies kept for that URL, said back *)
+      (* the cookies kept for that URL, said back *)
       let cookie = Option.bind jar (fun jar -> Cookie_jar.header jar url) in
       let bytes =
         match post with
@@ -47,7 +47,7 @@ let get_once ?post ?jar ?timeout (caps : < Cap.network ; .. >) (url : Url.t) : (
       | exception Unix.Unix_error (e, _, _) -> Error (Printf.sprintf "%s: %s" (Url.to_string url) (Unix.error_message e))
       | exception Failure msg -> Error msg
   in
-  (* claude: the cookies it sets, kept -- a redirection's too, before
+  (* the cookies it sets, kept -- a redirection's too, before
    * the next request is made (a login answers 302 and Set-Cookie) *)
   Option.iter (fun jar -> Cookie_jar.received jar url response.headers) jar;
   Ok response

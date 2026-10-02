@@ -12,7 +12,7 @@
  * (Window_layout.scale_of); the page inside it scaled by its site's
  * zoom. *)
 
-(* claude: opti: [view m] is the very list (==) it gave for the model
+(* opti: [view m] is the very list (==) it gave for the model
  * before when the window has nothing new to show, and the platform
  * then does not draw the frame (run_app ~window's skip_same_view, MiniChrome's
  * main). With opti=off (Mini_opti), [view_simple]: a new list at each

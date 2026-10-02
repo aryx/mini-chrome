@@ -4,7 +4,7 @@ test:
 	dune runtest -f
 clean:
 	dune clean
-# claude: the two programs, bin/mini-chrome (Cairo when its platform is
+# the two programs, bin/mini-chrome (Cairo when its platform is
 # installed, else the software one) and bin/mini-chrome-software (the
 # Playground's own rasterizer, always): see src/main/dune
 run:
@@ -12,7 +12,7 @@ run:
 run-software:
 	dune exec mini-chrome-software
 
-# claude: the lines of OCaml, and how much of the budget (30,000 for
+# the lines of OCaml, and how much of the budget (30,000 for
 # languages/, libs/ and src/; not the tests) they are; -v: a library a
 # line, and the largest files
 loc:

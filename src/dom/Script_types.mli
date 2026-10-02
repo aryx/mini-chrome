@@ -27,7 +27,7 @@ type node = {
 }
 
 (* a setTimeout's or a setInterval's *)
-(* claude: a request a script made (XMLHttpRequest, fetch), for the
+(* a request a script made (XMLHttpRequest, fetch), for the
  * browser to send: its number, by which its answer comes back; and an
  * answer, as the script is given it *)
 type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *) }
@@ -53,10 +53,10 @@ type t = {
   (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
   mutable waiting : (int * ((answer, string) result -> unit)) list;
   mutable next_request : int;
-  (* claude: document.cookie, read and assigned to: the browser's jar,
+  (* document.cookie, read and assigned to: the browser's jar,
    * for the page's address, without its HttpOnly cookies *)
   cookies : (unit -> string) * (string -> unit);
-  (* claude: an element's members past the first DOM's (Script_element:
+  (* an element's members past the first DOM's (Script_element:
    * matches, closest, append, dataset...), asked when Script_host has
    * none of that name; and an event dispatched by a script
    * (el.dispatchEvent(ev), el.click(); None: at the document), whether

@@ -19,7 +19,7 @@ open Script_types
 let text_name = "#text"
 let is_text (n : node) : bool = n.name = text_name
 
-(* claude: two more that are not elements: a comment (its text kept,
+(* two more that are not elements: a comment (its text kept,
  * never shown), and a fragment, a parent for nodes on their way into
  * a tree (appended, its children go in its place) *)
 let comment_name = "#comment"

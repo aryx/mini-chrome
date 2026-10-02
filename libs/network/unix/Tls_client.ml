@@ -26,7 +26,7 @@ let system_roots (_ : < Cap.network ; .. >) : X509.t list =
         | Some path -> List.filter_map (fun der -> Result.to_option (X509.parse der)) (Pem.certificates (read_file path))
         | None -> []
       in
-      (* claude: with -v, the file read; without one no https:// site is trusted *)
+      (* with -v, the file read; without one no https:// site is trusted *)
       (match List.find_opt Sys.file_exists bundles with
       | Some path -> Logs.info (fun m -> m "TLS: %d root certificates read from %s" (List.length r) path)
       | None -> Logs.warn (fun m -> m "TLS: no root certificates found (%s)" (String.concat ", " bundles)));

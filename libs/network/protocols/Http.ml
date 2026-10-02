@@ -16,7 +16,7 @@ let header (name : string) (headers : header list) : string option =
   let name = String.lowercase_ascii name in
   List.find_map (fun (n, v) -> if String.lowercase_ascii n = name then Some v else None) headers
 
-(* claude: every header of that name: a response says Set-Cookie once a
+(* every header of that name: a response says Set-Cookie once a
  * cookie *)
 let values (name : string) (headers : header list) : string list =
   let name = String.lowercase_ascii name in
@@ -164,7 +164,7 @@ let body ~(status : int) (headers : header list) (rest : string) : (string, stri
             else Ok (String.sub rest 0 n)
         | Some n -> Error (Printf.sprintf "Http: bad Content-Length %S" n))
 
-(* claude: the body as the server had it before "Content-Encoding":
+(* the body as the server had it before "Content-Encoding":
  * gzip's, Brotli's or Zstandard's (the three we ask for,
  * Accept-Encoding), once the framing is undone; a body of nothing (a
  * 304) is not a compressed stream *)

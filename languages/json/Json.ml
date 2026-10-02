@@ -23,7 +23,7 @@ let parse (text : string) : (t, string) result =
       let toks = ref tokens in
       let peek () : Js_lexer.token = match !toks with t :: _ -> t | [] -> { kind = Eof; line = 0; newline_before = false } in
       let next () = let t = peek () in (toks := match !toks with _ :: r -> r | [] -> []); t in
-      (* claude: the end said in words (a brace lost in a file fixed by hand) *)
+      (* the end said in words (a brace lost in a file fixed by hand) *)
       let fail (t : Js_lexer.token) = raise (Bad (t.line, "unexpected " ^ if t.kind = Eof then "end of the text" else Js_lexer.to_string t.kind)) in
       let expect p = let t = next () in if t.kind <> Punct p then fail t in
       (* the items up to [close], a comma after each but maybe the last *)
@@ -70,7 +70,7 @@ let member (k : string) (v : t) : t option = match v with Object fields -> List.
 (* Writing *)
 (*****************************************************************************)
 
-(* claude: not in elm-playground's Json, which only reads *)
+(* not in elm-playground's Json, which only reads *)
 let quote (s : string) : string =
   let b = Buffer.create (String.length s + 2) in
   Buffer.add_char b '"';

@@ -1,4 +1,4 @@
-; claude: what a page's elements look like:
+; what a page's elements look like:
 ; Looks, Mosaic's fixed table computed down the tree; and the page's
 ; style sheets cascaded on top of it: Css_syntax (the text read:
 ; tokens, blocks, rules), Selectors (which elements a rule is for), Css
@@ -12,7 +12,7 @@
  (libraries lang_html) ; Dom
 )
 
-; claude: the browser's own style sheet, ua.css, embedded as a string
+; the browser's own style sheet, ua.css, embedded as a string
 (rule
  (targets Ua_sheet.ml)
  (deps ua.css)
