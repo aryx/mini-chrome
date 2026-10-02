@@ -1,9 +1,13 @@
-; sound as the web has it: Vorbis decoded (Vorbis: codebooks, floors
-; and residues, the MDCT, windows overlapped) and Ogg's pages cut into
-; packets (Ogg) -- <audio>'s first free codec and a WebM's first
-; sound. Pure OCaml, bytes in and samples out. Copies of
+; sound as the web has it. Vorbis decoded (Vorbis: codebooks, floors
+; and residues) and Ogg's pages cut into packets (Ogg): <audio>'s
+; first free codec and a WebM's first sound; copies of
 ; elm-playground's (tiny_libs.audio_vorbis, not linked here: two
-; modules of one name do not link), to diverge.
+; modules of one name do not link), to diverge. In opus/, Opus
+; decoded where it is CELT (Opus, the packets; Celt, a frame;
+; Celt_rate, the bits shared; Celt_bands, the shapes; Range_decoder;
+; Celt_tables), written here. Mdct, the transform both end with. Pure
+; OCaml, bytes in and samples out.
+(include_subdirs unqualified)
 (library
  (name mini_audio)
  (wrapped false)

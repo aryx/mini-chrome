@@ -8,4 +8,4 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"audio" (fun _env -> Unit_vorbis.tests)
+let () = Testo.interpret_argv ~project_name:"audio" (fun _env -> Unit_mdct.tests @ Unit_vorbis.tests @ Unit_opus.tests)

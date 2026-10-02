@@ -295,90 +295,6 @@ let channels (t : t) : int = t.channels
 let rate (t : t) : int = t.rate
 
 (*****************************************************************************)
-(* The transform back: frequencies to samples *)
-(*****************************************************************************)
-
-(* a Fourier transform of a power of two of complex numbers, in place *)
-let fft (re : float array) (im : float array) : unit =
-  let n = Array.length re in
-  let j = ref 0 in
-  for i = 0 to n - 2 do
-    if i < !j then (
-      let t = re.(i) in re.(i) <- re.(!j); re.(!j) <- t;
-      let t = im.(i) in im.(i) <- im.(!j); im.(!j) <- t);
-    let m = ref (n lsr 1) in
-    while !m >= 1 && !j land !m <> 0 do j := !j lxor !m; m := !m lsr 1 done;
-    j := !j lor !m
-  done;
-  let len = ref 2 in
-  while !len <= n do
-    let half = !len / 2 and angle = -2. *. Float.pi /. float_of_int !len in
-    let wr = Float.cos angle and wi = Float.sin angle in
-    let i = ref 0 in
-    while !i < n do
-      let cr = ref 1. and ci = ref 0. in
-      for k = 0 to half - 1 do
-        let a = !i + k and b = !i + k + half in
-        let tr = (re.(b) *. !cr) -. (im.(b) *. !ci) and ti = (re.(b) *. !ci) +. (im.(b) *. !cr) in
-        re.(b) <- re.(a) -. tr;
-        im.(b) <- im.(a) -. ti;
-        re.(a) <- re.(a) +. tr;
-        im.(a) <- im.(a) +. ti;
-        let c = (!cr *. wr) -. (!ci *. wi) in
-        ci := (!cr *. wi) +. (!ci *. wr);
-        cr := c
-      done;
-      i := !i + !len
-    done;
-    len := !len * 2
-  done
-
-(* u.(n) = the sum over k of x.(k) cos (pi / m (n + 1/2) (k + 1/2)):
- * the cosine transform the MDCT is made of, by its definition *)
-let dct4_simple (x : float array) : float array =
-  let m = Array.length x in
-  Array.init m (fun n ->
-      let sum = ref 0. in
-      for k = 0 to m - 1 do sum := !sum +. (x.(k) *. Float.cos (Float.pi /. float_of_int m *. (float_of_int n +. 0.5) *. (float_of_int k +. 0.5))) done;
-      !sum)
-
-(* opti: the same by a Fourier transform of half the size: the
- * pairs (x.(2j), x.(m-1-2j)) as complex numbers, turned before (by
- * (4j+1) pi / 4m) and after (by k pi / m): with the transform's own
- * 2 pi jk / (m/2), that is (4j+1)(4k+1) pi / 4m, the cosine's angle. A block of 2048 samples: 1024 x 1024 cosines, or 512 log 512
- * (measured: a second of sound decoded in 1.2 s, then in 0.03) *)
-let dct4_opti (x : float array) : float array =
-  let m = Array.length x in
-  if m < 4 then dct4_simple x
-  else (
-    let h = m / 2 in
-    let re = Array.make h 0. and im = Array.make h 0. in
-    let turn j = -.Float.pi *. float_of_int ((4 * j) + 1) /. float_of_int (4 * m) in
-    for j = 0 to h - 1 do
-      let a = x.(2 * j) and b = x.(m - 1 - (2 * j)) and c = Float.cos (turn j) and s = Float.sin (turn j) in
-      re.(j) <- (a *. c) -. (b *. s);
-      im.(j) <- (a *. s) +. (b *. c)
-    done;
-    fft re im;
-    let u = Array.make m 0. in
-    for k = 0 to h - 1 do
-      let after = -.Float.pi *. float_of_int k /. float_of_int m in
-      let c = Float.cos after and s = Float.sin after in
-      u.(2 * k) <- (re.(k) *. c) -. (im.(k) *. s);
-      u.(m - 1 - (2 * k)) <- -.((re.(k) *. s) +. (im.(k) *. c))
-    done;
-    u)
-
-let dct4 (x : float array) : float array = if !Mini_opti.enabled then dct4_opti x else dct4_simple x
-
-(* a block's n/2 frequencies as its n samples: the cosine transform's
- * values, unfolded by its symmetries *)
-let imdct (x : float array) : float array =
-  let m = Array.length x in
-  let u = dct4 x in
-  Array.init (2 * m) (fun n -> if n < m / 2 then u.(n + (m / 2)) else if n < 3 * m / 2 then -.u.((3 * m / 2) - 1 - n) else -.u.(n - (3 * m / 2)))
-
-(*****************************************************************************)
 (* A packet *)
 (*****************************************************************************)
 
@@ -603,7 +519,7 @@ let decode (t : t) (packet : string) : float array array =
             | None -> Array.make n 0.
             | Some (f, ys) ->
                 let curve = floor_curve f ys half in
-                let samples = imdct (Array.mapi (fun i x -> x *. curve.(i)) spectrum) in
+                let samples = Mdct.imdct (Array.mapi (fun i x -> x *. curve.(i)) spectrum) in
                 Array.mapi (fun i x -> x *. w.(i)) samples)
           spectra
       in

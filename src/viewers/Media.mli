@@ -27,10 +27,12 @@
  *     1A 45 DF A3               WebM (2010), the web's own: Matroska's
  *                               container, its video VP8 (libs/video's
  *                               Webm.mli, Vp8_video.mli), its sound
- *                               Vorbis; or a sound alone
- *     "OggS"                    Ogg (Xiph.Org): Vorbis's own file
- *                               (2002), a page's first bytes
- *                               (libs/audio's Ogg.mli, Vorbis.mli)
+ *                               Vorbis or Opus; or a sound alone
+ *     "OggS"                    Ogg (Xiph.Org), a page's first bytes:
+ *                               Vorbis's own file (2002), or Opus's
+ *                               (2012) when its first packet starts
+ *                               "OpusHead" (libs/audio's Ogg.mli,
+ *                               Vorbis.mli, Opus.mli)
  *     FF Ex / FF Fx, or "ID3"   MPEG audio, MP2 and MP3 (1993): 11 bits
  *                               of sync, a frame's header, checked by the
  *                               next frame's being where it says; or a
@@ -46,16 +48,16 @@
  *
  * Opened, a file is one of four things to a player: a [Sound], samples
  * to play (a recording, decoded first if an MP2, an MP3 (Mpeg_audio.mli)
- * or Vorbis;
+ * Vorbis or Opus;
  * or a tune rendered by audio/'s synthesizer, with its notes for a
  * piano roll); a [Module], a song played live by
  * its own player (Mod_player.mli), too long to render ahead; a
  * [Picture]; a [Movie], pictures in time, decoded as they're shown
  * (Movie.mli), and its sound if it has one (an AVI's): a GIF's frames,
- * Y4M, FLI and FLC, AVI, MPEG-1, an .mpg's video with its MP2, a WebM's with its Vorbis
+ * Y4M, FLI and FLC, AVI, MPEG-1, an .mpg's video with its MP2, a WebM's with its Vorbis or Opus
  * (plan_video_teaching.md). *)
 
-type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm | Ogg
+type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm | Ogg | Opus
 
 val kind_name : kind -> string
 
@@ -79,3 +81,6 @@ val open_ : name:string -> string -> (kind * media, string) result
 
 (* how long a sound or a movie lasts, in seconds; None for the others *)
 val duration : media -> float option
+
+(* a module rendered whole, to its end (five minutes at most) *)
+val module_sound : Mod.song -> Signal.stereo

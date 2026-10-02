@@ -53,6 +53,20 @@ let tests =
           Alcotest.(check bool) "the same sound from both" true (Array.sub webm.left 0 n = Array.sub ogg.left 0 n && Array.sub webm.right 0 n = Array.sub ogg.right 0 n);
           Alcotest.(check bool) "two channels that differ" true (ogg.left <> ogg.right);
           Alcotest.(check bool) "an Ogg file that is not Vorbis's: said" true (Result.is_error (Media.open_ ~name:"x.ogg" "OggS and nothing")));
+      Testo.create "Opus: an .opus file, a WebM of it, the same packets" (fun () ->
+          let sound path name =
+            match Media.open_ ~name (In_channel.with_open_bin path In_channel.input_all) with
+            | Ok (kind, Sound { samples; _ }) -> (Media.kind_name kind, samples)
+            | Ok _ -> Alcotest.fail (name ^ ": not a sound")
+            | Error why -> Alcotest.fail why
+          in
+          let opus_kind, opus = sound "../audio/data/music.opus" "music.opus" and webm_kind, webm = sound "../video/data/opus.webm" "opus.webm" in
+          Alcotest.(check (pair string string)) "recognized" ("Ogg Opus", "WebM") (opus_kind, webm_kind);
+          (* 48,000 Hz in the files, the player's 44,100 here *)
+          Alcotest.(check (float 0.03)) "half a second, at the player's rate" 0.5 (float_of_int (Array.length opus.left) /. float_of_int Signal.rate);
+          let n = min (Array.length webm.left) (Array.length opus.left) in
+          Alcotest.(check bool) "the same sound from both" true (Array.sub webm.left 0 n = Array.sub opus.left 0 n && Array.sub webm.right 0 n = Array.sub opus.right 0 n);
+          Alcotest.(check bool) "heard, and two channels that differ" true (Array.exists (fun v -> Float.abs v > 0.2) opus.left && opus.left <> opus.right));
       Testo.create "what cannot be played is said, not raised" (fun () ->
           let bytes = clip "ball_and_square.webm" in
           Alcotest.(check bool) "a file cut short" true (Result.is_error (Media.open_ ~name:"cut.webm" (String.sub bytes 0 40)));

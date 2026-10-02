@@ -40,8 +40,8 @@
    Not read: the index (Cues: where the key frames are, to jump
    there), several frames laced in one block, chapters, tags,
    attachments. A sound's track is found and its packets kept, not
-   decoded here: Vorbis is libs/audio's (Vorbis.mli; Media gives it the
-   track's [setup] and its packets), Opus is not decoded yet.
+   decoded here: Vorbis and Opus are libs/audio's (Vorbis.mli,
+   Opus.mli; Media gives them the track's [setup] and its packets).
 
    cs-history:
    Matroska -- the Russian doll, boxes in boxes -- was started in
@@ -67,7 +67,7 @@
 (* a track: its number (which its packets say), whether it is a
  * video's, its codec's name ("V_VP8", "A_VORBIS"), a video's size, a
  * sound's samples a second and channels (0 for a video), and what its
- * codec must be told before the first packet (Vorbis's three headers,
+ * codec must be told before the first packet (Opus's "OpusHead"; Vorbis's three headers,
  * [laced]; nothing for VP8) *)
 type track = { number : int; video : bool; codec : string; width : int; height : int; rate : float; channels : int; setup : string }
 

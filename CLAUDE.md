@@ -475,14 +475,23 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   checked to the byte against ffmpeg's decoder in `tests/video`
   (`data/make.sh`). `<video>` plays a WebM file through `Media`
   (a `Movie` whose frames `Vp8_video` decodes as they are asked for;
-  its sound, Vorbis, decoded whole from the track's three headers,
-  `Webm.laced`; Opus is not decoded), beside tiny_libs' MPEG-1;
-  `about:tube`'s first clip is one. An `.ogg` file and a WebM of
-  sound alone are sounds. `libs/audio` has `Vorbis` and `Ogg`: a copy
-  of elm-playground's (`tiny_libs.audio_vorbis`, which stays there
-  for its other programs and is not linked here), checked against
-  libvorbis's decoding in `tests/audio` (`data/make.sh`). MP3, MP2
-  and the other sounds stay `tiny_libs`'. Not every codec is to be
+  its sound, Vorbis or Opus, decoded whole from the track's headers
+  -- Vorbis's three, `Webm.laced`; Opus's `OpusHead`), beside
+  tiny_libs' MPEG-1; `about:tube`'s first clip is one. An `.ogg` or
+  `.opus` file and a WebM of sound alone are sounds. `libs/audio` has
+  `Vorbis` and `Ogg`: a copy of elm-playground's
+  (`tiny_libs.audio_vorbis`, which stays there for its other programs
+  and is not linked here); and Opus, written here, in `opus/`: `Opus` (a packet's
+  frames), `Celt` (a frame: energies, synthesis, post-filter),
+  `Celt_rate` (the bits shared, computed not sent), `Celt_bands` (the
+  shapes: pulses, splits, folding), `Range_decoder`, and
+  `Celt_tables`, taken by a program from RFC 6716's reference decoder
+  -- CELT alone: a SILK or hybrid frame is silence of its length.
+  `Mdct` is the transform both codecs end with. Both are checked
+  against the reference decoders' samples (libvorbis, libopus) in
+  `tests/audio` (`data/make.sh`; `Decode.exe file out.f32` decodes a
+  file to compare or to listen). MP3, MP2 and the other sounds stay
+  `tiny_libs`'. Not every codec is to be
   copied: one of each kind to read here -- pictures (`libs/images`),
   video (`libs/video`), sound (`libs/audio`) --, the web's own where
   there is one; the rest is the playground's.

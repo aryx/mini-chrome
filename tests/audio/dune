@@ -1,7 +1,15 @@
 ; the tests of libs/audio, run by 'make test': Ogg Vorbis files made
-; by libvorbis and by ffmpeg's encoder (data/make.sh says how), each
-; decoded to libvorbis's samples, a rounding apart
+; by libvorbis and by ffmpeg's encoder, Opus files by libopus
+; (data/make.sh says how), each decoded to the reference decoder's
+; samples, a rounding apart
 (test
  (name Test)
- (deps (glob_files data/*.ogg) (glob_files data/*.wav))
+ (deps (glob_files data/*.ogg) (glob_files data/*.wav) (glob_files data/*.opus) (glob_files data/*.s16))
+ (modules Test Unit_mdct Unit_vorbis Unit_opus)
  (libraries alcotest testo mini_audio mini_opti))
+
+; a sound file decoded to raw samples, to compare or to listen to
+(executable
+ (name Decode)
+ (modules Decode)
+ (libraries mini_audio))

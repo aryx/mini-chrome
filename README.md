@@ -112,8 +112,11 @@ libs/video            video as the web has it: a WebM file's frames found
                       predicted from others, over libs/images' Vp8);
                       what <video> plays of today's web
 libs/audio            sound as the web has it: Vorbis decoded (Vorbis:
-                      codebooks, floors, residues, the MDCT), an Ogg
-                      file's packets (Ogg): a WebM's sound, and <audio>'s
+                      codebooks, floors, residues), an Ogg file's
+                      packets (Ogg), and Opus where it is music (opus/: Opus;
+                      Celt: each band's energy, then its shape as
+                      pulses; Range_decoder; Mdct, both codecs'
+                      transform): a WebM's sound, and <audio>'s
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style): what the pen drawing a letter is told

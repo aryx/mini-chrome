@@ -77,11 +77,7 @@
    gives what lies between its middle and the middle of the one
    before.
 
-   The transform is the slow part: n/2 frequencies to n samples, by
-   its definition n^2/2 cosines. Here it is a cosine transform
-   ([dct4_simple], the definition; [dct4_opti], the same by a Fourier
-   transform of a quarter of the block; [dct4] chooses, on
-   Mini_opti.enabled), unfolded by its symmetries.
+   The transform is the slow part, and not Vorbis's own: Mdct.mli.
 
    Not done: floors of kind 0 (line spectral pairs: the first
    encoders', none since 2001), a file with several streams, seeking,
@@ -142,12 +138,3 @@ val of_ogg : string -> t * float array array
 (* each entry's code from the entries' lengths, -1 for an entry of
  * length 0 (the worked example) *)
 val codewords : int array -> int array
-
-(* u.(n) = the sum over k of x.(k) cos (pi / m (n + 1/2) (k + 1/2)), by
- * the definition; and by a Fourier transform (m a power of two) *)
-val dct4_simple : float array -> float array
-
-val dct4_opti : float array -> float array
-
-(* one or the other, on Mini_opti.enabled *)
-val dct4 : float array -> float array

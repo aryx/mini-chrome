@@ -47,3 +47,6 @@ ffmpeg -hide_banner -loglevel error -y -f lavfi \
   -c:a libvorbis -q:a 2 $plain sound.webm
 ffmpeg -hide_banner -loglevel error -y -i sound.webm -c:a copy $plain sound.ogg
 ffmpeg -hide_banner -loglevel error -y -c:a libvorbis -i sound.ogg -f s16le $plain sound.s16
+
+# Opus in WebM: tests/audio's music.opus, its packets as they are.
+ffmpeg -hide_banner -loglevel error -y -i ../../audio/data/music.opus -c:a copy $plain opus.webm

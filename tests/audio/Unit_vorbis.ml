@@ -66,15 +66,6 @@ let test_codewords () =
   | exception Failure _ -> ()
   | _ -> Alcotest.fail "three codes of one bit"
 
-(* the fast transform is the definition's *)
-let test_dct4 () =
-  List.iter
-    (fun m ->
-      let x = Array.init m (fun i -> sin (float_of_int i *. 0.37) +. (0.5 *. cos (float_of_int (i * i) *. 0.01))) in
-      let simple = Vorbis.dct4_simple x and fast = Vorbis.dct4_opti x in
-      Array.iteri (fun i v -> if Float.abs (v -. fast.(i)) > 1e-9 *. float_of_int m then Alcotest.failf "m = %d, at %d: %g, not %g" m i fast.(i) v) simple)
-    [ 4; 8; 32; 128; 1024 ]
-
 (* a page: "OggS", 22 bytes of header, the segments' lengths, the data *)
 let page (granule : int) (segments : string list) : string =
   let b = Buffer.create 64 in
@@ -116,7 +107,6 @@ let tests =
   Testo.categorize "Vorbis"
     [
       t "the codes from their lengths" test_codewords;
-      t "the transform, fast and by its definition" test_dct4;
       t "Ogg's pages and packets" test_ogg;
       t "headers refused" test_headers;
       t "packets one by one" test_packets;

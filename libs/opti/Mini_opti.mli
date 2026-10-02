@@ -39,9 +39,9 @@
    - Stroke_text.glyph: a letter as one picture made once
      (glyph_picture, Glyph_picture.mli) rather than its pen's ten to
      twenty shapes (glyph_segments, the simple way); see [letters].
-   - Vorbis.dct4: a block's cosine transform by a Fourier transform
+   - Mdct.dct4: a block's cosine transform by a Fourier transform
      (dct4_opti) rather than by its definition (dct4_simple): a second
-     of sound decoded in 0.03 s, not 1.2. In Vorbis.mli. *)
+     of Vorbis decoded in 0.06 s, not 1.2. In Mdct.mli. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref

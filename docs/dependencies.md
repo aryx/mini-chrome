@@ -144,6 +144,7 @@ grow, or written here; each is told in its `.mli`.
 | | WebP: `Webp`, `Vp8l`, `Vp8` | written here |
 | `libs/video` | WebM, VP8's video | written here |
 | `libs/audio` | Vorbis, Ogg's packets | a copy (its `audio_vorbis`, not linked here) |
+| | Opus (CELT), the MDCT | written here |
 | `libs/richtext`, `tools/typeset` | a look; Knuth and Plass's line breaking | copies of two of its app kits |
 | `tools/mosaic`, `netscape`, `firefox` | the browsers before this one and the first layout engine | its `TinyMosaic`, `TinyNetscape`, `TinyFirefox` |
 
@@ -158,7 +159,8 @@ each beside the script that says how it was made.
 
 | Tool | Made |
 |---|---|
-| ffmpeg (libvpx, libvorbis, LAME) | `about:tube`'s `.mpg`, `.webm` and `.mp3`; the clips of `tests/video` and `tests/audio`, and what each must decode to |
+| ffmpeg (libvpx, libvorbis, libopus, LAME) | `about:tube`'s `.mpg`, `.webm` and `.mp3`; the clips of `tests/video` and `tests/audio`, and what each must decode to |
 | libwebp, through Python's Pillow | the pictures of `tests/images` and what each must decode to |
 | Google's Brotli encoder (Python) | the streams of `tests/compression` |
 | RFC 6386's text | `Vp8_tables`, taken from it by a program |
+| RFC 6716's reference decoder (its appendix) | `Celt_tables`, taken from it by a program |

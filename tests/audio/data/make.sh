@@ -1,8 +1,9 @@
 #!/bin/sh
-# The clips of tests/audio: Ogg Vorbis files written by others'
-# encoders (through ffmpeg), and what libvorbis, the reference,
-# decodes from each (16-bit WAV) -- the answer our decoder must give,
-# a rounding apart. Run once, by hand, in this directory; its outputs
+# The clips of tests/audio: Ogg Vorbis and Opus files written by
+# others' encoders (through ffmpeg), and what the references, libvorbis
+# and libopus, decode from each (16-bit samples: a WAV, or raw at
+# 48,000 Hz for Opus) -- the answer our decoders must give, a rounding
+# apart. Run once, by hand, in this directory; its outputs
 # are kept in the repository.
 #
 #   bell     one channel, libvorbis: a bell (three partials dying away)
@@ -27,4 +28,29 @@ $ff $two -ar 22050 -c:a libvorbis -q:a 0 $plain low.ogg
 $ff $two -c:a vorbis -strict experimental -b:a 96k $plain native.ogg
 for f in bell stereo low native; do
   $ff -c:a libvorbis -i $f.ogg -c:a pcm_s16le $plain $f.expected.wav
+done
+
+# Opus, by libopus; "lowdelay" is CELT alone.
+#
+#   music    two channels, 20 ms frames: attacks (short blocks, the
+#            anti-collapse), a pitched bell (the post-filter), the two
+#            channels as mid and side, as one and a sign, and apart
+#   thin     the same at 24 kbit/s: bands with no bit, folded
+#   short    frames of 2.5 ms, one channel
+#   packed   three frames of 20 ms a packet (the packet's code 3)
+#   narrow   4 kHz wide, frames of 10 ms
+#   speech   12 kbit/s for a voice: SILK, which we do not decode --
+#            silence of its length (no answer kept)
+noise="0.2*(random(0)-0.5)*gt(mod(t\,0.25)\,0.2)"
+two48="-f lavfi -i aevalsrc=$bell+$noise|$bell+$chirp:s=48000:d=0.5"
+mono48="-f lavfi -i aevalsrc=$bell+$chirp+$noise:s=48000:d=0.5"
+celt="-c:a libopus -application lowdelay"
+$ff $two48 $celt -b:a 96k $plain music.opus
+$ff $two48 $celt -b:a 24k $plain thin.opus
+$ff $mono48 $celt -b:a 64k -frame_duration 2.5 $plain short.opus
+$ff $mono48 $celt -b:a 48k -frame_duration 60 $plain packed.opus
+$ff $mono48 $celt -b:a 32k -frame_duration 10 -cutoff 4000 $plain narrow.opus
+$ff $mono48 -c:a libopus -application voip -b:a 12k $plain speech.opus
+for f in music thin short packed narrow; do
+  $ff -c:a libopus -i $f.opus -f s16le $plain $f.s16
 done

@@ -10,7 +10,7 @@
 
 (* See Media.mli *)
 
-type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm | Ogg
+type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm | Ogg | Opus
 
 let kind_name = function
   | Wav -> "WAV"
@@ -31,6 +31,7 @@ let kind_name = function
   | Mpg -> "MPEG-1 system"
   | Webm -> "WebM"
   | Ogg -> "Ogg Vorbis"
+  | Opus -> "Ogg Opus"
 
 (*****************************************************************************)
 (* What it is *)
@@ -52,6 +53,7 @@ let by_bytes (s : string) : kind option =
   else if starts s 0 "\000\000\001\xB3" then Some Mpeg1
   else if starts s 0 "\000\000\001\xBA" then Some Mpg
   else if Webm.sniff s then Some Webm
+  else if starts s 0 "OggS" && starts s 28 "OpusHead" then Some Opus
   else if starts s 0 "OggS" then Some Ogg
   else if String.length s >= 128 && (starts s 4 "\x11\xAF" || starts s 4 "\x12\xAF") then Some Flic
   else if starts s 0 "X:" then Some Abc
@@ -155,19 +157,18 @@ let mpg (bytes : string) : (media, string) result =
       in
       Ok (mpeg1_movie video.bytes ~sound)
 
-(* Vorbis's channels (libs/audio's Vorbis), at our sample rate: the first
- * two, or the one twice *)
-let vorbis_sound (decoder : Vorbis.t) (channels : float array array) : Signal.stereo =
-  let rate = Vorbis.rate decoder in
+(* a decoder's channels (libs/audio's Vorbis, Opus), at our sample
+ * rate: the first two, or the one twice *)
+let decoded_sound (rate : int) (channels : float array array) : Signal.stereo =
   let at_our_rate x = if rate = Signal.rate then x else Resample.to_rate Cubic rate x in
   match channels with
   | [||] -> { left = [||]; right = [||] }
   | [| mono |] -> Signal.both (at_our_rate mono)
   | _ -> { left = at_our_rate channels.(0); right = at_our_rate channels.(1) }
 
-(* a WebM file's sound, if it has one that is Vorbis: the track's three
- * headers, then its packets, decoded whole; [from], the time the
- * picture starts at *)
+(* a WebM file's sound, if it has one that is Vorbis or Opus: the
+ * track's headers (Vorbis's three, Opus's one), then its packets,
+ * decoded whole; [from], the time the picture starts at *)
 let webm_sound (webm : Webm.t) ~(from : float) : Signal.stereo option =
   match Webm.audio webm with
   | Some (({ codec = "A_VORBIS"; _ } as track), ((first, _) :: _ as packets)) -> (
@@ -176,22 +177,28 @@ let webm_sound (webm : Webm.t) ~(from : float) : Signal.stereo option =
           let decoder = Vorbis.create ~identification ~setup in
           let parts = List.map (fun (_, packet) -> Vorbis.decode decoder packet) packets in
           let whole = Array.init (Vorbis.channels decoder) (fun c -> Array.concat (List.map (fun (p : float array array) -> p.(c)) parts)) in
-          let s = vorbis_sound decoder whole in
+          let s = decoded_sound (Vorbis.rate decoder) whole in
           Some { left = delayed (first -. from) s.left; right = delayed (first -. from) s.right }
       | _ | (exception (Failure _ | Invalid_argument _)) -> None)
+  | Some (({ codec = "A_OPUS"; _ } as track), ((first, _) :: _ as packets)) -> (
+      match Opus.create ~head:track.setup with
+      | decoder ->
+          let s = decoded_sound Opus.rate (Opus.sound decoder (List.map snd packets)) in
+          Some { left = delayed (first -. from) s.left; right = delayed (first -. from) s.right }
+      | exception Failure _ -> None)
   | _ -> None
 
 (* a WebM file (libs/video). Its video: VP8's frames, decoded as they
  * are asked for, each from the one before -- a frame that is not shown
  * (one kept only to predict from) decoded on the way to the next. Its
- * sound: Vorbis's. A file of sound alone is a sound *)
+ * sound: Vorbis's or Opus's. A file of sound alone is a sound *)
 let webm_movie (bytes : string) : (media, string) result =
   let webm = Webm.parse bytes in
   match Webm.video webm with
   | None -> (
       match (webm_sound webm ~from:0., Webm.audio webm) with
       | Some samples, _ -> Ok (Sound { samples; notes = [] })
-      | None, Some (track, _) -> Error (Printf.sprintf "a WebM file whose sound is %s: only Vorbis is decoded" track.codec)
+      | None, Some (track, _) -> Error (Printf.sprintf "a WebM file whose sound is %s: only Vorbis and Opus are decoded" track.codec)
       | None, None -> Error "a WebM file with no video and no sound in it")
   | Some (track, _) when track.codec <> "V_VP8" -> Error (Printf.sprintf "a WebM file whose video is %s: only VP8 is decoded" track.codec)
   | Some (track, frames) ->
@@ -242,9 +249,24 @@ let open_ ~(name : string) (bytes : string) : (kind * media, string) result =
         | Webm -> webm_movie bytes
         | Ogg ->
             let decoder, channels = Vorbis.of_ogg bytes in
-            Ok (Sound { samples = vorbis_sound decoder channels; notes = [] })
+            Ok (Sound { samples = decoded_sound (Vorbis.rate decoder) channels; notes = [] })
+        | Opus -> Ok (Sound { samples = decoded_sound Opus.rate (snd (Opus.of_ogg bytes)); notes = [] })
       in
       match media () with Ok m -> Ok (kind, m) | Error e -> Error (name ^ ": " ^ e) | exception e -> Error (name ^ ": " ^ Printexc.to_string e))
+
+(* a module played to its end by its own player (five minutes at
+ * most: a module may loop by itself) *)
+let module_sound (song : Mod.song) : Signal.stereo =
+  let player = Mod_player.create ~loop:false song and size = 4096 in
+  let rec go parts count =
+    if Mod_player.finished player || count * size > 300 * Signal.rate then List.rev parts
+    else (
+      let chunk : Signal.stereo = { left = Array.make size 0.; right = Array.make size 0. } in
+      Mod_player.fill player chunk;
+      go (chunk :: parts) (count + 1))
+  in
+  let parts = go [] 0 in
+  { left = Array.concat (List.map (fun (c : Signal.stereo) -> c.left) parts); right = Array.concat (List.map (fun (c : Signal.stereo) -> c.right) parts) }
 
 let duration (m : media) : float option =
   match m with
