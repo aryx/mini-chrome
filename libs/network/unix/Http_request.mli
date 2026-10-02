@@ -30,6 +30,19 @@
    Http.parse_response, as the blocking client does, so the two give
    the same responses (the tests check it).
 
+   evolution:
+   One thread and many sockets is an old shape that kept coming back.
+   select arrived with the sockets (4.2BSD, 1983). The web's first
+   servers did not use it: NCSA's and Apache (1995) gave each
+   connection a process, simple and, at ten thousand connections,
+   impossible -- "the C10K problem" (Dan Kegel, 1999). The answer was
+   the loop again, with a better question than select's, which asks
+   about every socket each time: kqueue (FreeBSD, 2000) and epoll
+   (Linux, 2002) say only which ones are ready. nginx (Igor Sysoev,
+   2004) is a web server built on them; Node.js (Ryan Dahl, 2009) made
+   the loop a language's whole model, JavaScript having been made for
+   one in the browser.
+
    The one step that still blocks: resolving the host's name
    (getaddrinfo, in [start] and after a redirection), usually a few
    milliseconds from the system's cache, and nothing for an address
@@ -40,7 +53,8 @@
    non-blocking UDP socket, is the other way, a module of its own
    (plan_dependencies_remaining.md, section 2).
 
-   Reference: W. Richard Stevens, "UNIX Network Programming", volume 1
+   Reference: Dan Kegel, "The C10K problem" (1999, kegel.com); W.
+   Richard Stevens, "UNIX Network Programming", volume 1
    (third edition, 2003), chapters 6 (select) and 16 (nonblocking I/O,
    its section 16.3 on nonblocking connect: EINPROGRESS, then writable,
    then SO_ERROR says whether it worked). *)

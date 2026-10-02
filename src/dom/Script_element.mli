@@ -9,6 +9,16 @@
    jQuery, htmx, Alpine and Vue use these when they are there, and some
    only these:
 
+   evolution:
+   The standard here follows its users, by name. A selector tried from
+   a script was Sizzle's, jQuery's engine: querySelectorAll (2008) and
+   matches. jQuery's addClass became classList (HTML5), its .closest()
+   (2009) closest, its .append() and .before() the methods of the same
+   names (2016), its .data() dataset. Each was first a function in a
+   library that millions of pages loaded, then a method every element
+   has -- the web's way of growing, which HTML's design principles
+   call paving the cowpaths; and why jQuery, having won, is needed less each year.
+
      el.matches("li.done")      whether the selector selects it
      el.closest("form")         itself or its first ancestor that matches
      el.contains(other)         whether other is it, or under it

@@ -4,6 +4,20 @@
    scripts, to talk to each other: a library announces what it did with
    an event of its own name, and the page listens for it.
 
+   cs-history:
+   Which way an event travels was the browser wars' last quarrel. The
+   first handlers were attributes (onclick="...", Netscape 2, 1995),
+   one for an element. For "Dynamic HTML" (1997) both browsers let an
+   event be heard by the elements around its target, in opposite
+   orders: Netscape 4 from the window down to the target
+   ("capturing"), Internet Explorer 4 from the target up to the window
+   ("bubbling"). The W3C's answer (DOM Level 2 Events, 2000) was both:
+   an event goes down, then up, and addEventListener's third argument
+   says which leg a listener is on. Bubbling is what everybody uses,
+   and what is here. Internet Explorer kept its own attachEvent until
+   version 9 (2011); hiding that difference was the first job of
+   jQuery.
+
      el.addEventListener("saved", e => console.log(e.detail.id))
      el.dispatchEvent(new CustomEvent("saved", { detail: { id: 7 }, bubbles: true }))
 
@@ -27,7 +41,8 @@
    initCustomEvent(type, bubbles, cancelable, detail), which htmx and
    jQuery still fall back on.
 
-   Reference: DOM Living Standard, section 2 (events): 2.2 Event, 2.4
+   Reference: Peter-Paul Koch, "Event order" (quirksmode.org), the two
+   models side by side; DOM Living Standard, section 2 (events): 2.2 Event, 2.4
    CustomEvent, 2.9 dispatch. *)
 
 open Js_value

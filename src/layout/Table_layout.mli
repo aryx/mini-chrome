@@ -6,6 +6,22 @@
    side, the first "web design". A table is rows (<tr>) of cells (<td>,
    <th> a heading cell), a cell as wide as <td colspan=n> columns.
 
+   cs-history:
+   For eight years the table was the web's layout engine. A page's
+   columns, its margin down the left, a picture cut into pieces and
+   put back edge to edge: all tables, nested five deep, their cells
+   propped open by a transparent picture one pixel wide stretched to
+   size (the "spacer GIF"; David Siegel's "Creating Killer Web Sites",
+   1996, was the manual, and he wrote "The Web Is Ruined and I Ruined
+   It" the next year). It worked in every browser, which CSS did not.
+   It also tied a page's look to its markup for good, read badly to a
+   screen reader, and could not be drawn until its last cell had come.
+   Two things of 2003 turned the trade: Jeffrey Zeldman's "Designing
+   with Web Standards" and Dave Shea's CSS Zen Garden, one page of
+   HTML shown under hundreds of style sheets. Tables went back to
+   being for tables; what they had been used for is flexbox's and the
+   grid's.
+
    **The grid**: rows and cells read from the tree, through the groups
    HTML 4 added around rows (<thead>, <tbody>, <tfoot>), each cell at
    the first column its row has free:

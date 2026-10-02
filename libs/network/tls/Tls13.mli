@@ -2,6 +2,30 @@
    checks who the server is, then records encrypted with them (Eric
    Rescorla, RFC 8446, 2018).
 
+   cs-history:
+   From SSL. Netscape made the Secure Sockets Layer for its browser
+   and its commerce server, so that a card number could be typed into
+   a page: SSL 2 (1995, Taher Elgamal's group; version 1 was broken
+   before it shipped) and, redesigned, SSL 3 (1996, Paul Kocher with
+   Netscape's Phil Karlton and Alan Freier). The IETF took it over as
+   TLS 1.0 (RFC 2246, 1999), a new name for nearly the same protocol;
+   1.1 (2006) and 1.2 (2008) repaired it as attacks came. They kept
+   coming -- BEAST (2011), CRIME, Lucky Thirteen, POODLE (2014),
+   FREAK and Logjam (2015) -- nearly all through something old kept
+   for compatibility: a weak cipher still offered, CBC's padding,
+   compression, a downgrade to an earlier version.
+
+   design:
+   TLS 1.3 (four years and twenty-eight drafts, 2014 to 2018) is a
+   security protocol made by taking things out: RSA key transport (so
+   every connection has forward secrecy: a key stolen later decrypts
+   nothing recorded before), CBC and RC4 (only AEAD ciphers are left),
+   compression, renegotiation, the choice of arbitrary groups. With
+   less to negotiate the handshake is one round trip instead of two,
+   and most of it is encrypted. It was also the first version analysed
+   by machine while it was drafted (the Tamarin prover, miTLS), the
+   proofs feeding back into the text.
+
        client                                         server
        ClientHello: a random, the ciphers we know,
          our X25519 public key (key_share),

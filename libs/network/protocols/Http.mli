@@ -1,5 +1,21 @@
 (* Http: the web's protocol, a request and its answer, as text.
 
+   cs-history:
+   How it grew. The first HTTP (1991) was one line, "GET /page", and the
+   answer was the page's HTML and the connection closed: no version, no
+   headers, no other kind of file. It is a text protocol in the manner
+   of the Internet's older ones (SMTP, FTP, NNTP): one can speak it by
+   hand through a telnet, which is how it was debugged and how it
+   spread. HTTP/1.0 (RFC 1945, 1996, written down after the fact from
+   what Mosaic and the servers did) added the version, the status line
+   and the headers -- these taken from mail, MIME's Content-Type among
+   them, which is why a page's kind is said the way an attachment's is.
+   HTTP/1.1 (RFC 2068, January 1997; Roy Fielding, Jim Gettys, Jeffrey
+   Mogul, Henrik Frystyk, Tim Berners-Lee) is the one still spoken:
+   Host, so that one address serves many sites; connections kept open;
+   chunks; caching said precisely. Fielding's thesis (2000) then named
+   the style the protocol had been designed to: REST.
+
    HTTP (Tim Berners-Lee, 1991; HTTP/1.1 since 1997, today RFC 9110 for
    the meaning and RFC 9112 for the bytes) is the simplest protocol in
    daily use, and the model of the ones after it: a client connects (a
@@ -84,6 +100,7 @@
 
    Any other coding (deflate, br, zstd: not asked for) is refused.
 
+   modern:
    Not done: keep-alive (several requests on one connection, the reason
    for 1.1's body framings: each message must end without the
    connection ending); caching;
@@ -92,7 +109,10 @@
    UDP) --
    what the web moved to, for speed, keeping this module's meaning.
 
-   Reference: RFC 9110 "HTTP Semantics" and RFC 9112 "HTTP/1.1", Roy
+   Reference: Roy Fielding, "Architectural Styles and the Design of
+   Network-based Software Architectures" (thesis, Irvine, 2000),
+   chapter 5: REST, and why HTTP is as it is; RFC 1945, "HTTP/1.0"
+   (Berners-Lee, Fielding and Frystyk, 1996); RFC 9110 "HTTP Semantics" and RFC 9112 "HTTP/1.1", Roy
    Fielding, Mark Nottingham and Julian Reschke (2022), which replaced
    RFC 2616 (1999) and RFC 2068 (1997); Tim Berners-Lee, "The Original
    HTTP as defined in 1991" (HTTP/0.9: "GET /path", and the file, no

@@ -5,6 +5,21 @@
    Everything of the kind is its host's. In the browser the host is a
    page (src/dom: document, window, the events). Here it is a terminal:
 
+   cs-history:
+   JavaScript outside a browser is as old as JavaScript: Netscape's
+   server ran it in 1995 (LiveWire), and Rhino (1997) ran it on Java's
+   machine. Neither caught on. Ryan Dahl's Node.js (2009) did, and
+   not for the language: he wanted a server that never blocks -- one
+   loop, every call to the network or the disk given a function to
+   call back -- and found in JavaScript the one popular language whose
+   programmers already wrote that way, because a page's script has
+   always been one thread and its events; V8 (2008) made it fast
+   enough. Its modules were CommonJS's (2009), a convention agreed on
+   by people who needed one before the language had any (ES2015's
+   import came six years later, and the two live side by side still);
+   npm (Isaac Schlueter, 2010) made them a registry of millions. Deno
+   (Dahl again, 2018) and Bun (2022) are its critics.
+
        languages/javascript          the language: values, functions,
               |                      promises -- no way out
        +------+--------+
@@ -54,7 +69,8 @@
                                       // 8 10
                                       // true
 
-   Reference: Node.js's documentation, "The Node.js Event Loop" and
+   Reference: Ryan Dahl's talk at JSConf EU, 2009, where it was
+   shown first; Node.js's documentation, "The Node.js Event Loop" and
    "Modules: CommonJS modules" (the module wrapper). *)
 
 type t

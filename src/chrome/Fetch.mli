@@ -16,7 +16,19 @@
 
    The same as elm-playground's native platforms do for a program's
    Cmd.Http_get (their Commands.ml), here where the browser can grow it:
-   cookies, compression, connections kept alive. *)
+   cookies, compression, connections kept alive.
+
+   modern:
+   What a real browser has here is its largest part after the engine:
+   a cache on disk, which answers most requests without the network
+   (and the rules of when it may: Cache-Control, ETag, 304); a pool of
+   connections kept open, six to a host at most for HTTP/1.1 (Netscape
+   allowed four at once, the number of Worker's pool); one connection
+   carrying every request at once for HTTP/2 and 3; a priority for
+   each (the style sheet before the pictures); and the rule of who may
+   ask what (Script_fetch.mli). The Fetch Standard is where all of it
+   is written as one algorithm. None of that is here: every request
+   opens its connection, asks once, and closes. *)
 
 type response = { url : string; (* after the redirections *) status : int; headers : (string * string) list; body : string }
 

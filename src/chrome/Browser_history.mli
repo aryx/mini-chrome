@@ -12,7 +12,16 @@
  * That last line surprises everyone once, and every browser does it
  * (MMM calls the lost branch "obsolete"; Mothra keeps no Forward, but
  * a list of its last 64 pages). What an entry is -- a URL, the page
- * kept whole, its scroll -- is the browser's: the stacks don't look. *)
+ * kept whole, its scroll -- is the browser's: the stacks don't look.
+ *
+ * cs-history:
+ * The oldest button. Vannevar Bush's memex ("As We May Think", 1945)
+ * kept the trail of what its reader had consulted, to go back along
+ * it; Mosaic's Back was that trail as a stack. Studies of how people
+ * browsed (Catledge and Pitkow, 1995; Tauscher and Greenberg, 1997)
+ * found it the most used thing in a browser after the link itself: a
+ * third or more of all moves were Back, because the web is read as a
+ * hub and its spokes -- a list, an item, back to the list. *)
 
 type 'a t = { behind : 'a list; (* the last visited first *) ahead : 'a list }
 

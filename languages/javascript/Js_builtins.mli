@@ -10,6 +10,20 @@
    read them, call them on other things, and add its own (TinyChrome's
    C8; class, the exercise left).
 
+   cs-history:
+   What is there tells who was copied, and when. Math and Date are
+   Java's of 1995, taken in the ten days: Date with java.util.Date's
+   mistakes, months counted from 0 and getYear's years since 1900,
+   which Java deprecated in 1997 and JavaScript cannot. The strings'
+   methods are Perl's and Java's. The arrays' forEach, map and filter
+   are of functional languages and came late: Firefox 1.5
+   (2005) as "array extras", the standard in ES5 (2009); before them
+   every library shipped its own each (Underscore is that library).
+   And how thin the standard library stayed was shown in March 2016,
+   when one author withdrew his eleven-line left-pad from the npm
+   registry and thousands of builds failed: padStart was added to the
+   language the next year.
+
      console      log (its arguments shown, joined by spaces), error, warn
      Math         floor ceil round trunc abs sign sqrt pow min max random PI
      String, Number, Boolean, parseInt, parseFloat, isNaN

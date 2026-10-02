@@ -1,6 +1,20 @@
 (* X509: certificates -- who a key belongs to, said by someone we
    already trust (ITU-T X.509, 1988; for the web, RFC 5280).
 
+   cs-history:
+   A certificate was first an entry's key in a directory: X.509 is a
+   part of X.500 (1988), the telephone companies' plan for one
+   world-wide directory of people and organizations, which would vouch
+   for its entries. The directory never came. Netscape took the
+   certificate alone for SSL (1994), and with it the question the
+   directory was to answer -- who vouches? -- which went to companies,
+   the certificate authorities (VeriSign, out of RSA, 1995), whose
+   roots browsers ship. For twenty years a certificate cost money and
+   a day's paperwork, and most of the web did without. Let's Encrypt
+   (2015; the ACME protocol, RFC 8555) made one free and automatic, a
+   program proving it controls the name, and encrypted page loads went
+   from under half to nearly all.
+
    A certificate binds a name to a public key, and is signed by its
    *issuer*; the issuer's certificate is signed by its issuer, up to a
    *root* the system trusts because it shipped with it:
@@ -24,9 +38,17 @@
          signatureAlgorithm   -- ecdsa-with-SHA384, sha256WithRSAEncryption...
          signatureValue       -- the issuer's signature over tbsCertificate }
 
+   modern:
    Not checked: revocation (CRLs, OCSP), name constraints, key usage,
    policies -- the parts a browser adds, and what this teaching client
    leaves out on purpose (the tutorial says so).
+
+   modern:
+   What a browser adds, since an authority can be wrong or broken into
+   (DigiNotar, 2011: false certificates for google.com, used against
+   readers in Iran): Certificate Transparency (RFC 6962, 2013), public
+   logs in which every certificate must appear, so that a site can see
+   what was issued in its name; and its own lists of revoked ones.
 
    Worked examples (checked by the tests, on real chains captured once
    with openssl, at a fixed date): Gmail's (ECDSA P-256, a P-384 root,

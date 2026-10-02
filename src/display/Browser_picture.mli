@@ -7,6 +7,19 @@
  * GIF8): the formats' magic numbers, as TinyMediaPlayer's Media.sniff
  * reads them for every format.
  *
+ * cs-history:
+ * Pictures in the page were Mosaic's doing: Marc Andreessen proposed
+ * <img> on the www-talk list in February 1993 and shipped it, while
+ * the list was still discussing something more general. Mosaic
+ * read GIF (CompuServe, 1987) and X bitmaps. GIF's compression, LZW,
+ * turned out to be patented, and when Unisys asked for royalties at
+ * the end of 1994 a group on Usenet designed a free replacement in a
+ * few weeks: PNG ("PNG's Not GIF"; a W3C Recommendation, 1996). JPEG
+ * (1992) was for photographs from the start. SVG (2001) is the one
+ * that is not pixels; it waited ten years for Internet Explorer.
+ * Since: WebP (Google, 2010) and AVIF (2019), each a video codec's
+ * still frame -- not read here.
+ *
  *   GIF8      GIF (1987)
  *   \x89PNG   PNG (1996)
  *   \xFF\xD8  JPEG (1992)

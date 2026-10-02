@@ -183,10 +183,11 @@ def tagged(text):
     counts = defaultdict(int)
     current = None
     for line in text.splitlines():
-        word = line.strip()
+        # a comment's lines may each start with " * "
+        word = line.strip().lstrip("*").strip()
         if word.endswith(":") and word[:-1] in TAGS:
             current = word[:-1]
-        elif not word or word == "*)":
+        elif not word or word == ")":
             current = None
         if current:
             counts[current] += 1

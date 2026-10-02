@@ -1,6 +1,19 @@
 (* Asn1: reading DER, the bytes certificates are written in (ITU-T
    X.690, 1988; ASN.1, the notation, X.680).
 
+   cs-history:
+   A survivor. ASN.1 (Abstract Syntax Notation One, 1984) was made for
+   the telephone companies' network standards, OSI: a notation to
+   declare a message's fields, and rules (BER) to write any such
+   message as bytes -- what Protocol Buffers or JSON schemas are now.
+   OSI lost to the Internet, whose protocols are mostly text; but what
+   OSI had defined for directories and their certificates (X.500,
+   X.509) was taken as it was, and so every TLS connection still
+   begins with the reading of a 1980s binary format. Its lengths
+   within lengths are easy to get wrong in C: parsers of it have been
+   a steady source of security holes, which is one reason to read it
+   with a function that cannot run past its bytes.
+
    Every value is TLV -- a tag byte, a length, the value's bytes:
 
        30 82 01 0a  ...        SEQUENCE (30), 266 bytes long (82: the

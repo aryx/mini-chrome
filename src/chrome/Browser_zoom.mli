@@ -15,6 +15,19 @@
  * Chrome -- which keeps it in the profile; here it lasts as long as the
  * program.
  *
+ * evolution:
+ * Three zooms, in order. The first browsers could only change the
+ * text's size (Netscape's and Internet Explorer's "Text Size"): the
+ * letters grew, the pictures and the widths set in pixels did not,
+ * and pages broke. Zooming the whole page was Opera's, then Internet
+ * Explorer 7's (2006) and Firefox 3's (2008): a CSS pixel becomes
+ * more than one dot, the page is laid out again narrower -- this
+ * module's. The third came with the iPhone (2007), for pages made for
+ * a desk: lay the page out as if on a screen 980 wide, show it small,
+ * and let two fingers magnify a part without any new layout; the
+ * <meta name=viewport> a page uses to decline that is Safari's of
+ * that year.
+ *
  * https://support.google.com/chrome/answer/96810 *)
 
 (* the sites zoomed, by host; those at 100% are not kept *)

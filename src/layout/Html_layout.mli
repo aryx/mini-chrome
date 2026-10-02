@@ -6,6 +6,18 @@
    coordinates are the typesetter's (Page.mli's): x from the page's
    left, y **down** from its top; the app turns them over to draw.
 
+   cs-history:
+   This is Mosaic's layout, the web's first with pictures in the text.
+   Mosaic (Marc Andreessen and Eric Bina, NCSA, 1993) laid a page out
+   in one pass over its elements, each kind's look fixed by the browser
+   (Looks.mli): no boxes to speak of, no style sheet. What Netscape
+   (1994, the same two and most of their team) added to the model was
+   less the tags than the timing: it laid out and drew the page as its
+   bytes arrived, text first and the pictures filling in, where Mosaic
+   waited for everything -- on a modem, the difference between a web
+   that felt slow and one that felt alive. Box_layout is the layout
+   that replaced it, CSS's.
+
    Two kinds of layout, nested:
 
    **Blocks** (p, h1, ul, li, pre, the body...) are stacked downwards,

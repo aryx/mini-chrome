@@ -7,6 +7,18 @@
    each link followed by its number in brackets, and the reader typed
    the number to follow it:
 
+   cs-history:
+   It was the second browser, and for two years the web most people
+   saw. The first, Tim Berners-Lee's WorldWideWeb (1990), ran on the
+   NeXT machines of a few physicists, and edited pages as well as
+   showing them. Nicola Pellow, a student on a placement at CERN,
+   wrote this one in portable C so that the web could be reached from
+   anything -- a terminal on a mainframe, or a telnet to info.cern.ch
+   from anywhere. Lynx (Lou Montulli, Michael Grobe and Charles
+   Rezac, University of Kansas, 1992) took the idea to a full screen
+   with the links highlighted; Mosaic (1993) ended the terminal's web.
+   tools/lynx is this module with a prompt.
+
      <h1>Menu</h1>
      <p>Soup of the day. See the <a href="recipes.html">recipes</a>
      or go back <a href="/">home</a>.

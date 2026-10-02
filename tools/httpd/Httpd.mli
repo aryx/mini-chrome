@@ -7,6 +7,20 @@
    (Http.parse_request), finds what the request's target names, and
    writes the answer (Http.response_to_string).
 
+   cs-history:
+   The first web server was the program on Tim Berners-Lee's NeXT at
+   CERN (1990; the machine kept a label, "This machine is a server. DO
+   NOT POWER IT DOWN!!"): a URL's path was a file's path, as here.
+   NCSA's HTTPd (Rob McCool, 1993) was the one sites ran, and added
+   programs behind a URL (CGI). When McCool left for Netscape its users
+   went on exchanging their patches by mail, and released them together
+   in 1995 -- "a patchy server", as the story goes: Apache, the most used web server for
+   the twenty years after, and with Linux the proof that software so
+   made could run the Internet. nginx (Igor Sysoev, 2004) took its
+   place by serving ten thousand connections from one loop
+   (Http_request.mli) instead of a process for each. This one serves
+   one at a time.
+
        the browser                          mini-httpd
        -----------                          ----------
        connect ---------------------------> accept

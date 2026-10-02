@@ -17,6 +17,15 @@
    table per question (MMM's dtd.ml has HTML 2.0's and 3.2's), read by
    Html_tree's one algorithm.
 
+   road-not-taken:
+   A browser that reads the DTD was tried more than once: MMM
+   (François Rouaix, INRIA, 1995, in OCaml, its applets OCaml
+   bytecode checked by the type system),
+   Arena and Amaya at the W3C. They showed pages that followed the
+   grammar and refused, or mangled, the others; and the others were
+   the web. XHTML (2000) was the same bet made by the standard itself.
+   What won instead is a grammar of mistakes (Html_tree.mli).
+
    The questions, and HTML 3.2's answers (with a few of HTML5's where
    the pages of the time already relied on them):
 

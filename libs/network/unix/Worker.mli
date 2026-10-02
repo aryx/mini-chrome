@@ -35,6 +35,13 @@
    browser (js_of_ocaml) there are no threads at all: JavaScript's one
    thread and its event loop, the web platform doing the waiting.
 
+   modern:
+   A browser today does its networking this way no longer. Chrome's is
+   a process of its own (the "network service"), a sandbox away from
+   the pages, running one event loop over all its sockets (Http_request's
+   shape, by the thousand) with threads only for what must block: the
+   resolver, the disk's cache. docs/architecture.md compares the two.
+
    Reference: Andrew Birrell, "An Introduction to Programming with
    Threads" (DEC SRC report 35, 1989): mutexes, condition variables,
    and the pool of workers taking jobs from a queue. *)

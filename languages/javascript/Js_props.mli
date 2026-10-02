@@ -5,6 +5,20 @@
    properties and a link to another object, its **prototype**; what it
    does not have itself it has from that one, and so on up:
 
+   cs-history:
+   Objects without classes were Self's idea (David Ungar and Randall
+   Smith, Xerox PARC, 1986): a new object is a copy of another, or
+   points to it for what it lacks; there is nothing but objects.
+   Brendan Eich put it under JavaScript's Java-like surface in 1995,
+   which is why "new Point(1, 2)" looks like a class being
+   instantiated and is a function being called with a fresh object
+   whose prototype is Point.prototype. The link itself could not be
+   named at first (Netscape's __proto__ was its own); ES5 (2009) gave
+   Object.create and getPrototypeOf, Douglas Crockford having argued
+   for years that the prototypes were the good part and "new" the
+   disguise. The class of ES2015 is a notation for exactly this chain,
+   not another model (Js_eval.make_class).
+
      var p = new Point(1, 2)        p            {x: 1, y: 2}
      p.sum()                         -> Point.prototype   {sum: function, constructor: Point}
      p.hasOwnProperty("x")              -> Object.prototype   {hasOwnProperty: ...}
@@ -28,7 +42,9 @@
    nor a prototype's "constructor". (There is no flag a property for
    "enumerable": that rule stands for it.)
 
-   Reference: ECMA-262 5.1, sections 8.12 (an object's internal
+   Reference: David Ungar and Randall Smith, "Self: The Power of
+   Simplicity" (OOPSLA 1987); Douglas Crockford, "JavaScript: The Good
+   Parts" (2008), chapter 3; ECMA-262 5.1, sections 8.12 (an object's internal
    methods: [[Get]], [[Put]], [[HasProperty]]), 12.6.4 (for-in), 15.3.5.3
    (instanceof). *)
 

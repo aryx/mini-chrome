@@ -8,6 +8,22 @@
    value" back. It is how a site knows who is signed in -- the value is
    a number that names the session, which only the server understands.
 
+   cs-history:
+   The name is a programmer's: a "magic cookie" was Unix's word for a
+   token a program is handed and gives back without looking inside.
+   Montulli wrote them in June 1994, for a customer's shopping cart
+   (MCI's) that Netscape did not want to keep on its own servers; they
+   shipped in the first Navigator that autumn, on by default and
+   unannounced. The press found them in 1996, and with them what they
+   had become: a picture on a page comes from another site, which can
+   set its own cookie and so recognize one reader across every page
+   that carries its pictures -- the "third-party" cookie, on which
+   advertising on the web was then built. The IETF's first standards
+   (RFC 2109, 1997, David Kristol and Montulli; RFC 2965, 2000) tried
+   to forbid that and to redesign the header; browsers implemented
+   neither. RFC 6265 (2011) gave up prescribing and wrote down what
+   browsers do, which is what is here.
+
      GET /login HTTP/1.1                 (the form posted)
                                 HTTP/1.1 302 Found
                                 Location: /inbox
@@ -49,6 +65,14 @@
    Not done: the Public Suffix List; SameSite (a cookie is sent with
    every request to its site, whoever asks: a picture on another site's
    page too); the __Host- and __Secure- prefixes; partitioning.
+
+   modern:
+   Since then browsers took on the third party themselves: SameSite
+   (2016; the default in Chrome since 2020) keeps a cookie from going
+   with a request another site caused, Safari and Firefox keep a
+   separate jar for each site a third party is seen from
+   ("partitioning"), and the Public Suffix List says which domains
+   (co.uk, github.io) are shared by strangers.
 
    Reference: Adam Barth, RFC 6265, "HTTP State Management Mechanism"
    (2011), sections 4.1 (Set-Cookie), 5.1 (dates, domains, paths), 5.3

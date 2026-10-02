@@ -9,6 +9,20 @@
    its first line. So they are here, most of them less than the real
    thing, each as much as a page here can mean:
 
+   cs-history:
+   Two of these names are fossils. navigator is Netscape Navigator,
+   whose scripts could ask it what it was; every browser since has an
+   object of that name. And its userAgent begins "Mozilla/5.0" in all
+   of them, ours too. Mozilla was Netscape's code name ("Mosaic
+   killer"); servers sent their good pages (with frames, in 1996) to
+   browsers that said "Mozilla", so Internet Explorer said "Mozilla/2.0
+   (compatible; MSIE 3.0...)" to get them; later sites sent their good
+   pages to Gecko, so KHTML said "like Gecko", and to Safari, so Chrome
+   says "Safari" and "KHTML, like Gecko" besides. Each browser's string
+   is the list of those it once had to pass for. The lesson was drawn
+   late: ask whether the feature is there ("typeof fetch"), not who
+   the browser is.
+
      Node, Element, HTMLElement, Text, Document, EventTarget ...
          the classes of the host objects: el instanceof HTMLElement,
          Node.ELEMENT_NODE, and a method a library adds to
@@ -33,7 +47,8 @@
    set (window.x = 1 makes the global x), with its size, its location,
    and the document's listeners for its own.
 
-   Reference: HTML Living Standard, section 7.2 (the Window object);
+   Reference: Aaron Andersen, "History of the browser user-agent
+   string" (2008); HTML Living Standard, section 7.2 (the Window object);
    CSSOM, section 7.2 (getComputedStyle); Web IDL, for what "an
    interface object" such as Node is. *)
 

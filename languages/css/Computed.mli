@@ -5,6 +5,18 @@
    record: lengths in pixels (or pixels plus a percentage the layout
    resolves, Css_values), colours as numbers, keywords as variants.
 
+   terminology:
+   A property has four values, and the words are the standard's (CSS
+   2.1, section 6.1). The **specified** value is what the cascade
+   gave, or the inherited or initial one: "width: 50%", "font-size:
+   1.2em". The **computed** value is that made as absolute as it can
+   be without laying anything out -- 1.2em is 19.2px; 50% stays 50% --
+   and is what a child inherits (this module's record). The **used**
+   value is after layout: 50% of a 600 px block, 300px. The **actual**
+   value is what the screen can show: 300 dots, or 600 on a screen of
+   double density. What a script reads with getComputedStyle is, for
+   most properties and despite its name, the used value.
+
    What no declaration gives is **inherited** from the parent (the
    colour, the font, the alignment, white-space, line-height,
    visibility, list-style, and the custom properties) or takes its

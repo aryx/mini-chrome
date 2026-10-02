@@ -1,5 +1,25 @@
 (* Url: the address of a thing on the network, and the relative ones.
 
+   cs-history:
+   The web's three inventions were HTML, HTTP and this one, and Tim
+   Berners-Lee has said this is the one that mattered: one string that
+   names anything any protocol can fetch -- a file on an FTP server, a
+   newsgroup, a Gopher menu, and a page of the web among them -- so
+   that a link could point at what already existed. He wrote it down
+   as "Universal Resource Identifiers" (RFC 1630, 1994); the IETF,
+   wary of "universal", made it "Uniform Resource Locators" (RFC 1738,
+   1994). The "//" after the scheme came from the Apollo Domain file
+   system's network paths; he has since said the two slashes were not
+   needed.
+
+   terminology:
+   URL, URI, URN. A URI (Identifier) is the general thing, any such
+   string. A URL (Locator) is a URI that says where to get the thing
+   and how ("https://..."); a URN (Name) one that only names it, for
+   ever, wherever it is ("urn:isbn:0262510871"). RFC 3986 speaks of
+   URIs; browsers and the WHATWG's URL Standard say URL for all of
+   them, as everybody does.
+
    A URL (Tim Berners-Lee, 1994; the grammar as it stands is RFC 3986,
    2005, which calls them URIs) is five parts, each optional but the
    path, which may be empty:

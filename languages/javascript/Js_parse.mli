@@ -63,6 +63,20 @@
    "in" is an operator, and also the word of for (k in o): in a for's
    first part it is the for's, unless inside brackets.
 
+   comeback:
+   Pratt's paper is of 1973, and was nearly forgotten. He wrote it for
+   CGOL, a notation with infix operators for Lisp; the method is a few
+   lines, needs no tool, and gives each operator its meaning as data.
+   But the same years gave parsing its theory -- LR (Knuth, 1965), yacc
+   (Johnson, 1975) -- and the textbooks (the "Dragon Book", 1977)
+   taught grammars and generators, which could prove what they
+   accepted; a loop over a table of numbers looked like a trick.
+   Compilers went on using it quietly ("precedence climbing", in GCC
+   and later Clang). It came back by name through JavaScript: Douglas
+   Crockford used it for JSLint and told of it in "Beautiful Code"
+   (2007), and a generation that had to parse a language whose grammar
+   no generator takes well (below) made it the usual way again.
+
    {2 Patterns}
 
    Where a name is declared -- let, a parameter, for-of -- there may be
@@ -140,6 +154,7 @@
    - **Error messages.** A teaching engine should say "expected ')' on
      line 3"; yacc says "syntax error" unless much is added by hand.
 
+   modern:
    And what real engines do: every one parses JavaScript by hand --
    V8, SpiderMonkey, JavaScriptCore, QuickJS, and the tools' parsers
    Acorn, Esprima, Babel -- recursive descent for statements and

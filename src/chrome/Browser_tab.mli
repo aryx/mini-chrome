@@ -10,6 +10,18 @@
    TinyFirefox have one tab each; Firefox's tabs (2004, after Opera's
    and Mozilla's own) are a list of these, an exercise.
 
+   cs-history:
+   Tabs are older than they look. A window per page was the rule from
+   Mosaic on; several pages in one window appeared in InternetWorks
+   (BookLink, 1994), then NetCaptor (1997) and Opera, and reached most
+   people through Mozilla (2001) and Firefox (2004); Internet Explorer
+   took them in 2006. Chrome (2008) made two changes that stayed: the
+   tabs above the address, which belongs to the page and not to the
+   window, and each tab's page in a process of its own, so that one
+   page's crash or busy script is that tab's alone (told as a comic,
+   drawn by Scott McCloud, the day it shipped). Here a tab is a value,
+   and all of them are one process: docs/architecture.md.
+
    Going somewhere:
 
      visit url     the page now kept in the history, then [load]

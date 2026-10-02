@@ -8,6 +8,23 @@
    the reordering are the kernel's work, not ours). The Berkeley sockets
    (4.2BSD, 1983) are the API every system kept:
 
+   cs-history:
+   How the Internet got its stream. The ARPANET's first protocol (NCP,
+   1970) trusted the network to deliver. Cerf and Kahn's design ("A
+   Protocol for Packet Network Intercommunication", 1974) trusted
+   nothing but the two ends: any network that can carry a packet,
+   however badly, will do, and the hosts make a reliable stream out of
+   it -- the "end-to-end" idea, and why the Internet could be built out
+   of other people's networks. It was split in two in 1978, IP to
+   carry packets and TCP to make streams; the ARPANET switched to them
+   on one day, January 1, 1983. The same year Berkeley's Unix (4.2BSD,
+   Bill Joy and his group, paid by DARPA to do it) shipped them with
+   an API that made a connection look like a file: the sockets below.
+   In October 1986 the network collapsed under its own retransmissions
+   -- a thousandfold slowdown; Van Jacobson's congestion control (1988)
+   is what every TCP has done since: send faster until a packet is
+   lost, then halve.
+
      client                                server
      getaddrinfo "elm-lang.org" -> address
      socket                                socket, bind, listen
@@ -37,7 +54,11 @@
    capability is asked for the host before any socket is opened. A
    function without one in its type can't reach the network.
 
-   Reference: W. Richard Stevens, "UNIX Network Programming" (1990;
+   Reference: Vinton Cerf and Robert Kahn, "A Protocol for Packet
+   Network Intercommunication" (IEEE Transactions on Communications,
+   1974); Van Jacobson, "Congestion Avoidance and Control" (SIGCOMM
+   1988); Saltzer, Reed and Clark, "End-to-End Arguments in System
+   Design" (1984); W. Richard Stevens, "UNIX Network Programming" (1990;
    the calls above in the third edition's volume 1, 2003, chapter 4,
    "Elementary TCP Sockets");
    RFC 793 (TCP) and RFC 791 (IP), Jon Postel (1981). *)

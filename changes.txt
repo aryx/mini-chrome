@@ -361,6 +361,18 @@
   placemat (Charset), XMLHttpRequest and Ajax, the same-origin policy
   and CORS (Script_fetch), JSON. make loc says the interfaces'
   opening comments apart (4,401 lines of 26,797)
+- the older interfaces teach and are tagged too: HTTP's versions, the
+  URL and its names, forms and CGI, cookies and the third party,
+  ASN.1, PEM, X.509 and the certificate authorities, SSL to TLS 1.3,
+  TCP and the sockets, the event loop from select to Node, curl;
+  CSS's colours and variables, the four values of a property; the
+  Line Mode Browser, the DTD-driven browsers; Pratt's parser,
+  prototypes, asm.js, ESTree, the built-ins' origins, polyfills,
+  coroutines; Mosaic's layout, tables as layout; tabs, Back, the
+  developer tools, the three zooms, pictures' formats, video and the
+  plug-ins, compositing, the Elm architecture, events' two orders,
+  the user-agent string; the first web servers, Node.js. 787 lines
+  under a tag in all
 - docs/tags.md: theme tags before the paragraphs of an interface's
   comment that are around the module, not the module's own
   (cs-history:, modern:, others:, evolution:, design:..., principia's

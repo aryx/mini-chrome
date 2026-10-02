@@ -19,6 +19,18 @@
    they are the request's body, for what should not be (a password)
    or is not a question but an action (an order).
 
+   cs-history:
+   Forms are what made the web more than pages to read. Dave Raggett
+   proposed them in HTML+ (1993); Mosaic 2.0 (November 1993) drew
+   them; and NCSA's server (Rob McCool) ran a program for the request
+   and sent back what it printed -- CGI, the Common Gateway Interface,
+   its input this module's string. A search box, a guest book, a shop:
+   every "web application" until XMLHttpRequest (1999) was a form
+   sent, a program run, a new page. The '%' and two hexadecimal digits
+   is the URL's own escape (RFC 1738); the '+' for a space is older
+   than that rule and the form's alone, which is why a '+' in a path
+   is a plus and in a query a space.
+
    [decode] is the other way, lenient as servers are: a '+' is a space,
    a '%' not followed by two hexadecimal digits is itself, a field with
    no '=' has the value "".

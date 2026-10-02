@@ -5,6 +5,20 @@
  *
  * Three views, each a list of lines the browser draws in its panel:
  *
+ * cs-history:
+ * The first tool was View Source: a page's HTML shown as it came, in
+ * every browser since the first, and how a generation learned to
+ * write pages -- by reading other people's. Scripts and styles made
+ * the source not enough: what matters is the tree as it now is and
+ * which rule won. Mozilla had a DOM Inspector and a JavaScript
+ * debugger (Venkman, 2001); Joe Hewitt's Firebug (January 2006), an
+ * extension for Firefox, put the tree, the styles, the console and
+ * the network's requests in one panel under the page, edited live,
+ * and writing for the web became a different trade. WebKit's Web
+ * Inspector (2006) and Chrome's tools (2008) are its descendants; the
+ * protocol they speak to the page is also how a program drives a
+ * browser with no window (Puppeteer, 2017).
+ *
  *   the element    its place in the tree (html > body > div.card > p),
  *                  its tag, its box on the page (Box_layout's: x, y,
  *                  width, height), its children;

@@ -23,6 +23,15 @@
    The bits are why "x | 0" and "~~x" are the idioms for "x as an
    integer", and why 1 << 31 is negative.
 
+   evolution:
+   The 32 bits had a second life. Since "x | 0" is the one way to say
+   "an integer" in a language of floats, a compiler could write it as
+   a type: Emscripten (Alon Zakai, 2010) compiled C to JavaScript full
+   of such marks, asm.js (Mozilla, 2013) made the marks a subset an
+   engine could compile ahead of time to plain machine arithmetic, and
+   games written in C++ ran in a page at half their native speed. That
+   subset, given a binary format of its own, is WebAssembly (2017).
+
    Not here: && || ?? (they do not always evaluate their right side:
    Js_eval's), typeof, in, instanceof (properties: Js_props).
 

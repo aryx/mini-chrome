@@ -22,7 +22,17 @@
    This one blocks: the program waits, doing nothing else, until the
    answer is in -- the simple version, fine for a file loaded once
    (Download.mli). Http_request.mli is the same request that doesn't
-   block, for a program that must go on drawing its frames. *)
+   block, for a program that must go on drawing its frames.
+
+   cs-history:
+   What this stands in for is curl, which elm-playground ran as a
+   program for its https:// until it had a TLS of its own. Daniel
+   Stenberg began it in 1996 to fetch currency rates for an IRC bot
+   (httpget, then urlget; "curl" in 1998); its library is now in
+   nearly every phone, car and television, the most widely installed
+   HTTP client there is, and what "getting a URL" means when a program
+   that is not a browser does it. tools/curl is a small one made of
+   this module. *)
 
 (* the final response (whatever its status, 404 included: the caller
  * decides), or why there is none: a URL we can't get, a network error,

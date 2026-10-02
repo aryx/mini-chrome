@@ -22,6 +22,19 @@
    the body suspends or ends; [suspend] returns when the body is
    resumed. So nothing of the interpreter needs a lock.
 
+   comeback:
+   The word and the idea are Melvin Conway's (1958; his paper of 1963,
+   below): two routines that call each other as equals, neither the
+   other's subroutine. Simula 67 had them, and Knuth gave them pages
+   of his first volume (1968). Then the stack won -- one call, one
+   return -- and for thirty years a program that had to wait wrote its
+   waiting inside out, as callbacks or as a state machine by hand
+   (Http_request.mli). They came back one language at a time, under
+   other names: generators (CLU's iterators, 1975; Python, 2001;
+   JavaScript, 2015), goroutines (Go, 2009), async and await (C#,
+   2012; JavaScript, 2017), and effect handlers (OCaml 5, 2022), with
+   which a library writes its own.
+
    others:
    OCaml 4.14 has no stack to set aside but a thread's: a coroutine
    here is a thread, held by a mutex and a condition so that it only

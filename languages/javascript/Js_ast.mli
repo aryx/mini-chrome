@@ -6,6 +6,17 @@
    where it is cheap, follow ESTree, the tree the JavaScript tools
    (Esprima, Acorn, Babel) agree on:
 
+   cs-history:
+   A tree everyone agrees on is recent. Each engine's is its own and
+   private. In 2010 Mozilla let scripts see SpiderMonkey's (Dave
+   Herman's "Parser API", Reflect.parse); Ariya Hidayat's Esprima
+   (2011), a parser written in JavaScript, gave the same tree in any
+   browser, and the tools that followed -- to check a program (ESLint),
+   to rewrite tomorrow's JavaScript into today's (Babel), to format it
+   (Prettier) -- all took and gave that shape, written down as ESTree
+   (2015). It is why JavaScript, alone among popular languages, is
+   commonly compiled before it is served.
+
      1 + 2 * 3            Binary ("+", Number 1, Binary ("*", Number 2, Number 3))
      a.b(c)[0]            Index (Call (Member (Name a, "b"), [Name c]), Number 0)
      x => x * 2           Function { params = [x]; body = [Return (x * 2)]; arrow }

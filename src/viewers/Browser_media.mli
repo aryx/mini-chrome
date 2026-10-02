@@ -11,6 +11,22 @@
  * frame (a thumbnail, what a video site's index shows), playing from a
  * click on it or from autoplay, looped with loop.
  *
+ * cs-history:
+ * Video came to pages by the side door. HTML had no element for it;
+ * a page embedded a program, a "plug-in" (Netscape 2, 1996), which
+ * drew in a rectangle the browser lent it: RealPlayer, QuickTime,
+ * Windows Media, and from 2002 Flash, which nearly every machine had
+ * -- YouTube (2005) was a Flash player in a page. Opera proposed a
+ * <video> element in 2007 and HTML5 took it, but not a format: the
+ * browsers could not agree between a free codec (Ogg Theora, then
+ * Google's VP8 in WebM, 2010) and the one the cameras and phones
+ * used, patented (H.264), and for years a page listed several files
+ * for the browser to choose from, as <source> still allows. The
+ * iPhone (2007) never ran Flash; Steve Jobs's letter "Thoughts on
+ * Flash" (April 2010) said it never would, and the plug-ins were gone
+ * from every browser by 2020. What plays here are the formats
+ * elm-playground has decoders for, older than all of that.
+ *
  * **The clock**: with a sound, the sound's -- one deck, like
  * TinyMediaPlayer's, whose samples the mixer pulls (Audio.instrument),
  * the picture the frame at the samples played; a movie without sound

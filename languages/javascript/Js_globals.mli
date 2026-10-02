@@ -9,6 +9,19 @@
    '__esModule', { value: true })" -- and stops at the first that is
    not there. They are here:
 
+   evolution:
+   Taking stock of the engine is a habit learned the hard way. Pages
+   first asked the browser its name and believed it (Script_window.mli
+   tells where that led). Then they tested for the thing itself --
+   "if (document.getElementById)", in the 2000s; Modernizr (2009) is a
+   library of nothing but such tests. Then, where the test failed,
+   they supplied the thing: a "polyfill" (Remy Sharp's word, 2010,
+   after a brand of filler for cracks in a wall), JavaScript that
+   defines Object.keys or Promise on an engine that lacks it. So a
+   library written for today's language runs on yesterday's engine if
+   enough of the old language is there to build the new one from --
+   which is what this module is for, from the other side.
+
      isFinite, globalThis
      Number.isFinite .isInteger .isNaN .MAX_SAFE_INTEGER .EPSILON ...
      Object.defineProperty .defineProperties .getOwnPropertyNames

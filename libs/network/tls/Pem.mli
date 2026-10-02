@@ -2,6 +2,15 @@
    (Privacy-Enhanced Mail, RFC 1421, 1993 -- mail again, Mail.mli; its
    format outlived it, RFC 7468):
 
+   cs-history:
+   Privacy-Enhanced Mail was the IETF's first design for signed and
+   encrypted mail (1987 to 1993). It needed one hierarchy of
+   certificate authorities for the whole Internet, which nobody built,
+   and PGP (Phil Zimmermann, 1991), which needed none, took its place.
+   What stayed is its way of putting binary in a text file: SSLeay
+   (Eric Young, 1995), the library that became OpenSSL, used it for
+   its keys and certificates, and every tool since has followed.
+
        -----BEGIN CERTIFICATE-----
        MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
        ...

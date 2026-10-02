@@ -14,7 +14,22 @@
  *
  * update is not pure: it starts the fetches (Fetch.perform, on
  * Start_fetch), steps them and the page's scripts (on Tick), and saves
- * the profile -- with the capabilities it is given. *)
+ * the profile -- with the capabilities it is given.
+ *
+ * cs-history:
+ * The shape is Elm's. Evan Czaplicki's language (his thesis, Harvard,
+ * 2012) is for programs in a page, and its programs came to be all
+ * written one way, which was named afterwards: The Elm Architecture
+ * -- a model (the whole state, one value), an update (a message and
+ * the model give the next model), a view (the model gives what is
+ * shown), and nothing else changing anything. It reads as the oldest
+ * idea of the field turned strict: Model-View-Controller (Trygve
+ * Reenskaug, Smalltalk at Xerox PARC, 1979) with the model immutable
+ * and the controller a pure function. It went from Elm into the
+ * mainstream as Redux (Dan Abramov, 2015), written after it, and is
+ * how React programs keep their state. elm-playground is this
+ * architecture in OCaml, and a browser's window is here one such
+ * program. *)
 
 open Window_model
 

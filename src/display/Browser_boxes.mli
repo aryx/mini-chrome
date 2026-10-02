@@ -10,6 +10,17 @@
  * the page's last children. A colour with transparency is mixed with
  * white (the page under it, most of the time).
  *
+ * modern:
+ * A real browser does not draw from its boxes each frame. Painting
+ * makes a list of drawing commands, kept; the page is cut into layers
+ * (what scrolls, what is fixed, what is transformed or animated),
+ * each drawn once into a texture by the graphics card, and a separate
+ * thread -- the compositor -- only moves the layers for each frame.
+ * Scrolling and an animation of position or opacity then cost no
+ * layout and no painting at all, which is why they stay smooth while
+ * a script runs. Here every frame's shapes are made from the boxes
+ * (lazily: Browser_draw), and there is one layer.
+ *
  * A box whose overflow is not visible (hidden, and here auto and
  * scroll, a box that would scroll) clips what it holds -- by what is
  * drawn, not by pixels (the playground has no clipping): a background

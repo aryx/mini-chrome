@@ -29,7 +29,8 @@ comment's indentation and a colon:
      const x = new XMLHttpRequest()
 ```
 
-The tag holds for that paragraph, to the next blank line. A history
+(In a comment whose lines each start with " * ", the tag's line
+does too.) The tag holds for that paragraph, to the next blank line. A history
 of several paragraphs has the tag before each. A paragraph has one
 tag at most, its main kind. A fact in passing ("Lou Montulli's
 cookies (Netscape, 1994)") inside a paragraph that explains the
@@ -52,10 +53,10 @@ the module's own, and has no tag.
 | `others:` | how other systems do the same thing: another browser, another language, another way | effects, continuation-passing style or a thread, for a coroutine (`Js_coroutine.mli`) |
 | `evolution:` | how a thing changed over the years, from its invention to now | selectors from CSS1 to Level 3 and out of style sheets (`Selectors.mli`); promises from 1976 to `await` (`Js_promise.mli`) |
 | `design:` | a principle of design the module shows, true beyond it | CSS's syntax made to be skipped (`Css_syntax.mli`) |
-| `terminology:` | words that are confused, told apart (URL and URI, origin and site, attribute and property) | |
+| `terminology:` | words that are confused, told apart | URL, URI and URN (`Url.mli`); a property's specified, computed, used and actual values (`Computed.mli`) |
 | `why-win:` | why this one prevailed over its rivals | |
-| `comeback:` | an idea invented, set aside, and back in another form | |
-| `road-not-taken:` | an idea of merit that history passed by (XHTML, DSSSL) | |
+| `comeback:` | an idea invented, set aside, and back in another form | Pratt's parser (`Js_parse.mli`); coroutines (`Js_coroutine.mli`) |
+| `road-not-taken:` | an idea of merit that history passed by | a browser that reads the DTD; XHTML (`Dtd.mli`) |
 | `reframe:` | the thing seen as another ("a browser is an operating system for pages") | |
 | `wib:` | worse is better: a deliberate simplification of ours, and what it costs | |
 | `why-study:` | why this old or small thing is worth reading | |
