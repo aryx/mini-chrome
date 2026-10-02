@@ -22,7 +22,7 @@ capabilities). Keep it true when one of those changes.
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all nine suites
+make test              # dune runtest -f, all ten suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -35,7 +35,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
 runner, the suites being `html`, `css`, `js`, `layout`, `browser`,
-`network`, `network_unix`, `tools`, `images`):
+`network`, `network_unix`, `tools`, `images`, `xml`):
 
 ```bash
 dune build @tests/css/runtest --force
@@ -141,7 +141,7 @@ Each folder is one dune library, listed in the README in dependency
 order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
-css, javascript, json) → `libs/` (gui, richtext,
+xml, css, javascript, json) → `libs/` (gui, richtext,
 typeset, network, images) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`). `tools/` has the small programs beside the

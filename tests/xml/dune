@@ -1,0 +1,5 @@
+; unit tests for languages/xml, run by 'make test' (dune runtest):
+; Xml.mli's worked example, on strings
+(test
+ (name Test)
+ (libraries alcotest testo mini_dom lang_xml))

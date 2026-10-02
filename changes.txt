@@ -111,6 +111,10 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- XML has its own reader, languages/xml (Xml, out of elm-playground's
+  Svg: text kept, CDATA, a DOCTYPE's own declarations skipped;
+  forgiving), read into a Dom as HTML is, its interface telling SGML,
+  the draconian rule, JSON
 - one tree for the languages: Dom moved from languages/html to a
   library of its own, libs/dom, under them; CSS, which matches on it,
   no longer depends on the HTML library

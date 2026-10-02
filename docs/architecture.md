@@ -8,7 +8,8 @@ is about the shape of the running program.
 ## One program, three layers
 
 ```
-languages/   html, css, javascript, json      text in, values out; no window
+languages/   html, xml, css, javascript,      text in, values out; no window
+             json
 libs/        dom, gui, richtext, typeset,     general, not a browser's
              network, images
 src/         url, layout, display, www, dom,  the browser, by role

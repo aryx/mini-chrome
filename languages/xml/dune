@@ -1,0 +1,9 @@
+; XML read into a tree (Xml; a Dom, as HTML is): elements, attributes and text, as far as
+; the web's XML files need -- an SVG picture today (libs/images' Svg),
+; a feed or an answer to XMLHttpRequest tomorrow. No DTD, no
+; namespaces resolved, and forgiving where XML is not. Pure OCaml,
+; text in and a tree out.
+(library
+ (name lang_xml)
+ (wrapped false)
+ (libraries mini_dom)) ; Dom: what a file is read into
