@@ -11,6 +11,7 @@
    lang_html lang_css browser_layout
    appkit_richtext ; Style, the pen's look
    tiny_libs.graphics_font ; Hershey
-   tiny_libs.graphics_rgba tiny_libs.graphics_png tiny_libs.graphics_gif
+   tiny_libs.graphics_rgba tiny_libs.graphics_gif
    tiny_libs.graphics_jpeg
-   mini_images)) ; Webp, Svg
+   images) ; Png, Webp, Svg (ours, not the Playground's Png: the flag below)
+ (flags (:standard -open Images)))

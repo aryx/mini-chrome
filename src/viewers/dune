@@ -10,7 +10,9 @@
    lang_html browser_layout browser_url browser_display browser_www
    tiny_libs.audio tiny_libs.audio_signal tiny_libs.audio_wav tiny_libs.audio_midi
    tiny_libs.audio_abc tiny_libs.audio_mod tiny_libs.audio_mpeg
-   tiny_libs.graphics_rgba tiny_libs.graphics_png tiny_libs.graphics_gif
+   tiny_libs.graphics_rgba tiny_libs.graphics_gif
    tiny_libs.graphics_jpeg tiny_libs.graphics_xpm
    tiny_libs.graphics_movie tiny_libs.graphics_y4m tiny_libs.graphics_fli
-   tiny_libs.graphics_avi tiny_libs.graphics_mpeg1 tiny_libs.graphics_mpeg_system))
+   tiny_libs.graphics_avi tiny_libs.graphics_mpeg1 tiny_libs.graphics_mpeg_system
+   images) ; Png (ours: the flag below)
+ (flags (:standard -open Images)))

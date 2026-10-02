@@ -98,13 +98,14 @@ libs/compression      Brotli, the web's own compression (Content-
                       Encoding: br), decoded, with its dictionary of
                       the web's words; gzip and Zstandard are
                       elm-playground's
-libs/images           the two picture formats born of the web. WebP
-                      decoded: the file's chunks (Webp), the lossless
-                      format (Vp8l), the lossy one, a key frame of the
-                      VP8 video codec (Vp8). SVG made pixels (Svg:
-                      paths, shapes, fills and strokes; from an
-                      <svg> of a page or a file, one tree). GIF,
-                      PNG and JPEG are elm-playground's
+libs/images           the picture formats born of the web. PNG (Png:
+                      filters, DEFLATE, Adam7). WebP: the file's
+                      chunks (Webp), the lossless format (Vp8l), the
+                      lossy one, a key frame of the VP8 video codec
+                      (Vp8). SVG made pixels (Svg: paths, shapes,
+                      fills and strokes; from an <svg> of a page or a
+                      file, one tree). GIF and JPEG are
+                      elm-playground's
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style), text laid out on pages

@@ -1,16 +1,25 @@
-; pictures' formats decoded, the two born of the web: WebP (Webp: the
+; pictures' formats decoded, the three born of the web or for it: PNG
+; (Png: made on the net in 1995 to replace GIF, the W3C's own),
+; SVG (Svg: a drawing read and made pixels) -- both elm-playground's,
+; copied to be told here and to grow -- and WebP (Webp: the
 ; container; Vp8l: the lossless format; Vp8: the lossy one, a frame of
-; the VP8 video codec) and SVG (Svg: a drawing read and made pixels;
-; elm-playground's, copied to be told here and to grow). The older
-; formats (GIF, PNG, JPEG) came to the web from outside and stay
-; elm-playground's. Pure OCaml, bytes in and pixels out.
+; the VP8 video codec). The older formats (GIF, JPEG) came to the web
+; from outside and stay elm-playground's. Pure OCaml, bytes in and
+; pixels out.
+;
+; Wrapped, as Images (and as libs/network is, for the same reason):
+; the Playground itself reads and writes PNG (a texture, a frame
+; dumped) with tiny_libs' Png, and two modules Png in one program
+; would not link. Never written, though: the libraries using it say
+; (flags (:standard -open Images)), and their code Png.decode,
+; Webp.decode, ours.
 (library
- (name mini_images)
- (wrapped false)
+ (name images)
+ (wrapped true)
  (libraries
    tiny_libs.graphics_rgba ; Rgba_image: the pixels given back
    mini_dom lang_xml ; Dom, Xml: a drawing is a document, an SVG file read
-   tiny_libs.compression ; Huffman: the lossless format's prefix codes
+   tiny_libs.compression ; Huffman: WebP's prefix codes; Inflate, Deflate: PNG's pixels
    ; Svg's: polygons filled and stroked (Fill, Stroke, Framebuffer),
    ; curves made lines and transforms composed (Curve, Affine)
    tiny_libs.graphics_core tiny_libs.graphics_2d tiny_libs.graphics_2d_geometry))

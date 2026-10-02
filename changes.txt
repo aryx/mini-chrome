@@ -111,6 +111,9 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- PNG is the browser's own too, copied from elm-playground to be
+  told here: Png in libs/images (now wrapped, as libs/network: the
+  Playground links its own Png), with PngSuite
 - Brotli is the browser's own: Brotli, Brotli_dictionary and the
   dictionary (in the binary) in a new libs/compression, copied from
   elm-playground to be told here. Needs elm-playground after 0.3.4,

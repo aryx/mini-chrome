@@ -1,8 +1,10 @@
 ; the tests of libs/images, run by 'make test': WebP files written by
 ; the reference library (data/make.py says how) decoded and compared
-; with the PNG of what that library reads back from each; and Svg's
-; worked examples, from strings.
+; with the PNG of what that library reads back from each; Svg's
+; worked examples, from strings; Png's, and PngSuite's pictures.
 (test
  (name Test)
- (deps (glob_files data/*.webp) (glob_files data/*.png))
- (libraries alcotest testo mini_dom mini_images tiny_libs.graphics_rgba tiny_libs.graphics_png))
+ (deps (glob_files data/*.webp) (glob_files data/*.png)
+       (source_tree pngsuite)) ; Willem van Schaik's PngSuite, a subset
+ (libraries alcotest testo mini_dom images tiny_libs.graphics_rgba)
+ (flags (:standard -open Images)))

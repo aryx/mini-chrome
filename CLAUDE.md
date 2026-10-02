@@ -410,7 +410,8 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   `libs/network`. `libs/images` has the picture formats: WebP
   (`Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
   against libwebp's output in `tests/images`, whose `data/make.py`
-  made the files) and SVG (`Svg`, a copy). GIF, PNG and JPEG stay
+  made the files), SVG (`Svg`) and PNG (`Png`, with PngSuite in
+  `tests/images/pngsuite`), the last two copies. GIF and JPEG stay
   `tiny_libs`', and so does what `Svg` draws with (`graphics/2d`).
   An SVG file is read by `languages/xml`'s `Xml` into a `Dom`, the
   tree of an `<svg>` written in a page: `Svg` draws a `Dom.element`,
@@ -420,7 +421,9 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   Zstandard and `Huffman` stay `tiny_libs.compression`'s.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
-  Brotli was in
+  The Playground itself links `tiny_libs`' `Png` (textures, a frame
+  dumped), so `libs/images` is wrapped (`Images`), as `libs/network`,
+  and its users say `(flags (:standard -open Images))`. Brotli was in
   `tiny_libs.compression`, which we link for the rest: elm-playground
   after 0.3.4 has it in a library of its own
   (`tiny_libs.compression_brotli`, not linked here), and mini-chrome
