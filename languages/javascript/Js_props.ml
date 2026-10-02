@@ -1,0 +1,129 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Js_props.mli *)
+open Js_value
+
+(* the array index a key names, if it is one: "3", not "03" nor "-1" *)
+let index_of_key (k : string) : int option =
+  match int_of_string_opt k with Some i when i >= 0 && string_of_int i = k -> Some i | _ -> None
+
+let key_of (v : value) : string = match v with Number f when Float.is_integer f && f >= 0. -> Printf.sprintf "%.0f" f | v -> to_string v
+
+(* an object's prototype: its own, else its kind's (an array's
+ * Array.prototype...), Object.prototype last, and nothing after it *)
+let proto_of (ps : Js_builtins.protos) (o : obj) : obj option =
+  match o.proto with
+  | Some p -> Some p
+  | None -> (
+      let p = ps in
+      if o == p.objects then None
+      else
+        match o.kind with
+        | Array _ -> Some p.arrays
+        | Closure _ | Host_function _ -> Some p.functions
+        | Regexp _ -> Some p.regexps
+        | Host_object _ | Accessor _ -> None
+        | Plain -> Some p.objects)
+
+(* a property: the object's own, else up its prototypes' chain; a
+ * function's prototype made when first asked for, {constructor: f} *)
+let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
+  match get_own o k with
+  | Some v -> v
+  | None -> (
+      match (o.kind, k) with
+      | Closure _, "prototype" ->
+          let p = new_object () in
+          set_own p "constructor" (Object o);
+          set_own o "prototype" (Object p);
+          Object p
+      | Host_object h, _ -> h.get k
+      | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
+
+let get (ps : Js_builtins.protos) (target : value) (k : string) : value =
+  match target with
+  | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
+  | String s -> (
+      match (k, index_of_key k) with
+      | "length", _ -> Number (float_of_int (String.length s))
+      | _, Some i -> if i < String.length s then String (String.make 1 s.[i]) else Undefined
+      | _ -> from_chain ps ps.strings k)
+  | Object ({ kind = Array a; _ } as o) -> (
+      match (k, index_of_key k) with
+      | "length", _ -> Number (float_of_int a.length)
+      | _, Some i -> if i < a.length then a.elements.(i) else Undefined
+      | _ -> from_chain ps o k)
+  | Object { kind = Host_object h; _ } -> h.get k
+  | Object o -> from_chain ps o k
+  | Number _ -> from_chain ps ps.numbers k
+  | Bool _ -> Undefined
+
+(* whether an object has a property, its own or its prototypes': k in o *)
+let rec has (ps : Js_builtins.protos) (o : obj) (k : string) : bool =
+  get_own o k <> None
+  ||
+  match o.kind with
+  | Array a -> k = "length" || (match index_of_key k with Some i -> i < a.length | None -> false) || inherited ps o k
+  | Host_object h -> h.get k <> Undefined
+  | _ -> inherited ps o k
+
+and inherited (ps : Js_builtins.protos) (o : obj) (k : string) : bool = match proto_of ps o with Some p -> has ps p k | None -> false
+
+(* the keys for (k in v) goes through: an array's indices, a string's;
+ * an object's own, in the order they were set, then those of the
+ * prototypes it was given (not the built-in ones', whose methods do
+ * not show; nor a prototype's "constructor") *)
+let enumerable_keys (v : value) : string list =
+  let rec chain (o : obj) (seen : string list) : string list =
+    let own = List.filter (fun k -> not (List.mem k seen)) (keys o) in
+    own @ match o.proto with Some p -> List.filter (( <> ) "constructor") (chain p (seen @ own)) | None -> []
+  in
+  match v with
+  | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ chain o []
+  | Object { kind = Host_object _; _ } -> []
+  | Object o -> chain o []
+  | String s -> List.init (String.length s) string_of_int
+  | _ -> []
+
+(* whether F's prototype is in v's chain: v instanceof F *)
+let instance_of (ps : Js_builtins.protos) (v : value) (f : value) : bool =
+  match (v, get ps f "prototype") with
+  | Object o, Object p ->
+      let rec up (x : obj) = match proto_of ps x with Some q -> q == p || up q | None -> false in
+      up o
+  | _ -> false
+
+let set (target : value) (k : string) (v : value) : unit =
+  match target with
+  | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot set properties of %s (setting '%s')" (to_string target) k)
+  | Object ({ kind = Array a; _ } as o) -> (
+      let grow n =
+        if n > Array.length a.elements then (
+          let bigger = Array.make (max n (2 * Array.length a.elements)) Undefined in
+          Array.blit a.elements 0 bigger 0 a.length;
+          a.elements <- bigger)
+      in
+      match (k, index_of_key k) with
+      | "length", _ ->
+          let n = int_of_float (to_number v) in
+          grow n;
+          for i = a.length to n - 1 do a.elements.(i) <- Undefined done;
+          a.length <- n
+      | _, Some i ->
+          grow (i + 1);
+          for j = a.length to i - 1 do a.elements.(j) <- Undefined done;
+          a.elements.(i) <- v;
+          a.length <- max a.length (i + 1)
+      | _ -> set_own o k v)
+  | Object { kind = Host_object h; _ } -> h.set k v
+  | Object o -> set_own o k v
+  (* a property of a primitive: lost, as JavaScript loses it *)
+  | Bool _ | Number _ | String _ -> ()

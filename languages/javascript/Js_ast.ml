@@ -18,7 +18,7 @@ type expr =
   | Name of string
   | This
   | Array of expr list
-  | Object of (string * expr) list
+  | Object of property list
   | Function of func
   | Unary of string * expr
   | Update of string * bool * expr
@@ -32,19 +32,28 @@ type expr =
   | New of expr * expr list
   | Regex of string * string
   | Comma of expr * expr (* a, b: a for what it does, b's value *)
+  | Template of string list * expr list
+  | Spread of expr
 
-and func = { name : string option; params : string list; body : stmt list; arrow : bool }
+and func = { name : string option; params : (pattern * expr option) list; rest : pattern option; body : stmt list; arrow : bool }
+and property = Prop of key * expr | Getter of key * func | Setter of key * func | Spread_prop of expr
+and key = Key of string | Computed of expr
+
+and pattern =
+  | Bind of string
+  | Object_pattern of (key * pattern * expr option) list * pattern option
+  | Array_pattern of (pattern * expr option) option list * pattern option
 and stmt = { line : int; stmt : statement }
 
 and statement =
   | Expr of expr
-  | Let of let_kind * (string * expr option) list
+  | Let of let_kind * (pattern * expr option) list
   | Function_decl of func
   | Return of expr option
   | If of expr * stmt * stmt option
   | While of expr * stmt
   | For of stmt option * expr option * expr option * stmt
-  | For_of of let_kind * string * expr * stmt
+  | For_of of let_kind * pattern * expr * stmt
   (* for (var k in o), for (k in o), for (o.k in o) *)
   | For_in of for_target * expr * stmt
   | Do_while of stmt * expr
@@ -100,9 +109,19 @@ let rec expr_to_string (e : expr) : string =
   | Name x -> x
   | This -> "this"
   | Array es -> p "[%s]" (list expr_to_string es)
-  | Object kvs -> p "{%s}" (list (fun (k, v) -> k ^ ": " ^ expr_to_string v) kvs)
-  | Function { arrow = true; params; body = [ { stmt = Return (Some e); _ } ]; _ } ->
-      p "(%s) => %s" (String.concat ", " params) (expr_to_string e)
+  | Object props ->
+      p "{%s}"
+        (list
+           (fun pr ->
+             match pr with
+             | Prop (k, v) -> key_to_string k ^ ": " ^ expr_to_string v
+             | Getter (k, f) -> "get " ^ key_to_string k ^ ": " ^ func_to_string f
+             | Setter (k, f) -> "set " ^ key_to_string k ^ ": " ^ func_to_string f
+             | Spread_prop e -> "..." ^ expr_to_string e)
+           props)
+  | Function { arrow = true; params; rest = None; body = [ { stmt = Return (Some e); _ } ]; _ } ->
+      p "(%s) => %s" (list param_to_string params) (expr_to_string e)
+  | Spread e -> "..." ^ expr_to_string e
   | Function f -> func_to_string f
   | Unary (("typeof" as op), e) -> p "(%s %s)" op (expr_to_string e)
   | Unary (op, e) -> p "(%s%s)" op (expr_to_string e)
@@ -116,12 +135,28 @@ let rec expr_to_string (e : expr) : string =
   | New (f, args) -> p "(new %s(%s))" (expr_to_string f) (list expr_to_string args)
   | Regex (r, f) -> p "/%s/%s" r f
   | Comma (a, b) -> p "(%s, %s)" (expr_to_string a) (expr_to_string b)
+  | Template (strings, es) -> p "`%s`" (String.concat "${}" strings) ^ if es = [] then "" else p " [%s]" (list expr_to_string es)
+
+and key_to_string (k : key) : string = match k with Key k -> k | Computed e -> "[" ^ expr_to_string e ^ "]"
+
+and pattern_to_string (pt : pattern) : string =
+  let rest r = match r with Some r -> [ "..." ^ pattern_to_string r ] | None -> [] in
+  match pt with
+  | Bind x -> x
+  | Object_pattern (parts, r) ->
+      "{" ^ String.concat ", " (List.map (fun (k, pt, d) -> key_to_string k ^ ": " ^ param_to_string (pt, d)) parts @ rest r) ^ "}"
+  | Array_pattern (parts, r) ->
+      "[" ^ String.concat ", " (List.map (fun part -> match part with Some part -> param_to_string part | None -> "") parts @ rest r) ^ "]"
+
+and param_to_string ((pt, default) : pattern * expr option) : string =
+  pattern_to_string pt ^ match default with Some d -> " = " ^ expr_to_string d | None -> ""
 
 and func_to_string (f : func) : string =
   Printf.sprintf "%s%s [%s] [%s]"
     (if f.arrow then "Arrow" else "Function")
     (match f.name with Some n -> " " ^ n | None -> "")
-    (String.concat "; " f.params) (body_to_string f.body)
+    (String.concat "; " (List.map param_to_string f.params @ match f.rest with Some r -> [ "..." ^ pattern_to_string r ] | None -> []))
+    (body_to_string f.body)
 
 and body_to_string (body : stmt list) : string = String.concat "; " (List.map stmt_to_string body)
 
@@ -132,7 +167,7 @@ and stmt_to_string (s : stmt) : string =
   match s.stmt with
   | Expr x -> "Expr " ^ e x
   | Let (k, decls) ->
-      kind_to_string k ^ " " ^ list (fun (x, init) -> match init with Some v -> x ^ " " ^ e v | None -> x) decls
+      kind_to_string k ^ " " ^ list (fun (x, init) -> match init with Some v -> pattern_to_string x ^ " " ^ e v | None -> pattern_to_string x) decls
   | Function_decl f -> func_to_string f
   | Return None -> "Return"
   | Return (Some x) -> "Return " ^ e x
@@ -141,7 +176,7 @@ and stmt_to_string (s : stmt) : string =
   | While (c, b) -> p "While (%s, %s)" (e c) (stmt_to_string b)
   | For (init, test, update, b) ->
       p "For (%s, %s, %s, %s)" (opt stmt_to_string init) (opt e test) (opt e update) (stmt_to_string b)
-  | For_of (k, x, xs, b) -> p "For_of (%s %s, %s, %s)" (kind_to_string k) x (e xs) (stmt_to_string b)
+  | For_of (k, x, xs, b) -> p "For_of (%s %s, %s, %s)" (kind_to_string k) (pattern_to_string x) (e xs) (stmt_to_string b)
   | For_in (Declared (k, x), o, b) -> p "For_in (%s %s, %s, %s)" (kind_to_string k) x (e o) (stmt_to_string b)
   | For_in (Target x, o, b) -> p "For_in (%s, %s, %s)" (e x) (e o) (stmt_to_string b)
   | Do_while (b, c) -> p "Do_while (%s, %s)" (stmt_to_string b) (e c)

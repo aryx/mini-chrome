@@ -1,0 +1,74 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Js_operators.mli *)
+open Js_value
+
+(* ==: the same as === for the same kinds; null and undefined equal
+ * each other only; else numbers compared, a string or a boolean made
+ * one, an object its primitive (ECMA-262 5.1, 11.9.3) *)
+let rec loose_equal (a : value) (b : value) : bool =
+  match (a, b) with
+  | (Undefined | Null), (Undefined | Null) -> true
+  | (Undefined | Null), _ | _, (Undefined | Null) -> false
+  | Number _, Number _ | String _, String _ | Bool _, Bool _ | Object _, Object _ -> strict_equal a b
+  | Number x, String _ -> x = to_number b
+  | String _, Number y -> to_number a = y
+  | Bool _, _ -> loose_equal (Number (to_number a)) b
+  | _, Bool _ -> loose_equal a (Number (to_number b))
+  | Object _, _ -> loose_equal (to_primitive a) b
+  | _, Object _ -> loose_equal a (to_primitive b)
+
+(* a number as the 32 bits the bitwise operators work on: its integer
+ * part, modulo 2^32 (NaN and the infinities: 0) *)
+let to_int32 (v : value) : int32 =
+  let f = to_number v in
+  if Float.is_nan f || Float.abs f = Float.infinity then 0l
+  else Int64.to_int32 (Int64.of_float (Float.rem (Float.trunc f) 4294967296.))
+
+let of_int32 (i : int32) : value = Number (Int32.to_float i)
+
+let arithmetic (op : string) (a : value) (b : value) : value =
+  match op with
+  | "+" -> (
+      match (to_primitive a, to_primitive b) with
+      | (String _ as x), y | x, (String _ as y) -> String (to_string x ^ to_string y)
+      | x, y -> Number (to_number x +. to_number y))
+  | "-" -> Number (to_number a -. to_number b)
+  | "*" -> Number (to_number a *. to_number b)
+  | "/" -> Number (to_number a /. to_number b)
+  | "%" -> Number (Float.rem (to_number a) (to_number b))
+  | "**" -> Number (Float.pow (to_number a) (to_number b))
+  (* the bits: both sides made 32-bit integers, the answer one too; a
+   * shift's count is its low five bits; >>> fills with zeros, so its
+   * answer is not negative *)
+  | "&" -> of_int32 (Int32.logand (to_int32 a) (to_int32 b))
+  | "|" -> of_int32 (Int32.logor (to_int32 a) (to_int32 b))
+  | "^" -> of_int32 (Int32.logxor (to_int32 a) (to_int32 b))
+  | "<<" -> of_int32 (Int32.shift_left (to_int32 a) (Int32.to_int (to_int32 b) land 31))
+  | ">>" -> of_int32 (Int32.shift_right (to_int32 a) (Int32.to_int (to_int32 b) land 31))
+  | ">>>" ->
+      Number (Int64.to_float (Int64.logand (Int64.of_int32 (Int32.shift_right_logical (to_int32 a) (Int32.to_int (to_int32 b) land 31))) 0xFFFFFFFFL))
+  | "<" | ">" | "<=" | ">=" -> (
+      let cmp =
+        match (to_primitive a, to_primitive b) with
+        | String x, String y -> Some (compare x y)
+        | x, y ->
+            let x = to_number x and y = to_number y in
+            if Float.is_nan x || Float.is_nan y then None else Some (compare x y)
+      in
+      match cmp with
+      | None -> Bool false
+      | Some c -> Bool (match op with "<" -> c < 0 | ">" -> c > 0 | "<=" -> c <= 0 | _ -> c >= 0))
+  | "===" -> Bool (strict_equal a b)
+  | "!==" -> Bool (not (strict_equal a b))
+  | "==" -> Bool (loose_equal a b)
+  | "!=" -> Bool (not (loose_equal a b))
+  | _ -> throw "SyntaxError" ("unknown operator " ^ op)

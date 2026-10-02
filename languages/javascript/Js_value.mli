@@ -52,6 +52,11 @@ and kind =
   | Host_function of string * (this:value -> value list -> value) (* its name, and it *)
   | Host_object of host
   | Regexp of Js_regexp.t (* a regular expression (its lastIndex a property) *)
+  (* not an object a script sees: what a property is when it is a
+   * getter and a setter ({ get k() { } }, Object.defineProperty): the
+   * two functions, undefined for the one it has not. Reading the
+   * property calls the first, assigning to it the second (Js_eval) *)
+  | Accessor of value * value
 
 (* an object whose properties are the host's functions: reading one
  * calls [get], writing one [set] (the spec's getters and setters) --

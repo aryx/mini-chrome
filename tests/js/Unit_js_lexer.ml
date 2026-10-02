@@ -44,6 +44,7 @@ let tests =
       Testo.create "mistakes, on their line" (fun () ->
           Alcotest.(check (pair int string)) "a string not closed" (2, "a string never closed on its line") (error "x\n'abc\ny'");
           Alcotest.(check int) "a comment not closed: its first line" 1 (fst (error "/* a\nb"));
-          Alcotest.(check int) "a template literal" 1 (fst (error "`a`"));
+          Alcotest.(check (pair int string)) "a template not closed" (2, "a template never closed") (error "x\n`abc");
+          Alcotest.(check string) "a template's ${ } not closed" "a template's ${ never closed" (snd (error "`a${b + (c"));
           Alcotest.(check int) "#" 3 (fst (error "a\nb\n#")));
     ]

@@ -20,6 +20,7 @@ and kind =
   | Host_function of string * (this:value -> value list -> value)
   | Host_object of host
   | Regexp of Js_regexp.t
+  | Accessor of value * value
 
 and host = { class_name : string; get : string -> value; set : string -> value -> unit; show : unit -> string }
 

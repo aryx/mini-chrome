@@ -81,6 +81,14 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript, the language since 2015: template literals (their ${ }
+  lexed as any expression), destructuring in declarations, parameters,
+  for-of and assignments ({ a, b: c = 1, ...rest }, [x, , y]),
+  default and rest parameters, spread in arrays, calls and objects,
+  an object literal's short forms (a name alone, a method, a computed
+  key), getters and setters. Js_eval's properties and operators in
+  modules of their own (Js_props, Js_operators). Ten of the twelve
+  real scripts now parse (docs/sites.md)
 - a field inside an inline-block can be clicked and typed into (Hit:
   the inline-block's room on its line hid what it holds): Google's
   search box. A search there then goes through its consent page (a

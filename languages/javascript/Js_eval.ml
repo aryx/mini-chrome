@@ -53,188 +53,14 @@ let copy_scope (s : scope) : scope =
 
 let protos (t : t) : Js_builtins.protos = Option.get t.protos
 
-(* the array index a key names, if it is one: "3", not "03" nor "-1" *)
-let index_of_key (k : string) : int option =
-  match int_of_string_opt k with Some i when i >= 0 && string_of_int i = k -> Some i | _ -> None
+(* an object's properties and the operators are Js_props' and
+ * Js_operators'; here with the interpreter's prototypes *)
+let has (t : t) = Js_props.has (protos t)
+let instance_of (t : t) = Js_props.instance_of (protos t)
+let key_of = Js_props.key_of
+let enumerable_keys = Js_props.enumerable_keys
 
-let key_of (v : value) : string = match v with Number f when Float.is_integer f && f >= 0. -> Printf.sprintf "%.0f" f | v -> to_string v
-
-(* an object's prototype: its own, else its kind's (an array's
- * Array.prototype...), Object.prototype last, and nothing after it *)
-let proto_of (t : t) (o : obj) : obj option =
-  match o.proto with
-  | Some p -> Some p
-  | None -> (
-      let p = protos t in
-      if o == p.objects then None
-      else
-        match o.kind with
-        | Array _ -> Some p.arrays
-        | Closure _ | Host_function _ -> Some p.functions
-        | Regexp _ -> Some p.regexps
-        | Host_object _ -> None
-        | Plain -> Some p.objects)
-
-(* a property: the object's own, else up its prototypes' chain; a
- * function's prototype made when first asked for, {constructor: f} *)
-let rec from_chain (t : t) (o : obj) (k : string) : value =
-  match get_own o k with
-  | Some v -> v
-  | None -> (
-      match (o.kind, k) with
-      | Closure _, "prototype" ->
-          let p = new_object () in
-          set_own p "constructor" (Object o);
-          set_own o "prototype" (Object p);
-          Object p
-      | Host_object h, _ -> h.get k
-      | _ -> ( match proto_of t o with Some p -> from_chain t p k | None -> Undefined))
-
-let get (t : t) (target : value) (k : string) : value =
-  match target with
-  | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
-  | String s -> (
-      match (k, index_of_key k) with
-      | "length", _ -> Number (float_of_int (String.length s))
-      | _, Some i -> if i < String.length s then String (String.make 1 s.[i]) else Undefined
-      | _ -> from_chain t (protos t).strings k)
-  | Object ({ kind = Array a; _ } as o) -> (
-      match (k, index_of_key k) with
-      | "length", _ -> Number (float_of_int a.length)
-      | _, Some i -> if i < a.length then a.elements.(i) else Undefined
-      | _ -> from_chain t o k)
-  | Object { kind = Host_object h; _ } -> h.get k
-  | Object o -> from_chain t o k
-  | Number _ -> from_chain t (protos t).numbers k
-  | Bool _ -> Undefined
-
-(* whether an object has a property, its own or its prototypes': k in o *)
-let rec has (t : t) (o : obj) (k : string) : bool =
-  get_own o k <> None
-  ||
-  match o.kind with
-  | Array a -> k = "length" || (match index_of_key k with Some i -> i < a.length | None -> false) || inherited t o k
-  | Host_object h -> h.get k <> Undefined
-  | _ -> inherited t o k
-
-and inherited (t : t) (o : obj) (k : string) : bool = match proto_of t o with Some p -> has t p k | None -> false
-
-(* the keys for (k in v) goes through: an array's indices, a string's;
- * an object's own, in the order they were set, then those of the
- * prototypes it was given (not the built-in ones', whose methods do
- * not show; nor a prototype's "constructor") *)
-let enumerable_keys (v : value) : string list =
-  let rec chain (o : obj) (seen : string list) : string list =
-    let own = List.filter (fun k -> not (List.mem k seen)) (keys o) in
-    own @ match o.proto with Some p -> List.filter (( <> ) "constructor") (chain p (seen @ own)) | None -> []
-  in
-  match v with
-  | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ chain o []
-  | Object { kind = Host_object _; _ } -> []
-  | Object o -> chain o []
-  | String s -> List.init (String.length s) string_of_int
-  | _ -> []
-
-(* whether F's prototype is in v's chain: v instanceof F *)
-let instance_of (t : t) (v : value) (f : value) : bool =
-  match (v, get t f "prototype") with
-  | Object o, Object p ->
-      let rec up (x : obj) = match proto_of t x with Some q -> q == p || up q | None -> false in
-      up o
-  | _ -> false
-
-(* ==: the same as === for the same kinds; null and undefined equal
- * each other only; else numbers compared, a string or a boolean made
- * one, an object its primitive (ECMA-262 5.1, 11.9.3) *)
-let rec loose_equal (a : value) (b : value) : bool =
-  match (a, b) with
-  | (Undefined | Null), (Undefined | Null) -> true
-  | (Undefined | Null), _ | _, (Undefined | Null) -> false
-  | Number _, Number _ | String _, String _ | Bool _, Bool _ | Object _, Object _ -> strict_equal a b
-  | Number x, String _ -> x = to_number b
-  | String _, Number y -> to_number a = y
-  | Bool _, _ -> loose_equal (Number (to_number a)) b
-  | _, Bool _ -> loose_equal a (Number (to_number b))
-  | Object _, _ -> loose_equal (to_primitive a) b
-  | _, Object _ -> loose_equal a (to_primitive b)
-
-let set (target : value) (k : string) (v : value) : unit =
-  match target with
-  | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot set properties of %s (setting '%s')" (to_string target) k)
-  | Object ({ kind = Array a; _ } as o) -> (
-      let grow n =
-        if n > Array.length a.elements then (
-          let bigger = Array.make (max n (2 * Array.length a.elements)) Undefined in
-          Array.blit a.elements 0 bigger 0 a.length;
-          a.elements <- bigger)
-      in
-      match (k, index_of_key k) with
-      | "length", _ ->
-          let n = int_of_float (to_number v) in
-          grow n;
-          for i = a.length to n - 1 do a.elements.(i) <- Undefined done;
-          a.length <- n
-      | _, Some i ->
-          grow (i + 1);
-          for j = a.length to i - 1 do a.elements.(j) <- Undefined done;
-          a.elements.(i) <- v;
-          a.length <- max a.length (i + 1)
-      | _ -> set_own o k v)
-  | Object { kind = Host_object h; _ } -> h.set k v
-  | Object o -> set_own o k v
-  (* a property of a primitive: lost, as JavaScript loses it *)
-  | Bool _ | Number _ | String _ -> ()
-
-(*****************************************************************************)
-(* Operators *)
-(*****************************************************************************)
-
-(* a number as the 32 bits the bitwise operators work on: its integer
- * part, modulo 2^32 (NaN and the infinities: 0) *)
-let to_int32 (v : value) : int32 =
-  let f = to_number v in
-  if Float.is_nan f || Float.abs f = Float.infinity then 0l
-  else Int64.to_int32 (Int64.of_float (Float.rem (Float.trunc f) 4294967296.))
-
-let of_int32 (i : int32) : value = Number (Int32.to_float i)
-
-let arithmetic (op : string) (a : value) (b : value) : value =
-  match op with
-  | "+" -> (
-      match (to_primitive a, to_primitive b) with
-      | (String _ as x), y | x, (String _ as y) -> String (to_string x ^ to_string y)
-      | x, y -> Number (to_number x +. to_number y))
-  | "-" -> Number (to_number a -. to_number b)
-  | "*" -> Number (to_number a *. to_number b)
-  | "/" -> Number (to_number a /. to_number b)
-  | "%" -> Number (Float.rem (to_number a) (to_number b))
-  | "**" -> Number (Float.pow (to_number a) (to_number b))
-  (* the bits: both sides made 32-bit integers, the answer one too; a
-   * shift's count is its low five bits; >>> fills with zeros, so its
-   * answer is not negative *)
-  | "&" -> of_int32 (Int32.logand (to_int32 a) (to_int32 b))
-  | "|" -> of_int32 (Int32.logor (to_int32 a) (to_int32 b))
-  | "^" -> of_int32 (Int32.logxor (to_int32 a) (to_int32 b))
-  | "<<" -> of_int32 (Int32.shift_left (to_int32 a) (Int32.to_int (to_int32 b) land 31))
-  | ">>" -> of_int32 (Int32.shift_right (to_int32 a) (Int32.to_int (to_int32 b) land 31))
-  | ">>>" ->
-      Number (Int64.to_float (Int64.logand (Int64.of_int32 (Int32.shift_right_logical (to_int32 a) (Int32.to_int (to_int32 b) land 31))) 0xFFFFFFFFL))
-  | "<" | ">" | "<=" | ">=" -> (
-      let cmp =
-        match (to_primitive a, to_primitive b) with
-        | String x, String y -> Some (compare x y)
-        | x, y ->
-            let x = to_number x and y = to_number y in
-            if Float.is_nan x || Float.is_nan y then None else Some (compare x y)
-      in
-      match cmp with
-      | None -> Bool false
-      | Some c -> Bool (match op with "<" -> c < 0 | ">" -> c > 0 | "<=" -> c <= 0 | _ -> c >= 0))
-  | "===" -> Bool (strict_equal a b)
-  | "!==" -> Bool (not (strict_equal a b))
-  | "==" -> Bool (loose_equal a b)
-  | "!=" -> Bool (not (loose_equal a b))
-  | _ -> throw "SyntaxError" ("unknown operator " ^ op)
+open Js_operators
 
 (* "x", "o.m": what a TypeError names *)
 let rec describe (e : A.expr) : string =
@@ -250,6 +76,14 @@ let rec describe (e : A.expr) : string =
 (* Expressions *)
 (*****************************************************************************)
 
+(* what a for-of, a ...spread or an array pattern goes through: an
+ * array's items, a string's characters *)
+let items_of (v : value) : value list =
+  match v with
+  | Object ({ kind = Array _; _ } as o) -> array_items o
+  | String str -> List.init (String.length str) (fun i -> String (String.make 1 str.[i]))
+  | v -> throw "TypeError" (display v ^ " is not iterable")
+
 let tick (t : t) : unit =
   t.steps <- t.steps - 1;
   if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)"
@@ -263,10 +97,32 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | This -> this
   | Name x -> (
       match lookup s x with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined"))
-  | Array es -> Object (new_array (List.map (eval_expr t s this) es))
-  | Object kvs ->
+  | Array es -> Object (new_array (eval_list t s this es))
+  | Spread _ -> throw "SyntaxError" "... is for an array's items or a call's arguments"
+  | Object props ->
       let o = new_object () in
-      List.iter (fun (k, v) -> set_own o k (eval_expr t s this v)) kvs;
+      let key (k : A.key) = match k with Key k -> k | Computed e -> key_of (eval_expr t s this e) in
+      (* get k() and set k(v) of the same k are one property *)
+      let accessor k ~getter ~setter =
+        let g, st = match get_own o k with Some (Object { kind = Accessor (g, st); _ }) -> (g, st) | _ -> (Undefined, Undefined) in
+        set_own o k (Object { (new_object ()) with kind = Accessor (Option.value getter ~default:g, Option.value setter ~default:st) })
+      in
+      List.iter
+        (fun (pr : A.property) ->
+          match pr with
+          | Prop (k, v) -> set_own o (key k) (eval_expr t s this v)
+          | Getter (k, f) -> accessor (key k) ~getter:(Some (closure s this f)) ~setter:None
+          | Setter (k, f) -> accessor (key k) ~getter:None ~setter:(Some (closure s this f))
+          (* ...o: its own properties, copied *)
+          | Spread_prop e -> (
+              match eval_expr t s this e with
+              | Object ({ kind = Array a; _ } as src) ->
+                  Array.iteri (fun i v -> if i < a.length then set_own o (string_of_int i) v) a.elements;
+                  List.iter (fun k -> set_own o k (get t (Object src) k)) (keys src)
+              | Object src -> List.iter (fun k -> set_own o k (get t (Object src) k)) (keys src)
+              | String str -> String.iteri (fun i c -> set_own o (string_of_int i) (String (String.make 1 c))) str
+              | _ -> ()))
+        props;
       Object o
   | Function f -> closure s this f
   | Unary (op, x) -> (
@@ -302,6 +158,11 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       | Object o -> Bool (has t o k)
       | v -> throw "TypeError" (Printf.sprintf "Cannot use 'in' operator to search for '%s' in %s" k (display v)))
   | Comma (a, b) -> ignore (eval_expr t s this a); eval_expr t s this b
+  (* `a${x}b`: the strings and the values, as strings, one after the other *)
+  | Template (strings, es) ->
+      let values = List.map (fun e -> to_string (eval_expr t s this e)) es in
+      let rec weave strings values = match (strings, values) with str :: rest, v :: vs -> str :: v :: weave rest vs | strings, _ -> strings in
+      String (String.concat "" (weave strings values))
   | Binary (op, a, b) ->
       let a = eval_expr t s this a in
       arithmetic op a (eval_expr t s this b)
@@ -314,7 +175,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
    * constructor's: Date, URL) *)
   | New (f, args) ->
       let fn = eval_expr t s this f in
-      let args = List.map (eval_expr t s this) args in
+      let args = eval_list t s this args in
       (match fn with Object { kind = Closure _ | Host_function _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a constructor"));
       let o = new_object () in
       (match get t fn "prototype" with Object p -> o.proto <- Some p | _ -> ());
@@ -345,9 +206,65 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
         | Index (o, k) -> let o = eval_expr t s this o in (get t o (key_of (eval_expr t s this k)), o)
         | _ -> (eval_expr t s this f, Undefined)
       in
-      let args = List.map (eval_expr t s this) args in
+      let args = eval_list t s this args in
       (match fn with Object { kind = Closure _ | Host_function _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a function"));
       call_value t fn ~this:self args
+
+(* an array's items or a call's arguments: each one's value, a ...xs
+ * each of xs' *)
+and eval_list (t : t) (s : scope) (this : value) (es : A.expr list) : value list =
+  List.concat_map (fun (e : A.expr) -> match e with Spread x -> items_of (eval_expr t s this x) | e -> [ eval_expr t s this e ]) es
+
+(* o.k: the property, or what its getter gives *)
+and get (t : t) (target : value) (k : string) : value =
+  match Js_props.get (protos t) target k with
+  | Object { kind = Accessor (getter, _); _ } -> if getter = Undefined then Undefined else call_value t getter ~this:target []
+  | v -> v
+
+(* o.k = v: the property set, or its setter called (an object's own, or
+ * its prototypes': looked for only where there can be one) *)
+and put (t : t) (target : value) (k : string) (v : value) : unit =
+  match target with
+  | Object { kind = Plain | Closure _; _ } -> (
+      match Js_props.get (protos t) target k with
+      | Object { kind = Accessor (_, setter); _ } -> if setter <> Undefined then ignore (call_value t setter ~this:target [ v ])
+      | _ -> Js_props.set target k v)
+  | _ -> Js_props.set target k v
+
+(* a pattern's names bound to the parts of a value, each by [bind]: a
+ * name to the value; { } to its properties, by key, and what is left;
+ * [ ] to its items, in order, and those left. A part that is
+ * undefined takes its default *)
+and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) (bind : string -> value -> unit) : unit =
+  let or_default (v : value) (default : A.expr option) = match (v, default) with Undefined, Some d -> eval_expr t s this d | v, _ -> v in
+  match pt with
+  | Bind x -> bind x v
+  | Object_pattern (parts, rest) ->
+      (match v with Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot destructure '%s' as it is %s." (display v) (to_string v)) | _ -> ());
+      let taken =
+        List.map
+          (fun ((k : A.key), part, default) ->
+            let k = match k with Key k -> k | Computed e -> key_of (eval_expr t s this e) in
+            destructure t s this part (or_default (get t v k) default) bind;
+            k)
+          parts
+      in
+      Option.iter
+        (fun r ->
+          let o = new_object () in
+          (match v with Object src -> List.iter (fun k -> if not (List.mem k taken) then set_own o k (get t v k)) (keys src) | _ -> ());
+          destructure t s this r (Object o) bind)
+        rest
+  | Array_pattern (parts, rest) ->
+      let rec go parts items =
+        match parts with
+        | [] -> Option.iter (fun r -> destructure t s this r (Object (new_array items)) bind) rest
+        | part :: more ->
+            let v, left = match items with v :: left -> (v, left) | [] -> (Undefined, []) in
+            Option.iter (fun (pt, default) -> destructure t s this pt (or_default v default) bind) part;
+            go more left
+      in
+      go parts (items_of v)
 
 and closure (s : scope) (this : value) (f : A.func) : value =
   let c = { func = f; scope = s; this = (if f.arrow then Some this else None) } in
@@ -360,10 +277,37 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
       | Some { constant = true; _ } -> throw "TypeError" "Assignment to constant variable."
       | Some b -> b.value <- v
       | None -> throw "ReferenceError" (x ^ " is not defined"))
-  | Member (o, k) -> set (eval_expr t s this o) k v
+  | Member (o, k) -> put t (eval_expr t s this o) k v
   | Index (o, k) ->
       let o = eval_expr t s this o in
-      set o (key_of (eval_expr t s this k)) v
+      put t o (key_of (eval_expr t s this k)) v
+  (* [a, b] = v, ({ a, b: o.x } = v): the literal read as a pattern, each
+   * part assigned to; "= d" after a part, its default *)
+  | Array es ->
+      let part (e : A.expr) (v : value) =
+        match e with
+        | Assign ("=", target, d) -> assign t s this target (if v = Undefined then eval_expr t s this d else v)
+        | e -> assign t s this e v
+      in
+      let rec go es items =
+        match (es, items) with
+        | [], _ -> ()
+        | [ A.Spread rest ], items -> assign t s this rest (Object (new_array items))
+        | e :: more, v :: left -> part e v; go more left
+        | e :: more, [] -> part e Undefined; go more []
+      in
+      go es (items_of v)
+  | Object props ->
+      List.iter
+        (fun (pr : A.property) ->
+          match pr with
+          | Prop (k, target) -> (
+              let k = match k with Key k -> k | Computed e -> key_of (eval_expr t s this e) in
+              match (target, get t v k) with
+              | Assign ("=", target, d), Undefined -> assign t s this target (eval_expr t s this d)
+              | Assign ("=", target, _), pv | target, pv -> assign t s this target pv)
+          | _ -> throw "SyntaxError" "Invalid assignment target")
+        props
   | _ -> throw "SyntaxError" "Invalid assignment target"
 
 and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value =
@@ -376,7 +320,18 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       (* arguments, the var's hoisted, then the parameters *)
       if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
       hoist frame c.func.body;
-      List.iteri (fun i x -> declare frame x ~constant:false (Option.value (List.nth_opt args i) ~default:Undefined)) c.func.params;
+      let bind x v = declare frame x ~constant:false v in
+      let rec params (ps : (A.pattern * A.expr option) list) (args : value list) =
+        match ps with
+        | [] -> Option.iter (fun r -> destructure t frame this r (Object (new_array args)) bind) c.func.rest
+        | (pt, default) :: more ->
+            let v, left = match args with v :: left -> (v, left) | [] -> (Undefined, []) in
+            (* a default is read in the call's frame: it sees the parameters before it *)
+            let v = match (v, default) with Undefined, Some d -> eval_expr t frame this d | v, _ -> v in
+            destructure t frame this pt v bind;
+            params more left
+      in
+      params c.func.params args;
       let this = match c.this with Some captured -> captured | None -> this in
       let line = t.line in
       (* the caller's line back when the call returns; not when it
@@ -395,17 +350,26 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
 (* Statements *)
 (*****************************************************************************)
 
+(* the names a pattern binds *)
+and pattern_names (pt : A.pattern) : string list =
+  match pt with
+  | Bind x -> [ x ]
+  | Object_pattern (parts, rest) -> List.concat_map (fun (_, pt, _) -> pattern_names pt) parts @ (match rest with Some r -> pattern_names r | None -> [])
+  | Array_pattern (parts, rest) ->
+      List.concat_map (fun part -> match part with Some (pt, _) -> pattern_names pt | None -> []) parts @ (match rest with Some r -> pattern_names r | None -> [])
+
 (* var's names, declared (undefined) at the top of their function: a
  * var in a block or a loop is the function's -- hoisting, ES5's, what
  * let (block-scoped) came to fix *)
 and hoist (s : scope) (body : A.stmt list) : unit =
   let rec names (st : A.stmt) : string list =
     match st.stmt with
-    | Let (Var_kind, decls) -> List.map fst decls
+    | Let (Var_kind, decls) -> List.concat_map (fun (pt, _) -> pattern_names pt) decls
     | If (_, a, b) -> names a @ (match b with Some b -> names b | None -> [])
     | While (_, b) -> names b
     | For (init, _, _, b) -> (match init with Some i -> names i | None -> []) @ names b
-    | For_of (Var_kind, x, _, b) | For_in (Declared (Var_kind, x), _, b) -> x :: names b
+    | For_of (Var_kind, x, _, b) -> pattern_names x @ names b
+    | For_in (Declared (Var_kind, x), _, b) -> x :: names b
     | For_of (_, _, _, b) | For_in (_, _, b) | Do_while (b, _) | Labeled (_, b) -> names b
     | Switch (_, cases) -> List.concat_map (fun (_, body) -> List.concat_map names body) cases
     | Try (a, handler, finally) ->
@@ -447,16 +411,20 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
   | Expr e -> ignore (eval e); Normal
   | Let (Var_kind, decls) ->
       (* the function's binding, hoisted: set, not declared again *)
+      let bind x v = match lookup s x with Some b -> b.value <- v | None -> declare s x ~constant:false v in
       List.iter
-        (fun (x, init) ->
-          match (lookup s x, init) with
-          | Some b, Some e -> b.value <- eval e
-          | Some _, None -> ()
-          | None, init -> declare s x ~constant:false (match init with Some e -> eval e | None -> Undefined))
+        (fun ((pt : A.pattern), init) ->
+          match (pt, init) with
+          (* var x; again: what it holds stays *)
+          | Bind x, None -> if lookup s x = None then declare s x ~constant:false Undefined
+          | pt, init -> destructure t s this pt (match init with Some e -> eval e | None -> Undefined) bind)
         decls;
       Normal
   | Let (kind, decls) ->
-      List.iter (fun (x, init) -> declare s x ~constant:(kind = Const_kind) (match init with Some e -> eval e | None -> Undefined)) decls;
+      List.iter
+        (fun (pt, init) ->
+          destructure t s this pt (match init with Some e -> eval e | None -> Undefined) (fun x v -> declare s x ~constant:(kind = Const_kind) v))
+        decls;
       Normal
   | Function_decl _ -> Normal (* defined by its block, first *)
   | Return e -> Return (match e with Some e -> eval e | None -> Undefined)
@@ -490,18 +458,15 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
       in
       loop first
   | For_of (kind, x, xs, body) ->
-      let items =
-        match eval xs with
-        | Object ({ kind = Array _; _ } as o) -> array_items o
-        | String str -> List.init (String.length str) (fun i -> String (String.make 1 str.[i]))
-        | v -> throw "TypeError" (display v ^ " is not iterable")
-      in
+      let items = items_of (eval xs) in
       let rec loop items =
         match items with
         | [] -> Normal
         | v :: rest -> (
             let it = new_scope s in
-            declare it x ~constant:(kind = Const_kind) v;
+            (* a var's, or a name's already there: set; else this turn's own *)
+            let bind x v = match (kind, lookup s x) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
+            destructure t it this x v bind;
             match after (exec t it this body) with None -> loop rest | Some o -> o)
       in
       loop items

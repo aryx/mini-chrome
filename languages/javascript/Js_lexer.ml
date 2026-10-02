@@ -10,8 +10,19 @@
 
 (* See Js_lexer.mli *)
 
-type kind = Keyword of string | Name of string | Number of float | String of string | Punct of string | Regex of string * string | Eof
-type token = { kind : kind; line : int; newline_before : bool }
+type kind =
+  | Keyword of string
+  | Name of string
+  | Number of float
+  | String of string
+  | Punct of string
+  | Regex of string * string
+  (* `a${x}b${y}c`: its strings ("a", "b", "c") and, between them, the
+   * tokens of each ${ } *)
+  | Template of string list * token list list
+  | Eof
+
+and token = { kind : kind; line : int; newline_before : bool }
 
 exception Error of int * string
 
@@ -49,10 +60,17 @@ let tokenize (s : string) : token list =
   in
   let error msg = raise (Error (!line, msg)) in
   let sub i j = String.sub s i (j - i) in
+  (* inside a template's ${ }: how many { are open in it (one count a
+   * template, the innermost first); its } with none open ends it *)
+  let depths : int list ref = ref [] in
+  let brace (by : int) = match !depths with d :: rest -> depths := (d + by) :: rest | [] -> () in
+  (* the tokens from [i]: to the end, or to the } that closes a
+   * template's ${ }; where it stopped *)
   let rec go i =
-    if i >= n then ()
+    if i >= n then n
     else
       match s.[i] with
+      | '}' when (match !depths with 0 :: _ -> true | _ -> false) -> i
       | '\n' ->
           incr line;
           newline := true;
@@ -85,7 +103,7 @@ let tokenize (s : string) : token list =
           emit (if List.mem w keywords then Keyword w else Name w) !line;
           go !j
       | ('"' | '\'') as q -> go (string i q)
-      | '`' -> error "template literals are not supported here (an exercise: notes_javascript.md)"
+      | '`' -> go (template i)
       | _ -> (
           let starts p = i + String.length p <= n && sub i (i + String.length p) = p in
           match List.find_opt starts (puncts3 @ puncts2) with
@@ -94,6 +112,7 @@ let tokenize (s : string) : token list =
               go (i + String.length p)
           | None ->
               if String.contains puncts1 s.[i] then (
+                if s.[i] = '{' then brace 1 else if s.[i] = '}' then brace (-1);
                 emit (Punct (String.make 1 s.[i])) !line;
                 go (i + 1))
               else error (Printf.sprintf "unexpected character %C" s.[i]))
@@ -102,7 +121,7 @@ let tokenize (s : string) : token list =
     | [] -> true
     | t :: _ -> (
         match t.kind with
-        | Number _ | String _ | Name _ | Regex _ -> false
+        | Number _ | String _ | Name _ | Regex _ | Template _ -> false
         | Keyword ("this" | "true" | "false" | "null") -> false
         | Punct (")" | "]" | "}") -> false
         | Keyword _ | Punct _ | Eof -> true)
@@ -146,24 +165,84 @@ let tokenize (s : string) : token list =
       if !j < n && is_name_start s.[!j] then error (Printf.sprintf "a number followed by %C" s.[!j]);
       emit (Number (float_of_string (sub i !j))) !line;
       !j
+  (* an escape's character, and where the text goes on: \n, \t, \u00e9,
+   * \x41; any other character is itself *)
+  and escape (b : Buffer.t) (j : int) : int =
+    match s.[j + 1] with
+    | 'n' -> Buffer.add_char b '\n'; j + 2
+    | 't' -> Buffer.add_char b '\t'; j + 2
+    | 'r' -> Buffer.add_char b '\r'; j + 2
+    | 'b' -> Buffer.add_char b '\b'; j + 2
+    | 'f' -> Buffer.add_char b '\012'; j + 2
+    | 'v' -> Buffer.add_char b '\011'; j + 2
+    | '0' when not (j + 2 < n && is_digit s.[j + 2]) -> Buffer.add_char b '\000'; j + 2
+    | 'x' when j + 3 < n -> (
+        match int_of_string_opt ("0x" ^ sub (j + 2) (j + 4)) with
+        | Some cp -> Buffer.add_string b (utf_8 cp); j + 4
+        | None -> error "a \\x escape needs two hexadecimal digits")
+    (* \u{1F600}, any code point *)
+    | 'u' when j + 2 < n && s.[j + 2] = '{' -> (
+        match String.index_from_opt s j '}' with
+        | Some close -> (
+            match int_of_string_opt ("0x" ^ sub (j + 3) close) with
+            | Some cp -> Buffer.add_string b (utf_8 cp); close + 1
+            | None -> error "a \\u{ } escape needs hexadecimal digits")
+        | None -> error "a \\u{ escape never closed")
+    | 'u' when j + 5 < n -> (
+        match int_of_string_opt ("0x" ^ sub (j + 2) (j + 6)) with
+        | Some cp -> Buffer.add_string b (utf_8 cp); j + 6
+        | None -> error "a \\u escape needs four hexadecimal digits")
+    (* a backslash before a line's end: the string goes on, nothing added *)
+    | '\n' -> incr line; j + 2
+    (* a backslash, a quote, and any other character: itself *)
+    | c -> Buffer.add_char b c; j + 2
+  (* `text ${expression} text`: the strings, their escapes decoded and
+   * their newlines kept, and each expression's tokens -- read by [go]
+   * itself, to the } that closes it: what is inside is any expression
+   * (a string, a regular expression with a quote in it, braces,
+   * another template), and only the lexer knows where it ends *)
+  and template i =
+    let at = !line in
+    let strings = ref [] and expressions = ref [] in
+    let b = Buffer.create 16 in
+    let rec text j =
+      if j >= n then error "a template never closed"
+      else
+        match s.[j] with
+        | '`' ->
+            strings := Buffer.contents b :: !strings;
+            j + 1
+        | '\\' when j + 1 < n -> text (escape b j)
+        | '$' when j + 1 < n && s.[j + 1] = '{' ->
+            strings := Buffer.contents b :: !strings;
+            Buffer.clear b;
+            (* the tokens so far set aside, the expression's gathered *)
+            let outer = !tokens and outer_newline = !newline in
+            tokens := [];
+            newline := false;
+            depths := 0 :: !depths;
+            let close = go (j + 2) in
+            if close >= n then error "a template's ${ never closed";
+            depths := List.tl !depths;
+            expressions := List.rev !tokens :: !expressions;
+            tokens := outer;
+            newline := outer_newline;
+            text (close + 1)
+        | c ->
+            if c = '\n' then incr line;
+            Buffer.add_char b c;
+            text (j + 1)
+    in
+    let j = text (i + 1) in
+    emit (Template (List.rev !strings, List.rev !expressions)) at;
+    j
   (* a string between [q]s, its escapes decoded; no newline inside *)
   and string i q =
     let b = Buffer.create 16 in
     let rec go j =
       if j >= n || s.[j] = '\n' then error "a string never closed on its line"
       else if s.[j] = q then j + 1
-      else if s.[j] = '\\' && j + 1 < n then (
-        match s.[j + 1] with
-        | 'n' -> Buffer.add_char b '\n'; go (j + 2)
-        | 't' -> Buffer.add_char b '\t'; go (j + 2)
-        | 'r' -> Buffer.add_char b '\r'; go (j + 2)
-        | '0' -> Buffer.add_char b '\000'; go (j + 2)
-        | 'u' when j + 5 < n -> (
-            match int_of_string_opt ("0x" ^ sub (j + 2) (j + 6)) with
-            | Some cp -> Buffer.add_string b (utf_8 cp); go (j + 6)
-            | None -> error "a \\u escape needs four hexadecimal digits")
-        (* a backslash, a quote, and any other character: itself *)
-        | c -> Buffer.add_char b c; go (j + 2))
+      else if s.[j] = '\\' && j + 1 < n then go (escape b j)
       else (
         Buffer.add_char b s.[j];
         go (j + 1))
@@ -173,11 +252,11 @@ let tokenize (s : string) : token list =
     emit (String (Buffer.contents b)) at;
     j
   in
-  go 0;
+  ignore (go 0);
   emit Eof !line;
   List.rev !tokens
 
-let to_string (k : kind) : string =
+let rec to_string (k : kind) : string =
   match k with
   | Keyword w -> "Keyword " ^ w
   | Name w -> "Name " ^ w
@@ -185,4 +264,8 @@ let to_string (k : kind) : string =
   | String s -> "String " ^ Printf.sprintf "%S" s
   | Punct p -> "Punct " ^ p
   | Regex (r, f) -> Printf.sprintf "Regex /%s/%s" r f
+  | Template (strings, expressions) ->
+      Printf.sprintf "Template [%s] [%s]"
+        (String.concat "; " (List.map (Printf.sprintf "%S") strings))
+        (String.concat "; " (List.map (fun tokens -> String.concat " " (List.map (fun t -> to_string t.kind) tokens)) expressions))
   | Eof -> "Eof"

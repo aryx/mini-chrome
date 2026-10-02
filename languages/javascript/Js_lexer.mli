@@ -25,9 +25,13 @@
    operator, a "(" or a keyword), and a division after a value: one of
    JavaScript's lexing traps, told here by the token before.
 
-   Not read: template literals
-   (`...`, an error saying so), BigInt (10n), numeric separators
-   (1_000), and identifiers beyond ASCII letters, digits, _ and $.
+   A template literal (`...${x}...`) is one token: its ${ } hold
+   whole expressions -- strings, regular expressions, braces, other
+   templates -- so each is lexed here, to the } that closes it, and
+   kept as its tokens for the parser.
+
+   Not read: BigInt (10n), numeric separators (1_000), and identifiers
+   beyond ASCII letters, digits, _ and $.
 
    Reference: ECMAScript, section 12 (lexical grammar): 12.7 names and
    keywords, 12.8 punctuators, 12.9.3 numbers, 12.9.4 strings. *)
@@ -39,9 +43,13 @@ type kind =
   | String of string (* decoded: "a\nb" is three characters *)
   | Punct of string (* an operator or a punctuation: "===", "{" *)
   | Regex of string * string (* /[0-9]+/g: its pattern, its flags -- where an expression may start *)
+  (* `a${x}b${y}c`: its strings ("a", "b", "c"), escapes decoded and
+   * newlines kept, and between them the tokens of each ${ }, for the
+   * parser to read as an expression *)
+  | Template of string list * token list list
   | Eof
 
-type token = {
+and token = {
   kind : kind;
   line : int; (* from 1 *)
   newline_before : bool; (* a line ended between this token and the one before *)

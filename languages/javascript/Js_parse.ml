@@ -37,6 +37,7 @@ let describe (k : Js_lexer.kind) : string =
   | Number f -> Js_ast.number_to_string f
   | String s -> Printf.sprintf "%S" s
   | Regex (r, f) -> Printf.sprintf "/%s/%s" r f
+  | Template _ -> "a template"
   | Eof -> "the end"
 
 let fail (p : t) (message : string) = raise (Error { line = (peek p).line; message })
@@ -87,7 +88,8 @@ let postfix_power = 16
 
 (* what an assignment or ++ may change *)
 let target (p : t) (e : expr) : expr =
-  match e with Name _ | Member _ | Index _ -> e | _ -> fail p "that cannot be assigned to"
+  (* [a, b] = ..., ({ a, b } = ...): a literal read as a pattern (Js_eval.assign) *)
+  match e with Name _ | Member _ | Index _ | Array _ | Object _ -> e | _ -> fail p "that cannot be assigned to"
 
 (* the index of the ")" matching the "(" at [p.pos], if any *)
 let closing (p : t) : int option =
@@ -195,8 +197,10 @@ and prefix (p : t) : expr =
     | Punct "[" ->
         let rec elements acc =
           if is_punct p "]" then List.rev acc
+          (* [a, , b]: a hole, undefined *)
+          else if is_punct p "," then (ignore (advance p); elements (Name "undefined" :: acc))
           else
-            let e = expression p 1 in
+            let e = spread_or p in
             if is_punct p "," then (ignore (advance p); elements (e :: acc))
             else List.rev (e :: acc)
         in
@@ -207,21 +211,24 @@ and prefix (p : t) : expr =
         let rec members acc =
           if is_punct p "}" then List.rev acc
           else
-            let key =
-              match (advance p).kind with
-              | Name k | Keyword k | String k -> k
-              | Number f -> Js_ast.number_to_string f
-              | _ -> p.pos <- p.pos - 1; unexpected p "a property name"
-            in
-            expect p ":";
-            let v = expression p 1 in
-            if is_punct p "," then (ignore (advance p); members ((key, v) :: acc))
-            else List.rev ((key, v) :: acc)
+            let m = property p in
+            if is_punct p "," then (ignore (advance p); members (m :: acc)) else List.rev (m :: acc)
         in
-        let kvs = members [] in
+        let props = members [] in
         expect p "}";
-        Object kvs
+        Object props
     | Regex (r, f) -> Regex (r, f)
+    (* each ${ } read as an expression of its own, on the template's line *)
+    | Template (strings, expressions) ->
+        Template
+          ( strings,
+            List.map
+              (fun (tokens : Js_lexer.token list) ->
+                let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false } in
+                let e = expression inner 0 in
+                if (peek inner).kind <> Eof then unexpected inner "'}'";
+                e)
+              expressions )
     (* new F(a), new F: F a name and its members, not a call *)
     | Keyword "new" ->
         let rec members e =
@@ -246,44 +253,144 @@ and prefix (p : t) : expr =
         p.pos <- p.pos - 1;
         unexpected p "an expression"
 
+(* an item of an array or an argument of a call: an expression, or
+ * ...one, each of its items *)
+and spread_or (p : t) : expr =
+  if is_punct p "..." then (ignore (advance p); Spread (expression p 1)) else expression p 1
+
+(* a property's key: a name (a keyword is one), a string, a number, or
+ * [an expression] *)
+and key (p : t) : key =
+  match (advance p).kind with
+  | Name k | Keyword k | String k -> Key k
+  | Number f -> Key (Js_ast.number_to_string f)
+  | Punct "[" ->
+      let e = inside p (fun () -> expression p 1) in
+      expect p "]";
+      Computed e
+  | _ -> p.pos <- p.pos - 1; unexpected p "a property name"
+
+(* one property of an object literal *)
+and property (p : t) : property =
+  let next = (peek_at p 1).kind in
+  (* a name, a string or [ after get or set: an accessor, not a
+   * property called "get" *)
+  let accessor = match next with Name _ | Keyword _ | String _ | Number _ | Punct "[" -> true | _ -> false in
+  match (peek p).kind with
+  | Punct "..." ->
+      ignore (advance p);
+      Spread_prop (expression p 1)
+  | Name (("get" | "set") as which) when accessor ->
+      ignore (advance p);
+      let k = key p in
+      let ps, rest = params p in
+      let f = { name = None; params = ps; rest; body = block_body p; arrow = false } in
+      if which = "get" then Getter (k, f) else Setter (k, f)
+  | _ -> (
+      let k = key p in
+      match ((peek p).kind, k) with
+      | Punct ":", _ ->
+          ignore (advance p);
+          Prop (k, expression p 1)
+      (* m() { }: a method *)
+      | Punct "(", _ ->
+          let ps, rest = params p in
+          Prop (k, Function { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = block_body p; arrow = false })
+      (* { a }: a: a; { a = 1 }, in a pattern: its default *)
+      | Punct "=", Key x ->
+          ignore (advance p);
+          Prop (k, Assign ("=", Name x, expression p 1))
+      | _, Key x -> Prop (k, Name x)
+      | _, Computed _ -> unexpected p "':'")
+
 (* f(a, b): what is after the "(" *)
 and arguments (p : t) : expr list =
   let rec go acc =
     if is_punct p ")" then (ignore (advance p); List.rev acc)
     else
-      let e = expression p 1 in
+      let e = spread_or p in
       if is_punct p "," then (ignore (advance p); go (e :: acc))
       else (expect p ")"; List.rev (e :: acc))
   in
   go []
 
-(* "(a, b)": the parameters *)
-and params (p : t) : string list =
+(* what a declaration or a parameter names: a name, or { } or [ ]
+ * taking a value apart *)
+and pattern (p : t) : pattern =
+  match (peek p).kind with
+  | Punct "{" ->
+      ignore (advance p);
+      let rec parts acc =
+        if is_punct p "}" then (ignore (advance p); Object_pattern (List.rev acc, None))
+        else if is_punct p "..." then (
+          ignore (advance p);
+          let r = pattern p in
+          expect p "}";
+          Object_pattern (List.rev acc, Some r))
+        else
+          let k = key p in
+          (* { a }, or { a: its own pattern } *)
+          let pt = if is_punct p ":" then (ignore (advance p); pattern p) else match k with Key x -> Bind x | Computed _ -> unexpected p "':'" in
+          let part = (k, pt, default p) in
+          if is_punct p "," then (ignore (advance p); parts (part :: acc))
+          else (expect p "}"; Object_pattern (List.rev (part :: acc), None))
+      in
+      parts []
+  | Punct "[" ->
+      ignore (advance p);
+      let rec parts acc =
+        if is_punct p "]" then (ignore (advance p); Array_pattern (List.rev acc, None))
+        else if is_punct p "," then (ignore (advance p); parts (None :: acc))
+        else if is_punct p "..." then (
+          ignore (advance p);
+          let r = pattern p in
+          expect p "]";
+          Array_pattern (List.rev acc, Some r))
+        else
+          let pt = pattern p in
+          let part = Some (pt, default p) in
+          if is_punct p "," then (ignore (advance p); parts (part :: acc))
+          else (expect p "]"; Array_pattern (List.rev (part :: acc), None))
+      in
+      parts []
+  | _ -> Bind (name p)
+
+(* "= e" after a pattern: what it is when there is no value *)
+and default (p : t) : expr option = if is_punct p "=" then (ignore (advance p); Some (expression p 1)) else None
+
+(* "(a, b = 1, ...rest)": the parameters, and the one taking the rest *)
+and params (p : t) : (pattern * expr option) list * pattern option =
   expect p "(";
   let rec go acc =
-    if is_punct p ")" then (ignore (advance p); List.rev acc)
+    if is_punct p ")" then (ignore (advance p); (List.rev acc, None))
+    else if is_punct p "..." then (
+      ignore (advance p);
+      let r = pattern p in
+      expect p ")";
+      (List.rev acc, Some r))
     else
-      let x = name p in
+      let pt = pattern p in
+      let x = (pt, default p) in
       if is_punct p "," then (ignore (advance p); go (x :: acc))
-      else (expect p ")"; List.rev (x :: acc))
+      else (expect p ")"; (List.rev (x :: acc), None))
   in
-  go []
+  inside p (fun () -> go [])
 
 (* x => ..., (a, b) => ...: a body in braces, or an expression returned *)
 and arrow (p : t) : expr =
-  let ps = if is_punct p "(" then params p else [ name p ] in
+  let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p), None) ], None) in
   let line = (peek p).line in
   expect p "=>";
   let body =
     if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ]
   in
-  Function { name = None; params = ps; body; arrow = true }
+  Function { name = None; params = ps; rest; body; arrow = true }
 
 (* function name? (params) { body }: what is after the keyword *)
 and func (p : t) ~(arrow : bool) : func =
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
-  let ps = params p in
-  { name; params = ps; body = block_body p; arrow }
+  let ps, rest = params p in
+  { name; params = ps; rest; body = block_body p; arrow }
 
 (*****************************************************************************)
 (* Statements: recursive descent *)
@@ -304,11 +411,11 @@ and end_statement (p : t) : unit =
 
 and let_kind (k : string) : let_kind = match k with "const" -> Const_kind | "var" -> Var_kind | _ -> Let_kind
 
-(* let a = 1, b: after the keyword *)
-and declarations (p : t) : (string * expr option) list =
+(* let a = 1, b, { c } = o: after the keyword *)
+and declarations (p : t) : (pattern * expr option) list =
   let rec go acc =
-    let x = name p in
-    let init = if is_punct p "=" then (ignore (advance p); Some (expression p 1)) else None in
+    let x = pattern p in
+    let init = default p in
     if is_punct p "," then (ignore (advance p); go ((x, init) :: acc)) else List.rev ((x, init) :: acc)
   in
   go []
@@ -425,38 +532,48 @@ and statement (p : t) : stmt =
 (* for (let x of xs) body, or for (init; test; update) body: what is
  * after the "(" *)
 and for_rest (p : t) : statement =
-  match ((peek p).kind, (peek_at p 1).kind, (peek_at p 2).kind) with
-  | Keyword (("let" | "const" | "var") as k), Name x, Name "of" ->
-      p.pos <- p.pos + 3;
-      let xs = expression p 0 in
-      expect p ")";
-      For_of (let_kind k, x, xs, statement p)
-  | Keyword (("let" | "const" | "var") as k), Name x, Keyword "in" ->
-      p.pos <- p.pos + 3;
-      let o = expression p 0 in
-      expect p ")";
-      For_in (Declared (let_kind k, x), o, statement p)
-  | _ -> (
-      let line = (peek p).line in
-      (* the first part: "in" there is the for's (for (k in o), for
-       * (o.k in o)), not the operator *)
-      p.no_in <- true;
-      let init =
-        match (peek p).kind with
-        | Punct ";" -> None
-        | Keyword (("let" | "const" | "var") as k) ->
-            ignore (advance p);
-            Some { line; stmt = Let (let_kind k, declarations p) }
-        | _ -> Some { line; stmt = Expr (expression p 0) }
-      in
-      p.no_in <- false;
-      match init with
-      | Some { stmt = Expr e; _ } when is_keyword p "in" ->
+  let line = (peek p).line in
+  match (peek p).kind with
+  (* for (let x of xs), for (let k in o), or for (let i = 0, ...; ; ):
+   * told after the first thing declared *)
+  | Keyword (("let" | "const" | "var") as k) -> (
+      ignore (advance p);
+      let first = pattern p in
+      match ((peek p).kind, first) with
+      | Name "of", _ ->
+          ignore (advance p);
+          let xs = expression p 1 in
+          expect p ")";
+          For_of (let_kind k, first, xs, statement p)
+      | Keyword "in", Bind x ->
           ignore (advance p);
           let o = expression p 0 in
           expect p ")";
-          For_in (Target (target p e), o, statement p)
-      | _ -> for_parts p init)
+          For_in (Declared (let_kind k, x), o, statement p)
+      | _ ->
+          (* "in", in what follows, is the for's: not the operator *)
+          p.no_in <- true;
+          let init = default p in
+          let more = if is_punct p "," then (ignore (advance p); declarations p) else [] in
+          p.no_in <- false;
+          for_parts p (Some { line; stmt = Let (let_kind k, (first, init) :: more) }))
+  | Punct ";" -> for_parts p None
+  | _ ->
+      p.no_in <- true;
+      let e = expression p 0 in
+      p.no_in <- false;
+      if is_keyword p "in" then (
+        ignore (advance p);
+        let o = expression p 0 in
+        expect p ")";
+        For_in (Target (target p e), o, statement p))
+      else if (peek p).kind = Name "of" then (
+        (* for (x of xs): into a name already declared *)
+        ignore (advance p);
+        let xs = expression p 1 in
+        expect p ")";
+        match e with Name x -> For_of (Var_kind, Bind x, xs, statement p) | _ -> fail p "for (... of): a name")
+      else for_parts p (Some { line; stmt = Expr e })
 
 (* for (init; test; update) body: after the first part *)
 and for_parts (p : t) (init : stmt option) : statement =

@@ -80,22 +80,26 @@ running; 🔴 does not parse.
 | Mithril 2 | 🟡 | a regular expression with a backreference `\5` |
 | Underscore 1.13 | 🟡 | `isFinite` is not defined |
 | Wikipedia's startup module | 🟡 | `NORLQ is not defined` |
-| React 18 (minified) | 🔴 | a getter in an object: `{ get now() { ... } }` |
-| example.com's `s.js` | 🔴 | spread: `[...p.children]` |
-| Alpine 3 | 🔴 | template literals: `` `...${x}...` `` |
-| htmx 1.9 | 🔴 | template literals |
-| Vue 3 (minified) | 🔴 | template literals |
+| React 18 (minified) | 🟡 | `Symbol` is not defined |
+| htmx 1.9 | 🟡 | `document.createEvent` is not a function |
+| example.com's `s.js` | 🟡 | parses; in the survey's empty page it stops at the paragraph it expects |
+| Alpine 3 | 🔴 | optional chaining: `a?.b` |
+| Vue 3 (minified) | 🔴 | `class` |
 
-Before the same day's work on the language of 1999 (the comma
-operator, `in` and for-in, the bits, `switch`, `do`, labels,
-`finally`): one 🟢, eleven 🔴.
+How it moved, the same day:
+
+| | 🟢 | 🟡 | 🔴 |
+|---|---|---|---|
+| at first | 1 | 0 | 11 |
+| the language of 1999 (the comma operator, `in` and for-in, the bits, `switch`, `do`, labels, `finally`) | 2 | 5 | 5 |
+| template literals, destructuring, default and rest parameters, spread, an object literal's short forms, getters and setters | 2 | 8 | 2 |
 
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **Template literals, spread, getters, the regular expressions'
-  lookaheads and backreferences**: the six 🔴 and 🟡 scripts above;
+- **The regular expressions' lookaheads and backreferences, `class`,
+  optional chaining, `Symbol` and a few globals**: the scripts above;
   then the sites' own scripts can be tried (`scripts=`).
 - **Brotli**: Berkshire Hathaway (and a server that will not send
   gzip).

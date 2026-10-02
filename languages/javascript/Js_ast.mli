@@ -27,7 +27,9 @@ type expr =
   | Name of string (* a variable; undefined is one, the global's *)
   | This
   | Array of expr list
-  | Object of (string * expr) list (* the keys in the order written *)
+  (* { k: v, [e]: v, k, m() { }, get k() { }, ...o }: its properties in
+   * the order written *)
+  | Object of property list
   | Function of func (* function (...) {...}, or an arrow *)
   | Unary of string * expr (* - + ! ~ typeof void delete *)
   | Update of string * bool * expr (* ++ or --, prefix (true) or postfix, on a target *)
@@ -41,23 +43,55 @@ type expr =
   | New of expr * expr list (* new F(a): an object made by F, its prototype F.prototype *)
   | Regex of string * string (* /pattern/flags *)
   | Comma of expr * expr (* a, b: a for what it does, b's value *)
+  (* `a${x}b`: its strings (one more than its expressions), and them *)
+  | Template of string list * expr list
+  (* ...xs, in an array's items or a call's arguments: each of xs *)
+  | Spread of expr
 
 (* a function: its name if it has one, its parameters, its body; an
  * arrow's expression body is [Return e]; an arrow has no this of its
  * own *)
-and func = { name : string option; params : string list; body : stmt list; arrow : bool }
+and func = {
+  name : string option;
+  params : (pattern * expr option) list; (* each with its default: (a, b = 1) *)
+  rest : pattern option; (* (...xs): the arguments left *)
+  body : stmt list;
+  arrow : bool;
+}
+
+(* a property of an object literal: its key and its value ("k" alone is
+ * k: k; m() { } is m: function () { }), a getter or a setter (a
+ * function called when the property is read, or assigned to), or
+ * another object's properties *)
+and property = Prop of key * expr | Getter of key * func | Setter of key * func | Spread_prop of expr
+
+(* k, "k", 1, or [e]: computed *)
+and key = Key of string | Computed of expr
+
+(* what a declaration, a parameter or a for-of names: one name, or the
+ * parts of a value taken apart -- "destructuring":
+ *
+ *   let { a, b: { c }, d = 1, ...others } = o    a's, o.b.c as c, d or 1
+ *   let [x, , y = 2, ...more] = xs               the first, the third or 2
+ *
+ * an object's parts by their keys (each a pattern and a default), then
+ * what is left; an array's by their place (None: one skipped) *)
+and pattern =
+  | Bind of string
+  | Object_pattern of (key * pattern * expr option) list * pattern option
+  | Array_pattern of (pattern * expr option) option list * pattern option
 
 and stmt = { line : int; stmt : statement }
 
 and statement =
   | Expr of expr
-  | Let of let_kind * (string * expr option) list (* let a = 1, b *)
+  | Let of let_kind * (pattern * expr option) list (* let a = 1, b, { c } = o *)
   | Function_decl of func
   | Return of expr option
   | If of expr * stmt * stmt option
   | While of expr * stmt
   | For of stmt option * expr option * expr option * stmt (* for (init; test; update) body *)
-  | For_of of let_kind * string * expr * stmt (* for (let x of xs) body *)
+  | For_of of let_kind * pattern * expr * stmt (* for (let x of xs) body *)
   | For_in of for_target * expr * stmt (* for (var k in o) body: o's keys *)
   | Do_while of stmt * expr (* do body while (test) *)
   (* switch (e) { case a: ...; default: ... }: each case's test (None:

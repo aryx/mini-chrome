@@ -63,6 +63,24 @@
    "in" is an operator, and also the word of for (k in o): in a for's
    first part it is the for's, unless inside brackets.
 
+   {2 Patterns}
+
+   Where a name is declared -- let, a parameter, for-of -- there may be
+   a **pattern** instead, taking a value apart (Js_ast.pattern):
+   { a, b: c = 1, ...rest } an object's properties, [x, , y] an array's
+   items. A parameter may have a default (b = 1), and the last may take
+   the rest (...xs). The same shapes on the left of an "=" are read
+   first as an array or an object literal, and taken as a pattern when
+   assigned to (Js_eval.assign): [a, b] = [b, a].
+
+   An object literal's properties: k: v; k alone (k: k); m() { } (a
+   method); [e]: v (a computed key); get k() { } and set k(v) { }
+   (functions called when k is read, and assigned to); ...o. And
+   ...xs in an array's items and a call's arguments.
+
+   A template literal comes from the lexer as its strings and the
+   tokens of each ${ }, read here as expressions.
+
    Left-associative: the right side is read with power + 1, so the next
    operator of the same power stops it and becomes the loop's next;
    right-associative: with the same power, so it goes on. That "+ 1" is
