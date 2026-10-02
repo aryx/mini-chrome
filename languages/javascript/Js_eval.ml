@@ -795,6 +795,8 @@ let eval (t : t) (text : string) : (value, error) result =
 let call (t : t) (f : value) ~(this : value) (args : value list) : (value, error) result =
   guarded t (fun () -> call_value t f ~this args)
 
+let promise (t : t) = Js_promise.make (Option.get t.promises)
+
 let global (t : t) (x : string) : value option = Option.map (fun b -> b.value) (Hashtbl.find_opt t.globals.vars x)
 let define (t : t) (x : string) (v : value) : unit = declare t.globals x ~constant:false v
 let set_budget (t : t) (steps : int) : unit = t.budget <- steps

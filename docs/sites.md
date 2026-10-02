@@ -84,7 +84,7 @@ stops when used; 🔴 does not load.
 | Preact 10 (minified) | 🟢 | renders a tree into the page |
 | Mithril 2 | 🟢 | renders a tree into the page |
 | React 18 (minified) | 🟢 | makes elements (React alone: no react-dom here) |
-| htmx 1.9 | 🟢 | finds, changes and processes elements (its requests: not tried, they need `XMLHttpRequest`'s answer) |
+| htmx 1.9 | 🟢 | finds, changes and processes elements; in the browser itself, `hx-get` asks its server and swaps the answer in |
 | Hacker News' `hn.js` | 🟢 | |
 | Wikipedia's startup module | 🟢 | |
 | example.com's `s.js` | 🟡 | parses; in the survey's page it stops at the paragraph it expects. On example.com itself (`scripts=example.com`) it runs with no error said, and the page looks the same: not looked into |
@@ -119,10 +119,11 @@ By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **`XMLHttpRequest` and `fetch` given their answers**: the libraries
-  work, and a page that loads its content (htmx, Google's results)
-  asks the network from its script. Then the sites' own scripts can be
-  tried one by one (`scripts=`).
+- **The sites' own scripts, one by one** (`scripts=`): the libraries
+  work and a script now gets its answers from the network
+  (`XMLHttpRequest`, `fetch`), so what stops Google's results, GitHub
+  or the BBC is to be found by trying each (`-v` shows the page's
+  console).
 - **The heading of Berkshire Hathaway** (a 1990s table and `<font>`),
   now that its Brotli is read.
 - **The TLS handshake Craigslist refuses**: to look into.

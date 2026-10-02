@@ -45,6 +45,8 @@ type 'msg config = {
   about : string -> (string * string) option;
   got : string -> (Fetch.response, Fetch.error) result -> 'msg;
   got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  (* claude: the answer to a script's request, by its number and its URL *)
+  got_answer : int -> string -> (Fetch.response, Fetch.error) result -> 'msg;
   fetch : 'msg Fetch.request -> 'msg;
   connections : int;
   visible : int;
@@ -164,7 +166,10 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
       | Ok url -> ((fun () -> Cookie_jar.script_cookies cfg.cookies url), fun v -> Cookie_jar.set_from_script cfg.cookies url v)
       | Error _ -> ((fun () -> ""), fun _ -> ())
     in
-    let s = Browser_script.create ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
+    (* claude: with -v, what the page's scripts say on their console
+     * (their errors too) is said on the terminal *)
+    let log line = Logs.info (fun m -> m "console: %s" line) in
+    let s = Browser_script.create ~log ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in
@@ -269,17 +274,20 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       fetch_more cfg network
         ({ tab with queue = urls; sheet_urls = sheets @ tab.sheet_urls; media_urls = media @ tab.media_urls; total = List.length urls + List.length tab.in_flight }, cmd)
 
-(* the GETs the page's scripts queued (XMLHttpRequest, fetch): sent,
- * logged, their answers not waited for (got_picture drops what is not
- * in flight) *)
+(* the requests the page's scripts queued (XMLHttpRequest, fetch):
+ * sent, logged; each one's answer comes back by its number ([got_answer]) *)
 let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cmd) : t * 'msg Cmd.t) : t * 'msg Cmd.t =
   match tab.script with
   | Some s -> (
       match Browser_script.take_requests s with
       | [] -> (tab, cmd)
-      | urls ->
-          let tab = List.fold_left (fun tab u -> logged ~status:0 Fetch u tab) tab urls in
-          (tab, Cmd.batch (cmd :: List.map (fun url -> Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got_picture url)))) urls)))
+      | requests ->
+          let tab = List.fold_left (fun tab (r : Script_types.request) -> logged ~status:0 Fetch r.url tab) tab requests in
+          let send (r : Script_types.request) =
+            let k = cfg.got_answer r.rid r.url in
+            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post network r.url ~content_type ~body k | None -> Fetch.get network r.url k))
+          in
+          (tab, Cmd.batch (cmd :: List.map send requests)))
   | None -> (tab, cmd)
 
 let load_images cfg network tab = with_pictures cfg network ({ tab with images = true }, Cmd.none)
@@ -463,6 +471,21 @@ let after_task (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : 
         let focus = Option.bind tab.focus (fun e -> Option.bind (path_to p.tree e) (at_path tree)) in
         with_pictures cfg network ({ tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus }, Cmd.none)
     | _ -> (tab, Cmd.none))
+
+(* claude: the answer to a request a script made (XMLHttpRequest,
+ * fetch): given to the script, a task -- the page laid out again if it
+ * changed it, the requests it made in turn sent *)
+let got_answer (cfg : 'msg config) (network : < Cap.network ; .. >) (rid : int) (url : string) (result : (Fetch.response, Fetch.error) result) (tab : t) :
+    t * 'msg Cmd.t =
+  match tab.script with
+  | None -> (tab, Cmd.none)
+  | Some s ->
+      let tab = match result with Ok r -> logged ~status:r.status ~bytes:(String.length r.body) Fetch url tab | Error _ -> logged ~status:0 Fetch url tab in
+      Browser_script.answer s rid
+        (match result with
+        | Ok r -> Ok { Script_types.status = r.status; headers = r.headers; body = r.body; final = r.url }
+        | Error e -> Error (Fetch.error_to_string e));
+      after_task cfg network tab
 
 let form_effect (cfg : 'msg config) (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (tab : t) :
     t * 'msg Cmd.t =

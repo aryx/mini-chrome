@@ -120,6 +120,7 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   match msg with
   | Got (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
   | Got_picture (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_picture cfg network url r tab)
+  | Got_answer (id, rid, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_answer cfg network rid url r tab)
   | Start_fetch r ->
       Fetch.perform m.fetches r;
       (m, Cmd.none)

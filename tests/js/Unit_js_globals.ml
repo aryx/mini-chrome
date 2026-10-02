@@ -97,4 +97,12 @@ let tests =
             [Object.getPrototypeOf([]) === Array.prototype, Object.getPrototypeOf(function () {}) === Function.prototype, Object.getPrototypeOf({}) === Object.prototype,
              Object.getPrototypeOf(Object.prototype), Object.keys(Object.getOwnPropertyDescriptors({ a: 1, get b() { return 2 } }))]|}
             {|[true, true, true, null, ["a", "b"]]|});
+      Testo.create "JSON.parse" (fun () ->
+          check "the worked example" {|var v = JSON.parse('{"a": [1, 2.5e1, "x\\n"], "b": null}'); [v.a, v.b, Object.keys(v)]|} {|[[1, 25, "x\n"], null, ["a", "b"]]|};
+          check "every kind of value; spaces anywhere; an escape" {|[JSON.parse(' [ true , false , null , -0.5 , "\\u0041\\"q\\"" , { } , [ ] ] '), JSON.parse('"alone"'), JSON.parse('7')]|}
+            {|[[true, false, null, -0.5, "A\"q\"", {}, []], "alone", 7]|};
+          check "and back" {|JSON.stringify(JSON.parse('{"a":[1,{"b":"c"}],"d":null}'))|} {|{"a":[1,{"b":"c"}],"d":null}|};
+          check "not JSON: a key without quotes, a comma too many, a text cut short, something after" {|
+            ['{a: 1}', '[1, 2,]', '{"a": ', '[1] 2', "{'a': 1}", 'undefined', ''].map(function (t) { try { JSON.parse(t); return 'read' } catch (e) { return e.name } })|}
+            {|["SyntaxError", "SyntaxError", "SyntaxError", "SyntaxError", "SyntaxError", "SyntaxError", "SyntaxError"]|});
     ]

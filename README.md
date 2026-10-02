@@ -108,7 +108,8 @@ src/www/              the page as a document (Browser_page), its forms
 src/dom/              JavaScript in a browser: the DOM a page's scripts
                       see (Script_dom, Script_host, Script_element,
                       Script_events, Script_document), window's globals
-                      (Script_window) and their tasks (Browser_script:
+                      (Script_window), a script asking the network
+                      (XMLHttpRequest, Script_fetch) and their tasks (Browser_script:
                       the scripts, the events, the timers)
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube

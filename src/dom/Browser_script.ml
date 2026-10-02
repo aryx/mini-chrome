@@ -140,7 +140,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; cookies;
       more = (fun _ _ -> None); dispatch = (fun _ _ -> false); once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -172,27 +172,10 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   define "URL" (fun args ->
       let base = match arg args 1 with Undefined -> t.base | v -> str v in
       url_object (Browser_url.resolve base (str (arg args 0))));
-  (* a GET queued for the browser to send ([take_requests]); its answer
-   * not given back (no onload): enough for a vote, not for a page that
-   * reads what it asked *)
-  let queue url = t.requests <- Browser_url.resolve t.base url :: t.requests in
-  define "XMLHttpRequest" (fun _ ->
-      let url = ref None in
-      let o = new_object () in
-      set_own o "readyState" (Number 0.);
-      set_own o "open" (host_function "open" (fun ~this:_ args -> url := Some (str (arg args 1)); Undefined));
-      set_own o "setRequestHeader" (host_function "setRequestHeader" (fun ~this:_ _ -> Undefined));
-      set_own o "send" (host_function "send" (fun ~this:_ _ -> Option.iter queue !url; Undefined));
-      Object o);
-  (* fetch: the GET queued, a promise that never settles (no promises
-   * here: its then's are kept, never called) *)
-  define "fetch" (fun args ->
-      queue (str (arg args 0));
-      let p = new_object () in
-      let self = Object p in
-      set_own p "then" (host_function "then" (fun ~this:_ _ -> self));
-      set_own p "catch" (host_function "catch" (fun ~this:_ _ -> self));
-      self);
+  (* a script asking the network: its requests queued for the browser
+   * ([take_requests]), their answers given back ([answer]) *)
+  XMLHttpRequest.install t (Js_eval.define engine);
+  Script_fetch.install t (Js_eval.define engine);
   t
 
 let eval (t : t) (text : string) : (value, Js_eval.error) result =
@@ -281,7 +264,13 @@ let advance (t : t) (ms : float) : unit =
   in
   go 0
 
-let take_requests (t : t) : string list =
+(* a request's answer, given to the script that asked: a task of its
+ * own (its promises' thens run after it) *)
+let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
+  let give = host_function "answer" (fun ~this:_ _ -> Script_fetch.answer t rid result; Undefined) in
+  match Js_eval.call t.engine give ~this:Undefined [] with Ok _ -> () | Error e -> report t e
+
+let take_requests (t : t) : request list =
   let r = List.rev t.requests in
   t.requests <- [];
   r

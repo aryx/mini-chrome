@@ -27,6 +27,12 @@ type node = {
 }
 
 (* a setTimeout's or a setInterval's *)
+(* claude: a request a script made (XMLHttpRequest, fetch), for the
+ * browser to send: its number, by which its answer comes back; and an
+ * answer, as the script is given it *)
+type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *) }
+type answer = { status : int; headers : (string * string) list; body : string; final : string (* the URL, after the redirections *) }
+
 type timer = { tid : int; mutable due : float; every : float option; fn : value }
 
 type t = {
@@ -43,7 +49,10 @@ type t = {
   mutable next_timer : int;
   mutable alerts : string list; (* the newest first *)
   base : string; (* the page's address: an a's href resolved, location, new URL *)
-  mutable requests : string list; (* XMLHttpRequest's and fetch's GETs, for the browser to send; the newest first *)
+  mutable requests : request list; (* XMLHttpRequest's and fetch's, for the browser to send; the newest first *)
+  (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
+  mutable waiting : (int * ((answer, string) result -> unit)) list;
+  mutable next_request : int;
   (* claude: document.cookie, read and assigned to: the browser's jar,
    * for the page's address, without its HttpOnly cookies *)
   cookies : (unit -> string) * (string -> unit);

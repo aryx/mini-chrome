@@ -108,6 +108,17 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a script asks the network and gets its answer: XMLHttpRequest (its
+  own module: open, send, readyState, onload, onerror,
+  readystatechange, responseText, response, getResponseHeader) and
+  fetch (Script_fetch: a promise of a response; ok, status, headers,
+  text(), json()), GET and POST. The tab sends a script's requests and
+  gives each answer back by its number (Got_answer), a task of the
+  page's, which is then laid out again. An answer of another origin is
+  the script's only if it allows it (Access-Control-Allow-Origin: the
+  one check of CORS here). JSON.parse (Js_json), DOMParser, a host
+  constructor's prototype (instanceof). With -v, the page's console
+  on the terminal. htmx swaps in what its server sends
 - JavaScript, what libraries need to work and not only load: an
   array's methods on what is only like an array (a jQuery object: a
   copy worked on, written back), Array.from of the same and of what
@@ -339,6 +350,17 @@
   5.5.1), make build-docker
 
 ** internals
+- the interfaces teach, as elm-playground's libs do: where each thing
+  came from, who made it and when, what it replaced, the papers and
+  standards to read -- HTML's tag soup and HTML5's parser (Html_lexer,
+  Html_tree), the DOM's levels (Dom, Browser_script), the cascade and
+  its first word (Cascade), selectors, CSS's syntax made to be
+  skipped, the box model and its wars (Box_layout), flexbox, grid,
+  JavaScript's ten days and its engines (Js_eval, Js_value, Js_lexer),
+  regular expressions from Kleene to Perl, promises from 1976, UTF-8's
+  placemat (Charset), XMLHttpRequest and Ajax, the same-origin policy
+  and CORS (Script_fetch), JSON. make loc says the interfaces'
+  opening comments apart (4,401 lines of 26,797)
 - the layout of mmm: languages/ (html, css, javascript), libs/
   (richtext, typeset), src/ by role, each folder a library in the
   order they depend on each other (url, layout, display, www, viewers,

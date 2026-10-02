@@ -41,7 +41,7 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
   | Some v -> v
   | None -> (
       match (o.kind, k) with
-      | Closure _, "prototype" ->
+      | (Closure _ | Host_function _), "prototype" ->
           let p = new_object () in
           set_own p "constructor" (Object o);
           set_own o "prototype" (Object p);

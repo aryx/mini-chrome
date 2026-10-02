@@ -24,6 +24,8 @@
      document.implementation.createHTMLDocument("")   a page of its own,
                                              where a library parses
                                              HTML it does not trust
+     new DOMParser().parseFromString(html, "text/html")   the same,
+                                             with the HTML in its body
 
    Its listeners are the page's (DOMContentLoaded, and every event
    that bubbles ends there); window's are the same list.

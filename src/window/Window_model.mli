@@ -45,6 +45,7 @@ type model = {
 and msg =
   | Got of int * string * (Fetch.response, Fetch.error) result
   | Got_picture of int * string * (Fetch.response, Fetch.error) result
+  | Got_answer of int * int * string * (Fetch.response, Fetch.error) result (* a tab's script's request: the tab, the request's number, its URL *)
   | Start_fetch of msg Fetch.request (* a tab's request, to start *)
   | Tick of float
   | Key of string

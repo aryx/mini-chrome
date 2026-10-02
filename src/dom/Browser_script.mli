@@ -1,5 +1,20 @@
 (* Browser_script: a page's scripts, and the page they see -- the DOM.
 
+   What scripts were given, in order. Netscape 2 (1995) let a script
+   reach the page's forms, and write into the page as it loaded
+   (document.write); Netscape 3 its images (the "rollover", a picture
+   changed under the mouse, was the web's first animation). That was
+   all a script could touch -- "DOM Level 0", named afterwards. Then
+   "Dynamic HTML" (1997): any element, changed after the page was
+   shown -- in two incompatible ways, Netscape 4's and Internet
+   Explorer 4's, the worst of the browser wars for those who wrote
+   pages. The W3C's DOM (Level 1, 1998; Dom.mli) is the common tree
+   that ended it, and what is here: getElementById, createElement,
+   appendChild. The rest came from what libraries had to invent over
+   it (Script_element.mli), and innerHTML, Internet Explorer's
+   shortcut (1997), which every browser copied years before any
+   standard said so (HTML5).
+
    (notes_javascript.md section 9, plan_tiny_firefox.md J3.) The engine
    (languages/javascript) knows nothing of pages; this module gives
    it one. A script reaches the page through **host objects**:
@@ -30,7 +45,7 @@
                               |
        layout  <--  Dom  <--freeze (when changed)
 
-   **The code** is seven modules over Script_types' types, each using
+   **The code** is nine modules over Script_types' types, each using
    only those before it:
 
      Script_dom       the copy: thawed, changed, frozen, its HTML, a
@@ -45,6 +60,9 @@
      Script_window    window and its globals (the classes Node,
                       HTMLElement...; getComputedStyle, localStorage,
                       MutationObserver, matchMedia)
+     Script_fetch     a script asking the network: the request out,
+                      the answer back, who may read it (CORS); fetch
+     XMLHttpRequest   the same request, the first way
      Browser_script   this one: the tasks (the page's scripts, an event
                       dispatched, the timers) and what the browser asks
 
@@ -100,9 +118,9 @@
    scrollIntoView and focus (nothing to do), event.stopImmediatePropagation;
    window (the global object, its size, its listeners the document's),
    location, navigator, new URL(href, base) and its searchParams;
-   XMLHttpRequest and fetch, whose GETs the browser sends
-   ([take_requests]) without giving their answers back (fetch a
-   promise that never settles: no promises here). Not: the node types but elements
+   XMLHttpRequest and fetch (their own modules, XMLHttpRequest and
+   Script_fetch), whose requests the browser sends ([take_requests])
+   and whose answers it gives back ([answer]). Not: the node types but elements
    and text, NodeList's liveness, ranges, the forms' own interface. A
    form's field typed into keeps its text in the browser (Browser_page's
    values), not in the tree; [value] reads the value= attribute. *)
@@ -166,7 +184,13 @@ val advance : t -> float -> unit
 (* the GETs XMLHttpRequest and fetch queued since the last call, the
  * oldest first, resolved: for the browser to send (their answers are
  * not given back) *)
-val take_requests : t -> string list
+val take_requests : t -> Script_types.request list
+
+(* [answer t rid result]: the answer of the request of that number (its
+ * status, headers, body and final URL), or why there is none, given
+ * to the script that asked -- a task: XMLHttpRequest's onload called,
+ * fetch's promise settled and its thens run *)
+val answer : t -> int -> (Script_types.answer, string) result -> unit
 
 (* the messages alert() queued since the last call, the oldest first *)
 val take_alerts : t -> string list

@@ -19,14 +19,18 @@ let document (t : t) : value =
   let title () = find root "title" in
   let named name = nodes_array t (List.filter (fun e -> e.name = name) (elements root)) in
   (* a page of its own: enough of a document to parse HTML into *)
-  let other_document () =
+  let other_document ?(html_text = "") () =
     let html = make "html" and body = make "body" in
     html.children <- [ body ];
     adopt html [ body ];
+    body.children <- parse_fragment html_text;
+    adopt body body.children;
     let o = new_object () in
     set_own o "body" (wrap t body);
     set_own o "documentElement" (wrap t html);
     set_own o "nodeType" (Number 9.);
+    set_own o "querySelector" (method_ "querySelector" (fun args -> match select t (str (arg args 0)) ~within:html with e :: _ -> wrap t e | [] -> Null));
+    set_own o "querySelectorAll" (method_ "querySelectorAll" (fun args -> nodes_array t (select t (str (arg args 0)) ~within:html)));
     set_own o "createElement" (method_ "createElement" (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 0))))));
     Object o
   in
@@ -122,4 +126,13 @@ let document (t : t) : value =
     }
   in
   (match d with Object o -> o.proto <- List.assoc_opt "document" t.protos | _ -> ());
+  (* new DOMParser().parseFromString(html, "text/html"): a page of its
+   * own with that HTML in its body -- how a library reads the HTML a
+   * server sent before putting it in the page (htmx) *)
+  Js_eval.define t.engine "DOMParser"
+    (host_function "DOMParser" (fun ~this _ ->
+         (match this with
+         | Object o -> set_own o "parseFromString" (method_ "parseFromString" (fun args -> other_document ~html_text:(str (arg args 0)) ()))
+         | _ -> ());
+         Undefined));
   d

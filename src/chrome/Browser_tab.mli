@@ -100,6 +100,7 @@ type 'msg config = {
   about : string -> (string * string) option; (* the built-in site: about:NAME's bytes and type *)
   got : string -> (Fetch.response, Fetch.error) result -> 'msg;
   got_picture : string -> (Fetch.response, Fetch.error) result -> 'msg;
+  got_answer : int -> string -> (Fetch.response, Fetch.error) result -> 'msg; (* a script's request's, by its number *)
   (* a request for the program to carry out (Fetch): the tab asks for
    * what it needs by a message, never touching a socket *)
   fetch : 'msg Fetch.request -> 'msg;
@@ -142,6 +143,11 @@ val got : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetc
 
 (* a picture's answer: decoded (or broken), the page laid out again, the
  * next one asked for *)
+(* the answer to a request a page's script made (XMLHttpRequest,
+ * fetch), of that number and URL: given to the script, the page laid
+ * out again if the script changed it *)
+val got_answer : 'msg config -> < Cap.network ; .. > -> int -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
+
 val got_picture : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
 
 (* what a form's click or key did (Browser_forms): the focus moved, the

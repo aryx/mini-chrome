@@ -81,7 +81,8 @@ written, and `profile=off` neither reads nor writes any.
 
 The Playground's own flags start with a dash. `-v` (or `-verbose`),
 `-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
-`-v` the terminal shows each file and URL opened (the profile's file,
+`-v` the terminal shows what a page's scripts say on their console
+(`console: ...`, their errors too) and each file and URL opened (the profile's file,
 the TLS roots, every request and its answer, a program run). New code
 that opens a file or a URL, or runs a program, says so with
 `Logs.info`; a thread of `Worker`'s pool
@@ -203,7 +204,11 @@ to V8, for teaching, and the way to run a script with no page.
 The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
 objects (`Script_host`; `Script_element`, `Script_events`,
-`Script_document` and `Script_window` for what libraries ask: a new
+`Script_document` and `Script_window` for what libraries ask;
+`XMLHttpRequest` and `Script_fetch` for a script asking the network,
+whose requests the tab sends (`take_requests`) and answers by their
+number (`Got_answer`, `Browser_script.answer`: a task, then a layout),
+after `Script_fetch`'s one check of CORS: a new
 member of an element, a new global of `window`, goes in the one it is
 of), and freezes it back when it changed; the page
 is then laid out again whole (`Browser_page.with_tree`). The
@@ -346,6 +351,16 @@ the numbers measured.
   long comment that is the module's documentation: the idea, a diagram,
   a worked example, references. Tests check those worked examples;
   update both together.
+- That comment teaches, as elm-playground's `libs/**/*.mli` do (read
+  one of a neighbouring subject first: `libs/compression/Brotli.mli`):
+  where the thing came from (who, when, which browser shipped it
+  first), what came before it and what it changed, where it stands
+  among its neighbours, and the papers, RFCs and standards to read --
+  the web's history told module by module (`XMLHttpRequest.mli`,
+  `Cascade.mli`, `Js_promise.mli`). Only what is certain: a date left
+  out rather than guessed. A famous name of the web gets its own
+  module, to be seen in the tree (`XMLHttpRequest`). These lines are
+  welcome: `make loc` says how many they are, apart.
 - Tests are `tests/<suite>/Unit_<module>.ml` exporting `tests`
   (`Testo.categorize`, Alcotest checks), listed by hand in that suite's
   `Test.ml`. `tests/network_unix` forks its own localhost HTTP server

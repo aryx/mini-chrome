@@ -566,7 +566,9 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
           fn "stringify" (fun ~this:_ args ->
               match to_json (arg args 0) with
               | Some s -> String s
-              | None -> if arg args 0 = Undefined then Undefined else throw "TypeError" "Converting circular structure to JSON")) ]);
+              | None -> if arg args 0 = Undefined then Undefined else throw "TypeError" "Converting circular structure to JSON"));
+         (* claude: a text read into values (Js_json) *)
+         ("parse", fn "parse" (fun ~this:_ args -> Js_json.parse (to_string (arg args 0)))) ]);
   constructor "Object"
     (fun ~this:_ args -> match arg args 0 with Object _ as o -> o | _ -> Object (new_object ()))
     objects

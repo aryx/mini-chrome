@@ -47,6 +47,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
     got = (fun url r -> Got (id, url, r));
     got_picture = (fun url r -> Got_picture (id, url, r));
+    got_answer = (fun rid url r -> Got_answer (id, rid, url, r));
     fetch = (fun r -> Start_fetch r);
     connections = 6;
     visible = (match List.find_opt (fun t -> t.id = id) m.tabs with Some t -> visible_lines m t.tab | None -> 0);

@@ -41,6 +41,7 @@ val node_of : t -> value -> node
 
 (* an object of a URL's parts (href, protocol, host, pathname, search,
  * hash, origin), with searchParams and toString; the page's own *)
+val url_parts : string -> (string * string) list
 val url_object : string -> value
 val location : t -> value
 
