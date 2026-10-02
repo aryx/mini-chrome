@@ -7,6 +7,5 @@
  (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
  (libraries
    lang_html lang_css javascript browser_layout
-   appkit_typeset ; Linebreak, for wrap=pretty
    browser_url browser_display
    network)) ; Urlencoded, a form's query

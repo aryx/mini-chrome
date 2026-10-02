@@ -18,14 +18,12 @@ open Window_layout (* the model read: its geometry, its shown tab *)
 
 let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
   {
-    extensions = true;
     css = m.css;
     (* CSS 2.1's box model: Cascade, Computed, Box_layout *)
-    boxes = true;
+    engine = None;
     width = page_width m /. zoom_of m tab;
     (* the page area's, less with the panel open: CSS's 100vh *)
     height = area_height m /. zoom_of m tab;
-    breaker = Html_layout.greedy;
     visited = (fun url -> List.mem url tab.visited);
     picture = (fun url -> List.assoc_opt url tab.pictures);
     sheet = (fun url -> List.assoc_opt url tab.sheets);

@@ -56,7 +56,7 @@ let () =
       said "%d bytes" (String.length bytes);
       let sheets : (string * string) list ref = ref [] in
       let settings () : Browser_page.settings =
-        { extensions = true; css = true; boxes = true; width; height; breaker = Html_layout.greedy; visited = (fun _ -> false);
+        { css = true; engine = None; width; height; visited = (fun _ -> false);
           picture = (fun _ -> None); sheet = (fun u -> List.assoc_opt u !sheets) }
       in
       (* the stages before the styles *)

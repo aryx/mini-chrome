@@ -10,7 +10,7 @@
 
    cs-history:
    Where the box model came from. Before CSS a page was laid out by
-   its tags (Html_layout.mli: Mosaic's flow) and, from 1995, by tables
+   its tags (tools/mosaic's Mosaic_layout.mli: Mosaic's flow) and, from 1995, by tables
    used for what they were not meant for (Table_layout.mli). CSS1
    (1996) gave every element a box -- content, padding, border, margin
    -- and CSS2 (1998) the rules by which boxes are placed: blocks
@@ -106,7 +106,7 @@
    root, last); fixed is absolute in the window's first screen (it
    scrolls with the page here: an exercise).
 
-   **Tables** (display: table) are Html_layout's: the grid and the
+   **Tables** (display: table) are laid out as Mosaic_layout's: the grid and the
    columns' widths from Table_layout, each cell asked its minimum and
    maximum by being laid out at width 0 and without limit; each row as
    tall as its tallest cell, the cell's content at its top, middle or

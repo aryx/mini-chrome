@@ -1,7 +1,8 @@
 (* Css: style sheets -- CSS1's rules, matched against the tree and
    cascaded into each element's declarations.
 
-   Mosaic's looks were the browser's (Looks' table); Netscape let the
+   Mosaic's looks were the browser's (a table: tools/mosaic's
+   Mosaic_looks); Netscape let the
    page choose some (<font>, <center>, bgcolor=) by writing them into
    the HTML, tag by tag. Cascading Style Sheets (Håkon Wium Lie's
    proposal, 1994; CSS1, W3C, December 1996; Internet Explorer 3 that
@@ -40,10 +41,12 @@
 
    What no rule says of an element, **inheritance** gives (colour, the
    font, the alignment: its parent's) or the property's initial value
-   (margins); that is Looks.styled's business, as is what each
+   (margins); that is Mosaic_looks.styled's business, as is what each
    property means. And before the page's rules, the browser's own:
-   Looks' table, the "user agent style sheet", which is what Mosaic's
-   table always was.
+   the table, the "user agent style sheet", which is what Mosaic's
+   table always was. (This is the first cascade, the one mini-netscape
+   and mini-firefox lay pages out by; the browser's own is Cascade,
+   over the same rules and selectors.)
 
    The sheet is read by Css_syntax (tokens and blocks, CSS Syntax Level
    3: nothing cut in the wrong place, what does not parse skipped), the

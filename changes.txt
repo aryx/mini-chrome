@@ -436,6 +436,16 @@
   5.5.1), make build-docker
 
 ** internals
+- the first layout engine is out of the browser: Mosaic's fixed looks
+  (Looks' table), its layout (Html_layout's algorithm, floats and
+  tables with it) and its drawing (Browser_draw.draw) are
+  tools/mosaic's Mosaic_looks, Mosaic_layout and Mosaic_draw, for the
+  older browsers. Browser_page's settings take an
+  engine (None: CSS's box model) in place of boxes, extensions and
+  breaker. What both engines share stays: Html_layout (the boxes,
+  lines and fragments), Looks.t, Browser_draw's words and controls,
+  Hit. libs/typeset (Knuth and Plass, wrap=pretty) is tools/typeset.
+  Not a pixel moved (26 dumps compared); the budget: 25,622 of 30,000
 - the browser's notes and plans are here: docs/notes_browser.md,
   notes_css_engine.md, notes_javascript.md, notes_tls.md,
   notes_browser_related_work.md, plan_browser_teaching.md,

@@ -1,8 +1,10 @@
-(* Browser_draw: a laid-out page (Html_layout) as the playground's
- * shapes -- the letters by Hershey's pen, the pictures by their pixels,
- * the rules and the list markers, the form controls in Motif's look
- * (Mosaic's and Netscape's toolkit on X), and, for an inspector, the
- * boxes outlined.
+(* Browser_draw: the parts of a laid-out page (Html_layout) as the
+ * playground's shapes -- a word's letters by Hershey's pen, a picture
+ * by its pixels, the lines under links, the form controls in Motif's
+ * look (Mosaic's and Netscape's toolkit on X), and, for an inspector,
+ * the boxes outlined. A whole page is put together from these by its
+ * engine: CSS's boxes by Browser_boxes, Mosaic's by tools/mosaic's
+ * Mosaic_draw.
  *
  * The page's coordinates are the layout's, x right and y down from the
  * page's top; the shapes here are the same turned over (y up, a line
@@ -124,13 +126,6 @@ val glyphs :
  * words too, as browsers draw it (a letter's own piece of line left
  * the spaces bare) *)
 val decorations : ?visited:(string -> bool) -> Html_layout.fragment list -> Playground.shape list
-
-(* the whole page but its controls: every line, float, rule and marker;
- * with [extensions] (false), Netscape's <hr noshade> a flat bar and a
- * <table border>'s bevelled frames, the table raised, its cells
- * sunken *)
-val draw :
-  ?extensions:bool -> visited:(string -> bool) -> picture_of:(string -> Browser_picture.t option) -> Html_layout.box -> drawn
 
 (* a control with its [value], its caret if [focused] *)
 val control_shapes :

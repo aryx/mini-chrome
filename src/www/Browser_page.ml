@@ -29,24 +29,18 @@ type t = {
   backgrounds : string list;
 }
 
+type engine =
+  visited:(string -> bool) -> picture:(string -> Browser_picture.t option) -> width:float -> Dom.element -> Html_layout.box * Browser_draw.drawn * Looks.color option
+
 type settings = {
-  extensions : bool;
   css : bool;
-  boxes : bool;
+  engine : engine option;
   width : float;
   height : float;
-  breaker : Html_layout.breaker;
   visited : string -> bool;
   picture : string -> Browser_picture.t option;
   sheet : string -> string option;
 }
-
-let pretty : Html_layout.breaker =
- fun ~measure units ->
-  let space = Array.fold_left (fun s (u : Html_layout.unit_) -> if s = 0. then u.space else s) 0. units in
-  let words = Array.map (fun (u : Html_layout.unit_) -> { Linebreak.text = ""; width = u.width }) units in
-  Linebreak.optimal { measure; space; stretch = space; shrink = 0. } words
-  |> List.map (fun (l : Linebreak.line) -> (l.first, l.last))
 
 (*****************************************************************************)
 (* Pages the browser writes *)
@@ -234,15 +228,20 @@ let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascad
       styles
 
 (* the tree laid out and drawn, the page's links and pictures resolved
- * against its URL; with [boxes], by the box model (Cascade, Computed,
- * Box_layout, Browser_boxes), the page's colour its root's or its
- * body's (CSS 2.1 section 14.2: the canvas) *)
+ * against its URL: by the box model (Cascade, Computed, Box_layout,
+ * Browser_boxes), the page's colour its root's or its body's (CSS 2.1
+ * section 14.2: the canvas) -- or by another engine, if the settings
+ * give one *)
 let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element) :
-    Html_layout.box * Browser_draw.drawn * Looks.color option option * string list =
+    Html_layout.box * Browser_draw.drawn * Looks.color option * string list =
   let picture src = s.picture (Browser_url.resolve base src) in
   let visited href = s.visited (fst (Browser_url.split_fragment (Browser_url.resolve base href))) in
   let picture_size src = Option.bind (picture src) Browser_picture.size in
-  if s.boxes then
+  match s.engine with
+  | Some engine ->
+      let layout, drawn, background = engine ~visited ~picture ~width:s.width tree in
+      (layout, drawn, background, [])
+  | None ->
     let media : Cascade.media = { width = s.width; height = s.height } in
     let sheets = if s.css then fst (page_sheets s media base tree) else [] in
     (* before: the cascade and the computed styles again at each relayout
@@ -261,40 +260,14 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
         [ b.style.background_image; b.style.mask_image ]
       @ List.concat_map backgrounds b.children @ List.concat_map backgrounds b.backdrops
     in
-    (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, Some canvas, List.sort_uniq compare (backgrounds boxes))
-  else
-    let root = { Browser_text.root_look with extensions = s.extensions } in
-    let style = if s.css then Css.cascade (Css.parse (Css.page_sheet tree)) tree else fun _ -> [] in
-    let layout = Html_layout.layout Browser_text.metrics ~breaker:s.breaker ~picture_size ~style ~root ~width:s.width tree in
-    (layout, Browser_draw.draw ~extensions:s.extensions ~visited ~picture_of:picture layout, None, [])
+    (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, canvas, List.sort_uniq compare (backgrounds boxes))
 
 let sheets_wanted (s : settings) (p : t) : string list =
-  if s.boxes && s.css then snd (page_sheets s { width = s.width; height = s.height } p.url p.tree) else []
-
-(* the page's colour: the style sheets' for its <body> or <html>, else
- * Netscape's bgcolor= -- or the canvas's, by the box model *)
-let background (s : settings) (tree : Dom.element) (canvas : Looks.color option option) : Looks.color option =
-  match canvas with
-  | Some c -> c
-  | None ->
-      let body = List.nth_opt (Dom.find_all "body" tree) 0 in
-      let css =
-        if not s.css then None
-        else
-          let style = Css.cascade (Css.parse (Css.page_sheet tree)) tree in
-          List.find_map
-            (fun e ->
-              Option.bind (List.find_map (fun (p, v) -> if p = "background-color" || p = "background" then Some v else None) (style e)) Looks.color_of_string)
-            (Option.to_list body @ [ tree ])
-      in
-      match css with
-      | Some c -> Some c
-      | None when s.extensions -> Option.bind (Option.bind body (Dom.attribute ~extensions:true "bgcolor")) Looks.color_of_string
-      | None -> None
+  if s.engine = None && s.css then snd (page_sheets s { width = s.width; height = s.height } p.url p.tree) else []
 
 let laid_out (s : settings) (p : t) : t =
   let layout, drawn, canvas, backgrounds = lay_out ~quirks:p.quirks s p.url p.tree in
-  { p with layout; drawn; background = background s p.tree canvas; backgrounds }
+  { p with layout; drawn; background = canvas; backgrounds }
 
 let title_of (tree : Dom.element) : string =
   match Dom.find_all "title" tree with t :: _ -> String.trim (Dom.text_content t) | [] -> ""
@@ -308,7 +281,7 @@ let with_tree (s : settings) (p : t) (tree : Dom.element) : t =
     title = title_of tree;
     layout;
     drawn;
-    background = background s tree canvas;
+    background = canvas;
     backgrounds;
     forms = Forms.forms tree;
     (* the values were the old tree's elements'; a script's page keeps
@@ -337,7 +310,7 @@ let read (s : settings) (url : string) (status : int) (content_type : string opt
     title;
     layout;
     drawn;
-    background = background s tree canvas;
+    background = canvas;
     forms = Forms.forms tree;
     values = [];
     quirks;
@@ -349,7 +322,7 @@ let read (s : settings) (url : string) (status : int) (content_type : string opt
 (*****************************************************************************)
 
 let explain (s : settings) (p : t) (e : Dom.element) : (string * string * string) list =
-  if not s.boxes then []
+  if s.engine <> None then []
   else
     let media : Cascade.media = { width = s.width; height = s.height } in
     let visited href = s.visited (fst (Browser_url.split_fragment (Browser_url.resolve p.url href))) in

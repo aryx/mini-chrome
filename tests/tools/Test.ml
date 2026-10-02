@@ -13,4 +13,4 @@
 let () =
   Cap.main (fun caps ->
       Testo.interpret_argv ~project_name:"tools" (fun _env ->
-          Unit_httpd.tests caps @ Unit_curl.tests caps @ Unit_lynx.tests caps @ Unit_node_host.tests caps))
+          Unit_mosaic_layout.tests @ Unit_httpd.tests caps @ Unit_curl.tests caps @ Unit_lynx.tests caps @ Unit_node_host.tests caps))

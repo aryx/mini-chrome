@@ -6,4 +6,5 @@
 (test
  (name Test)
  (flags (:standard -open Network)) ; ours (libs/network/dune)
- (libraries unix caps alcotest testo network mini_node mini_curl mini_httpd mini_lynx))
+ (libraries unix caps alcotest testo network mini_node mini_curl mini_httpd mini_lynx
+   lang_html lang_css browser_layout mosaic_layout)) ; Mosaic's layout

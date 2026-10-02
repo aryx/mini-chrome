@@ -8,14 +8,14 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-(* See Unit_html_layout.mli *)
+(* See Unit_mosaic_layout.mli *)
 
 (* the tests' font: a character as wide as its look's size *)
 let metrics (l : Looks.t) (s : string) : float = l.size *. float_of_int (String.length s)
 
 (* laid out by Mosaic (HTML 2.0), or by Netscape ([extensions]) *)
 let page ?(extensions = false) ?(width = 200.) (html : string) : Html_layout.box =
-  Html_layout.layout metrics ~root:(Looks.root ~extensions ~size:10. ()) ~width (Html_tree.of_string html)
+  Mosaic_layout.layout metrics ~root:(Looks.root ~extensions ~size:10. ()) ~width (Html_tree.of_string html)
 
 let netscape = page ~extensions:true
 
@@ -32,7 +32,7 @@ let rec blocks (name : string) (b : Html_layout.box) : Html_layout.box list =
   (match b.kind with Block e when e.name = name -> [ b ] | _ -> []) @ List.concat_map (blocks name) b.children
 
 let tests =
-  Testo.categorize "Html_layout"
+  Testo.categorize "Mosaic_layout"
     [
       Testo.create "the worked example" (fun () ->
           let p = page "<h1>Menu</h1><p>Soup of the day</p>" in
@@ -107,7 +107,7 @@ let tests =
             (fragments (page ~width:208. "<p>xxxxxxxxxxxxxxxx <a href=u>home</a>.")));
       Testo.create "the breaker is the caller's" (fun () ->
           let one_a_line : Html_layout.breaker = fun ~measure:_ units -> List.init (Array.length units) (fun i -> (i, i)) in
-          let p = Html_layout.layout metrics ~breaker:one_a_line ~root:(Looks.root ~size:10. ()) ~width:200. (Html_tree.of_string "<p>a b c") in
+          let p = Mosaic_layout.layout metrics ~breaker:one_a_line ~root:(Looks.root ~size:10. ()) ~width:200. (Html_tree.of_string "<p>a b c") in
           Alcotest.(check (list fragment)) "a unit a line" [ ("a", 8., 28.2); ("b", 8., 40.2); ("c", 8., 52.2) ] (fragments p));
       Testo.create "images: the worked example" (fun () ->
           (* width= and height= are Netscape's *)
@@ -123,7 +123,7 @@ let tests =
           let html = "<p><img src=a.gif alt=pic>" in
           Alcotest.(check (list fragment)) "no size: the alt text" [ ("pic", 8., 28.2) ] (fragments (page html));
           let sized =
-            Html_layout.layout metrics
+            Mosaic_layout.layout metrics
               ~picture_size:(fun src -> if src = "a.gif" then Some (20., 40.) else None)
               ~root:(Looks.root ~size:10. ()) ~width:200. (Html_tree.of_string html)
           in
@@ -197,7 +197,7 @@ let tests =
       Testo.create "style sheets: looks and boxes" (fun () ->
           let styled sheet html =
             let tree = Html_tree.of_string html in
-            Html_layout.layout metrics ~style:(Css.cascade (Css.parse sheet) tree) ~root:(Looks.root ~size:10. ()) ~width:200. tree
+            Mosaic_layout.layout metrics ~style:(Css.cascade (Css.parse sheet) tree) ~root:(Looks.root ~size:10. ()) ~width:200. tree
           in
           let f = List.hd (Html_layout.fragments (styled "p { font-size: 2em; color: #f00 } em { font-size: 50% }" "<p>ab <em>c</em>")) in
           Alcotest.check near "2em of the root's 10" 20. f.look.size;

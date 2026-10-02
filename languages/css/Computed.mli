@@ -34,8 +34,9 @@
    (grow, shrink, basis), gap, inset, list-style (its type).
 
    The page's defaults are a style sheet like its own, the user agent's
-   (ua.css, embedded as Ua_sheet): CSS 2.1's appendix D, the table of
-   Looks.mli written in the language the pages use.
+   (ua.css, embedded as Ua_sheet): CSS 2.1's appendix D, Mosaic's table
+   of looks (tools/mosaic's Mosaic_looks.mli) written in the language
+   the pages use.
 
    Not computed: the properties layout does not use yet (transforms,
    shadows, animations, grid's), and ::before and ::after's content. *)

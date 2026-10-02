@@ -1,9 +1,13 @@
 (* Browser_page: a page, read and laid out -- the whole pipeline of
- * the web engine (languages/html, languages/css, appkits/browser/layout) in one place, from the bytes a server sent to the shapes
- * a browser shows:
+ * the web engine (languages/html, languages/css, src/layout) in one
+ * place, from the bytes a server sent to the shapes a browser shows:
  *
  *   bytes -Charset-> text -Html_lexer-> tokens -Html_tree-> tree
- *         -Looks, Html_layout-> boxes -Browser_draw-> shapes
+ *         -Cascade, Computed-> styles -Box_layout-> boxes
+ *         -Browser_boxes-> shapes
+ *
+ * (the last line is CSS's; the older browsers of tools/ put their own
+ * there, Mosaic's looks and layout: [engine])
  *
  * keeping every stage (a browser's views show each), and what the
  * person did to it: its form controls' values, the browser's, not the
@@ -38,24 +42,24 @@ type t = {
   backgrounds : string list; (* by the box model: the pictures of its boxes' background-image, absolute URLs *)
 }
 
+(* another way to lay a page out and draw it than CSS's box model: the
+ * older browsers' (tools/mosaic's Mosaic_page.engine: Mosaic's fixed
+ * looks, Netscape's extensions). Given the links visited and the
+ * pictures come (the page's own addresses, as it wrote them), the
+ * page's width and its tree; gives the boxes and lines every layout
+ * here gives, their shapes, and the page's colour if it has one *)
+type engine =
+  visited:(string -> bool) -> picture:(string -> Browser_picture.t option) -> width:float -> Dom.element -> Html_layout.box * Browser_draw.drawn * Looks.color option
+
 type settings = {
-  extensions : bool; (* Netscape's extensions to HTML honoured (Dtd.origin) *)
-  css : bool; (* the page's style sheets honoured (Css): <style>, style= *)
-  boxes : bool; (* laid out by CSS 2.1's box model (Box_layout, Browser_boxes): TinyChrome's *)
+  css : bool; (* the page's style sheets honoured: <style>, style=, <link> *)
+  engine : engine option; (* None: CSS 2.1's box model (Cascade, Computed, Box_layout, Browser_boxes), the browser's *)
   width : float;
   height : float; (* the window's part that shows the page: 100vh, a media query's height *)
-  breaker : Html_layout.breaker;
   visited : string -> bool; (* an absolute URL, no #fragment *)
   picture : string -> Browser_picture.t option; (* an absolute URL *)
-  sheet : string -> string option; (* a style sheet's text, once it has come (an absolute URL): with [boxes] *)
+  sheet : string -> string option; (* a style sheet's text, once it has come (an absolute URL) *)
 }
-
-(* Knuth and Plass's lines (Linebreak.optimal), ragged right as a
- * browser's are -- the spaces may stretch (a line may end short), not
- * shrink (it may not end past the edge) -- with the paragraph's first
- * real space for all (Linebreak's model has one): CSS's text-wrap:
- * pretty *)
-val pretty : Html_layout.breaker
 
 (* [read settings url status content_type bytes]: the page, through the
  * whole pipeline *)

@@ -169,13 +169,18 @@ bytes -Charset-> text -Html_lexer-> tokens -Html_tree-> Dom tree
       -Box_layout (+ Flex_layout, Grid_layout)-> boxes -Browser_boxes-> Playground shapes
 ```
 
-There are two layout engines, a legacy of the teaching browsers this
-came from. `Html_layout` + `Looks` + `Css` + `Browser_draw` are Mosaic's
-fixed looks; `Box_layout` + `Cascade` + `Computed` + `Browser_boxes` are
-CSS 2.1's box model. MiniChrome always sets `settings.boxes = true`, so
-the second is the live path. `Box_layout` still produces `Html_layout`'s
-lines and fragments (`Box_tree.as_html_layout`), because `Hit`, the form
-controls and the drawing of words work on those.
+The browser has one layout engine, CSS 2.1's box model: `Cascade` +
+`Computed` + `Box_layout` + `Browser_boxes`. The one it replaced,
+Mosaic's fixed looks, is in `tools/mosaic` (`Mosaic_looks`,
+`Mosaic_layout`, `Mosaic_draw`, and `Mosaic_page.engine`, which puts
+them together): `Browser_page`'s settings take an `engine` (`None` for
+the box model), for the older browsers to give that one. What the two engines share
+stays in `src/`: the geometry both produce (`Html_layout`: boxes, lines,
+fragments; `Box_layout` makes them with `Box_tree.as_html_layout`), a
+word's look (`Looks.t`), and what works on those, `Hit`, the form
+controls and the drawing of words (`Browser_draw`). The old engine is
+not in the budget, and a change to those shared types must keep it
+building.
 
 `Box_layout` is four modules over `Box_types`' types (the box, a line's
 words and floats, a block being laid out): `Box_tree` (a box read),
