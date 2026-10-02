@@ -3,5 +3,8 @@
 ; literals read by its lexer (languages/json)
 (test
  (name Test)
- (libraries alcotest testo javascript lang_json) ; Json, over Js_lexer
+ (libraries
+   alcotest testo javascript
+   lang_json ; Json, over Js_lexer
+   mini_node caps) ; Node_host: the engine in a terminal
 )

@@ -104,9 +104,10 @@ src/layout/           where everything goes: CSS's box model (Box_layout,
                       grid (Box_grid, Grid_layout), tables, Mosaic's flow; a point back to a link (Hit)
 src/display/          a page drawn as shapes: Hershey's letters, pictures,
                       boxes (Browser_draw, Browser_boxes)
-src/www/              the page as a document (Browser_page), its scripts
-                      and DOM (Browser_script, over Script_dom and
-                      Script_host), its forms
+src/www/              the page as a document (Browser_page), its forms
+src/dom/              JavaScript in a browser: the DOM a page's scripts
+                      see (Script_dom, Script_host) and their tasks
+                      (Browser_script: the scripts, the events, the timers)
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube
 src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
@@ -122,6 +123,11 @@ src/window/           the window as a Model-View-Update program over
                       Window_update, Window_view
 src/main/             the main: the flags, the profile, the capabilities
                       handed down, the Playground run (MiniChrome.ml)
+tools/                small programs beside the browser, made of its
+                      libraries, for teaching. tools/node: mini-node,
+                      JavaScript outside a browser -- the same engine
+                      with a terminal for host (Node_host: console,
+                      process, timers and their loop, require, fs)
 tests/                html, css, js, layout, browser, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and

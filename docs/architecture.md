@@ -10,8 +10,26 @@ is about the shape of the running program.
 ```
 languages/   html, css, javascript, json      text in, values out; no window
 libs/        gui, richtext, typeset, network  general, not a browser's
-src/         url, layout, display, www,       the browser, by role
+src/         url, layout, display, www, dom,  the browser, by role
              viewers, about, chrome, window, main
+tools/       node                             programs beside the browser, made of
+                                              its libraries: mini-node
+```
+
+JavaScript is in three places, and the cut matters. `languages/javascript`
+is the language alone: it cannot print, wait, nor read a file, and
+knows nothing of pages. What a script can reach outside itself is its
+host's, and there are two hosts:
+
+```
+                 languages/javascript     values, functions, promises
+                    |              |
+                 src/dom        tools/node
+                 a page         a terminal (mini-node)
+                 document,      console, process, require and its
+                 events,        modules, fs, timers on the machine's
+                 timers on      clock and the loop that waits for
+                 the frames     them
 ```
 
 Each folder is one library, and a library only uses those above it in

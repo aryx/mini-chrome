@@ -81,6 +81,17 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- mini-node: the JavaScript engine in a terminal, as Node.js is V8 in
+  one (tools/node: Node_host, MiniNode). A file run as a module, -e a
+  text, or a console; console, process (argv, env, exit, stdout),
+  timers on the machine's clock and the loop that waits for them,
+  require with CommonJS modules (a file run once, in a function that
+  gives it exports, require and module), fs (readFileSync,
+  writeFileSync, existsSync). Js_eval.eval_in_run and call_in_run: a
+  host function called by a script running a text or a function
+- src/dom: what a page's scripts see (Script_types, Script_dom,
+  Script_host, Browser_script), out of src/www: the language in
+  languages/javascript, JavaScript in a browser in a directory of its own
 - JavaScript: promises (Js_promise: new Promise, then, catch, finally,
   Promise.resolve, reject, all, allSettled, race, any; a thenable
   followed; queueMicrotask) and their jobs, run after each script,

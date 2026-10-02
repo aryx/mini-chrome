@@ -1,0 +1,16 @@
+; claude: a program beside the browser (tools/). JavaScript outside a browser: the same engine
+; (languages/javascript) given another host than a page -- the
+; terminal, the files, the clock. Node_host is that host (console,
+; timers and their loop, process, require and its modules); MiniNode
+; the program, mini-node.
+(library
+ (name mini_node)
+ (wrapped false)
+ (modules Node_host)
+ (libraries javascript caps unix))
+
+(executable
+ (name MiniNode)
+ (public_name mini-node)
+ (modules MiniNode)
+ (libraries mini_node javascript caps unix))

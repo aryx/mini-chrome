@@ -25,6 +25,7 @@ make                   # dune build
 make test              # dune runtest -f, all seven suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
+./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
 make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5.1)
 ```
@@ -134,8 +135,11 @@ platforms is presented as a plan and agreed on before it is made.
 
 Each folder is one dune library, listed in the README in dependency
 order: `languages/` (html, css, javascript, json) → `libs/` (gui, richtext,
-typeset, network) → `src/` (url, layout, display, www, viewers, about,
-chrome, window, main). `languages/` and `src/layout` are pure OCaml: no
+typeset, network) → `src/` (url, layout, display, www, dom, viewers, about,
+chrome, window, main). `tools/` has the small programs beside the
+browser, made of its libraries (`tools/node`: `mini-node`): the
+browser is the subject of this repository, and a program that is not
+part of it goes there, not in `src/`. `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the
 caller), which is why their tests run on plain strings.
 
@@ -177,7 +181,17 @@ engine does (the box model, the attributes' hints, flexbox, grid,
 SVG), with the CSS that does it said in the card. A new feature of the
 engine gets its card there, or its own page.
 
-The `Dom` tree is an immutable value. `Browser_script` gives a page's
+JavaScript is cut in three. `languages/javascript` is the language
+alone (values, functions, promises; an async function's body is a
+thread, `Js_coroutine`): nothing in it knows of a page, and nothing
+of a browser goes there. `src/dom` is JavaScript in a browser: the DOM
+and what `window` has. `tools/node` is the same engine with a terminal
+for host, `mini-node` (`bin/mini-node file.js`, `-e text`, or a
+console: `Node_host` has console, process, timers and the loop that
+waits for them, `require` and CommonJS modules, `fs`): what Node.js is
+to V8, for teaching, and the way to run a script with no page.
+
+The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
 objects (`Script_host`), and freezes it back when it changed; the page
 is then laid out again whole (`Browser_page.with_tree`). The
@@ -290,7 +304,7 @@ site's or a script's colour, change its cell, and the date.
 
 The browser is to stay under 30,000 lines of OCaml: `languages/`,
 `libs/` and `src/`, their `.mli` files, comments and blank lines
-included; not `tests/` nor `scripts/`. `make loc` says where it stands
+included; not `tests/`, `scripts/` nor `tools/`. `make loc` says where it stands
 (`scripts/stats/loc.py`). Before a large feature, say what it will
 cost; after it, what it did.
 

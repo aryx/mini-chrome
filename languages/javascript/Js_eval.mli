@@ -83,6 +83,13 @@ val eval : t -> string -> (Js_value.value, error) result
  * handler, a timer's) *)
 val call : t -> Js_value.value -> this:Js_value.value -> Js_value.value list -> (Js_value.value, error) result
 
+(* the same two from a host function that a script called (require, an
+ * event dispatched by a script): in the run going on -- its budget,
+ * its jobs run after it, not now -- and a mistake is thrown
+ * (Js_value.Throw), a text that does not parse as a SyntaxError *)
+val eval_in_run : t -> string -> Js_value.value
+val call_in_run : t -> Js_value.value -> this:Js_value.value -> Js_value.value list -> Js_value.value
+
 (* a global, read and defined (the host's: document, and window's) *)
 val global : t -> string -> Js_value.value option
 val define : t -> string -> Js_value.value -> unit

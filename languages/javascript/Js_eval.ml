@@ -679,8 +679,8 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   | exception ((Invalid_argument _ | Failure _ | Not_found | Division_by_zero) as e) ->
       Error { line = t.line; message = "InternalError: " ^ Printexc.to_string e }
 
-let run (t : t) (program : A.program) : (value, error) result =
-  guarded t (fun () ->
+(* a program's statements, in the global scope *)
+let run_in_run (t : t) (program : A.program) : value =
       (* the value of the last expression statement: a console's echo *)
       let last = ref Undefined in
       hoist t.globals program;
@@ -700,7 +700,16 @@ let run (t : t) (program : A.program) : (value, error) result =
               | Return _ -> throw "SyntaxError" "Illegal return statement"
               | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
         program;
-      !last)
+      !last
+
+let run (t : t) (program : A.program) : (value, error) result = guarded t (fun () -> run_in_run t program)
+
+let eval_in_run (t : t) (text : string) : value =
+  match Js_parse.parse text with
+  | Ok program -> run_in_run t program
+  | Error e -> t.line <- e.line; throw "SyntaxError" e.message
+
+let call_in_run = call_value
 
 let eval (t : t) (text : string) : (value, error) result =
   match Js_parse.parse text with

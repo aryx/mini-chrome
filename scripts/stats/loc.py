@@ -13,8 +13,9 @@
 # comments and blank lines included, .mli files too, so that it stays
 # small enough to read. The budget is what the browser is made of --
 # languages/, libs/ and src/ -- and not its tests (every tests/
-# directory), nor scripts/ (the tools round it): a cap must never be a
-# reason to write fewer tests.
+# directory), nor scripts/ (the tools round it), nor tools/ (the
+# programs beside it: mini-node): a cap must never be a reason to
+# write fewer tests.
 #
 # Each line is counted once, as code (it has some code, maybe a
 # comment too), comment (only a comment, or inside one) or blank.
@@ -123,7 +124,7 @@ def count(text):
 # ---------------------------------------------------------------------
 
 # what the budget counts, in the order printed; the rest is "tests"
-# (wherever a tests/ directory is) or "other" (scripts/)
+# (wherever a tests/ directory is) or "other" (scripts/, tools/)
 BUDGET = 30000
 BROWSER = ["languages", "libs", "src"]
 
