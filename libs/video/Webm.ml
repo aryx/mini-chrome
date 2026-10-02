@@ -10,7 +10,7 @@
 
 (* See Webm.mli *)
 
-type track = { number : int; video : bool; codec : string; width : int; height : int }
+type track = { number : int; video : bool; codec : string; width : int; height : int; rate : float; channels : int; setup : string }
 type t = { tracks : track list; frames : (int * float * string) list; duration : float }
 
 (*****************************************************************************)
@@ -94,7 +94,18 @@ let parse (s : string) : t =
                         (dim 0xB0, dim 0xBA)
                     | [] -> (0, 0)
                   in
-                  tracks := { number = int 0xD7; video = int 0x83 = 1; codec = (match get 0x86 with Some (at, size) -> String.sub s at size | None -> ""); width; height } :: !tracks)
+                  (* a sound's: samples a second (8,000 unless said), channels (1) *)
+                  let rate, channels =
+                    match find 0xE1 fields with
+                    | audio :: _ ->
+                        let a = children audio in
+                        let field id = match find id a with (_, at, size) :: _ -> Some (at, size) | [] -> None in
+                        ( (match field 0xB5 with Some (at, size) -> real s at size | None -> 8000.),
+                          match field 0x9F with Some (at, size) -> number s at size | None -> 1 )
+                    | [] -> (0., 0)
+                  in
+                  let text id = match get id with Some (at, size) -> String.sub s at size | None -> "" in
+                  tracks := { number = int 0xD7; video = int 0x83 = 1; codec = text 0x86; width; height; rate; channels; setup = text 0x63A2 } :: !tracks)
                 (find 0xAE (children e))
           (* a Cluster: its time, then its blocks, bare or in a group *)
           | 0x1F43B675 ->
@@ -108,7 +119,27 @@ let parse (s : string) : t =
     (find 0x18538067 (elements s 0 (String.length s)));
   { tracks = List.rev !tracks; frames = List.rev !frames; duration = !duration *. !scale /. 1e9 }
 
-let video (t : t) : (track * (float * string) list) option =
-  match List.find_opt (fun tr -> tr.video) t.tracks with
+let first (t : t) (wanted : track -> bool) : (track * (float * string) list) option =
+  match List.find_opt wanted t.tracks with
   | Some tr -> Some (tr, List.filter_map (fun (n, time, data) -> if n = tr.number then Some (time, data) else None) t.frames)
   | None -> None
+
+let video (t : t) = first t (fun tr -> tr.video)
+let audio (t : t) = first t (fun tr -> tr.channels > 0)
+
+(* Xiph's lacing: a count less one, each packet's size but the last's
+ * as bytes added up to one under 255, then the packets end to end *)
+let laced (s : string) : string list =
+  if s = "" then []
+  else
+    let count = Char.code s.[0] + 1 in
+    let rec sizes at n acc =
+      if n = 0 then (at, List.rev acc)
+      else
+        let rec size at sum = let b = Char.code s.[at] in if b = 255 then size (at + 1) (sum + 255) else (at + 1, sum + b) in
+        let at, v = size at 0 in
+        sizes at (n - 1) (v :: acc)
+    in
+    let at, sizes = sizes 1 (count - 1) [] in
+    let at, packets = List.fold_left (fun (at, acc) size -> (at + size, String.sub s at size :: acc)) (at, []) sizes in
+    List.rev (String.sub s at (String.length s - at) :: packets)

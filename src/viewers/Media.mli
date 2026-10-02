@@ -25,9 +25,12 @@
  *                               and its sound interleaved, a pack's
  *                               start code first (Mpeg_system.mli)
  *     1A 45 DF A3               WebM (2010), the web's own: Matroska's
- *                               container, its video VP8, played
- *                               without its sound (libs/video's
- *                               Webm.mli, Vp8_video.mli)
+ *                               container, its video VP8 (libs/video's
+ *                               Webm.mli, Vp8_video.mli), its sound
+ *                               Vorbis; or a sound alone
+ *     "OggS"                    Ogg (Xiph.Org): Vorbis's own file
+ *                               (2002), a page's first bytes
+ *                               (libs/audio's Ogg.mli, Vorbis.mli)
  *     FF Ex / FF Fx, or "ID3"   MPEG audio, MP2 and MP3 (1993): 11 bits
  *                               of sync, a frame's header, checked by the
  *                               next frame's being where it says; or a
@@ -42,16 +45,17 @@
  * (.mod), and a tune in solfege is plain text (.doremi, .txt).
  *
  * Opened, a file is one of four things to a player: a [Sound], samples
- * to play (a recording, decoded first if an MP2 or MP3, Mpeg_audio.mli;
+ * to play (a recording, decoded first if an MP2, an MP3 (Mpeg_audio.mli)
+ * or Vorbis;
  * or a tune rendered by audio/'s synthesizer, with its notes for a
  * piano roll); a [Module], a song played live by
  * its own player (Mod_player.mli), too long to render ahead; a
  * [Picture]; a [Movie], pictures in time, decoded as they're shown
  * (Movie.mli), and its sound if it has one (an AVI's): a GIF's frames,
- * Y4M, FLI and FLC, AVI, MPEG-1, and an .mpg's video with its MP2
+ * Y4M, FLI and FLC, AVI, MPEG-1, an .mpg's video with its MP2, a WebM's with its Vorbis
  * (plan_video_teaching.md). *)
 
-type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm
+type kind = Wav | Mp2 | Mp3 | Midi | Mod | Abc | Solfege | Png | Gif | Jpeg | Xpm | Y4m | Flic | Avi | Mpeg1 | Mpg | Webm | Ogg
 
 val kind_name : kind -> string
 

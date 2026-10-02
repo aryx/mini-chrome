@@ -119,6 +119,18 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a WebM's sound: its Vorbis track played with its picture (Webm: a
+  sound track's rate, channels and its three headers, Xiph-laced;
+  Media gives them to Vorbis). A WebM of sound alone and an .ogg file
+  are sounds, for <audio>. about:tube's first clip has its sound.
+  Opus is not decoded yet
+- sound, the web's (libs/audio): Vorbis decoded (Vorbis: the
+  codebooks sent in the stream, floor 1, the three residues, two
+  channels uncoupled, the MDCT by a Fourier transform, windows
+  overlapped) and an Ogg file's pages cut into packets (Ogg). A
+  copy of elm-playground's, written there the same day, to diverge.
+  Four files of libvorbis's and ffmpeg's encoders decode to
+  libvorbis's samples, a rounding apart (tests/audio)
 - <video> plays a WebM file: its VP8 by libs/video, the frames
   decoded as the player asks for them (Media: a Movie over
   Vp8_video), without sound (Vorbis and Opus are not decoded);

@@ -45,6 +45,38 @@ let tests =
           Alcotest.(check (list (float 1e-6))) "ten a second" [ 0.; 0.1; 0.2 ] (List.filteri (fun i _ -> i < 3) (List.map fst frames));
           Alcotest.(check (float 0.01)) "2.4 s" 2.4 webm.duration;
           Alcotest.(check bool) "what is not one" true (Webm.sniff (read "data/plain.webm") && not (Webm.sniff "RIFF....WEBP")));
+      Testo.create "a sound's track: its fields, Vorbis's three headers laced" (fun () ->
+          Alcotest.(check (list string)) "the .mli's example" [ "abc"; "d"; "e" ] (Webm.laced "\002\003\001abcde");
+          Alcotest.(check (list string)) "a size of 255 and more"
+            [ String.make 258 'x'; ""; "end" ]
+            (Webm.laced ("\002\255\003\000" ^ String.make 258 'x' ^ "end"));
+          Alcotest.(check (list string)) "nothing" [] (Webm.laced "");
+          let webm = Webm.parse (read "data/sound.webm") in
+          Alcotest.(check bool) "no video" true (Webm.video webm = None);
+          let track, packets = Option.get (Webm.audio webm) in
+          Alcotest.(check (triple string int (float 0.))) "Vorbis, two channels, 22,050 Hz" ("A_VORBIS", 2, 22050.) (track.codec, track.channels, track.rate);
+          Alcotest.(check (list string)) "its headers: identification, comments, setup"
+            [ "\001vorbis"; "\003vorbis"; "\005vorbis" ]
+            (List.map (fun h -> String.sub h 0 7) (Webm.laced track.setup));
+          Alcotest.(check bool) "its packets, in time" true (List.length packets > 5 && List.map fst packets = List.sort compare (List.map fst packets));
+          Alcotest.(check bool) "a video has no sound" true (Webm.audio (Webm.parse (read "data/plain.webm")) = None));
+      Testo.create "a WebM's Vorbis decoded: libvorbis's samples, a rounding apart" (fun () ->
+          let track, packets = Option.get (Webm.audio (Webm.parse (read "data/sound.webm"))) in
+          let decoder = match Webm.laced track.setup with [ identification; _; setup ] -> Vorbis.create ~identification ~setup | _ -> Alcotest.fail "headers" in
+          let parts = List.map (fun (_, packet) -> Vorbis.decode decoder packet) packets in
+          let expected = read "data/sound.s16" in
+          let frames = String.length expected / 4 in
+          List.iter
+            (fun c ->
+              let ours = Array.concat (List.map (fun (p : float array array) -> p.(c)) parts) in
+              Alcotest.(check bool) "as many samples, a block apart at most" true (abs (Array.length ours - frames) <= 2048);
+              let worst = ref 0 in
+              for i = 0 to min frames (Array.length ours) - 1 do
+                let theirs = String.get_int16_le expected ((4 * i) + (2 * c)) in
+                worst := max !worst (abs (theirs - max (-32768) (min 32767 (int_of_float (Float.round (ours.(i) *. 32768.))))))
+              done;
+              if !worst > 2 then Alcotest.failf "channel %d: %d away" c !worst)
+            [ 0; 1 ]);
       Testo.create "frames predicted from the one before" (exact "plain" 24);
       Testo.create "motion: new vectors, split macroblocks, quarter pixels" (exact "motion" 30);
       Testo.create "a size that is not a multiple of 16" (exact "odd" 20);

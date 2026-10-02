@@ -3,6 +3,6 @@
 ; video ffmpeg's own decoder gives for it
 (test
  (name Test)
- (deps (glob_files data/*.webm) (glob_files data/*.md5))
+ (deps (glob_files data/*.webm) (glob_files data/*.md5) data/sound.s16)
  (flags (:standard -open Images))
- (libraries alcotest testo mini_video images tiny_libs.graphics_rgba))
+ (libraries alcotest testo mini_video images tiny_libs.graphics_rgba mini_audio))

@@ -15,9 +15,9 @@
 type clip = { file : string; title : string; format : string; about : string }
 
 let clips : clip list =
-  [ { file = "ball_and_square.webm"; title = "The ball and the square, as the web has it"; format = "VP8, in a WebM file";
+  [ { file = "ball_and_square.webm"; title = "The ball and the square, as the web has it"; format = "VP8 and Vorbis, in a WebM file";
       about =
-        "HTML5's own video (2010): VP8, the codec Google bought and opened so that <video> had a format nobody paid for, in Matroska's container. A key frame, then frames that say where each block of the one before went -- vectors of quarter pixels -- and what changed. Decoded by libs/video, written here: every frame the same, to the byte, as ffmpeg's decoder gives. Without its sound: Vorbis is not decoded." };
+        "HTML5's own video (2010): VP8, the codec Google bought and opened so that <video> had a format nobody paid for, in Matroska's container. A key frame, then frames that say where each block of the one before went -- vectors of quarter pixels -- and what changed. Decoded by libs/video, written here: every frame the same, to the byte, as ffmpeg's decoder gives. Its sound is Vorbis (2002), the free codec made when MP3's licence was asked for: decoded by libs/audio." };
     { file = "ffmpeg_muxed.mpg"; title = "The ball and the square"; format = "MPEG-1 and MP2, in an .mpg";
       about =
         "A Video CD's formats (1993): MPEG-1 video -- its I, P and B pictures, motion vectors and the DCT -- and MPEG-1 audio layer II, interleaved in a system stream, the picture following the sound's clock. Decoded by graphics/videos/mpeg1 and audio/formats/mpeg_audio." };

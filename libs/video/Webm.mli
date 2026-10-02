@@ -38,9 +38,10 @@
    the end", for a file written while it is recorded.
 
    Not read: the index (Cues: where the key frames are, to jump
-   there), several frames laced in one block, the sound's tracks
-   (found and listed, their packets kept, not decoded: Vorbis and
-   Opus are not here), chapters, tags, attachments.
+   there), several frames laced in one block, chapters, tags,
+   attachments. A sound's track is found and its packets kept, not
+   decoded here: Vorbis is libs/audio's (Vorbis.mli; Media gives it the
+   track's [setup] and its packets), Opus is not decoded yet.
 
    cs-history:
    Matroska -- the Russian doll, boxes in boxes -- was started in
@@ -64,8 +65,11 @@
    container guidelines (webmproject.org). *)
 
 (* a track: its number (which its packets say), whether it is a
- * video's, its codec's name ("V_VP8", "A_VORBIS"), a video's size *)
-type track = { number : int; video : bool; codec : string; width : int; height : int }
+ * video's, its codec's name ("V_VP8", "A_VORBIS"), a video's size, a
+ * sound's samples a second and channels (0 for a video), and what its
+ * codec must be told before the first packet (Vorbis's three headers,
+ * [laced]; nothing for VP8) *)
+type track = { number : int; video : bool; codec : string; width : int; height : int; rate : float; channels : int; setup : string }
 
 (* the tracks, and every packet in the file's order: its track, its
  * time in seconds, its bytes; how long the file says it is *)
@@ -80,3 +84,14 @@ val parse : string -> t
 
 (* the first video track and its frames, each with its time *)
 val video : t -> (track * (float * string) list) option
+
+(* the first sound track and its packets *)
+val audio : t -> (track * (float * string) list) option
+
+(* several packets in one string, as Xiph laces them (Matroska's way
+ * to keep Vorbis's three headers in a track's [setup]): a byte, their
+ * count less one; the size of each but the last, as bytes to add up,
+ * the last of them under 255 (so 255 3 is 258, and 255 0 is 255);
+ * then the packets. "\002\003\001abcde" is "abc", "d", "e".
+ * Raises [Invalid_argument] on a string cut short *)
+val laced : string -> string list

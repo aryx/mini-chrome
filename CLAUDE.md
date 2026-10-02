@@ -26,7 +26,7 @@ opam, C, the machine) and what was brought in: keep it true when a
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all twelve suites
+make test              # dune runtest -f, all thirteen suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -42,7 +42,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
 runner, the suites being `html`, `css`, `js`, `layout`, `browser`,
-`network`, `network_unix`, `tools`, `images`, `xml`, `compression`, `video`):
+`network`, `network_unix`, `tools`, `images`, `xml`, `compression`, `video`, `audio`):
 
 ```bash
 dune build @tests/css/runtest --force
@@ -149,7 +149,7 @@ order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
-network, images, video, compression) → `src/` (url, layout, display, www, dom, viewers, about,
+network, images, video, audio, compression) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`) and a library a
 language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
@@ -474,8 +474,17 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   checked to the byte against ffmpeg's decoder in `tests/video`
   (`data/make.sh`). `<video>` plays a WebM file through `Media`
   (a `Movie` whose frames `Vp8_video` decodes as they are asked for;
-  no sound: Vorbis and Opus are not decoded), beside tiny_libs'
-  MPEG-1; `about:tube`'s first clip is one.
+  its sound, Vorbis, decoded whole from the track's three headers,
+  `Webm.laced`; Opus is not decoded), beside tiny_libs' MPEG-1;
+  `about:tube`'s first clip is one. An `.ogg` file and a WebM of
+  sound alone are sounds. `libs/audio` has `Vorbis` and `Ogg`: a copy
+  of elm-playground's (`tiny_libs.audio_vorbis`, which stays there
+  for its other programs and is not linked here), checked against
+  libvorbis's decoding in `tests/audio` (`data/make.sh`). MP3, MP2
+  and the other sounds stay `tiny_libs`'. Not every codec is to be
+  copied: one of each kind to read here -- pictures (`libs/images`),
+  video (`libs/video`), sound (`libs/audio`) --, the web's own where
+  there is one; the rest is the playground's.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
   The Playground itself links `tiny_libs`' `Png` (textures, a frame

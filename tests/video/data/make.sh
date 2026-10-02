@@ -35,3 +35,15 @@ clip life   -f lavfi -i "life=size=96x80:rate=10:mold=10:ratio=0.3:death_color=#
 clip keys   -f lavfi -i "testsrc2=size=96x64:rate=10"     -frames:v 30 -c:v libvpx -b:v 100k -g 7 -slices 4
 clip prof1  -f lavfi -i "testsrc2=size=96x64:rate=10"     -frames:v 16 -c:v libvpx -b:v 100k -profile:v 1
 clip prof3  -f lavfi -i "testsrc2=size=96x64:rate=10"     -frames:v 16 -c:v libvpx -b:v 100k -profile:v 3
+
+# A sound alone, Vorbis (libvorbis), two channels at 22,050 Hz: a
+# falling chirp on the left, a rising one on the right. The same
+# packets in WebM and in Ogg, and what libvorbis decodes from them
+# (16-bit samples, the two channels in turn): our decoder's answer, a
+# rounding apart.
+plain="-map_metadata -1 -fflags +bitexact -flags:a +bitexact"
+ffmpeg -hide_banner -loglevel error -y -f lavfi \
+  -i "aevalsrc=0.6*sin(2*PI*(900-800*t)*t)|0.6*sin(2*PI*(200+1500*t)*t):s=22050:d=0.5" \
+  -c:a libvorbis -q:a 2 $plain sound.webm
+ffmpeg -hide_banner -loglevel error -y -i sound.webm -c:a copy $plain sound.ogg
+ffmpeg -hide_banner -loglevel error -y -c:a libvorbis -i sound.ogg -f s16le $plain sound.s16

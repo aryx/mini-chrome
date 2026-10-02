@@ -5,6 +5,7 @@
 (test
  (name Test)
  (flags (:standard -open Network)) ; Cookie, Cookie_jar, Url: ours (libs/network/dune)
+ (deps ../video/data/sound.webm ../video/data/sound.ogg) ; Unit_media: Vorbis alone
  (libraries
    unix caps alcotest testo mini_opti browser_display network
    lang_html javascript browser_layout
