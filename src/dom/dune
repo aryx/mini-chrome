@@ -1,0 +1,15 @@
+; claude: JavaScript in a browser: what a page's scripts see and do,
+; over the language (languages/javascript, which knows nothing of
+; pages). Script_dom is the page's mutable copy, Script_host the host
+; objects (an element, document, location), their types in
+; Script_types; Browser_script the tasks (the scripts run, an event
+; dispatched, the timers) and what the browser asks of them.
+(library
+ (name browser_dom)
+ (wrapped false)
+ (modules_without_implementation script_types) ; types alone
+ (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
+ (libraries
+   lang_html lang_css javascript
+   browser_url
+   network)) ; Urlencoded, a URL's query

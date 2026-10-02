@@ -6,4 +6,4 @@
 (executable
  (name Js_survey)
  (flags (:standard -open Network))
- (libraries unix lang_html javascript browser_www network elm_playground elm_playground_software))
+ (libraries unix lang_html javascript browser_www browser_dom network elm_playground elm_playground_software))
