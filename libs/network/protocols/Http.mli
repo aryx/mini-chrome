@@ -87,7 +87,7 @@
    gzip stream (tiny_libs' Gzip: DEFLATE in RFC 1952's wrapper). We
    ask for two more, "Accept-Encoding: gzip, br, zstd": Brotli (RFC
    7932, with its dictionary of 120 KB of the web's common words) and
-   Zstandard (RFC 8878), tiny_libs' Brotli and Zstd, which some servers
+   Zstandard (RFC 8878), libs/compression's Brotli and tiny_libs' Zstd, which some servers
    send to whoever says "Mozilla" whatever was asked.
    [response.body] is the page, decompressed; its headers are the
    server's, untouched. The worked example, "hi" (Gzip.mli's 25 bytes):

@@ -1,0 +1,8 @@
+; the tests of libs/compression, run by 'make test': Brotli.mli's and
+; Brotli_dictionary.mli's worked examples, the check values RFC 7932
+; gives for its tables, and streams made by Google's encoder
+; (data/make_brotli.py says how)
+(test
+ (name Test)
+ (deps (glob_files data/*.br))
+ (libraries alcotest testo mini_compression tiny_libs.compression)) ; Crc32, for the dictionary's

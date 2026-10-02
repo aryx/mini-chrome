@@ -1,0 +1,27 @@
+; the web's own compression, decoded: Brotli (RFC 7932), over
+; Brotli_dictionary (the words' layout and the 121 transforms) and
+; Brotli_words (the words, 120 KB: dictionary.bin, from
+; github.com/google/brotli, c/common/dictionary.bin; Google's, under
+; the MIT license). From elm-playground's libs/compression/brotli, to
+; be told here with the browser it was made for. The older ones a
+; server answers in (gzip, Zstandard) and what Brotli stands on
+; (Huffman's codes) are general and stay tiny_libs.compression's.
+; Pure OCaml, bytes in and bytes out.
+(library
+ (name mini_compression)
+ (wrapped false)
+ (libraries tiny_libs.compression)) ; Huffman
+
+; the file embedded as a string, so the library needs no file at
+; runtime (a quoted string: the bytes as they are)
+(rule
+ (targets Brotli_words.ml)
+ (deps dictionary.bin)
+ (action
+  (with-stdout-to
+   %{targets}
+   (progn
+    (echo "(* generated from dictionary.bin by libs/compression/dune *)\n")
+    (echo "let bytes = {brotli|")
+    (cat %{deps})
+    (echo "|brotli}\n")))))

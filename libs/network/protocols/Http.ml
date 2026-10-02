@@ -175,7 +175,7 @@ let decoded (headers : header list) (body : string) : (string, string) result =
   | None | Some "identity" -> Ok body
   | Some ("gzip" | "x-gzip" | "br" | "zstd") when body = "" -> Ok ""
   | Some (("gzip" | "x-gzip" | "br" | "zstd") as coding) -> (
-      let decompress = match coding with "br" -> Brotli.decompress ~dictionary:Brotli_words.bytes | "zstd" -> Zstd.decompress | _ -> Gzip.decompress in
+      let decompress = match coding with "br" -> Brotli.decompress | "zstd" -> Zstd.decompress | _ -> Gzip.decompress in
       (* Inflate reads past the end of a stream cut short *)
       try Ok (decompress body) with Failure e | Invalid_argument e -> Error (Printf.sprintf "Http: %s: %s" coding e))
   | Some ce -> Error (Printf.sprintf "Http: content coding %S not supported" ce)

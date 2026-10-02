@@ -111,6 +111,11 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- Brotli is the browser's own: Brotli, Brotli_dictionary and the
+  dictionary (in the binary) in a new libs/compression, copied from
+  elm-playground to be told here. Needs elm-playground after 0.3.4,
+  where Brotli is a library apart from compression
+  (tiny_libs.compression_brotli)
 - SVG is the browser's own: Svg, copied from elm-playground's
   graphics/images/svg into libs/images beside WebP (a format born of
   the web, to grow with what a browser has), its interface telling

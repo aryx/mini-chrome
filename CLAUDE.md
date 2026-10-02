@@ -22,7 +22,7 @@ capabilities). Keep it true when one of those changes.
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all ten suites
+make test              # dune runtest -f, all eleven suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -35,7 +35,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
 runner, the suites being `html`, `css`, `js`, `layout`, `browser`,
-`network`, `network_unix`, `tools`, `images`, `xml`):
+`network`, `network_unix`, `tools`, `images`, `xml`, `compression`):
 
 ```bash
 dune build @tests/css/runtest --force
@@ -142,7 +142,7 @@ order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
-typeset, network, images) → `src/` (url, layout, display, www, dom, viewers, about,
+typeset, network, images, compression) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`) and a library a
 language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
@@ -405,16 +405,26 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   `Gzip`, `Brotli` (its dictionary a library of its own,
   `compression_brotli_words`) and `Zstd`, which
   are in elm-playground after 0.3.3: a compression is not a browser's.
-- `libs/images` has the two picture formats born of the web: WebP
+- What was born of the web is told here, not in elm-playground, even
+  when it was written there first: a copy, meant to diverge, as
+  `libs/network`. `libs/images` has the picture formats: WebP
   (`Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
   against libwebp's output in `tests/images`, whose `data/make.py`
-  made the files) and SVG (`Svg`, a copy of elm-playground's
-  `graphics/images/svg` meant to diverge, as `libs/network`:
-  `tiny_libs.graphics_svg` is not linked, the two have a module of
-  the same name). GIF, PNG and JPEG stay `tiny_libs`', and so does
-  what `Svg` draws with (`graphics/2d`). An SVG file is read by
-  `languages/xml`'s `Xml` into a `Dom`, the tree of an `<svg>` written
-  in a page: `Svg` draws a `Dom.element`, whichever parser made it.
+  made the files) and SVG (`Svg`, a copy). GIF, PNG and JPEG stay
+  `tiny_libs`', and so does what `Svg` draws with (`graphics/2d`).
+  An SVG file is read by `languages/xml`'s `Xml` into a `Dom`, the
+  tree of an `<svg>` written in a page: `Svg` draws a `Dom.element`,
+  whichever parser made it.
+  `libs/compression` has Brotli (`Brotli`, `Brotli_dictionary`, and
+  the dictionary's 120 KB in the binary, `Brotli_words`); gzip,
+  Zstandard and `Huffman` stay `tiny_libs.compression`'s.
+- A copy must not meet its original in the program: two modules of
+  one name do not link. `tiny_libs.graphics_svg` is simply not linked.
+  Brotli was in
+  `tiny_libs.compression`, which we link for the rest: elm-playground
+  after 0.3.4 has it in a library of its own
+  (`tiny_libs.compression_brotli`, not linked here), and mini-chrome
+  needs that version.
 - `tiny_languages` cannot be linked here: its libraries stand on its
   own JavaScript, whose unwrapped modules (`Js_ast`, `Js_lexer`, ...)
   have the names of ours. What is needed from it is copied
