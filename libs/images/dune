@@ -1,9 +1,9 @@
 ; pictures' formats decoded, the three born of the web or for it: PNG
 ; (Png: made on the net in 1995 to replace GIF, the W3C's own),
 ; SVG (Svg: a drawing read and made pixels) -- both elm-playground's,
-; copied to be told here and to grow -- and WebP (Webp: the
+; copied to be told here and to grow -- and WebP, in webp/ (Webp: the
 ; container; Vp8l: the lossless format; Vp8: the lossy one, a frame of
-; the VP8 video codec). The older formats (GIF, JPEG) came to the web
+; the VP8 video codec; Vp8_tables: its numbers). The older formats (GIF, JPEG) came to the web
 ; from outside and stay elm-playground's. Pure OCaml, bytes in and
 ; pixels out.
 ;
@@ -13,6 +13,8 @@
 ; would not link. Never written, though: the libraries using it say
 ; (flags (:standard -open Images)), and their code Png.decode,
 ; Webp.decode, ours.
+(include_subdirs unqualified) ; webp/
+
 (library
  (name images)
  (wrapped true)

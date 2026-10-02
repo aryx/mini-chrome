@@ -30,7 +30,7 @@
  *             own size into pixels (libs/images' Svg)
  *
  * Decoded by our own readers (elm-playground's graphics/images/: Gif,
- * Png, Jpeg; libs/images here, the two born of the web: Webp, Svg),
+ * Jpeg; libs/images here, those born of the web: Png, Webp, Svg),
  * pure OCaml, so a browser running in a browser decodes them too. *)
 
 type t = Waiting | Arrived of Rgba_image.t | Broken

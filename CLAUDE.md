@@ -411,7 +411,7 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
 - What was born of the web is told here, not in elm-playground, even
   when it was written there first: a copy, meant to diverge, as
   `libs/network`. `libs/images` has the picture formats: WebP
-  (`Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
+  (in `webp/`: `Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
   against libwebp's output in `tests/images`, whose `data/make.py`
   made the files), SVG (`Svg`) and PNG (`Png`, with PngSuite in
   `tests/images/pngsuite`), the last two copies. GIF and JPEG stay
