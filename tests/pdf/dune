@@ -1,0 +1,15 @@
+; the tests of libs/pdf and libs/fonts, run by 'make test': PDF files
+; of others' programs (data/make.sh says how), each page drawn near
+; poppler's picture of it
+(test
+ (name Test)
+ (modules Test Unit_pdf Unit_fonts Unit_pdf_render)
+ (deps (glob_files data/*.pdf) (glob_files data/*.png))
+ (flags (:standard -open Images)) ; Png: ours (libs/images/dune)
+ (libraries alcotest testo mini_pdf mini_fonts images tiny_libs.graphics_rgba tiny_libs.compression))
+
+; a PDF file looked into, from a terminal
+(executable
+ (name Dump)
+ (modules Dump)
+ (libraries mini_pdf mini_fonts tiny_libs.graphics_rgba))

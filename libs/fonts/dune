@@ -1,0 +1,9 @@
+; outline fonts read: a glyph's contours (Outline) from TrueType
+; (Truetype), CFF (Cff) and Type 1 (Type1) files; glyphs' names and the
+; old encodings (Glyph_names), the standard fonts' widths
+; (Standard_widths). What a PDF file embeds; what @font-face would
+; fetch. Pure OCaml.
+(library
+ (name mini_fonts)
+ (wrapped false)
+ (libraries tiny_libs.graphics_2d_geometry)) ; Curve: a curve made lines

@@ -1,0 +1,16 @@
+; a PDF file read and drawn: its objects and where they are (Pdf,
+; Pdf_object, Pdf_filter), a page's operators run (Pdf_render) onto a
+; canvas (Pdf_canvas) with its fonts (Pdf_font, over libs/fonts), its
+; colours (Pdf_color), its gradients (Pdf_shading) and its pictures
+; (Pdf_image). Pure OCaml, bytes in and pictures out; the browser's
+; viewer over it is src/viewers' Pdf_viewer.
+(library
+ (name mini_pdf)
+ (wrapped false)
+ (libraries
+   mini_fonts
+   tiny_libs.compression ; Zlib, Inflate: FlateDecode
+   tiny_libs.graphics_rgba tiny_libs.graphics_jpeg ; a page's picture; DCTDecode
+   tiny_libs.graphics_font ; Hershey: our letters, where a font's are not drawn
+   ; polygons filled and stroked, curves made lines, transforms
+   tiny_libs.graphics_core tiny_libs.graphics_2d tiny_libs.graphics_2d_geometry))
