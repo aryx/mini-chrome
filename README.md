@@ -117,6 +117,13 @@ libs/audio            sound as the web has it: Vorbis decoded (Vorbis:
                       Celt: each band's energy, then its shape as
                       pulses; Range_decoder; Mdct, both codecs'
                       transform): a WebM's sound, and <audio>'s
+libs/fonts            outline fonts read: a glyph's contours (Outline) from
+                      TrueType, CFF and Type 1 files; glyphs' names, the
+                      standard fonts' widths
+libs/pdf              a PDF file read (Pdf: objects, the table of where
+                      they are, filters, the page tree) and a page drawn
+                      (Pdf_render: paths, text in the file's own fonts or
+                      in ours, pictures, clips, gradients, transparency)
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style): what the pen drawing a letter is told
@@ -140,7 +147,8 @@ src/dom/              JavaScript in a browser: the DOM a page's scripts
                       (XMLHttpRequest, Script_fetch, WebSocket), a
                       page's modules (Script_modules) and their tasks (Browser_script:
                       the scripts, the events, the timers)
-src/viewers/          <video> and <audio> (Browser_media, Media)
+src/viewers/          <video> and <audio> (Browser_media, Media); a PDF
+                      file as a page of pictures (Pdf_viewer)
 src/about/            the about: pages, the built-in site and about:tube
 src/chrome/           a tab (Browser_tab), its requests in flight (Fetch),
                       the history, the developer tools, each site's zoom

@@ -77,7 +77,7 @@ type view = Page | Source
 
 (* a page in the history: where, and itself if it is kept (with its
  * scripts' world), and how far down it was *)
-type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int }
+type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int; document : Pdf_viewer.t option }
 
 type t = {
   state : state;
@@ -87,6 +87,7 @@ type t = {
   visited : string list;
   fragment : string option; (* a #name to scroll to once shown *)
   pictures : (string * Browser_picture.t) list; (* by URL, every page's: a cache *)
+  pdf : Pdf_viewer.t option; (* the page shown is a PDF file's: its pages are pictures, drawn as they come into view *)
   sheets : (string * string) list; (* the style sheets' texts by URL, "" for one that could not be had: a cache *)
   sheet_urls : string list; (* the URLs asked for as style sheets *)
   queue : string list; (* the page's pictures still to fetch *)

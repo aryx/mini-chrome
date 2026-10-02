@@ -84,13 +84,13 @@
 ; ffmpeg, the .mp3 by LAME), Tube_files
 (rule
  (targets Site_pictures.ml)
- (deps picture.gif picture.png picture.jpg picture.webp picture-lossless.webp
+ (deps picture.gif picture.png picture.jpg picture.webp picture-lossless.webp sample.pdf
        %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
    (run ocaml %{project_root}/scripts/files_to_string_ml.ml picture.gif picture.png picture.jpg
-        picture.webp picture-lossless.webp))))
+        picture.webp picture-lossless.webp sample.pdf))))
 
 (rule
  (targets Tube_files.ml)

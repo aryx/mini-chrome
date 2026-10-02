@@ -17,5 +17,6 @@
    tiny_libs.graphics_avi tiny_libs.graphics_mpeg1 tiny_libs.graphics_mpeg_system
    images ; Png (ours: the flag below)
    mini_video ; Webm, Vp8_video: a WebM file's VP8
-   mini_audio) ; Vorbis, Opus, Ogg: its sound, and an .ogg or .opus file's
+   mini_audio ; Vorbis, Opus, Ogg: its sound, and an .ogg or .opus file's
+   mini_pdf tiny_libs.graphics_font) ; Pdf, Pdf_render: a PDF file's pages; Hershey: our letters in them
  (flags (:standard -open Images)))

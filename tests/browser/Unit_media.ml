@@ -90,6 +90,26 @@ let tests =
           (* and the page names only files there are *)
           let page = fst (Option.get (Tube.about "tube")) in
           List.iter (fun (name, _) -> if not (String.length name > 0 && (let re = "about:clip/" ^ name in let n = String.length re in let rec has i = i + n <= String.length page && (String.sub page i n = re || has (i + 1)) in has 0)) then Alcotest.failf "%s is not on the page" name) Tube_clips.playlist);
+      Testo.create "a PDF file: a page of pictures, one a page" (fun () ->
+          let bytes = In_channel.with_open_bin "../pdf/data/tex.pdf" In_channel.input_all in
+          Alcotest.(check bool) "by its first bytes" true (Pdf_viewer.sniff bytes && not (Pdf_viewer.sniff "<html>"));
+          (match Pdf_viewer.open_ bytes with
+           | Ok v ->
+               let html = Pdf_viewer.html v ~name:"tex.pdf" in
+               let count part = let n = String.length part in let rec go i acc = if i + n > String.length html then acc else go (i + 1) (if String.sub html i n = part then acc + 1 else acc) in go 0 0 in
+               Alcotest.(check (list int)) "a title, two pages, each at its size in pixels (10 cm by 5)" [ 1; 2; 2; 1; 1 ]
+                 (List.map count [ "<title>tex.pdf</title>"; "<img src=\"pdf-page:"; "width=\"378\" height=\"189\""; "pdf-page:1\""; "pdf-page:2\"" ]);
+               let img = Pdf_viewer.picture v 2 in
+               Alcotest.(check (pair int int)) "a page's picture, a dot and a half a pixel" (567, 284) (img.width, img.height);
+               Alcotest.(check bool) "with ink on it" true (let dark = ref false in for i = 0 to (img.width * img.height) - 1 do if img.rgba.{4 * i} < 100 then dark := true done; !dark);
+               Alcotest.(check (pair int int)) "no such page: a dot" (1, 1) (let i = Pdf_viewer.picture v 9 in (i.width, i.height))
+           | Error why -> Alcotest.fail why);
+          Alcotest.(check (list (option int))) "a page's address" [ Some 3; None; None ] (List.map Pdf_viewer.page_of_src [ Pdf_viewer.src 3; "picture.png"; "pdf-page:x" ]);
+          Alcotest.(check bool) "what is not one: said" true (Result.is_error (Pdf_viewer.open_ "%PDF-1.4 and nothing"));
+          (* the built-in site's sample *)
+          match Site.about "pdf" with
+          | Some (bytes, "application/pdf") -> Alcotest.(check bool) "about:pdf opens" true (Result.is_ok (Pdf_viewer.open_ bytes))
+          | _ -> Alcotest.fail "about:pdf");
       Testo.create "what cannot be played is said, not raised" (fun () ->
           let bytes = clip "ball_and_square.webm" in
           Alcotest.(check bool) "a file cut short" true (Result.is_error (Media.open_ ~name:"cut.webm" (String.sub bytes 0 40)));

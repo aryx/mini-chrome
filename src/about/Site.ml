@@ -32,4 +32,6 @@ let about (name : string) : (string * string) option =
   | "picture.jpg" -> Some (Site_pictures.picture_jpg, "image/jpeg")
   | "picture.webp" -> Some (Site_pictures.picture_webp, "image/webp")
   | "picture-lossless.webp" -> Some (Site_pictures.picture_lossless_webp, "image/webp")
+  (* a small PDF file (cairo's: shapes, a clip, gradients, a picture, text), for the viewer *)
+  | "pdf" | "sample.pdf" -> Some (Site_pictures.sample_pdf, "application/pdf")
   | _ -> None

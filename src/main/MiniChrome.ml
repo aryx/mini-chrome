@@ -219,6 +219,11 @@ let main = Program.main __MODULE__ (fun () ->
       | Some "segments" -> Mini_opti.letters := Segments
       | Some "pictures" -> Mini_opti.letters := Pictures
       | _ -> ());
+      (* pdf=strokes: a PDF file's text drawn with our own letters at
+       * the file's widths, not with the fonts it carries; and
+       * -gradients, -clips, -pictures, -transparency, or plain for the
+       * simplest rendering (Pdf_render.options) *)
+      Option.iter (fun words -> Pdf_viewer.options := Pdf_render.options_of_string words) (List.assoc_opt "pdf" flags);
       (* an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled. It starts
        * at the size it was last, the profile's (-size WxH, the

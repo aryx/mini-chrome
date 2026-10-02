@@ -12,7 +12,7 @@
 
 type state = Loading of string | Shown of Browser_page.t
 type view = Page | Source
-type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int }
+type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int; document : Pdf_viewer.t option }
 
 type kind = Document | Sheet | Script | Picture | Media | Fetch
 type request = { url : string; kind : kind; status : int option; bytes : int }
@@ -25,6 +25,7 @@ type t = {
   visited : string list;
   fragment : string option;
   pictures : (string * Browser_picture.t) list;
+  pdf : Pdf_viewer.t option; (* the page shown is a PDF file's: its pages are pictures drawn as they come into view *)
   sheets : (string * string) list;
   sheet_urls : string list;
   queue : string list;
@@ -66,6 +67,7 @@ let empty ~(images : bool) : t =
     visited = [];
     fragment = None;
     pictures = [];
+    pdf = None;
     sheets = [];
     sheet_urls = [];
     queue = [];
@@ -123,8 +125,32 @@ let line_count (cfg : 'msg config) (tab : t) : int =
   | Shown p, Source -> List.length p.lines
   | _ -> 0
 
+(* a PDF file's pages: those in view, and a window's height before
+ * and after, are drawn (a fraction of a second each) and kept; the
+ * others' pictures are let go, a page's being megabytes *)
+let pdf_pages (cfg : 'msg config) (tab : t) : t =
+  match (tab.pdf, tab.state) with
+  | Some v, Shown p ->
+      let s = cfg.settings tab in
+      let top = float_of_int tab.scroll *. cfg.line_height in
+      let wanted =
+        List.filter_map
+          (fun (f : Html_layout.fragment) ->
+            match f.picture with
+            | Some pic -> ( match Pdf_viewer.page_of_src pic.src with Some n when f.baseline >= top -. s.height && f.baseline -. pic.height <= top +. (2. *. s.height) -> Some n | _ -> None)
+            | None -> None)
+          (Html_layout.fragments p.layout)
+      in
+      let kept = List.filter (fun (url, _) -> match Pdf_viewer.page_of_src url with Some n -> List.mem n wanted | None -> true) tab.pictures in
+      let missing = List.filter (fun n -> not (List.mem_assoc (Pdf_viewer.src n) kept)) wanted in
+      if missing = [] && List.length kept = List.length tab.pictures then tab
+      else
+        let tab = { tab with pictures = List.map (fun n -> (Pdf_viewer.src n, Browser_picture.Arrived (Pdf_viewer.picture v n))) missing @ kept } in
+        { tab with state = Shown (Browser_page.laid_out (cfg.settings tab) p) }
+  | _ -> tab
+
 let scrolled (cfg : 'msg config) (by : int) (tab : t) : t =
-  { tab with scroll = max 0 (min (line_count cfg tab - cfg.visible) (tab.scroll + by)) }
+  pdf_pages cfg { tab with scroll = max 0 (min (line_count cfg tab - cfg.visible) (tab.scroll + by)) }
 
 let to_fragment (cfg : 'msg config) (tab : t) : t =
   match (tab.state, tab.fragment) with
@@ -132,8 +158,8 @@ let to_fragment (cfg : 'msg config) (tab : t) : t =
       let tab = { tab with fragment = None } in
       match Hit.anchor p.layout name with
       | Some y -> scrolled cfg 0 { tab with scroll = int_of_float (y /. cfg.line_height) }
-      | None -> tab)
-  | _ -> tab
+      | None -> pdf_pages cfg tab)
+  | _ -> pdf_pages cfg tab
 
 (*****************************************************************************)
 (* A page shown *)
@@ -154,9 +180,19 @@ let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   | _ -> tab
 
 let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
+  (* a PDF file, whatever its type is said to be: shown as a page of
+   * ours, a picture a page (Pdf_viewer) *)
+  let pdf, content_type, bytes =
+    if not (Pdf_viewer.sniff bytes) then (None, content_type, bytes)
+    else
+      let name = Filename.basename (fst (Browser_url.split_fragment url)) in
+      match Pdf_viewer.open_ bytes with
+      | Ok v -> (Some v, Some "text/html", Pdf_viewer.html v ~name)
+      | Error why -> (None, Some "text/html", Printf.sprintf "<title>%s</title><h1>%s</h1><p>A PDF file that could not be shown: %s." name name (Browser_text.escape_html why))
+  in
   (* the settings of the page that came, not of the one asked for
    * (a redirect to another host, whose zoom is its own) *)
-  let tab = { tab with state = Loading url } in
+  let tab = { tab with state = Loading url; pdf; pictures = List.filter (fun (u, _) -> Pdf_viewer.page_of_src u = None) tab.pictures } in
   let p = Browser_page.read (cfg.settings tab) url status content_type bytes in
   if not (cfg.scripts url) then { tab with state = Shown p; script = None; pending_scripts = [] }
   else
@@ -262,7 +298,7 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let pictures =
         (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_tree.picture_src e)))
         @ p.backgrounds
-        |> List.filter (fun u -> not (had u))
+        |> List.filter (fun u -> not (had u) && Pdf_viewer.page_of_src u = None)
         |> fresh
       in
       let pictures = if tab.images then pictures else [] in
@@ -306,8 +342,8 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
 
 let entry_of (tab : t) : entry =
   match tab.state with
-  | Shown p -> { at = p.url; kept = Some (p, tab.script); scrolled_to = tab.scroll }
-  | Loading url -> { at = url; kept = None; scrolled_to = 0 }
+  | Shown p -> { at = p.url; kept = Some (p, tab.script); scrolled_to = tab.scroll; document = tab.pdf }
+  | Loading url -> { at = url; kept = None; scrolled_to = 0; document = None }
 
 let visit ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
   let target, fragment = Browser_url.split_fragment url in
@@ -356,7 +392,7 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
 let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (tab : t) : t * 'msg Cmd.t =
   match e.kept with
   | Some (p, script) ->
-      with_pictures cfg network (scrolled cfg 0 { (relaid cfg { tab with state = Shown p; script }) with scroll = e.scrolled_to }, Cmd.none)
+      with_pictures cfg network (scrolled cfg 0 { (relaid cfg { tab with state = Shown p; script; pdf = e.document }) with scroll = e.scrolled_to }, Cmd.none)
   | None -> load cfg network e.at tab
 
 let back cfg network tab =

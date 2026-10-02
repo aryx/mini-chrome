@@ -26,7 +26,7 @@ opam, C, the machine) and what was brought in: keep it true when a
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all thirteen suites
+make test              # dune runtest -f, all fourteen suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -42,7 +42,7 @@ make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
 runner, the suites being `html`, `css`, `js`, `layout`, `browser`,
-`network`, `network_unix`, `tools`, `images`, `xml`, `compression`, `video`, `audio`):
+`network`, `network_unix`, `tools`, `images`, `xml`, `compression`, `video`, `audio`, `pdf`):
 
 ```bash
 dune build @tests/css/runtest --force
@@ -57,7 +57,9 @@ their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
 `opti=off`, `letters=segments` (a letter as its pen's strokes, not one
-picture: `docs/plans/plan_performance.md`, step 4b).
+picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
+PDF's text in our own letters; and `-gradients`, `-clips`,
+`-pictures`, `-transparency`, or `plain` for all: `Pdf_render.options`).
 
 Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
@@ -149,7 +151,7 @@ order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
-network, images, video, audio, compression) → `src/` (url, layout, display, www, dom, viewers, about,
+network, images, video, audio, compression, fonts, pdf) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`) and a library a
 language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
@@ -498,6 +500,26 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   copied: one of each kind to read here -- pictures (`libs/images`),
   video (`libs/video`), sound (`libs/audio`) --, the web's own where
   there is one; the rest is the playground's.
+- A PDF file opens in a tab (`about:pdf` is a sample). `libs/pdf`
+  reads it (`Pdf`: the objects by the table at the file's end, as
+  text or as a stream, or by reading the whole file when there is
+  none; `Pdf_object`, `Pdf_filter`) and draws a page (`Pdf_render`:
+  the content's operators over a graphics state, onto `Pdf_canvas`;
+  `Pdf_font` for a code's glyph, width and characters). What refines
+  the simple path is in a module of its own and can be turned off
+  (`Pdf_render.options`, the flag `pdf=`): the fonts' outlines
+  (else our stroke font at the file's widths), `Pdf_shading`
+  (gradients), clips, `Pdf_image` (pictures), transparency -- a new
+  refinement goes the same way. `libs/fonts` reads the outline fonts
+  a PDF carries: `Truetype`, `Cff`, `Type1`, to an `Outline`;
+  `Glyph_names` and `Standard_widths` are tables made by a program
+  from Adobe's files. `src/viewers`' `Pdf_viewer` makes the document
+  a page of ours, an `<img>` a page (`pdf-page:N`), and
+  `Browser_tab.pdf_pages` draws those in view as the tab is scrolled
+  and lets the others go. `tests/pdf`: seven files of other programs,
+  each page near poppler's picture of it (`data/make.sh`);
+  `tests/pdf/Dump.exe` prints a file's pages, renders one, or prints
+  a glyph.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
   The Playground itself links `tiny_libs`' `Png` (textures, a frame

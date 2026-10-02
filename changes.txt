@@ -119,6 +119,22 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a PDF viewer: a PDF file opens in a tab, its pages one under the
+  other, drawn as they scroll into view (Pdf_viewer; about:pdf is a
+  sample). libs/pdf: the file (objects, the table of objects as text
+  or as a stream, packed objects, a file with no table; Flate with
+  predictors, LZW, ASCII85, hexadecimal, run lengths), a page's
+  operators (paths filled and stroked, clips, colours in the device,
+  profile, palette and spot spaces, transparency, pictures with
+  masks and JPEG, forms, axial and radial gradients), text in the
+  four kinds of font. libs/fonts: TrueType, CFF (Type 2 charstrings)
+  and Type 1 (its two ciphers, flex, accents) read to outlines; Type 3
+  fonts run as content. A font not in the file is drawn with our
+  stroke font at the standard widths. The flag pdf= turns each
+  refinement off (pdf=strokes: our letters; pdf=plain: the simple
+  path). Seven files of pdfTeX, cairo, Chrome and LibreOffice are
+  drawn near poppler's pictures (tests/pdf); of 149 PDF files found
+  on the machine it was written on, all are drawn
 - about:tube shows every kind of media the browser plays: the clip
   also as MPEG-1 alone (our encoder); a section of sounds, an <audio>
   each -- two chirps as Opus (its file, a WebM), Vorbis, MP3, MP2,

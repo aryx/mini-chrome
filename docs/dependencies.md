@@ -42,12 +42,12 @@ libraries. By what they are, with the modules the browser names:
 |---|---|---|---|
 | `graphics_rgba` | `Rgba_image` | the pixels every decoder gives back | `libs/images`, `libs/video`, `src/display`, `src/viewers` |
 | `graphics_gif` | `Gif` | GIF pictures, animated ones | `src/display`, `src/viewers` |
-| `graphics_jpeg` | `Jpeg` | JPEG pictures | `src/display`, `src/viewers` |
+| `graphics_jpeg` | `Jpeg` | JPEG pictures | `src/display`, `src/viewers`, `libs/pdf` |
 | `graphics_xpm` | `Xpm` | X pixmaps (a media file) | `src/viewers` |
 | `graphics_core` | `Framebuffer` | the pixels an SVG is painted into | `libs/images`, `src/about` |
 | `graphics_2d` | `Fill`, `Stroke` | polygons filled with smooth edges, a stroke's outline: SVG | `libs/images`, `src/about` |
 | `graphics_2d_geometry` | `Curve`, `Affine` | Bezier curves made lines, transforms composed: SVG | `libs/images` |
-| `graphics_font` | `Hershey` | the letters: A. V. Hershey's strokes (1967), the browser's one font | `src/display` |
+| `graphics_font` | `Hershey` | the letters: A. V. Hershey's strokes (1967), the browser's one font | `src/display`, `libs/pdf`, `src/viewers` |
 
 ### Video and sound (what `<video>` and `<audio>` play, and `about:tube`)
 
@@ -143,6 +143,7 @@ grow, or written here; each is told in its `.mli`.
 | `libs/images` | PNG, SVG | copies (wrapped: the Playground links its `Png`) |
 | | WebP: `Webp`, `Vp8l`, `Vp8` | written here |
 | `libs/video` | WebM, VP8's video | written here |
+| `libs/pdf`, `libs/fonts` | a PDF file read and drawn; TrueType, CFF and Type 1 fonts | written here |
 | `libs/audio` | Vorbis, Ogg's packets | a copy (its `audio_vorbis`, not linked here) |
 | | Opus (CELT), the MDCT | written here |
 | `libs/richtext`, `tools/typeset` | a look; Knuth and Plass's line breaking | copies of two of its app kits |
@@ -164,3 +165,6 @@ each beside the script that says how it was made.
 | Google's Brotli encoder (Python) | the streams of `tests/compression` |
 | RFC 6386's text | `Vp8_tables`, taken from it by a program |
 | RFC 6716's reference decoder (its appendix) | `Celt_tables`, taken from it by a program |
+| Adobe's glyph list, the standard encoding (TeX Live's `8a.enc`), CFF's strings (Ghostscript's `gs_css_e.ps`) | `Glyph_names`, made by a program |
+| Adobe's font metrics for Times and Helvetica (TeX Live's AFM files) | `Standard_widths`, made by a program |
+| pdfTeX, cairo (Python), Chrome, LibreOffice; poppler's `pdftoppm` | the files of `tests/pdf` and the picture each page must be near; `about:pdf`'s sample |
