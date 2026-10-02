@@ -121,6 +121,29 @@
   </div>
 
   <div class="card">
+    <h2>Pictures <span class="badge">WebP</span></h2>
+    <p>One picture, 64 by 48, in each format the browser reads, with
+    the file's size. GIF, PNG and JPEG came to the web from outside;
+    WebP (2010) was made for it: a key frame of the VP8 video codec
+    as a picture, and beside it a lossless format that knows it is
+    compressing pixels. Each is decoded by a reader written here, in
+    OCaml.</p>
+    <table class="pictures">
+      <tr>
+        <td><img src="picture.gif" width="64" height="48" alt="GIF"></td>
+        <td><img src="picture.png" width="64" height="48" alt="PNG"></td>
+        <td><img src="picture.jpg" width="64" height="48" alt="JPEG"></td>
+        <td><img src="picture.webp" width="64" height="48" alt="WebP"></td>
+        <td><img src="picture-lossless.webp" width="64" height="48" alt="WebP, lossless"></td>
+      </tr>
+      <tr>
+        <td>GIF<br>429 bytes</td><td>PNG<br>735</td><td>JPEG<br>1,379</td>
+        <td>WebP<br>640</td><td>WebP, lossless<br>316</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>Sites to try</h2>
     <p>Click one, or type an address in the omnibox above. What looks
     mostly right today, and what each asks of the engine (what they ask

@@ -62,7 +62,7 @@ Oldest web first, then by how much they ask.
 | **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then a page of script only | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 a search answers our browser with a challenge: an obfuscated program (63 KB) that must compute a token before any result is sent. It loads and runs here without an error, and gives no token. Said to be an old Opera Mini, the browser was sent plain results by one path (the consent refused) and a 403 by the other (accepted): tried, and taken out (`Browser_agent.mli`) |
 | **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
 | **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🔴 not run: its scripts are modules (`<script type=module>`), and each file's last commit comes by them |
-| **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP: no decoder, empty frames |
+| **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP, and show (`libs/images`) |
 
 `?` in a cell: could not be told, the page did not get that far.
 
@@ -122,8 +122,6 @@ By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 - **Scripts beyond Latin** (Greek and Cyrillic first: Hershey drew
   them): no site of this list, and half the web
   (`Glyph_unicode.mli` says what all of Unicode asks of a browser).
-- **WebP** (a decoder, in elm-playground beside the others): the
-  BBC's pictures, and most pictures of today's web.
 - **Modules** (`<script type=module>`, import and export): GitHub's
   scripts, and most sites built since 2020.
 - **`<details>` opened by a click, the layers of `@layer`, a style

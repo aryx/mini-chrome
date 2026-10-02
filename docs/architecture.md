@@ -9,7 +9,8 @@ is about the shape of the running program.
 
 ```
 languages/   html, css, javascript, json      text in, values out; no window
-libs/        gui, richtext, typeset, network  general, not a browser's
+libs/        gui, richtext, typeset, network, general, not a browser's
+             images
 src/         url, layout, display, www, dom,  the browser, by role
              viewers, about, chrome, window, main
 tools/       node, curl, httpd, lynx          programs beside the browser, made of

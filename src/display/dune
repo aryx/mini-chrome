@@ -12,4 +12,5 @@
    appkit_richtext ; Style, the pen's look
    tiny_libs.graphics_font ; Hershey
    tiny_libs.graphics_rgba tiny_libs.graphics_png tiny_libs.graphics_gif
-   tiny_libs.graphics_jpeg tiny_libs.graphics_svg))
+   tiny_libs.graphics_jpeg tiny_libs.graphics_svg
+   mini_images)) ; Webp

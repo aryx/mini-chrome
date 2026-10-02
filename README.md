@@ -91,6 +91,11 @@ libs/gui              the chrome's pieces that know no browser, as values
                       a point (Gui_menu), a line typed into (Gui_field),
                       a scrollbar (Gui_scrollbar), the desktop's scale
                       (Gui_scale)
+libs/images           WebP, the web's own picture format, decoded: the
+                      file's chunks (Webp), the lossless format (Vp8l),
+                      the lossy one, a key frame of the VP8 video
+                      codec (Vp8); GIF, PNG, JPEG and SVG are
+                      elm-playground's
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style), text laid out on pages
@@ -139,7 +144,7 @@ tools/                small programs beside the browser, made of its
                              other end of the conversation
                       lynx   mini-lynx: a page as text in the terminal,
                              its links numbered, a number typed to follow
-tests/                tools, html, css, js, layout, browser, network, network_unix
+tests/                tools, html, css, js, layout, browser, images, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
                       threads next to Chrome's); tags.md: the theme tags of the

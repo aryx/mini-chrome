@@ -18,20 +18,24 @@
  * (1992) was for photographs from the start. SVG (2001) is the one
  * that is not pixels; it waited ten years for Internet Explorer.
  * Since: WebP (Google, 2010) and AVIF (2019), each a video codec's
- * still frame -- not read here.
+ * still frame; the first is read (libs/images' Webp.mli tells it),
+ * the second is not.
  *
  *   GIF8      GIF (1987)
  *   \x89PNG   PNG (1996)
  *   \xFF\xD8  JPEG (1992)
+ *   RIFF....WEBP   WebP (2010): the four bytes between are the
+ *             file's length
  *   <svg      SVG (2001), text (after <?xml ...?> perhaps): drawn at its
  *             own size into pixels (graphics/images/svg's Svg)
  *
- * Decoded by our own readers (graphics/images/: Gif, Png, Jpeg, Svg), pure
- * OCaml, so a browser running in a browser decodes them too. *)
+ * Decoded by our own readers (elm-playground's graphics/images/: Gif,
+ * Png, Jpeg, Svg; libs/images here: Webp), pure OCaml, so a browser
+ * running in a browser decodes them too. *)
 
 type t = Waiting | Arrived of Rgba_image.t | Broken
 
-(* the bytes decoded: Arrived, or Broken for what is none of the three
+(* the bytes decoded: Arrived, or Broken for what is none of these
  * or does not decode *)
 val decode : string -> t
 

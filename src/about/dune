@@ -78,16 +78,18 @@
 
 ; bytes that are not text, embedded escaped
 ; (scripts/files_to_string_ml.ml): picture.gif becomes
-; Site_pictures.picture_gif, the same picture in the three formats the
-; browser decodes; and about:tube's two files made elsewhere (the .mpg by
+; Site_pictures.picture_gif, the same picture in the formats the
+; browser decodes (WebP twice: lossy and lossless); and about:tube's two files made elsewhere (the .mpg by
 ; ffmpeg, the .mp3 by LAME), Tube_files
 (rule
  (targets Site_pictures.ml)
- (deps picture.gif picture.png picture.jpg %{project_root}/scripts/files_to_string_ml.ml)
+ (deps picture.gif picture.png picture.jpg picture.webp picture-lossless.webp
+       %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
-   (run ocaml %{project_root}/scripts/files_to_string_ml.ml picture.gif picture.png picture.jpg))))
+   (run ocaml %{project_root}/scripts/files_to_string_ml.ml picture.gif picture.png picture.jpg
+        picture.webp picture-lossless.webp))))
 
 (rule
  (targets Tube_files.ml)

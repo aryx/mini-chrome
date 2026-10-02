@@ -1,0 +1,7 @@
+; the tests of libs/images, run by 'make test': WebP files written by
+; the reference library (data/make.py says how) decoded and compared
+; with the PNG of what that library reads back from each.
+(test
+ (name Test)
+ (deps (glob_files data/*.webp) (glob_files data/*.png))
+ (libraries alcotest testo mini_images tiny_libs.graphics_rgba tiny_libs.graphics_png))

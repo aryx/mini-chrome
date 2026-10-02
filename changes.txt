@@ -111,6 +111,18 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- WebP pictures (libs/images, a decoder of our own, in mini-chrome
+  and not with elm-playground's GIF, PNG and JPEG: the format was
+  born of the web): the file's chunks (Webp), the lossless format
+  with its prefix codes, copies, colour cache and four transforms
+  (Vp8l; the prefix codes are tiny_libs' Huffman), the lossy one, a
+  key frame of the VP8 video codec -- the boolean decoder, the
+  guesses from neighbours, the coefficients, the loop filter -- (Vp8,
+  RFC 6386, its tables taken from the RFC's text), a lossy picture's
+  alpha, an animation's first frame. Every pixel is libwebp's
+  (tests/images: 16 files and what libwebp reads from each). BBC
+  News has its pictures; about:chrome a card of one picture in each
+  format read
 - Google's search is left alone: the name of an old Opera Mini got
   plain results by one path and a 403 by another, so the browser says
   its own name to google.com again (Browser_agent's table is empty,

@@ -30,4 +30,6 @@ let about (name : string) : (string * string) option =
   | "picture.gif" -> Some (Site_pictures.picture_gif, "image/gif")
   | "picture.png" -> Some (Site_pictures.picture_png, "image/png")
   | "picture.jpg" -> Some (Site_pictures.picture_jpg, "image/jpeg")
+  | "picture.webp" -> Some (Site_pictures.picture_webp, "image/webp")
+  | "picture-lossless.webp" -> Some (Site_pictures.picture_lossless_webp, "image/webp")
   | _ -> None

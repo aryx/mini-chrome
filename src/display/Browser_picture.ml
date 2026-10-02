@@ -18,6 +18,7 @@ let decode (bytes : string) : t =
     if starts "GIF8" then Arrived (Gif.decode bytes)
     else if starts "\x89PNG" then Arrived (Png.decode bytes)
     else if starts "\xFF\xD8" then Arrived (Jpeg.decode bytes)
+    else if Webp.sniff bytes then Arrived (Webp.decode bytes)
     else if Svg.sniff bytes then
       (* drawn at its own size (a picture without one: CSS's 300 by 150) *)
       match Svg.parse bytes with
