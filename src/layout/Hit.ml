@@ -44,7 +44,15 @@ let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layou
           else None)
         b.lines
     in
-    match in_lines with Some _ -> in_lines | None -> List.find_map (fun c -> fragment_at c ~x ~y) b.children
+    (* claude: an inline-block is on its line as a fragment of no text,
+     * its room, and what it holds is in a box under this one: a field
+     * in an inline-block (Google's search box, in a <div
+     * style="display: inline-block">) was hidden by the room it is in.
+     * So such a fragment is the answer only if nothing inside is. *)
+    let room (f : Html_layout.fragment) = f.text = "" && f.picture = None && f.control = None in
+    match in_lines with
+    | Some f when not (room f) -> in_lines
+    | _ -> ( match List.find_map (fun c -> fragment_at c ~x ~y) b.children with Some f -> Some f | None -> in_lines)
 
 (* the element at a point: the fragment's there (a word, a picture, a
  * control, a float), else the innermost block around the point (a

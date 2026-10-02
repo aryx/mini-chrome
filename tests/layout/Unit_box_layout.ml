@@ -71,6 +71,14 @@ let tests =
       Testo.create "clear: below the float" (fun () ->
           let p = page {|<body style="margin: 0"><div style="float: left; width: 40px; height: 30px"></div><div id=c style="clear: left">x</div>|} in
           Alcotest.check near "at the float's bottom" 30. (box "c" p).y);
+      Testo.create "a field in an inline-block is under the pointer (Google's search box)" (fun () ->
+          let p = page ~width:400. {|<body style="margin: 0"><form>q: <div style="display: inline-block"><input name=q size=10></div> <b>go</b></form>|} in
+          let layout = Box_tree.as_html_layout p in
+          let field = List.find (fun (f : Html_layout.fragment) -> f.control <> None) (Box_tree.fragments p) in
+          let at x = Option.map (fun (f : Html_layout.fragment) -> (f.text, f.control <> None)) (Hit.fragment_at layout ~x ~y:(field.baseline -. 2.)) in
+          Alcotest.(check (option (pair string bool))) "on the field, inside its inline-block" (Some ("", true)) (at (field.x +. 5.));
+          Alcotest.(check (option (pair string bool))) "on the word before" (Some ("q:", false)) (at 5.);
+          Alcotest.(check (option (pair string bool))) "on the word after" (Some ("go", false)) (at ((List.find (fun (f : Html_layout.fragment) -> f.text = "go") (Box_tree.fragments p)).x +. 2.)));
       Testo.create "an inline-block: shrink-to-fit, in the line" (fun () ->
           let p = page {|<body style="margin: 0">a <span id=s style="display: inline-block; padding: 2px">bcd</span> e|} in
           let s = box "s" p in

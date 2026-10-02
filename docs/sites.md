@@ -15,21 +15,25 @@ each cell a colour and, when it is not green, what is missing.
 700, its scripts not run unless said (they run on the built-in pages
 and on Hacker News only: `scripts=`), and its dump looked at: the top
 of the page, what a person sees first. A colour is a judgment of that
-picture, not a measure. To check again: `scripts/sites/dump_sites.sh`,
+picture, not a measure -- and a picture is not enough: **Using it**
+says whether the site does what it is for (a search engine searched, an
+article read), as far as that was tried; Google's home page was green
+by its picture when its field could not be typed into. To check again: `scripts/sites/dump_sites.sh`,
 then look at the pictures and correct the rows.
 
 ## Summary
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 8 of 16 | the web of the 1990s, the text-only sites, Hacker News, Google's home |
+| 🟢 | 7 of 16 | the web of the 1990s, the text-only sites, Hacker News |
 | 🟡 | 4 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub: readable, not right |
-| 🔴 | 4 of 16 | two that do not load (Brotli, a TLS handshake), two whose page is unusable |
+| 🔴 | 5 of 16 | two that do not load (Brotli, a TLS handshake), two whose page is unusable, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
 1. **JavaScript**: 8 sites have scripts that are not run. None of the
-   🟢 ones needs them to be read; every modern site does to be *used*.
+   🟢 ones needs them to be read; every modern site does to be *used*,
+   and Google will not search without.
 2. **CSS**: 5 sites laid out wrong, in places or wholly.
 3. **Text**: letters beyond ASCII are a `?` (accents, curly quotes):
    seen on 3 sites.
@@ -39,24 +43,24 @@ By part, what holds the most sites back, the worst first:
 
 Oldest web first, then by how much they ask.
 
-| Site | Overall | Network | HTML | CSS | Text | JavaScript |
-|---|---|---|---|---|---|---|
-| **info.cern.ch** (the first web page, 1991) | 🟢 | 🟢 http | 🟢 | ⚪ | 🟢 | ⚪ |
-| **Space Jam** (1996, kept as it was) | 🟢 | 🟢 14 requests | 🟢 tables, image links | ⚪ attributes only | 🟢 | ⚪ a date in the footer |
-| **Berkshire Hathaway** (a page of the 1990s, still) | 🔴 does not load | 🔴 answers in Brotli (`br`) though only gzip is asked for | ? | ? | ? | ⚪ |
-| **example.com** | 🟢 | 🟢 | 🟢 | 🟢 grid, `light-dark()`, `100vh` | 🟢 | 🔴 its script is not run (spread, a `/u` regexp): no icon, no translations |
-| **Hacker News** | 🟢 | 🟢 | 🟢 tables, attributes | 🟢 | 🟢 | 🟢 `hn.js` runs (folding, votes not tried) |
-| **Lobsters** | 🟡 | 🟢 29 requests | 🟢 | 🟡 a story's second line is cut in two, its "caches" link on a line of its own | 🟢 | 🔴 not run |
-| **text.npr.org** | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | ⚪ |
-| **CNN Lite** | 🟢 | 🟢 | 🟢 | 🟢 | 🟡 curly quotes and accents are `?` | ⚪ |
-| **Craigslist** | 🔴 does not load | 🔴 the connection closes during the TLS handshake (why: not known) | ? | ? | ? | ? |
-| **Project Gutenberg** | 🟢 | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
-| **Wikipedia** (an article) | 🟡 | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🔴 every accented letter and phonetic sign is `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
-| **DuckDuckGo** (the HTML results) | 🟡 | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟡 `?` in the snippets | ⚪ |
-| **Google** (the home page) | 🟢 | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 not run (a search's results: not tried) |
-| **old.reddit.com** | 🔴 a blank page | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
-| **GitHub** (a repository) | 🟡 | 🟢 24 requests | 🟢 | 🟡 the files are listed, bare: wide gaps, no table of them, the branch button a grey bar | 🟢 | 🔴 not run |
-| **BBC News** | 🔴 | 🟢 23 requests | 🟢 | 🔴 the menu is a column of links, headlines overlap, columns too narrow | 🟢 | 🔴 not run; its pictures are loaded by scripts: broken frames |
+| Site | Overall | Using it | Network | HTML | CSS | Text | JavaScript |
+|---|---|---|---|---|---|---|---|
+| **info.cern.ch** (the first web page, 1991) | 🟢 | 🟢 read | 🟢 http | 🟢 | ⚪ | 🟢 | ⚪ |
+| **Space Jam** (1996, kept as it was) | 🟢 | 🟢 looked at | 🟢 14 requests | 🟢 tables, image links | ⚪ attributes only | 🟢 | ⚪ a date in the footer |
+| **Berkshire Hathaway** (a page of the 1990s, still) | 🔴 does not load | 🔴 | 🔴 answers in Brotli (`br`) though only gzip is asked for | ? | ? | ? | ⚪ |
+| **example.com** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 grid, `light-dark()`, `100vh` | 🟢 | 🔴 its script is not run (spread, a `/u` regexp): no icon, no translations |
+| **Hacker News** | 🟢 | 🟢 read; signing in and voting not tried | 🟢 | 🟢 tables, attributes | 🟢 | 🟢 | 🟢 `hn.js` runs (folding, votes not tried) |
+| **Lobsters** | 🟡 | 🟢 read | 🟢 29 requests | 🟢 | 🟡 a story's second line is cut in two, its "caches" link on a line of its own | 🟢 | 🔴 not run |
+| **text.npr.org** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟢 | ⚪ |
+| **CNN Lite** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟡 curly quotes and accents are `?` | ⚪ |
+| **Craigslist** | 🔴 does not load | 🔴 | 🔴 the connection closes during the TLS handshake (why: not known) | ? | ? | ? | ? |
+| **Project Gutenberg** | 🟢 | 🟡 read; its search and menus not tried | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
+| **Wikipedia** (an article) | 🟡 | 🟡 read, with holes in the words; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🔴 every accented letter and phonetic sign is `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
+| **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟡 `?` in the snippets | ⚪ |
+| **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then "enable JavaScript to continue" | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 not run: Google's results have needed scripts since 2025 |
+| **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
+| **GitHub** (a repository) | 🟡 | 🟡 the files' names can be read and followed; the README not looked at | 🟢 24 requests | 🟢 | 🟡 the files are listed, bare: wide gaps, no table of them, the branch button a grey bar | 🟢 | 🔴 not run |
+| **BBC News** | 🔴 | 🔴 headlines cannot be read in order | 🟢 23 requests | 🟢 | 🔴 the menu is a column of links, headlines overlap, columns too narrow | 🟢 | 🔴 not run; its pictures are loaded by scripts: broken frames |
 
 `?` in a cell: could not be told, the page did not get that far.
 
