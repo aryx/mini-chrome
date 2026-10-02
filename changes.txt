@@ -68,7 +68,10 @@
   (pages that are programs) -- and about:history goes on to Chrome
   (JavaScript, CSS, Firefox, Safari); what to try is what this
   browser does (F12, the right click, the zoom); about:chrome links
-  them all
+  them all, says in its header all that the browser is (HTML5's
+  parser, CSS, a JavaScript engine, HTTP and TLS, pictures and
+  video), and has a JavaScript card: a sentence written by its
+  script, tiles made and toggled by clicks
 - CSS grid: display: grid, grid-template-columns and -rows (lengths,
   fr, min-content, max-content, auto, minmax(), repeat()),
   grid-template-areas and grid-area (a name, or row / column), the
