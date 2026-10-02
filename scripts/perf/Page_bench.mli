@@ -1,9 +1,10 @@
 (* Where a page's load goes: each stage of the pipeline timed, on a real
    page fetched as the browser fetches it.
 
-     Page_bench.exe [URL] [WIDTHxHEIGHT] [opti=off]
+     Page_bench.exe [URL] [WIDTHxHEIGHT] [opti=off] [letters=segments]
                           (Wikipedia's article on OCaml, 1400x713;
-                           opti=off: the simple code paths, Mini_opti)
+                           opti=off: the simple code paths, Mini_opti;
+                           letters=segments: the pen's strokes alone)
 
    It does by hand what Browser_page.read and laid_out do, a clock
    around each step:

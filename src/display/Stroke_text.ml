@@ -20,7 +20,7 @@ let metrics look s =
   let g = Hershey.glyph (char_of s) in
   float_of_int (g.right - g.left) *. scale_of look
 
-let glyph color (look : Style.t) s ~x ~baseline =
+let glyph_segments color (look : Style.t) s ~x ~baseline =
   let g = Hershey.glyph (char_of s) in
   let k = scale_of look in
   (* a look is a pen: thicker for bold *)
@@ -67,3 +67,35 @@ let glyph color (look : Style.t) s ~x ~baseline =
   strokes
   @ (if look.underline then [ rule (baseline -. (look.size *. 0.18)) ] else [])
   @ if look.strike then [ rule (baseline +. (look.size *. 0.25)) ] else []
+
+(* claude: opti: the letter as one picture made once (Glyph_picture.mli
+ * says why and what it costs), its underline and its strike still
+ * rectangles: a frame of about:chrome drawn in 8 ms instead of 74. The
+ * simple way, the pen's, is glyph_segments above (letters=segments,
+ * opti=off). *)
+let glyph_picture color (look : Style.t) s ~x ~baseline =
+  match color with
+  | Color.Rgb (r, g, b) ->
+      let g' = Hershey.glyph (char_of s) in
+      let k = scale_of look in
+      let pen = if look.bold then look.size /. 7. else look.size /. 16. in
+      let slant = if look.italic then 0.2 else 0. in
+      (* glyph_segments' [at], from the letter's left edge on its baseline *)
+      let at (gx, gy) =
+        let up = float_of_int (9 - gy) *. k in
+        ((float_of_int (gx - g'.left) *. k) +. (up *. slant), up)
+      in
+      (* the picture is the letter's alone: its lines are the fragment's *)
+      let key = (s, { look with underline = false; strike = false }, (r, g, b)) in
+      let letter = Glyph_picture.shape ~key ~pen ~strokes:(fun () -> List.map (List.map at) g'.strokes) ~x ~baseline in
+      let advance = float_of_int (g'.right - g'.left) *. k in
+      let rule y = Playground.rectangle color advance (pen *. 0.8) |> Playground.move (x +. (advance /. 2.)) y in
+      Option.to_list letter
+      @ (if look.underline then [ rule (baseline -. (look.size *. 0.18)) ] else [])
+      @ if look.strike then [ rule (baseline +. (look.size *. 0.25)) ] else []
+  | _ -> glyph_segments color look s ~x ~baseline
+
+let glyph color (look : Style.t) s ~x ~baseline =
+  match !Mini_opti.letters with
+  | Pictures when !Mini_opti.enabled -> glyph_picture color look s ~x ~baseline
+  | _ -> glyph_segments color look s ~x ~baseline

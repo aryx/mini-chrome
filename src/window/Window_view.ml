@@ -45,6 +45,11 @@ let bubble (m : model) : shape list =
 let page_shapes (m : model) (p : Browser_page.t) : shape list =
   let tab = current_tab m in
   let scroll = float_of_int tab.scroll *. line_height and z = zoom_of m tab in
+  (* claude: the screen's dots for a unit of the page, said before any
+   * of its letters is built below (the lines shown, the controls'
+   * text, a player's time): each is a picture made for that density
+   * (Glyph_picture) *)
+  Glyph_picture.density := z *. scale_of m;
   let outline =
     match (m.panel, m.selected) with
     | Elements, Some e -> (

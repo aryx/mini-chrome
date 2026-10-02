@@ -63,10 +63,14 @@ let tests =
           Alcotest.(check (float 0.01)) "laid out again in a lower window" 400. p.layout.height);
       Testo.create "a line's shapes are built when it is shown; opti=off, at once: the same shapes" (fun () ->
           let html = "<!doctype html><style>p { margin: 0; line-height: 20px; background: #eee } b { color: red }</style>" ^ String.concat "" (List.init 50 (fun i -> Printf.sprintf "<p>line <b>%d</b> of a <a href=/x>page</a></p>" i)) in
+          (* the letters the pen's way on both sides: what is checked here
+           * is when a line's shapes are built, not what a letter is *)
           let drawn optimized =
             Mini_opti.enabled := optimized;
             Fun.protect ~finally:(fun () -> Mini_opti.enabled := true) (fun () -> (fst (styled [] html)).drawn)
           in
+          Mini_opti.letters := Segments;
+          Fun.protect ~finally:(fun () -> Mini_opti.letters := Pictures) @@ fun () ->
           let built (d : Browser_draw.drawn) = List.length (List.filter (fun (_, _, s) -> Lazy.is_val s) d) in
           let lazy_ = drawn true and simple = drawn false in
           Alcotest.(check int) "as many things drawn" (List.length simple) (List.length lazy_);

@@ -35,7 +35,22 @@
    - Window_view.view: the shapes of the frame before given back when
      the model is the same but for its time, so that the platform does
      not draw a window at rest (the simple way, view_simple: a new list
-     and a frame drawn, sixty times a second). In Window_view.mli. *)
+     and a frame drawn, sixty times a second). In Window_view.mli.
+   - Stroke_text.glyph: a letter as one picture made once
+     (glyph_picture, Glyph_picture.mli) rather than its pen's ten to
+     twenty shapes (glyph_segments, the simple way); see [letters]. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref
+
+(* claude: how a letter of the page is drawn, where there are several
+ * ways to set against each other (docs/plan_performance.md, step 4b);
+ * with [enabled] false, the simple one whatever this says:
+ * - Segments: the pen's strokes, a rectangle a segment and a dot a
+ *   point (Stroke_text.glyph_segments): the simple way, to read first;
+ *   letters=segments on the command line;
+ * - Pictures: a picture a letter, made once (Glyph_picture): the
+ *   default. A frame of about:chrome drawn in 8 ms instead of 74. *)
+type letters = Segments | Pictures
+
+val letters : letters ref

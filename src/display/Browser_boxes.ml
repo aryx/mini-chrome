@@ -174,7 +174,9 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         let look = Box_inline.look_of s ~link:None in
         let text = match m with Bullet -> "\xe2\x80\xa2" | Number n -> string_of_int n ^ "." in
         let ink = rgb s.color.r s.color.g s.color.b in
-        let shape =
+        (* claude: when shown, as a line's: a number is letters, drawn
+         * for the screen's density (Glyph_picture), which the view says *)
+        let shape () =
           match m with
           | Bullet -> circle ink (0.17 *. s.font_size) |> move (b.x -. (0.8 *. s.font_size)) (-.(line.baseline -. (0.3 *. s.font_size)))
           | Number _ ->
@@ -184,7 +186,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
                    { text; look; x = b.x -. (0.4 *. s.font_size) -. width; width; baseline = line.baseline; picture = None; control = None;
                      element = Dom.element "li" [] })
         in
-        Browser_draw.ready [ (line.top, line.top +. line.height, shape) ]
+        [ (line.top, line.top +. line.height, Browser_draw.later shape) ]
     | _ -> []
   in
   (* what it holds cut to it, if it clips *)

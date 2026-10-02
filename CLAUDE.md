@@ -44,7 +44,8 @@ several: a tab each). Program flags are `key=value` words
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
-`opti=off`.
+`opti=off`, `letters=segments` (a letter as its pen's strokes, not one
+picture: `docs/plan_performance.md`, step 4b).
 
 Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's

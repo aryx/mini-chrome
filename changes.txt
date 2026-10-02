@@ -36,6 +36,12 @@
   Wikipedia's article on OCaml, 16,000 pixels high: a relayout 450 ms
   to 28, the page first shown in 239 ms instead of 796, its load
   settled in 6.2 s instead of 14.8 (docs/plan_performance.md, step 2)
+- a letter drawn as one picture made once (Glyph_picture: its opacity
+  from the distance to the pen's strokes) instead of a rectangle a
+  segment and a dot a point: a frame of about:chrome drawn in 8 ms
+  instead of 74 (Cairo), 32 instead of 116 (software), and a scroll
+  far smoother. letters=segments, or opti=off: the pen's way
+  (docs/plan_performance.md, step 4b)
 - a window at rest is not drawn again: Window_view.view gives back
   the frame before's list of shapes when the model is the same but
   for its time, and the platform skips the frame (run_app

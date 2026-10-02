@@ -296,6 +296,54 @@ about:tube, the elements' view) dump the same frame with opti=off.
 Left of (a): a page with a player is drawn at each frame even paused
 (about:tube); `animated` could ask the player.
 
+**(b), the first way tried, and kept: a letter a picture**
+(2026-10-02). Tried behind `letters=pictures`, then made the default
+the same day (the scroll is far smoother): `Mini_opti.letters` is
+`Pictures`, and `letters=segments` on the command line, or `opti=off`,
+give the simple way back. In its
+own module, `Glyph_picture` (its `.mli` says the why, with a picture);
+`Stroke_text.glyph` chooses between `glyph_segments`, as it was, and
+`glyph_picture`.
+
+- No rasterizer was needed: a round pen is the points nearer to the
+  strokes than half its width, so a pixel's opacity is read off its
+  distance to the nearest segment. The same picture on every platform.
+- The density (the window's scale times the page's zoom) is a
+  reference the view sets (`Glyph_picture.density`), not an argument
+  carried from the settings down to the letters. Right because a
+  change of scale or zoom lays the page out again, and because every
+  letter of the page is built in the view, after it is said: the lines
+  shown, the controls' text, and a list item's number (which was built
+  at the layout: made a promise as a line's are).
+- A letter is moved to whole pixels (up to half a pixel) to stay sharp.
+
+A frame drawn (`-uncapped`, which draws every frame), in ms:
+
+| | Shapes in the window | Cairo | Software |
+|---|---|---|---|
+| about:chrome, the pen's segments | 20,416 | 74.3 | 116.3 |
+| about:chrome, pictures | 1,007 (197 pictures kept) | 8.3 | 31.7 |
+| about:history, the pen's segments | 15,813 | 55.9 | 79.6 |
+| about:history, pictures | | 4.7 | 17.3 |
+
+and a page's every shape, for someone who scrolls through all of it
+(Wikipedia's article): 494 ms to 110.
+
+Looked at, enlarged, side by side with the pen's: at scale 1, at
+scale 2, zoomed and scrolled, the letters are the same to the eye
+(not pixel for pixel: the joints of the pen's rectangles and dots
+were a little darker). Not looked at: a real window, and the web
+platform, where a picture is a PNG encoded each time.
+
+Left as it is, to know: Cairo's platform keeps the last 32 pictures
+it converted and a page has 200 (it was fast all the same: to
+understand why, or to raise); a page zoomed in steps makes pictures at
+each density (the cache starts again past 4,096); the web's platform
+(a picture is a PNG encoded) not tried.
+
+Not tried, the letters being fast enough for now: a line a picture; a
+stroke a shape, in the Playground.
+
 ### 5. The cascade
 
 257 ms, once a sheet that arrives. Count them in a load, and measure
@@ -332,3 +380,4 @@ the optimized one does, before and after):
 |---|---|---|---|---|
 | `Browser_draw.later` | a line's shapes built at each relayout | built when the line is first shown, kept | a relayout 450 ms | 28 ms |
 | `Window_view.view` | a new list of shapes and a frame drawn, sixty times a second | the list of the frame before for the same model: the platform draws nothing | a frame at rest 12-72 ms | 0.3 ms |
+| `Stroke_text.glyph` | a letter its pen's strokes, ten to twenty shapes | one picture made once (`Glyph_picture`) | a frame of about:chrome drawn 74 ms | 8 ms |

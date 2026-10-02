@@ -42,6 +42,7 @@ let () =
     | None -> (1400., 713.)
   in
   if List.mem "opti=off" args then Mini_opti.enabled := false;
+  if List.mem "letters=segments" args then Mini_opti.letters := Segments;
   Cap.main (fun caps ->
       (* a built-in page (about:chrome), or the network *)
       let get u =
@@ -49,7 +50,7 @@ let () =
         | Some (body, _) -> body
         | None -> ( match Http_client.get caps u with Ok r -> r.body | Error e -> failwith e)
       in
-      Printf.printf "%s, %.0f by %.0f%s\n\n" url width height (if !Mini_opti.enabled then "" else ", opti=off");
+      Printf.printf "%s, %.0f by %.0f%s\n\n" url width height ((if !Mini_opti.enabled then "" else ", opti=off") ^ if !Mini_opti.letters = Segments then ", letters=segments" else "");
       let bytes = timed "network: the page (roots read, name resolved)" (fun () -> get url) in
       ignore (timed "network: the page again" (fun () -> get url));
       said "%d bytes" (String.length bytes);
@@ -88,7 +89,7 @@ let () =
        * the end) all of them *)
       ignore (timed "Browser_draw.between: the first window's shapes" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn));
       let window = timed "Browser_draw.between: the same again" (fun () -> Browser_draw.between ~top:0. ~bottom:height p.drawn) in
-      said "%d shapes in the window" (primitives window);
+      said "%d shapes in the window, %d letters' pictures kept" (primitives window) (Glyph_picture.kept ());
       (* a frame: those shapes drawn, by the Playground's own rasterizer
        * (Cairo's platform is not linked here), the page's top left at
        * the window's *)

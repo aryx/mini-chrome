@@ -54,3 +54,13 @@ val metrics : Page.metrics
  * coordinates (y up) *)
 val glyph :
   Playground.color -> Style.t -> string -> x:float -> baseline:float -> Playground.shape list
+
+(* claude: the two ways [glyph] chooses between (Mini_opti.letters): the
+ * pen's, a rectangle a segment and a dot a point, the simple way
+ * (letters=segments, opti=off); and the letter as one picture made
+ * once, the default (Glyph_picture.mli) *)
+val glyph_segments :
+  Playground.color -> Style.t -> string -> x:float -> baseline:float -> Playground.shape list
+
+val glyph_picture :
+  Playground.color -> Style.t -> string -> x:float -> baseline:float -> Playground.shape list

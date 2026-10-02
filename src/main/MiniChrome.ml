@@ -187,6 +187,12 @@ let main = Program.main __MODULE__ (fun () ->
         Mini_opti.enabled := false;
         Logs.info (fun m -> m "opti=off: the simple code paths")
       end;
+      (* claude: letters=segments: a letter drawn as its pen's strokes,
+       * the simple way, rather than as one picture (Glyph_picture) *)
+      (match List.assoc_opt "letters" flags with
+      | Some "segments" -> Mini_opti.letters := Segments
+      | Some "pictures" -> Mini_opti.letters := Pictures
+      | _ -> ());
       (* claude: an application's window: resized, the page is laid out
        * again at its width rather than the picture scaled. It starts
        * at the size it was last, the profile's (-size WxH, the

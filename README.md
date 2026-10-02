@@ -52,7 +52,8 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
 `profile=DIR` or `profile=off`, `scale=N`, `opti=off` (the simple code
-where an optimized one replaced it). With `-v` the terminal shows each
+where an optimized one replaced it), `letters=segments` (a letter drawn
+as its pen's strokes). With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
 (with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
 it is typed).
