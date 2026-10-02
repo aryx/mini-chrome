@@ -5,6 +5,14 @@ repository's root. Each one's header says what it does, why, and how to
 use it; the techniques behind them are in
 `docs/notes_debugging_techniques.txt`.
 
+- `stats/`: numbers about the repository
+  - `loc.py`: lines of OCaml (code, comments, blank), a part a line,
+    and how much of the budget they are: 30,000 lines for the browser
+    (`languages/`, `libs/`, `src/`), its tests and tools not counted
+    (`make loc`, `make loc-v`)
+- `js/`: what real scripts ask of the JavaScript engine
+  - `Js_survey.exe`: each script given parsed, then run in an empty
+    page; its first mistake, and the mistakes counted (`Js_survey.mli`)
 - `perf/`: how fast (`docs/plan_performance.md`)
   - `Page_bench.exe`: where a page's load goes: the network, then each
     stage of the pipeline timed on the page fetched (`Page_bench.mli`;

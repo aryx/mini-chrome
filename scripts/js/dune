@@ -1,0 +1,9 @@
+; claude: what real scripts ask of the JavaScript engine: each file
+; parsed, then run in an empty page, its first mistake said with the
+; line of source at fault (Js_survey.mli). Not a test, run by hand:
+;   dune build scripts/js/Js_survey.exe
+;   ./_build/default/scripts/js/Js_survey.exe jquery.js hn.js ...
+(executable
+ (name Js_survey)
+ (flags (:standard -open Network))
+ (libraries unix lang_html javascript browser_www network elm_playground elm_playground_software))

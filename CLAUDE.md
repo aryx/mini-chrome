@@ -25,6 +25,7 @@ make                   # dune build
 make test              # dune runtest -f, all seven suites
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
+make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5.1)
 ```
 
@@ -274,6 +275,14 @@ unless it is specific to a browser (then `src/chrome`, as
 - `bin` is a symlink into `_build/install/default/bin`, excluded from
   dune by the root `dune` file.
 - The root `dune` disables warnings 6, 32, 37 and 69 in dev.
+
+## The budget
+
+The browser is to stay under 30,000 lines of OCaml: `languages/`,
+`libs/` and `src/`, their `.mli` files, comments and blank lines
+included; not `tests/` nor `scripts/`. `make loc` says where it stands
+(`scripts/stats/loc.py`). Before a large feature, say what it will
+cost; after it, what it did.
 
 ## Performance
 
