@@ -1,0 +1,12 @@
+; the Playground's native platform the older browsers of tools/ are
+; linked with: Cairo's when elm_playground_native is installed, else
+; the software rasterizer -- src/main's choice, made once for the three
+; (a program takes this library and has its window)
+(library
+ (name mini_platform)
+ (wrapped false)
+ (libraries
+   elm_playground
+   (select Platform.ml from
+     (elm_playground_native -> Platform.cairo.ml)
+     (elm_playground_software -> Platform.software.ml))))

@@ -8,6 +8,9 @@
 ; the first style sheets, CSS1's properties over the looks: the same
 ; engine serves tools/netscape and tools/firefox. It was the browser's
 ; own until Box_layout replaced it; it is here to be read first.
+;
+; mini-mosaic is NCSA Mosaic, 1993: a grey window, a globe that
+; turns, pictures in the text, fill-out forms.
 ; the looks and the layout: pure, no shapes and no fonts (the caller
 ; gives the widths), so their tests run on strings
 (library
@@ -26,3 +29,15 @@
    mini_dom lang_html lang_css browser_layout browser_display browser_www
    mosaic_layout
    appkit_typeset)) ; Linebreak, for wrap=pretty
+
+(executable
+ (name MiniMosaic)
+ (public_name mini-mosaic)
+ (modules MiniMosaic)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries
+   caps logs tiny_libs.core network
+   lang_html lang_css browser_layout
+   browser_url browser_display browser_www browser_about browser_chrome
+   mosaic_engine
+   elm_playground mini_platform))

@@ -1,0 +1,15 @@
+; mini-netscape is Netscape Navigator, 1994 to 1997: pages in colour,
+; fonts, <center>, text flowing round pictures, tables, the first
+; style sheets; four connections at once, the page shown as it comes.
+; Its engine is tools/mosaic's (mosaic_engine) with its extensions on:
+; Netscape did not replace Mosaic's layout, it added to it.
+(executable
+ (name MiniNetscape)
+ (public_name mini-netscape)
+ (flags (:standard -open Network)) ; ours (libs/network/dune)
+ (libraries
+   caps logs tiny_libs.core network
+   lang_html lang_css javascript browser_layout
+   browser_url browser_display browser_www browser_dom browser_about browser_chrome
+   mosaic_engine
+   elm_playground mini_platform))

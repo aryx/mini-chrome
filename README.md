@@ -156,6 +156,20 @@ tools/                small programs beside the browser, made of its
                              WebSocket asked for is an echo
                       lynx   mini-lynx: a page as text in the terminal,
                              its links numbered, a number typed to follow
+                      mosaic    mini-mosaic: NCSA Mosaic, 1993 -- and the
+                                web's first layout engine, the browser's
+                                until CSS's replaced it: a look for each
+                                element from a table (Mosaic_looks),
+                                blocks and lines in one pass
+                                (Mosaic_layout), drawn (Mosaic_draw)
+                      netscape  mini-netscape: Netscape, 1994-1997: the
+                                same engine with its extensions (fonts,
+                                colours, floats, tables) and CSS1
+                      firefox   mini-firefox: 2004: the same again, and
+                                the page's scripts, a console, the tree
+                      typeset   lines broken by Knuth and Plass
+                                (mini-mosaic's wrap=pretty)
+                      platform  the window the three are linked with
 tests/                tools, html, xml, css, js, layout, browser, images, compression, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and

@@ -14,9 +14,10 @@ libs/        dom, gui, richtext, typeset,     general, not a browser's
              network, images, compression
 src/         url, layout, display, www, dom,  the browser, by role
              viewers, about, chrome, window, main
-tools/       node, curl, httpd, lynx          programs beside the browser, made of
-                                              its libraries: mini-node, mini-curl,
-                                              mini-httpd, mini-lynx
+tools/       node, curl, httpd, lynx,         programs beside the browser, made of
+             mosaic, netscape, firefox        its libraries: mini-node, mini-curl,
+                                              mini-httpd, mini-lynx; and the browsers
+                                              before it, over the first layout engine
 ```
 
 JavaScript is in three places, and the cut matters. `languages/javascript`

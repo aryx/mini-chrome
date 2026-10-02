@@ -29,6 +29,9 @@ make run-software      # dune exec mini-chrome-software
 ./bin/mini-curl -v URL # the network stack alone: the request and the answer's head
 ./bin/mini-httpd DIR   # a directory served on http://127.0.0.1:8000/
 ./bin/mini-lynx URL    # a page as text, its links numbered (-dump: no prompt)
+./bin/mini-mosaic      # the browsers before: Mosaic 1993 (url=, wrap=pretty),
+./bin/mini-netscape    #   Netscape 1994-97 (url=, css=off, images=off),
+./bin/mini-firefox     #   Firefox 2004 (url=, panel=off): tools/mosaic's engine
 make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5.1)
 ```
@@ -152,7 +155,12 @@ the JavaScript engine in a terminal), `tools/curl` (`mini-curl`, a URL
 fetched by our HTTP and TLS; `-v` to see a request that fails in the
 browser), `tools/httpd` (`mini-httpd`, a directory served, and an echo for a WebSocket: the pages
 of a test or a demonstration, instead of `python3 -m http.server`),
-`tools/lynx` (`mini-lynx`, a page as text over `Line_mode`). The
+`tools/lynx` (`mini-lynx`, a page as text over `Line_mode`),
+`tools/mosaic`, `tools/netscape` and `tools/firefox` (the browsers
+before this one, in the order the web grew: windows of their own,
+over the first layout engine, `tools/mosaic`'s libraries; their
+platform is `tools/platform`'s choice and `tools/typeset` breaks
+mini-mosaic's lines the Knuth and Plass way). The
 browser is the subject of this repository, and a program that is not
 part of it goes there, not in `src/`. `languages/` and `src/layout` are pure OCaml: no
 Playground, no shapes, no fonts (glyph widths are passed in by the
@@ -174,13 +182,17 @@ The browser has one layout engine, CSS 2.1's box model: `Cascade` +
 Mosaic's fixed looks, is in `tools/mosaic` (`Mosaic_looks`,
 `Mosaic_layout`, `Mosaic_draw`, and `Mosaic_page.engine`, which puts
 them together): `Browser_page`'s settings take an `engine` (`None` for
-the box model), for the older browsers to give that one. What the two engines share
+the box model), and the three older browsers of `tools/` give that one
+-- `mini-mosaic` (1993), `mini-netscape` (its extensions and CSS1 on),
+`mini-firefox` (the same, and scripts). What the two engines share
 stays in `src/`: the geometry both produce (`Html_layout`: boxes, lines,
 fragments; `Box_layout` makes them with `Box_tree.as_html_layout`), a
 word's look (`Looks.t`), and what works on those, `Hit`, the form
 controls and the drawing of words (`Browser_draw`). The old engine is
 not in the budget, and a change to those shared types must keep it
-building.
+building, and their pages as they were:
+`scripts/tools/dump_old_browsers.sh DIR` before and after, the two
+compared with `cmp`.
 
 `Box_layout` is four modules over `Box_types`' types (the box, a line's
 words and floats, a block being laid out): `Box_tree` (a box read),
