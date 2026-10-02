@@ -47,6 +47,13 @@ let tests (caps : < Cap.network ; .. >) =
                   | Ok r, _, _ -> Alcotest.check response path (ok (Http_client.get caps url)) r
                   | Error _, _, _ -> Alcotest.fail path)
                 [ "/old"; "/nothing"; "/gz" ]));
+      Testo.create "cookies: the non-blocking request says and keeps them too" (fun () ->
+          Testutil_server.(with_server (respond site)) (fun port ->
+              let jar = Cookie_jar.create () in
+              let body path = match run_frames (Http_request.start ~jar caps (Testutil_server.url port path)) with Ok r, _, _ -> r.body | Error _, _, _ -> Alcotest.fail path in
+              Alcotest.(check string) "signed in through the redirection" "you are sid=42; lang=en" (body "/login");
+              Alcotest.(check string) "the jar is the blocking client's too" "you are sid=42; lang=en"
+                (match Http_client.get ~jar caps (Testutil_server.url port "/whoami") with Ok r -> r.body | Error e -> Alcotest.fail e)));
       Testo.create "the name resolved on a thread: the same responses" (fun () ->
           let resolver = Worker.create 1 in
           Testutil_server.(with_server (respond site)) (fun port ->

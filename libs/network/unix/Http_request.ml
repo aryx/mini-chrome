@@ -33,6 +33,7 @@ type t = {
   deadline : float;
   (* where getaddrinfo is called: a pool's thread, or this one *)
   resolver : Worker.t option;
+  jar : Cookie_jar.t option; (* claude: the cookies said, and kept *)
 }
 
 (*****************************************************************************)
@@ -74,7 +75,7 @@ let begin_request (t : t) : state =
      thread: this machine speaks to plain sockets only *)
   if t.url.scheme = Some "https" then Done (Error (Bad_url (Url.to_string t.url ^ ": https:// is Http_client's (blocking), not this machine's")))
   else
-  match Http_client.prepare ?post:t.post t.url with
+  match Http_client.prepare ?post:t.post ?jar:t.jar t.url with
   | Error why -> Done (Error (Bad_url why))
   | Ok (host, port, request) -> (
       t.request <- request;
@@ -90,6 +91,7 @@ let answered (t : t) (bytes : string) : state =
   match Http.parse_response bytes with
   | Error why -> failed t why
   | Ok response -> (
+      Option.iter (fun jar -> Cookie_jar.received jar t.url response.headers) t.jar;
       match (Http.is_redirect response.status, Http.header "Location" response.headers) with
       | true, Some location -> (
           if t.redirects_left = 0 then failed t "too many redirections"
@@ -112,7 +114,7 @@ let answered (t : t) (bytes : string) : state =
 (* Entry points *)
 (*****************************************************************************)
 
-let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver (caps : < Cap.network ; .. >) (s : string) : t =
+let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver ?jar (caps : < Cap.network ; .. >) (s : string) : t =
   let t =
     {
       caps = (caps :> Cap.network);
@@ -123,6 +125,7 @@ let start ?(max_redirects = 5) ?(timeout = 30.) ?post ?resolver (caps : < Cap.ne
       redirects_left = max_redirects;
       deadline = Unix.gettimeofday () +. timeout;
       resolver;
+      jar;
     }
   in
   (match Url.parse s with

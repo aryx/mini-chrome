@@ -41,7 +41,11 @@ type 'msg t
 
 (* [threads]: https:// fetched (and names resolved) on a pool of four
  * threads, Netscape's four connections; without, the frame waits *)
-val create : ?threads:bool -> unit -> 'msg t
+val create : ?threads:bool -> ?jar:Cookie_jar.t -> unit -> 'msg t
+(* claude: [jar], the cookies the requests say and keep (an empty one
+ * if none is given): one for the whole browser *)
+
+val jar : 'msg t -> Cookie_jar.t
 
 (* the request started *)
 val perform : 'msg t -> 'msg request -> unit

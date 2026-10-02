@@ -50,6 +50,7 @@ type 'msg config = {
   visible : int;
   line_height : float;
   scripts : string -> bool;
+  cookies : Cookie_jar.t;
   seed : int;
 }
 
@@ -156,7 +157,14 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
   let p = Browser_page.read (cfg.settings tab) url status content_type bytes in
   if not (cfg.scripts url) then { tab with state = Shown p; script = None; pending_scripts = [] }
   else
-    let s = Browser_script.create ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) p.tree in
+    (* claude: document.cookie: the jar's for the page's address (a page
+     * of the built-in site has none: no host) *)
+    let cookies =
+      match Url.parse p.url with
+      | Ok url -> ((fun () -> Cookie_jar.script_cookies cfg.cookies url), fun v -> Cookie_jar.set_from_script cfg.cookies url v)
+      | Error _ -> ((fun () -> ""), fun _ -> ())
+    in
+    let s = Browser_script.create ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in

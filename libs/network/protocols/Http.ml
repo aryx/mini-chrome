@@ -16,6 +16,12 @@ let header (name : string) (headers : header list) : string option =
   let name = String.lowercase_ascii name in
   List.find_map (fun (n, v) -> if String.lowercase_ascii n = name then Some v else None) headers
 
+(* claude: every header of that name: a response says Set-Cookie once a
+ * cookie *)
+let values (name : string) (headers : header list) : string list =
+  let name = String.lowercase_ascii name in
+  List.filter_map (fun (n, v) -> if String.lowercase_ascii n = name then Some v else None) headers
+
 let ( let* ) = Result.bind
 
 (*****************************************************************************)
@@ -24,11 +30,15 @@ let ( let* ) = Result.bind
 
 type request = { meth : string; target : string; headers : header list }
 
-let get ~(host : string) (target : string) : request =
-  { meth = "GET"; target; headers = [ ("Host", host); ("User-Agent", "elm_playground"); ("Accept-Encoding", "gzip"); ("Connection", "close") ] }
+let get ?cookie ~(host : string) (target : string) : request =
+  { meth = "GET"; target;
+    headers =
+      [ ("Host", host); ("User-Agent", "elm_playground"); ("Accept-Encoding", "gzip") ]
+      @ (match cookie with Some c -> [ ("Cookie", c) ] | None -> [])
+      @ [ ("Connection", "close") ] }
 
-let post ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
-  let r = get ~host target in
+let post ?cookie ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
+  let r = get ?cookie ~host target in
   { r with meth = "POST"; headers = r.headers @ [ ("Content-Type", content_type); ("Content-Length", string_of_int (String.length body)) ] }
 
 let request_to_string ?(body = "") (r : request) : string =

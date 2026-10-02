@@ -32,6 +32,22 @@ let tests (caps : < Cap.network ; .. >) =
                   let sent = int_of_string (Option.get (Http.header "Content-Length" r.headers)) in
                   Alcotest.(check bool) "fewer bytes on the wire" true (sent * 4 < String.length r.body)
               | Error e -> Alcotest.fail e));
+      Testo.create "cookies: set by a redirection, said to the next request; kept in the jar; deleted" (fun () ->
+          Testutil_server.(with_server (respond site)) (fun port ->
+              let jar = Cookie_jar.create () in
+              let body path = match Http_client.get ~jar caps (Testutil_server.url port path) with Ok r -> r.body | Error e -> Alcotest.fail e in
+              Alcotest.(check string) "nobody yet" "nobody" (body "/whoami");
+              Alcotest.(check string) "signed in: the cookies of the 302, said to where it leads" "you are sid=42; lang=en" (body "/login");
+              Alcotest.(check string) "and to the requests after" "you are sid=42; lang=en" (body "/sub/whoami");
+              Alcotest.(check int) "two in the jar" 2 (List.length (Cookie_jar.cookies jar));
+              let page = match Url.parse (Testutil_server.url port "/whoami") with Ok u -> u | Error e -> Alcotest.fail e in
+              Alcotest.(check string) "the page's script: not the HttpOnly one" "lang=en" (Cookie_jar.script_cookies jar page);
+              Cookie_jar.set_from_script jar page "theme=dark; Path=/";
+              Alcotest.(check string) "a script's cookie, said too" "you are sid=42; lang=en; theme=dark" (body "/whoami");
+              Alcotest.(check string) "signed out" "bye" (body "/logout");
+              Alcotest.(check string) "the session's cookie gone" "you are lang=en; theme=dark" (body "/whoami");
+              Alcotest.(check string) "without a jar: nobody" "nobody"
+                (match Http_client.get caps (Testutil_server.url port "/whoami") with Ok r -> r.body | Error e -> Alcotest.fail e)));
       Testo.create "a 404 is an answer, given back" (fun () ->
           Testutil_server.(with_server (respond site)) (fun port ->
               match Http_client.get caps (Testutil_server.url port "/nothing") with

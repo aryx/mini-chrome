@@ -10,7 +10,10 @@ val with_server : (int -> string -> Unix.file_descr -> unit) -> (int -> unit) ->
 
 (* canned answers: /old redirects (relatively) to /new?v=2, chunked
  * "Wikipedia"; /loop redirects to itself; /secure to https://127.0.0.1:1/
- * (nobody there); /gz is [page] with Content-Encoding: gzip; others
+ * (nobody there); /gz is [page] with Content-Encoding: gzip; /login
+ * sets two cookies (sid=42, HttpOnly, and lang=en) and redirects to
+ * /whoami, which answers "you are " and the Cookie header it was sent
+ * (or "nobody"); /logout deletes sid; others
  * are 404 "not here\n" *)
 val page : string
 val site : int -> string -> string

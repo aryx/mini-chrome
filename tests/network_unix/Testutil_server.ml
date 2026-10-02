@@ -10,6 +10,11 @@
 
 (* See Testutil_server.mli *)
 
+(* claude: the head of the last request read, its line and its headers:
+ * for an answer that depends on what the client said ([site]'s
+ * /whoami, its Cookie header) *)
+let last_head = ref ""
+
 (* the request line a server received: "GET /x HTTP/1.1" *)
 let read_request_line (fd : Unix.file_descr) : string =
   (* the request is small, and ends with an empty line: read until it *)
@@ -24,6 +29,7 @@ let read_request_line (fd : Unix.file_descr) : string =
   in
   go ();
   let s = Buffer.contents b in
+  last_head := s;
   match String.index_opt s '\r' with Some i -> String.sub s 0 i | None -> s
 
 let with_server (handle : int -> string -> Unix.file_descr -> unit) (f : int -> unit) : unit =
@@ -65,6 +71,18 @@ let site (port : int) (request_line : string) : string =
   | "GET /gz HTTP/1.1" ->
       let body = Gzip.compress page in
       Printf.sprintf "HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: %d\r\n\r\n%s" (String.length body) body
+  (* claude: a sign-in as sites do it: a cookie set and a redirection;
+   * and a page that says the Cookie header it was sent *)
+  | "GET /login HTTP/1.1" -> "HTTP/1.1 302 Found\r\nLocation: /whoami\r\nSet-Cookie: sid=42; Path=/; HttpOnly\r\nSet-Cookie: lang=en; Path=/\r\nContent-Length: 0\r\n\r\n"
+  | "GET /whoami HTTP/1.1" | "GET /sub/whoami HTTP/1.1" ->
+      let cookie =
+        List.find_map
+          (fun line -> if String.starts_with ~prefix:"cookie: " (String.lowercase_ascii line) then Some (String.trim (String.sub line 8 (String.length line - 8))) else None)
+          (String.split_on_char '\n' !last_head)
+      in
+      let body = match cookie with Some c -> "you are " ^ c | None -> "nobody" in
+      Printf.sprintf "HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" (String.length body) body
+  | "GET /logout HTTP/1.1" -> "HTTP/1.1 200 OK\r\nSet-Cookie: sid=; Path=/; Max-Age=0\r\nContent-Length: 3\r\n\r\nbye"
   | "GET /loop HTTP/1.1" -> Printf.sprintf "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:%d/loop\r\n\r\n" port
   (* claude: to https:// where nobody listens, so that following it
    * needs no Internet *)

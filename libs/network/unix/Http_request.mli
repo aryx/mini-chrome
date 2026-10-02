@@ -56,12 +56,14 @@ type t
  * or a POST of [post] (its content type and body; a redirection makes
  * it a GET, as browsers do); [timeout] (30 s) counts from now to the
  * end, redirections included. With a [resolver], the name is resolved
- * on one of its threads, and [start] returns at once. *)
+ * on one of its threads, and [start] returns at once. With a [jar], the
+ * cookies kept are said and those set are kept, as Http_client does. *)
 val start :
   ?max_redirects:int ->
   ?timeout:float ->
   ?post:string * string ->
   ?resolver:Worker.t ->
+  ?jar:Cookie_jar.t ->
   < Cap.network ; .. > ->
   string ->
   t

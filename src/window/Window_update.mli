@@ -30,6 +30,15 @@ val first_pages : string -> Playground.flags -> string list
  * the first model, a tab a page; [desktop] the desktop's scale,
  * [window] the size the window starts at, in the screen's dots *)
 val init :
-  < Cap.network ; .. > -> Browser_profile.t * string option -> desktop:float -> window:int * int -> Playground.flags -> model * msg Cmd.t
+  < Cap.network ; .. > ->
+  ?jar:Cookie_jar.t ->
+  Browser_profile.t * string option ->
+  desktop:float ->
+  window:int * int ->
+  Playground.flags ->
+  model * msg Cmd.t
+(* claude: [jar]: the browser's cookies, those kept from the last run in
+ * it (the main's, which saves them: Browser_cookies); an empty one if
+ * none is given *)
 
 val update : < Cap.network ; Cap.open_out ; .. > -> msg -> model -> model * msg Cmd.t

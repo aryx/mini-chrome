@@ -107,6 +107,7 @@ type 'msg config = {
   visible : int; (* the page area's lines *)
   line_height : float;
   scripts : string -> bool; (* whether a page's <script>s run (Browser_script), by its URL *)
+  cookies : Cookie_jar.t; (* claude: the browser's cookies: what a page's document.cookie reads and sets *)
   seed : int; (* Math.random's *)
 }
 

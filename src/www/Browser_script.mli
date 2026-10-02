@@ -99,7 +99,17 @@ type t
  * from [epoch] (ms since 1970), [viewport] the window's size; the
  * console's lines also given to [log] as they come *)
 val create :
-  ?seed:int -> ?log:(string -> unit) -> ?base:string -> ?epoch:float -> ?viewport:float * float -> Dom.element -> t
+  ?seed:int ->
+  ?log:(string -> unit) ->
+  ?base:string ->
+  ?epoch:float ->
+  ?viewport:float * float ->
+  ?cookies:(unit -> string) * (string -> unit) ->
+  Dom.element ->
+  t
+(* claude: [cookies]: what document.cookie reads ("a=1; b=2") and what
+ * an assignment to it does with its string (one "name=value; Path=/"),
+ * the browser's jar for this page (none: "", and nothing kept) *)
 
 (* the addresses of the page's scripts of their own file (<script
  * src=...>, JavaScript by their type=), resolved: for the browser to

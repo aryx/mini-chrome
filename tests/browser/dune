@@ -4,8 +4,9 @@
 ; zoom's levels, the profile's file, the right click's menu, libs/gui's pieces, src/window's pure parts
 (test
  (name Test)
+ (flags (:standard -open Network)) ; Cookie, Cookie_jar, Url: ours (libs/network/dune)
  (libraries
-   unix caps alcotest testo mini_opti browser_display
+   unix caps alcotest testo mini_opti browser_display network
    lang_html javascript browser_layout
    browser_url browser_www browser_chrome browser_window
    elm_playground_software)) ; an implem of virtual elm_playground, to link (no Cairo needed)

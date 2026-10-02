@@ -5,6 +5,15 @@
 # (with direction from me)
 
 ** networking (its own)
+- cookies (RFC 6265): a response's Set-Cookie kept (Domain, Path,
+  Expires and Max-Age, Secure, HttpOnly), said back in the Cookie
+  header of the requests to its site, a redirection's before the next
+  request (a sign-in); one jar for the browser, shared by the
+  requests on threads (Cookie, Cookie_jar); document.cookie for the
+  page's scripts; those with a date kept between runs in the
+  profile's Cookies file (Browser_cookies), not with profile=off;
+  about:cookies shows the jar. Not done: the Public Suffix List,
+  SameSite
 - libs/network: elm-playground's networking, the part a browser needs
   (Url, Urlencoded, Http; Asn1, Pem, X509, Tls13; Tcp, Worker,
   Tls_client, Http_client, Http_request), copied to grow here (cookies,

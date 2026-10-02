@@ -44,4 +44,7 @@ type t = {
   mutable alerts : string list; (* the newest first *)
   base : string; (* the page's address: an a's href resolved, location, new URL *)
   mutable requests : string list; (* XMLHttpRequest's and fetch's GETs, for the browser to send; the newest first *)
+  (* claude: document.cookie, read and assigned to: the browser's jar,
+   * for the page's address, without its HttpOnly cookies *)
+  cookies : (unit -> string) * (string -> unit);
 }

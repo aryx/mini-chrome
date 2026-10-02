@@ -28,7 +28,7 @@ let first_pages (engine : string) (flags : flags) : string list =
   | [] -> [ home ]
   | urls -> urls
 
-let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
+let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
     { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.;
@@ -38,7 +38,7 @@ let init (network : < Cap.network ; .. >) ((profile, profile_dir) : Browser_prof
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
-      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ();
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ();
       (* claude: until the platform says (Resized, before the first frame) *)
       screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false; grab = None }
   in

@@ -132,7 +132,8 @@ Discussed but not started when this was written, in the order proposed:
 4. Networking: gzip (the Inflate decoder is in `tiny_libs`, and the HTTP
    code refuses compressed bodies), then keep-alive, then cookies.
    gzip is done: `Gzip` added to `tiny_libs.compression` (it is no
-   browser's), `Http` asking for it and decompressing.
+   browser's), `Http` asking for it and decompressing. Cookies are
+   done (2026-10-02): `Cookie`, `Cookie_jar`, `Browser_cookies`.
 
 YouTube is the far goal: its pages need a modern JavaScript engine and
 streaming video formats nothing here decodes yet.

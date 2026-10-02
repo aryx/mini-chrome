@@ -39,7 +39,12 @@ let config (m : model) (id : int) : msg Browser_tab.config =
   {
     settings = settings m;
     (* the built-in site, and TinyTube in it *)
-    about = (fun name -> match Tube.about name with Some x -> Some x | None -> Site.about name);
+    about =
+      (fun name ->
+        match name with
+        (* claude: the jar as a page, made when asked for *)
+        | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
+        | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
     got = (fun url r -> Got (id, url, r));
     got_picture = (fun url r -> Got_picture (id, url, r));
     fetch = (fun r -> Start_fetch r);
@@ -48,6 +53,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     line_height;
     (* the built-in pages' scripts, and the allowed sites' *)
     scripts = (fun url -> Browser_url.starts_with "about:" url || List.mem (host_of url) m.allowed);
+    cookies = Fetch.jar m.fetches;
     seed = 1;
   }
 

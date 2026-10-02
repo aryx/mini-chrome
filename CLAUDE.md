@@ -66,6 +66,14 @@ writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
 
+The cookies with a date are beside it, in `Cookies` (JSON too,
+readable by its owner alone: `Browser_cookies`), read at the start into
+the browser's one jar (`Cookie_jar`, in the `Fetch.t`: the requests,
+on threads or not, say and keep cookies through it) and written by
+the main when the jar changed, at most every five seconds, and at the
+end. `about:cookies` shows the jar. A session's cookies are never
+written, and `profile=off` neither reads nor writes any.
+
 The Playground's own flags start with a dash. `-v` (or `-verbose`),
 `-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
 `-v` the terminal shows each file and URL opened (the profile's file,
@@ -305,7 +313,7 @@ the numbers measured.
   `../ocaml-elm-playground/docs/claude_notes/` (`tutorials/`, `plans/`);
   `plan_tiny_chrome.md` lists the target sites and what each needs.
 - `libs/network` is a copy of elm-playground's networking meant to
-  diverge here (cookies, keep-alive); the cryptography stays
+  diverge here (cookies, done: `Cookie`, `Cookie_jar`; keep-alive); the cryptography stays
   `tiny_libs.crypto`, and gzip (`Http` decompresses a body with
   `Content-Encoding: gzip`) is `tiny_libs.compression`'s `Gzip`, which
   is in elm-playground after 0.3.3: a compression is not a browser's.

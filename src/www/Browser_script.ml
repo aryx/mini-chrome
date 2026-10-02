@@ -113,13 +113,14 @@ let clear_timer (t : t) (args : value list) : value =
 (* Entry points *)
 (*****************************************************************************)
 
-let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.) ?(viewport = (1000., 768.)) (tree : Dom.element) : t =
+let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.) ?(viewport = (1000., 768.))
+    ?(cookies = ((fun () -> ""), fun (_ : string) -> ())) (tree : Dom.element) : t =
   let lines = ref (fun (_ : string) -> ()) in
   let clock = ref (fun () -> epoch) in
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = [] }
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; cookies }
   in
   (* Date's clock: the page's, from [epoch] *)
   clock := (fun () -> epoch +. t.now);

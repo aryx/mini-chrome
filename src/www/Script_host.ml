@@ -281,7 +281,9 @@ let document (t : t) : value =
           | "getElementsByClassName" | "getElementsByTagName" -> get t root k
           | "location" -> location t
           | "URL" -> String t.base
-          | "cookie" | "referrer" -> String ""
+          (* claude: "a=1; b=2", the browser's for this page *)
+          | "cookie" -> String (fst t.cookies ())
+          | "referrer" -> String ""
           | "readyState" -> String "complete"
           | "defaultView" -> Option.value (Js_eval.global t.engine "window") ~default:Undefined
           | "createTextNode" -> method_ k (fun args -> wrap t (make text_name ~text:(str (arg args 0))))
@@ -298,6 +300,9 @@ let document (t : t) : value =
       set =
         (fun k v ->
           match (k, title ()) with
+          (* claude: document.cookie = "name=value; Path=/": one cookie
+           * set (not the whole string replaced: its odd meaning) *)
+          | "cookie", _ -> snd t.cookies (str v)
           | "title", Some n ->
               n.children <- [ make text_name ~text:(str v) ];
               adopt n n.children;

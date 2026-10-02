@@ -151,12 +151,38 @@ let profile_of (caps : < Cap.open_in ; Cap.env ; .. >) (flags : flags) : Browser
  * state is kept here, after each update *)
 let unsaved : (string * Browser_profile.t) option ref = ref None
 
-let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) =
+(* claude: the cookies with a date are kept in the profile's directory
+ * (Browser_cookies): read into the jar at the start, written when the
+ * jar has changed -- at most every few seconds while pages load (each
+ * answer may set one), and when the program ends. [written]: the jar's
+ * count of changes at the last writing, and when that was *)
+let cookies_of (caps : < Cap.open_in ; .. >) (dir : string option) : Cookie_jar.t =
+  let kept =
+    match Option.map (fun dir -> Browser_cookies.load caps ~now:(Unix.gettimeofday ()) ~dir) dir with
+    | Some (Ok cookies) -> cookies
+    | Some (Error why) ->
+        Logs.warn (fun m -> m "the cookies kept are not used: %s" why);
+        []
+    | None -> []
+  in
+  Cookie_jar.create ~cookies:kept ()
+
+let written : (int * float) ref = ref (0, 0.)
+
+let save_cookies (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string option) (jar : Cookie_jar.t) : unit =
+  match dir with
+  | Some dir when Cookie_jar.changes jar <> fst !written && (now || Unix.gettimeofday () -. snd !written >= 5.) ->
+      written := (Cookie_jar.changes jar, Unix.gettimeofday ());
+      (match Browser_cookies.save caps ~dir (Cookie_jar.cookies jar) with Ok () -> () | Error why -> Logs.warn (fun m -> m "the cookies are not saved: %s" why))
+  | _ -> ()
+
+let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(desktop : float) ~(window : int * int) =
   {
-    Playground.init = Window_update.init caps profile ~desktop ~window;
+    Playground.init = Window_update.init caps ~jar profile ~desktop ~window;
     update =
       (fun msg m ->
         let m, cmd = Window_update.update caps msg m in
+        (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> ());
         unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
         (m, cmd));
     view = Window_view.view;
@@ -210,11 +236,13 @@ let main = Program.main __MODULE__ (fun () ->
       let window = Option.value profile.window ~default:(int_of_float (1280. *. scale), int_of_float (900. *. scale)) in
       (* claude: the window closed (the Playground exits), -dump-frame's
        * frame written: what changed in the last second is saved *)
+      let jar = cookies_of caps profile_dir in
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
+          save_cookies caps ~now:true profile_dir jar;
           Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
       (* claude: opti: a frame whose view is the list of the frame before
        * is not drawn again (Window_view.view gives it back when the
        * window has nothing new to show) *)
       Playground_platform.run_app ~flags
-        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~desktop ~window)))
+        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~desktop ~window)))

@@ -10,4 +10,4 @@
 
 let () =
   Testo.interpret_argv ~project_name:"network" (fun _env ->
-      Unit_url.tests @ Unit_urlencoded.tests @ Unit_http.tests @ Unit_x509.tests @ Unit_tls13.tests)
+      Unit_url.tests @ Unit_urlencoded.tests @ Unit_http.tests @ Unit_cookie.tests @ Unit_x509.tests @ Unit_tls13.tests)
