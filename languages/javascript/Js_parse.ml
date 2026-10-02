@@ -252,6 +252,17 @@ and prefix (p : t) : expr =
     | Name "super" when is_punct p "." ->
         ignore (advance p);
         Super_member (property_name p)
+    (* import("m"), import.meta: a module's; import is else a name *)
+    | Name "import" when is_punct p "(" ->
+        ignore (advance p);
+        let spec = expression p 1 in
+        (* a second argument (options), a trailing comma: read and dropped *)
+        if is_punct p "," then (ignore (advance p); if not (is_punct p ")") then ignore (expression p 1));
+        expect p ")";
+        Import_call spec
+    | Name "import" when is_punct p "." && (peek_at p 1).kind = Name "meta" ->
+        p.pos <- p.pos + 2;
+        Import_meta
     | Name x -> Name x
     | Keyword "true" -> Bool true
     | Keyword "false" -> Bool false
@@ -652,10 +663,111 @@ and statement (p : t) : stmt =
       let c = class_ p in
       if c.class_name = None then fail p "a class declaration needs a name";
       s (Class_decl c)
+  (* a module's: import and export are names, and statements only
+   * where what follows cannot go on an expression *)
+  | Name "import" when (match (peek_at p 1).kind with String _ | Name _ | Punct ("{" | "*") -> true | _ -> false) ->
+      ignore (advance p);
+      s (import p)
+  | Name "export" when (match (peek_at p 1).kind with Keyword _ | Punct ("{" | "*") | Name "async" -> true | _ -> false) ->
+      ignore (advance p);
+      s (Export (export p))
   | _ ->
       let e = expression p 0 in
       end_statement p;
       s (Expr e)
+
+(* a name in an import's or an export's list: any word (default is one) *)
+and word (p : t) : string =
+  match (advance p).kind with
+  | Name x | Keyword x -> x
+  | String x -> x
+  | _ ->
+      p.pos <- p.pos - 1;
+      unexpected p "a name"
+
+(* { a, b as c }: each (a, a) or (b, c) *)
+and name_list (p : t) : (string * string) list =
+  expect p "{";
+  let rec go acc =
+    if is_punct p "}" then (ignore (advance p); List.rev acc)
+    else
+      let a = word p in
+      let b = if (peek p).kind = Name "as" then (ignore (advance p); word p) else a in
+      if is_punct p "," then ignore (advance p);
+      go ((a, b) :: acc)
+  in
+  go []
+
+and from (p : t) : string =
+  if (peek p).kind <> Name "from" then unexpected p "from";
+  ignore (advance p);
+  match (advance p).kind with
+  | String s ->
+      (* with { type: "json" }: read and dropped *)
+      if (peek p).kind = Keyword "with" || (peek p).kind = Name "assert" then (ignore (advance p); ignore (block_skip p));
+      s
+  | _ ->
+      p.pos <- p.pos - 1;
+      unexpected p "a module's address"
+
+and block_skip (p : t) : unit =
+  expect p "{";
+  while not (is_punct p "}" || (peek p).kind = Eof) do ignore (advance p) done;
+  expect p "}"
+
+(* after "import": "m"; d from "m"; * as ns from "m"; { a, b as c } from "m"; d, { a } from "m" *)
+and import (p : t) : statement =
+  match (peek p).kind with
+  | String s ->
+      ignore (advance p);
+      end_statement p;
+      Import ({ default = None; namespace = None; named = [] }, s)
+  | _ ->
+      let default = match (peek p).kind with Name _ -> let d = name p in if is_punct p "," then ignore (advance p); Some d | _ -> None in
+      let namespace =
+        if is_punct p "*" then (
+          ignore (advance p);
+          if (peek p).kind <> Name "as" then unexpected p "as";
+          ignore (advance p);
+          Some (name p))
+        else None
+      in
+      let named = if is_punct p "{" then name_list p else [] in
+      let m = from p in
+      end_statement p;
+      Import ({ default; namespace; named }, m)
+
+(* after "export" *)
+and export (p : t) : export =
+  let line = (peek p).line in
+  match (peek p).kind with
+  | Keyword "default" -> (
+      ignore (advance p);
+      let async = (peek p).kind = Name "async" && (peek_at p 1).kind = Keyword "function" in
+      if is_keyword p "function" || async then (
+        p.pos <- p.pos + if async then 2 else 1;
+        let f = func p ~arrow:false ~async in
+        if f.name = None then Export_default (Function f) else Export_default_decl { line; stmt = Function_decl f })
+      else if is_keyword p "class" then (
+        ignore (advance p);
+        let c = class_ p in
+        if c.class_name = None then Export_default (Class c) else Export_default_decl { line; stmt = Class_decl c })
+      else
+        let e = expression p 1 in
+        end_statement p;
+        Export_default e)
+  | Punct "*" ->
+      ignore (advance p);
+      let ns = if (peek p).kind = Name "as" then (ignore (advance p); Some (word p)) else None in
+      let m = from p in
+      end_statement p;
+      Export_all (ns, m)
+  | Punct "{" ->
+      let names = name_list p in
+      let m = if (peek p).kind = Name "from" then Some (from p) else None in
+      end_statement p;
+      Export_names (names, m)
+  | _ -> Export_decl (statement p)
 
 (* for (let x of xs) body, or for (init; test; update) body: what is
  * after the "(" *)

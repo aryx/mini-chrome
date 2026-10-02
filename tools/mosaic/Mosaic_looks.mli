@@ -66,7 +66,7 @@
    The look itself, the record a word carries to the screen, is the
    browser's (Looks.t): CSS's engine fills the same one from its
    computed styles. What is here is the table, and nobody else's: the
-   browser's own table is a style sheet now (languages/css/ua.css).
+   browser's own table is a style sheet now (data/css/ua.css).
 
    Reference: W3C, CSS 2.1, appendix D (the default style sheet for
    HTML 4) and section 6.2 (inheritance); HTML 3.2 (align=); Mosaic's

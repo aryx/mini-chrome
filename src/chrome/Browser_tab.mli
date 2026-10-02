@@ -170,6 +170,11 @@ val got_answer : 'msg config -> < Cap.network ; .. > -> int -> string -> (Fetch.
  * for this one) is closed. *)
 val got_socket : 'msg config -> < Cap.network ; .. > -> int -> Websocket_client.event -> t -> t * 'msg Cmd.t
 
+(* [details cfg network clicked tab]: if the element clicked is in a
+ * <details>'s <summary>, the tab with it opened or closed
+ * (Browser_details), laid out again; None if it is not *)
+val details : 'msg config -> < Cap.network ; .. > -> Dom.element -> t -> (t * 'msg Cmd.t) option
+
 val got_picture : 'msg config -> < Cap.network ; .. > -> string -> (Fetch.response, Fetch.error) result -> t -> t * 'msg Cmd.t
 
 (* what a form's click or key did (Browser_forms): the focus moved, the

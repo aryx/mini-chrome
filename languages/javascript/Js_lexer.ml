@@ -118,9 +118,14 @@ let tokenize (s : string) : token list =
       | c when is_name_start c ->
           let j = ref i in
           while !j < n && is_name_char s.[!j] do incr j done;
-          let w = sub i !j in
-          emit (if List.mem w keywords then Keyword w else Name w) !line;
-          go !j
+          if !j + 1 < n && s.[!j] = '\\' && s.[!j + 1] = 'u' then go (escaped_name i)
+          else (
+            let w = sub i !j in
+            emit (if List.mem w keywords then Keyword w else Name w) !line;
+            go !j)
+      (* a name with a letter written as its number, \uFB01: a
+       * minifier's way with letters beyond ASCII *)
+      | '\\' when i + 1 < n && s.[i + 1] = 'u' -> go (escaped_name i)
       | ('"' | '\'') as q -> go (string i q)
       | '`' -> go (template i)
       | _ -> (
@@ -171,6 +176,7 @@ let tokenize (s : string) : token list =
         incr j
       done;
       emit (Number (float_of_int (int_of_string (sub i !j)))) !line;
+      if !j < n && s.[!j] = 'n' then incr j;
       !j)
     else
       let j = ref i in
@@ -183,9 +189,24 @@ let tokenize (s : string) : token list =
         incr j;
         if !j < n && (s.[!j] = '+' || s.[!j] = '-') then incr j;
         digits ());
+      (* 10n, a BigInt's literal: read as the number (no integers of
+       * any size here; BigInt(x) is x's whole part) *)
+      let stop = !j in
+      if !j < n && s.[!j] = 'n' && not (!j + 1 < n && is_name_char s.[!j + 1]) then incr j;
       if !j < n && is_name_start s.[!j] then error (Printf.sprintf "a number followed by %C" s.[!j]);
-      emit (Number (float_of_string (sub i !j))) !line;
+      emit (Number (float_of_string (sub i stop))) !line;
       !j
+  (* a name some of whose letters are \u escapes: never a keyword *)
+  and escaped_name i =
+    let b = Buffer.create 16 in
+    let rec name j =
+      if j < n && is_name_char s.[j] then (Buffer.add_char b s.[j]; name (j + 1))
+      else if j + 1 < n && s.[j] = '\\' && s.[j + 1] = 'u' then name (escape b j)
+      else j
+    in
+    let j = name i in
+    emit (Name (Buffer.contents b)) !line;
+    j
   (* an escape's character, and where the text goes on: \n, \t, \u00e9,
    * \x41; any other character is itself *)
   and escape (b : Buffer.t) (j : int) : int =

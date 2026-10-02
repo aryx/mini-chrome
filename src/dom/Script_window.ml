@@ -121,23 +121,37 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   (* new Image(): an <img> in no tree *)
   define "Image" (fn "Image" (fun _ -> wrap t (make "img")));
   let global k = Option.value (Js_eval.global t.engine k) ~default:Undefined in
-  (* window: the global object -- a global read or set through it; its
-   * listeners the document's, its size the window's *)
+  (* what window has of its own, as globals: in a browser the global
+   * object is the window, so innerWidth alone is window.innerWidth,
+   * and addEventListener(...) is the window's. Its listeners are the
+   * document's, its size the window's *)
+  List.iter (fun k -> define k (Number (fst viewport))) [ "innerWidth"; "outerWidth" ];
+  List.iter (fun k -> define k (Number (snd viewport))) [ "innerHeight"; "outerHeight" ];
+  define "devicePixelRatio" (Number 1.);
+  List.iter (fun k -> define k (Number 0.)) [ "scrollX"; "scrollY"; "pageXOffset"; "pageYOffset"; "screenX"; "screenY"; "length" ];
+  List.iter
+    (fun k ->
+      define k
+        (fn k (fun args ->
+             match global "document" with
+             | Object { kind = Host_object h; _ } as document -> Js_eval.call_in_run t.engine (h.get k) ~this:document args
+             | _ -> Undefined)))
+    [ "addEventListener"; "removeEventListener"; "dispatchEvent" ];
+  List.iter (fun k -> define k (fn k (fun _ -> Undefined))) [ "scrollTo"; "scrollBy"; "scroll"; "focus"; "blur"; "postMessage"; "print"; "close"; "stop" ];
+  define "open" (fn "open" (fun _ -> Null));
+  define "confirm" (fn "confirm" (fun _ -> Bool true));
+  define "prompt" (fn "prompt" (fun _ -> Null));
+  define "origin" (String (Script_fetch.origin t.base));
+  define "isSecureContext" (Bool (Browser_url.starts_with "https://" t.base));
+  define "name" (String "");
+  define "closed" (Bool false);
+  List.iter (fun k -> define k Null) [ "opener"; "frameElement"; "onerror"; "onload"; "onpopstate"; "onunhandledrejection" ];
+  (* window: the global object -- a global read or set through it *)
   let window =
     host_object
       {
         class_name = "Window";
-        get =
-          (fun k ->
-            match k with
-            | "innerWidth" | "outerWidth" -> Number (fst viewport)
-            | "innerHeight" | "outerHeight" -> Number (snd viewport)
-            | "devicePixelRatio" -> Number 1.
-            | "scrollX" | "scrollY" | "pageXOffset" | "pageYOffset" -> Number 0.
-            | "addEventListener" | "removeEventListener" | "dispatchEvent" -> (
-                match global "document" with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
-            | "scrollTo" | "scrollBy" | "scroll" | "focus" | "blur" -> fn k (fun _ -> Undefined)
-            | k -> global k);
+        get = global;
         (* window.location = url goes there, as location.href = url *)
         set = (fun k v -> match (k, v) with "location", String url -> t.navigation <- Some (Browser_url.resolve t.base url, false) | _ -> Js_eval.define t.engine k v);
         show = (fun () -> "Window");

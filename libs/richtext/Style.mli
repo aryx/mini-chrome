@@ -3,9 +3,11 @@
  *
  * A look is a value with no identity of its own -- two characters are
  * in the same style exactly when their looks are equal -- which is
- * what lets a text keep its styles as *runs* (Rich.mli): a stretch of
- * characters that all look the same is stored once, and a change of
- * look is where one run ends and the next begins. *)
+ * what lets a text keep its styles as *runs*: a stretch of characters
+ * that all look the same is stored once, and a change of look is
+ * where one run ends and the next begins (elm-playground's Rich.mli,
+ * its word processors' text; here a look is only what the pen that
+ * draws a page's letters is told: Stroke_text). *)
 
 type t = {
   bold : bool;

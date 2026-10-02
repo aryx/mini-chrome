@@ -15,6 +15,8 @@ main { max-width: 760px; margin: 20px auto; padding: 0 var(--gap) }
 .card p { margin: 6px 0; line-height: 1.4 }
 figure { float: left; margin: 4px 16px 8px 0; padding: 4px; border: 1px solid var(--line); background: #fafafa }
 .pictures td { padding: 4px 14px 4px 0; text-align: center; color: var(--muted); font-size: 12px }
+summary { color: var(--accent, #1a73e8); cursor: pointer }
+details { margin: 4px 0 }
 figcaption { text-align: center; color: var(--muted); font-size: 12px }
 .clear { clear: both }
 a { color: var(--accent); text-decoration: none }

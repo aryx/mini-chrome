@@ -19,3 +19,20 @@
   threads.posix ; Js_coroutine: an async function stopped at an await
  )
 )
+
+; the library's later additions, written in JavaScript
+; (data/prelude/library.js: data, kept in data/ at the top and copied
+; here at build time), embedded as a string: Js_prelude
+(copy_files ../../data/prelude/library.js)
+
+(rule
+ (targets Js_prelude.ml)
+ (deps library.js)
+ (action
+  (with-stdout-to
+   %{targets}
+   (progn
+    (echo "(* generated from data/prelude/library.js by languages/javascript/dune *)\n")
+    (echo "let text = {prelude|")
+    (cat library.js)
+    (echo "|prelude}\n")))))

@@ -85,7 +85,8 @@ libs/dom              the document as a tree (Dom): what HTML and XML are
 languages/html        HTML read: bytes to text, tokens, the tree
 languages/xml         XML read into the same tree (Xml): an SVG file
 languages/css         style sheets read and cascaded, computed styles
-languages/javascript  a small JavaScript
+languages/javascript  a small JavaScript, with modules (Js_module) and
+                      the later library written in itself (Js_prelude)
 languages/json        JSON read and written, over JavaScript's lexer
 libs/gui              the chrome's pieces that know no browser, as values
                       drawn and asked what is under a point: text in
@@ -108,7 +109,7 @@ libs/images           the picture formats born of the web. PNG (Png:
                       elm-playground's
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
-libs/richtext         a look (Style), text laid out on pages
+libs/richtext         a look (Style): what the pen drawing a letter is told
 libs/network          URLs, HTTP/1.1, cookies, TLS 1.3 and the sockets: a
                       GET that never blocks, stepped each frame
                       (Http_request); WebSocket, its handshake and
@@ -126,7 +127,8 @@ src/dom/              JavaScript in a browser: the DOM a page's scripts
                       see (Script_dom, Script_host, Script_element,
                       Script_events, Script_document), window's globals
                       (Script_window), a script asking the network
-                      (XMLHttpRequest, Script_fetch, WebSocket) and their tasks (Browser_script:
+                      (XMLHttpRequest, Script_fetch, WebSocket), a
+                      page's modules (Script_modules) and their tasks (Browser_script:
                       the scripts, the events, the timers)
 src/viewers/          <video> and <audio> (Browser_media, Media)
 src/about/            the about: pages, the built-in site and about:tube
@@ -192,8 +194,12 @@ docs/dev/             notes_debugging_techniques.txt: how a page that
                       looks wrong, or slow, was looked into
 scripts/              perf/: a page's stages timed (Page_bench), a load
                       in time (load_timeline.sh)
-data/about/           the built-in site's pages, sheets, scripts, pictures
-data/tube/            about:tube's two clips made elsewhere (ffmpeg, LAME)
+data/                 what is embedded and is not OCaml (data/README.md):
+                      about/ the built-in site's pages, sheets, scripts,
+                      pictures; tube/ about:tube's two clips made
+                      elsewhere (ffmpeg, LAME); css/ua.css the
+                      browser's own style sheet; prelude/ the library
+                      and the small web APIs written in JavaScript
 ```
 
 ## License

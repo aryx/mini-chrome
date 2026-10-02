@@ -22,9 +22,10 @@ let header (a : answer) (name : string) : string option =
 (* The request out, the answer back *)
 (*****************************************************************************)
 
-let ask (t : t) ~(meth : string) ~(url : string) ~(post : (string * string) option) (k : (answer, string) result -> unit) : int =
+let ask ?(cors = true) (t : t) ~(meth : string) ~(url : string) ~(post : (string * string) option) (k : (answer, string) result -> unit) : int =
   t.next_request <- t.next_request + 1;
   let rid = t.next_request in
+  if not cors then t.exempt <- rid :: t.exempt;
   let meth = String.uppercase_ascii meth in
   (* what the browser's Fetch cannot send is answered at once, by a failure *)
   if meth <> "GET" && meth <> "POST" then k (Error (meth ^ " is not sent here: GET and POST only"))
@@ -48,7 +49,7 @@ let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
       forget t rid;
       k
         (match result with
-        | Ok a when not (readable t a) ->
+        | Ok a when (not (List.mem rid t.exempt)) && not (readable t a) ->
             let why = Printf.sprintf "%s has been blocked by CORS policy: no Access-Control-Allow-Origin header for %s" a.final (origin t.base) in
             t.console <- why :: t.console;
             t.log why;

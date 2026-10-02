@@ -72,7 +72,7 @@ let tests =
             [r, log, Object.keys(t), p.c]|} {|[[true, false], ["has a", "has z", "delete a"], ["b", "c"], 3]|};
           check "what does not go through a trap sees the target" {|
             const p = new Proxy({ a: 1, list: [1, 2] }, { get(o, k) { return k === 'a' ? 'trapped' : o[k] } });
-            [p.a, JSON.stringify(p), Object.keys(p), typeof p, p instanceof Object]|} {|["trapped", "{\"a\":1,\"list\":[1,2]}", ["a", "list"], "object", true]|};
+            [p.a, JSON.stringify(p), Object.keys(p), typeof p, p instanceof Object]|} {|["trapped", "{\"a\":\"trapped\",\"list\":[1,2]}", ["a", "list"], "object", true]|};
           check "a proxy of an array is an array: its methods through the traps" {|
             const sets = [];
             const p = new Proxy([1, 2], { set(o, k, v) { sets.push(k); o[k] = v; return true } });

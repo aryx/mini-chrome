@@ -27,7 +27,7 @@ then look at the pictures and correct the rows.
 |---|---|---|
 | 🟢 | 8 of 16 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia |
 | 🟡 | 5 of 16 | DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
-| 🔴 | 3 of 16 | one that does not load (a TLS handshake), one whose page is unusable, and Google: its page shows, a search does not |
+| 🔴 | 3 of 16 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -55,13 +55,13 @@ Oldest web first, then by how much they ask.
 | **Lobsters** | 🟡 | 🟢 read | 🟢 29 requests | 🟢 | 🟡 a story's second line is cut in two, its "caches" link on a line of its own | 🟢 | 🔴 not run |
 | **text.npr.org** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟢 | ⚪ |
 | **CNN Lite** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟢 its quotes, dashes and accents | ⚪ |
-| **Craigslist** | 🔴 does not load | 🔴 | 🔴 the connection closes during the TLS handshake (why: not known) | ? | ? | ? | ? |
+| **Craigslist** | 🔴 does not load | 🔴 | 🔴 the connection closes during the TLS handshake: its servers speak TLS 1.2 only (ECDHE over P-256, AES-256-GCM), and ours is 1.3 alone | ? | ? | ? | ? |
 | **Project Gutenberg** | 🟢 | 🟡 read; its search and menus not tried | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
-| **Wikipedia** (an article) | 🟢 | 🟢 read, in English and in French; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🟡 the accented letters are there; the phonetic signs and the names in other scripts (Greek, Cyrillic, Chinese) are `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
+| **Wikipedia** (an article) | 🟢 | 🟢 read, in English and in French; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🟡 the accented letters are there; the phonetic signs and the names in other scripts (Greek, Cyrillic, Chinese) are `?` | 🟡 with `scripts=en.wikipedia.org` its startup script runs and its loader fetches and runs the page's modules (scripts it inserts in the page); two stop (`skins.vector.js`, `ext.popups.main`), the page shows as without |
 | **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟢 | ⚪ |
 | **Google** | 🔴 the home page shows, a search does not | 🔴 a query can be typed and sent, and the consent page answered (a form posted, its cookie kept); then a page of script only | 🟢 | 🟢 | 🟢 flexbox | 🟢 | 🔴 a search answers our browser with a challenge: an obfuscated program (63 KB) that must compute a token before any result is sent. It loads and runs here without an error, and gives no token. Said to be an old Opera Mini, the browser was sent plain results by one path (the consent refused) and a 403 by the other (accepted): tried, and taken out (`Browser_agent.mli`) |
-| **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
-| **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🔴 not run: its scripts are modules (`<script type=module>`), and each file's last commit comes by them |
+| **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page: every visitor not signed in is, a real browser's too (curl with Chrome's name: the same 302) | ? | 🔴 nothing shows | ? | 🔴 not run |
+| **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🟡 with `scripts=github.com` its modules load through the page's import map and run (107 files); three then stop on what is not here (custom elements with a shadow tree, a `DataView` over a typed array), and each file's last commit, which they fetch, does not come |
 | **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP, and show (`libs/images`) |
 
 `?` in a cell: could not be told, the page did not get that far.
@@ -122,11 +122,12 @@ By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 - **Scripts beyond Latin** (Greek and Cyrillic first: Hershey drew
   them): no site of this list, and half the web
   (`Glyph_unicode.mli` says what all of Unicode asks of a browser).
-- **Modules** (`<script type=module>`, import and export): GitHub's
-  scripts, and most sites built since 2020.
-- **`<details>` opened by a click, the layers of `@layer`, a style
-  sheet as an object** (`style.sheet`, which React's styling
-  libraries write their rules into).
+- **Custom elements** (`customElements.define`, an element upgraded,
+  its shadow tree): what GitHub's own elements are made with.
+- **The layers of `@layer`, a style sheet as an object**
+  (`style.sheet`, which React's styling libraries write their rules
+  into).
 - **The heading of Berkshire Hathaway** (a 1990s table and `<font>`),
   now that its Brotli is read.
-- **The TLS handshake Craigslist refuses**: to look into.
+- **TLS 1.2**: Craigslist, and the servers that never took up 1.3 (a
+  second handshake, ECDHE over P-256, the 1.2 key schedule).

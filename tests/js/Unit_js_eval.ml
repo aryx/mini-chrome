@@ -52,7 +52,9 @@ let tests =
       Testo.create "this: a method's object, an arrow's outer this" (fun () ->
           check "o.get()" "const o = {n: 1, get: function () { return this.n }};\no.get()" "1";
           check "an arrow in a method" "const o = {n: 2, f: function () { return [1].map(x => this.n) }};\no.f()" "[2]";
-          check "a plain call: undefined" "function f() { return typeof this }\nf()" "undefined");
+          check "a plain call: the global object, 1995's rule" "function f() { return this === globalThis }\nf()" "true";
+          check "in strict code: undefined" "function f() { 'use strict'; return typeof this }\nf()" "undefined";
+          check "strict within strict, a class's methods" "function f() { 'use strict'; return (function () { return typeof this })() }\nclass C { m() { return typeof this } }\nconst m = new C().m;\n[f(), m()]" {|["undefined", "undefined"]|});
       Testo.create "errors, named and on their line" (fun () ->
           check "not defined" "let a = 1\nb + 1" "line 2: ReferenceError: b is not defined";
           check "not a function" "let f = 3\nf()" "line 2: TypeError: f is not a function";

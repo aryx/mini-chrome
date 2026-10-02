@@ -121,6 +121,23 @@
   </div>
 
   <div class="card">
+    <h2>Folded, with no script <span class="badge">HTML5</span></h2>
+    <p>For fifteen years a part of a page that opens on a click was a
+    script's work. <code>&lt;details&gt;</code> made it an element: click
+    the line below. What is open is an attribute the browser sets,
+    <code>open</code>, and the style sheet does the rest.</p>
+    <details>
+      <summary>What the browser's own style sheet says of it</summary>
+      <p><code>details:not([open]) &gt; :not(summary) { display: none }</code>
+      -- one rule, in <code>data/css/ua.css</code>.</p>
+      <details>
+        <summary>And a details in a details</summary>
+        <p>is found the same way: the innermost whose summary was clicked.</p>
+      </details>
+    </details>
+  </div>
+
+  <div class="card">
     <h2>Pictures <span class="badge">WebP</span></h2>
     <p>One picture, 64 by 48, in each format the browser reads, with
     the file's size. GIF and JPEG came to the web from outside. PNG

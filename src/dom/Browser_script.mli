@@ -180,6 +180,10 @@ val key : t -> string -> bool
  * event *)
 val input : t -> Dom.element -> string -> unit
 
+(* an attribute of an element of the last [tree] set, or removed
+ * (None), by the browser itself: a <details> opened by a click *)
+val set_attribute : t -> Dom.element -> string -> string option -> unit
+
 (* the page's clock moved on by [ms]: the timers due run, the earliest
  * first, each a task (a thousand at most per call) *)
 val advance : t -> float -> unit

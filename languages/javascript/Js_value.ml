@@ -100,6 +100,12 @@ let truthy (v : value) : bool =
 (* -0 is printed 0, as JavaScript does *)
 let number_to_string (f : float) : string = if f = 0. then "0" else Js_ast.number_to_string f
 
+(* an object's own way to be a primitive -- its valueOf, its toString,
+ * written in JavaScript -- asked of the engine that is running (Js_eval
+ * sets this: only it can call a function); [hint] is "number", "string"
+ * or "default". None: the object has none, or no engine runs *)
+let own_primitive : (value -> string -> value option) ref = ref (fun _ _ -> None)
+
 let rec to_string (v : value) : string =
   match v with
   | Undefined -> "undefined"
@@ -112,12 +118,12 @@ let rec to_string (v : value) : string =
       match String.index_opt k ':' with
       | Some i -> Printf.sprintf "Symbol(%s)" (String.sub k (i + 1) (String.length k - i - 1))
       | None -> Printf.sprintf "Symbol(Symbol.%s)" (String.sub k 2 (String.length k - 2)))
-  | Object _ -> to_string (to_primitive v)
+  | Object _ -> to_string (to_primitive ~hint:"string" v)
 
 (* an object as a primitive: an array its items joined with commas
  * (undefined and null as ""), a function its source's stand-in, an
- * object "[object Object]" *)
-and to_primitive (v : value) : value =
+ * object what its own valueOf or toString says, else "[object Object]" *)
+and to_primitive ?(hint = "default") (v : value) : value =
   match v with
   | Object { kind = Proxy (t, _); _ } -> to_primitive (Object t)
   | Object ({ kind = Array _; _ } as o) ->
@@ -130,13 +136,16 @@ and to_primitive (v : value) : value =
   (* an error, as Error.prototype.toString says it: "TypeError: ..."
    * (with no prototypes, told by its name and message) *)
   | Object ({ kind = Plain; _ } as o) -> (
-      match (get_own o "name", get_own o "message") with
-      | Some (String name), Some (String message) -> String (name ^ ": " ^ message)
-      | _ -> String "[object Object]")
+      match !own_primitive v hint with
+      | Some p -> p
+      | None -> (
+          match (get_own o "name", get_own o "message") with
+          | Some (String name), Some (String message) -> String (name ^ ": " ^ message)
+          | _ -> String "[object Object]"))
   | v -> v
 
 let to_number (v : value) : float =
-  match to_primitive v with
+  match to_primitive ~hint:"number" v with
   | Undefined -> Float.nan
   | Null -> 0.
   | Bool b -> if b then 1. else 0.

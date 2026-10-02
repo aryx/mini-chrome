@@ -510,6 +510,21 @@ let got_socket (cfg : 'msg config) (network : < Cap.network ; .. >) (id : int) (
   | Some s when Browser_script.socket_event s id event -> after_task cfg network tab
   | _ -> (tab, gone)
 
+(* a click in a <details>'s <summary> (Browser_details): opened, or
+ * closed; the page laid out again. With scripts, in their copy of the
+ * tree, the page's own after the next freeze *)
+let details (cfg : 'msg config) (network : < Cap.network ; .. >) (clicked : Dom.element) (tab : t) : (t * 'msg Cmd.t) option =
+  match tab.state with
+  | Shown p -> (
+      match (Browser_details.clicked p.tree clicked, tab.script) with
+      | None, _ -> None
+      | Some d, Some s ->
+          Browser_script.set_attribute s d "open" (if Browser_details.is_open d then None else Some "");
+          Some (after_task cfg network tab)
+      | Some d, None ->
+          Some (with_pictures cfg network ({ tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p (Browser_details.toggled p.tree d)) }, Cmd.none)))
+  | _ -> None
+
 let form_effect (cfg : 'msg config) (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (tab : t) :
     t * 'msg Cmd.t =
   match outcome with

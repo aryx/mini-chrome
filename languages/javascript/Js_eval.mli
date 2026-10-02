@@ -150,3 +150,36 @@ val define : t -> string -> Js_value.value -> unit
 
 (* [steps] (10 million by default): the budget of a run or a call *)
 val set_budget : t -> int -> unit
+
+(*****************************************************************************)
+(* {1 What modules ask} *)
+(*****************************************************************************)
+
+(* Js_module's, which is after this one: a module is a program run in
+ * a scope of its own, and the rest of what a module is -- where its
+ * text comes from, what it exports, who imports it -- is told there. *)
+
+(* a scope under the globals for the module of that address
+ * (import.meta.url, and what its import() is relative to) *)
+val module_scope : t -> url:string -> Js_value.scope
+
+(* a module's statements run in its scope, its var's and functions
+ * hoisted; its import lines do nothing (the names are bound before),
+ * its exports are their declarations, the default kept as the name
+ * "*default*". In a run: throws *)
+val exec_module : t -> Js_value.scope -> Js_ast.program -> unit
+
+(* a module's var's and function declarations, in its scope before it
+ * runs: what a module in a circle with it finds *)
+val hoist_module : Js_value.scope -> Js_ast.program -> unit
+
+(* what import("m") does: given the address of the module asking and
+ * the text asked for, a promise of the module's names *)
+val set_importer : t -> (base:string -> string -> Js_value.value) -> unit
+
+(* [protect t f]: f as a run -- its budget, its throws caught, the
+ * promises' jobs after it *)
+val protect : t -> (unit -> Js_value.value) -> (Js_value.value, error) result
+
+(* the names a pattern binds: [a, {b}] binds a and b *)
+val names_of : Js_ast.pattern -> string list

@@ -26,8 +26,8 @@ let node_of (t : t) (v : value) : node =
 
 (* the properties that are an attribute of the same name, or almost,
  * and those that say whether an attribute is there *)
-let reflected = [ ("name", "name"); ("type", "type"); ("title", "title"); ("lang", "lang"); ("dir", "dir"); ("rel", "rel"); ("target", "target"); ("placeholder", "placeholder"); ("alt", "alt"); ("action", "action"); ("method", "method"); ("role", "role"); ("htmlFor", "for") ]
-let reflected_flags = [ ("disabled", "disabled"); ("selected", "selected"); ("hidden", "hidden"); ("readOnly", "readonly"); ("required", "required"); ("multiple", "multiple"); ("open", "open") ]
+let reflected = [ ("name", "name"); ("type", "type"); ("title", "title"); ("lang", "lang"); ("dir", "dir"); ("rel", "rel"); ("target", "target"); ("placeholder", "placeholder"); ("alt", "alt"); ("action", "action"); ("method", "method"); ("role", "role"); ("htmlFor", "for"); ("crossOrigin", "crossorigin"); ("integrity", "integrity"); ("charset", "charset"); ("media", "media") ]
+let reflected_flags = [ ("disabled", "disabled"); ("selected", "selected"); ("hidden", "hidden"); ("readOnly", "readonly"); ("required", "required"); ("multiple", "multiple"); ("open", "open"); ("async", "async"); ("defer", "defer"); ("noModule", "nomodule") ]
 
 (* backgroundColor, the property; background-color, the CSS *)
 let kebab (s : string) : string =
@@ -37,17 +37,27 @@ let kebab (s : string) : string =
  * by one *)
 let style_object (t : t) (n : node) : value =
   let decls () = match attribute n "style" with Some s -> Css.declarations s | None -> [] in
+  (* a property given a value, or taken out ("") *)
+  let put (k : string) (v : string) : unit =
+    let others = List.remove_assoc k (decls ()) in
+    let all = if v = "" then others else others @ [ (k, v) ] in
+    set_attribute n "style" (String.concat "; " (List.map (fun (k, v) -> k ^ ": " ^ v) all));
+    touch t
+  in
   host_object
     {
       class_name = "CSSStyleDeclaration";
-      get = (fun k -> match List.assoc_opt (kebab k) (decls ()) with Some v -> String v | None -> String "");
-      set =
-        (fun k v ->
-          let k = kebab k and v = str v in
-          let others = List.remove_assoc k (decls ()) in
-          let all = if v = "" then others else others @ [ (k, v) ] in
-          set_attribute n "style" (String.concat "; " (List.map (fun (k, v) -> k ^ ": " ^ v) all));
-          touch t);
+      get =
+        (fun k ->
+          match k with
+          (* the same by a property's own name: style.setProperty("--x", "1") *)
+          | "setProperty" -> host_function k (fun ~this:_ args -> put (str (arg args 0)) (str (arg args 1)); Undefined)
+          | "removeProperty" -> host_function k (fun ~this:_ args -> put (str (arg args 0)) ""; String "")
+          | "getPropertyValue" -> host_function k (fun ~this:_ args -> String (Option.value (List.assoc_opt (str (arg args 0)) (decls ())) ~default:""))
+          | "cssText" -> String (Option.value (attribute n "style") ~default:"")
+          | "length" -> Number (float_of_int (List.length (decls ())))
+          | k -> ( match List.assoc_opt (kebab k) (decls ()) with Some v -> String v | None -> String ""));
+      set = (fun k v -> if k = "cssText" then (set_attribute n "style" (str v); touch t) else put (kebab k) (str v));
       show = (fun () -> "CSSStyleDeclaration");
     }
 
@@ -197,7 +207,19 @@ and class_list (t : t) (n : node) : value =
           | "toggle" ->
               method_ k (fun args ->
                   let c = str (arg args 0) in
-                  if List.mem c (words ()) then (write (List.filter (( <> ) c) (words ())); Bool false) else (write (words () @ [ c ]); Bool true))
+                  (* toggle(c, on): there or not as said, not turned over *)
+                  let on = match args with [ _; force ] -> truthy force | _ -> not (List.mem c (words ())) in
+                  write (List.filter (( <> ) c) (words ()) @ if on then [ c ] else []);
+                  Bool on)
+          | "replace" ->
+              method_ k (fun args ->
+                  let a = str (arg args 0) and b = str (arg args 1) in
+                  let had = List.mem a (words ()) in
+                  if had then write (List.map (fun c -> if c = a then b else c) (words ()));
+                  Bool had)
+          | "item" -> method_ k (fun args -> match List.nth_opt (words ()) (int_of_float (to_number (arg args 0))) with Some c -> String c | None -> Null)
+          | "value" -> String (String.concat " " (words ()))
+          | "forEach" -> method_ k (fun args -> List.iteri (fun i c -> ignore (Js_eval.call_in_run t.engine (arg args 0) ~this:Undefined [ String c; Number (float_of_int i) ])) (words ()); Undefined)
           | _ -> Undefined);
       set = (fun _ _ -> ());
       show = (fun () -> String.concat " " (words ()));
@@ -220,6 +242,8 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
   | "checked" ->
       (if truthy v then set_attribute n "checked" "" else n.attributes <- List.remove_assoc "checked" n.attributes);
       touch t
+  (* an address: the attribute as written (read back resolved) *)
+  | "src" | "href" -> set_attribute n k (str v); touch t
   (* a property that is an attribute: el.type = "radio", el.disabled = true *)
   | k when List.mem_assoc k reflected -> set_attribute n (List.assoc k reflected) (str v); touch t
   | k when List.mem_assoc k reflected_flags ->
@@ -244,6 +268,7 @@ and insert (t : t) (parent : node) (child_v : value) ~(before : node option) : v
      | Some b -> List.concat_map (fun c -> if c == b then [ child; c ] else [ c ]) parent.children);
   child.parent <- Some parent;
   touch t;
+  t.inserted child;
   child_v
 
 (* the first element named so, at any depth *)

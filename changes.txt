@@ -119,6 +119,31 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- ES modules: import and export in the language (Js_module: a
+  module's own scope, live bindings, circles, every form of export,
+  import(), import.meta.url), and in a page: <script type=module>,
+  its graph fetched then run (Script_modules), the page's import map,
+  <script nomodule> skipped. GitHub's 107 modules load and run
+- a script a script inserts in the page is fetched and run, its load
+  told: how a site's loader brings the rest of its code (Wikipedia's)
+- the library a script of today expects, written in JavaScript and
+  run before any script (data/prelude/library.js, web.js): what
+  ES2016 to ES2024 added to Array, String, Object, Math, Number and
+  Promise; Date whole (the calendar's arithmetic, a text parsed, the
+  setters); JSON.stringify's toJSON, replacer and indentation;
+  ArrayBuffer and DataView; AbortController, TextEncoder,
+  structuredClone, Headers, FormData, atob, btoa, Intl in English;
+  the small members of document, an element and navigator
+- JavaScript, the language: an object's own valueOf, toString and
+  Symbol.toPrimitive decide its conversions; this is the global
+  object at a script's top and in a function called with no object
+  (undefined in strict code, modules and classes); window's own
+  properties are globals (innerWidth, addEventListener(...));
+  10n; a name with a \u escape; Math's sin, cos, exp, log...;
+  Object.prototype.toString's tags; el.src = and el.href =;
+  classList.replace; style.setProperty
+- <details> opens and closes on a click on its <summary>
+  (Browser_details), with or without scripts; a card on about:chrome
 - WebSocket: new WebSocket(url) for a page's scripts (src/dom's
   WebSocket: readyState, send, close, the open, message, error and
   close events), ws:// and wss://. The script asks, the program does:
@@ -444,6 +469,13 @@
   5.5.1), make build-docker
 
 ** internals
+- data/ holds what is embedded and is not OCaml: the two preludes
+  (data/prelude), the browser's style sheet (data/css/ua.css, from
+  languages/css), the built-in site; data/README.md says each
+- a module's error says which module (Js_module.take_failing)
+- libs/richtext is Style alone: Rich, Page and Flow (a text with runs
+  of looks, pages laid out: elm-playground's word processors') were
+  never the browser's, and are gone. The budget: 24,942 of 30,000
 - the first layout engine is out of the browser: Mosaic's fixed looks
   (Looks' table), its layout (Html_layout's algorithm, floats and
   tables with it) and its drawing (Browser_draw.draw) are

@@ -18,3 +18,20 @@
    lang_html lang_css javascript
    browser_url
    network)) ; Urlencoded, a URL's query
+
+; the small web APIs written in JavaScript (data/prelude/web.js: data,
+; kept in data/ at the top and copied here at build time), embedded
+; as a string: Script_prelude
+(copy_files ../../data/prelude/web.js)
+
+(rule
+ (targets Script_prelude.ml)
+ (deps web.js)
+ (action
+  (with-stdout-to
+   %{targets}
+   (progn
+    (echo "(* generated from data/prelude/web.js by src/dom/dune *)\n")
+    (echo "let text = {prelude|")
+    (cat web.js)
+    (echo "|prelude}\n")))))

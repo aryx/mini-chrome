@@ -145,7 +145,7 @@ order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
-typeset, network, images, compression) → `src/` (url, layout, display, www, dom, viewers, about,
+network, images, compression) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`) and a library a
 language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
@@ -222,6 +222,17 @@ for host, `mini-node` (`bin/mini-node file.js`, `-e text`, or a
 console: `Node_host` has console, process, timers and the loop that
 waits for them, `require` and CommonJS modules, `fs`): what Node.js is
 to V8, for teaching, and the way to run a script with no page.
+
+What can be written in JavaScript is: `data/prelude/library.js` (the
+standard library since ES2016, `Date`, `JSON.stringify`; `Js_prelude`,
+run in every engine) and `data/prelude/web.js` (small web APIs, the
+DOM's small members put on its prototypes; `Script_prelude`, run in
+every page). A method missing that needs nothing of the engine's
+insides goes there, not in OCaml: it is not in the budget, and it is
+how a page's own polyfill would do it. Modules are `Js_module` (the
+language's part: scopes, exports, who runs before whom) and
+`Script_modules` (the browser's: the graph fetched by
+`Script_fetch.ask`, the import map, the jobs `Browser_script` runs).
 
 The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
@@ -326,12 +337,15 @@ unless it is specific to a browser (then `src/chrome`, as
   (dune `select`, `Platform_choice`). `src/main/software/` copies
   `MiniChrome.ml` at build time and always links the rasterizer. Tests
   that link `elm_playground` use `elm_playground_software`.
-- **Generated modules.** `Ua_sheet.ml` is `languages/css/ua.css` as a
+- **Generated modules.** `Ua_sheet.ml` is `data/css/ua.css` as a
   string. `Site_pages.ml`, `Site_pictures.ml` and `Tube_files.ml` embed
   `data/about/*` and `data/tube/*` (rules in `src/about/dune`). A new
   built-in page needs its file in `data/about/`, an entry in the
   `Site_pages.ml` rule (both `deps` and the `echo`/`cat` pair), and a
   case in `Site.ml`.
+- Files that are not OCaml and are embedded (the preludes, `ua.css`,
+  the built-in site) live in `data/`, copied by the dune file that
+  embeds them (`copy_files`); `data/README.md` lists them.
 - `bin` is a symlink into `_build/install/default/bin`, excluded from
   dune by the root `dune` file.
 - The root `dune` disables warnings 6, 32, 37 and 69 in dev.

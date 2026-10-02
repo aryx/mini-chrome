@@ -498,13 +498,39 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
          ("pow", fn "pow" (fun ~this:_ args -> Number (Float.pow (num args 0) (num args 1))));
          fold "min" Float.infinity Float.min; fold "max" Float.neg_infinity Float.max;
          ("random", fn "random" (fun ~this:_ _ -> seed := Lehmer.next !seed; Number (Lehmer.to_unit !seed)));
-         ("PI", Number Float.pi) ]);
+         math1 "sin" Float.sin; math1 "cos" Float.cos; math1 "tan" Float.tan; math1 "asin" Float.asin; math1 "acos" Float.acos;
+         math1 "atan" Float.atan; math1 "exp" Float.exp; math1 "log" Float.log;
+         ("atan2", fn "atan2" (fun ~this:_ args -> Number (Float.atan2 (num args 0) (num args 1))));
+         ("PI", Number Float.pi); ("E", Number (Float.exp 1.)); ("LN2", Number (Float.log 2.)); ("LN10", Number (Float.log 10.));
+         ("LOG2E", Number (1. /. Float.log 2.)); ("LOG10E", Number (1. /. Float.log 10.)); ("SQRT2", Number (Float.sqrt 2.));
+         ("SQRT1_2", Number (Float.sqrt 0.5)) ]);
   (* the prototypes: an object's, a function's, a regular expression's,
    * a number's; a string's and an array's below *)
   let objects = new_object () and functions = new_object () and regexps = new_object () and numbers = new_object () in
   let method_ (o : obj) name f = set_own o name (fn name f) in
   method_ objects "hasOwnProperty" (fun ~this args -> match this with Object o -> Bool (get_own o (to_string (arg args 0)) <> None) | _ -> Bool false);
-  method_ objects "toString" (fun ~this _ -> to_primitive this);
+  (* Object.prototype.toString.call(x): "[object Array]", how a script
+   * asked what a value was before Array.isArray; an object's own
+   * Symbol.toStringTag is its name. On an error and a host's object,
+   * what they say of themselves *)
+  method_ objects "toString" (fun ~this _ ->
+      let tag name = String (Printf.sprintf "[object %s]" name) in
+      match this with
+      | Undefined -> tag "Undefined"
+      | Null -> tag "Null"
+      | Bool _ -> tag "Boolean"
+      | Number _ -> tag "Number"
+      | String _ -> tag "String"
+      | Object { kind = Array _; _ } -> tag "Array"
+      | Object { kind = Closure _ | Host_function _; _ } -> tag "Function"
+      | Object { kind = Regexp _; _ } -> tag "RegExp"
+      | Object ({ kind = Plain; _ } as o) -> (
+          let rec own (o : obj) (k : string) = match get_own o k with Some v -> Some v | None -> Option.bind o.proto (fun p -> own p k) in
+          match (own o "@@toStringTag", get_own o "name", get_own o "message") with
+          | Some (String t), _, _ -> tag t
+          | _, Some (String _), Some (String _) -> to_primitive this
+          | _ -> tag "Object")
+      | v -> to_primitive v);
   method_ functions "call" (fun ~this args -> match args with [] -> call this ~this:Undefined [] | self :: rest -> call this ~this:self rest);
   method_ functions "apply" (fun ~this args ->
       call this ~this:(arg args 0) (match arg args 1 with Object ({ kind = Array _; _ } as a) -> array_items a | _ -> []));

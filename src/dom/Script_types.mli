@@ -58,6 +58,13 @@ type t = {
   (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
   mutable waiting : (int * ((answer, string) result -> unit)) list;
   mutable next_request : int;
+  (* the page's modules (Script_modules): their texts by address as
+   * they come, the engine's table of them, and what is ready to run *)
+  mutable import_map : (string * string) list; (* <script type=importmap>: a name, or a prefix ending in /, to an address *)
+  mutable module_sources : (string * string) list;
+  mutable module_asked : (string * ((string, string) result -> unit) list ref) list; (* those on their way, and who waits for each *)
+  mutable modules : Js_module.t option;
+  mutable module_jobs : (unit -> unit) list;
   mutable socket_asks : socket_ask list; (* WebSocket's, for the browser; the newest first *)
   mutable sockets : (int * (Websocket_client.event -> unit)) list; (* the open ones: what to tell each *)
   (* where a script sent the page (location.href = ..., location.replace):
@@ -76,6 +83,12 @@ type t = {
    * it was prevented. Both set by Browser_script, which is after them *)
   mutable more : node -> string -> value option;
   mutable dispatch : node option -> value -> bool;
+  (* a node a script put in the page: a <script> among what was
+   * inserted is loaded and run (Browser_script's) *)
+  mutable inserted : node -> unit;
+  (* the requests answered without the check of who may read them: a
+   * classic script's, from anywhere *)
+  mutable exempt : int list;
   (* addEventListener's { once: true }: the listeners to remove when called *)
   mutable once : (string * value) list;
   (* the prototypes of the host objects, by kind ("element", "text",

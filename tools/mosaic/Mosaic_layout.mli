@@ -4,7 +4,7 @@
 
    Layout turns the tree with its looks into geometry: where each thing
    goes, on a page as wide as the window and as tall as it takes. The
-   coordinates are the typesetter's (Page.mli's): x from the page's
+   coordinates are the typesetter's (elm-playground's Page.mli): x from the page's
    left, y **down** from its top; the app turns them over to draw.
 
    cs-history:

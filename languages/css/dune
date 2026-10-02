@@ -12,7 +12,10 @@
  (libraries mini_dom) ; Dom: what a selector matches on (nothing of HTML's parser)
 )
 
-; the browser's own style sheet, ua.css, embedded as a string
+; the browser's own style sheet (data/css/ua.css: data, kept in data/
+; at the top and copied here at build time), embedded as a string
+(copy_files ../../data/css/ua.css)
+
 (rule
  (targets Ua_sheet.ml)
  (deps ua.css)
@@ -20,7 +23,7 @@
   (with-stdout-to
    %{targets}
    (progn
-    (echo "(* generated from ua.css by languages/css/dune *)\n")
+    (echo "(* generated from data/css/ua.css by languages/css/dune *)\n")
     (echo "let text = {|")
     (cat ua.css)
     (echo "|}\n")))))

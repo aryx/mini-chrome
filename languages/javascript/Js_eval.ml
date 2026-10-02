@@ -21,6 +21,9 @@ type t = {
   mutable budget : int;
   mutable depth : int; (* of the calls *)
   mutable generators : generating list; (* those whose body is running, the innermost first *)
+  (* import("m") in the module whose address is [base]: a promise of
+   * its names (Js_module's, once there are modules) *)
+  mutable importer : (base:string -> string -> value) option;
 }
 
 (* a generator between its body and who calls next(): what the body
@@ -59,6 +62,10 @@ let rec lookup (s : scope) (x : string) : binding option =
   match Hashtbl.find_opt s.vars x with Some b -> Some b | None -> Option.bind s.parent (fun p -> lookup p x)
 
 let declare (s : scope) (x : string) ~(constant : bool) (v : value) : unit = Hashtbl.replace s.vars x { value = v; constant }
+
+(* the address of the module the code is in ("" in a script): a name
+ * of its scope that no script can write *)
+let module_url (s : scope) : string = match lookup s "%module" with Some { value = String url; _ } -> url | _ -> ""
 
 (* a for's next iteration: the same names, in new bindings holding the
  * same values (Hashtbl.copy would share the bindings, and every
@@ -154,6 +161,15 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Opt e -> ( match eval_expr t s this e with Undefined | Null -> raise Short_circuit | v -> v)
   | Optional e -> ( try eval_expr t s this e with Short_circuit -> Undefined)
   | Await e -> Js_promise.await (Option.get t.promises) (eval_expr t s this e)
+  | Import_call e -> (
+      let spec = to_string (eval_expr t s this e) in
+      match t.importer with
+      | Some import -> import ~base:(module_url s) spec
+      | None -> throw "TypeError" ("import(\"" ^ spec ^ "\"): there are no modules here"))
+  | Import_meta ->
+      let meta = new_object () in
+      set_own meta "url" (String (module_url s));
+      Object meta
   (* tag`a${x}b`: tag(["a", "b"], x), the strings' array with itself
    * as its raw (the escapes are read already: an approximation) *)
   | Tagged (tag, strings, es) ->
@@ -590,7 +606,23 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
             params more left
       in
       params c.func.params args;
-      let this = match c.this with Some captured -> captured | None -> this in
+      (* "use strict": its own, or that of the code it is written in (a
+       * module and a class are strict always) *)
+      let strict =
+        (match c.func.body with { stmt = Expr (String "use strict"); _ } :: _ -> true | _ -> false)
+        || List.exists (fun mark -> lookup c.scope mark <> None) [ "%strict"; "%module"; "%home" ]
+      in
+      if strict then declare frame "%strict" ~constant:true Undefined;
+      let this =
+        match (c.this, this) with
+        | Some captured, _ -> captured
+        (* a function called with no object, in code that is not
+         * strict: its this is the global object -- 1995's rule, which
+         * old libraries count on: (function () { this.x = 1 })() *)
+        | None, (Undefined | Null) when not strict -> (
+            match Hashtbl.find_opt t.globals.vars "globalThis" with Some b -> b.value | None -> this)
+        | None, this -> this
+      in
       let line = t.line in
       (* the caller's line back when the call returns; not when it
        * throws, so that the error keeps the line it was thrown on *)
@@ -638,15 +670,23 @@ and hoist (s : scope) (body : A.stmt list) : unit =
         @ (match handler with Some (_, h) -> List.concat_map names h | None -> [])
         @ (match finally with Some f -> List.concat_map names f | None -> [])
     | Block b -> List.concat_map names b
+    | Export (Export_decl st) -> names st
     | _ -> []
   in
   List.iter (fun x -> if not (Hashtbl.mem s.vars x) then declare s x ~constant:false Undefined) (List.concat_map names body)
 
 (* a block's statements in [s]: its function declarations first *)
-and exec_block (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome =
+and declare_functions (s : scope) (this : value) (body : A.stmt list) : unit =
   List.iter
-    (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare s (Option.get f.name) ~constant:false (closure s this f) | _ -> ())
-    body;
+    (fun (st : A.stmt) ->
+      match st.stmt with
+      | Function_decl f | Export (Export_decl { stmt = Function_decl f; _ } | Export_default_decl { stmt = Function_decl f; _ }) ->
+          declare s (Option.get f.name) ~constant:false (closure s this f)
+      | _ -> ())
+    body
+
+and exec_block (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome =
+  declare_functions s this body;
   let rec go (body : A.stmt list) =
     match body with
     | [] -> Normal
@@ -815,6 +855,20 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
               exec_block t scope this h)
   | Block body -> exec_block t (new_scope s) this body
   | Empty -> Normal
+  (* a module's (Js_module): what is imported was bound before its
+   * body ran; an export is its declaration, and the default a name
+   * no script can write *)
+  | Import _ -> Normal
+  | Export (Export_decl st) -> exec t s this st
+  | Export (Export_default e) ->
+      declare s "*default*" ~constant:true (eval e);
+      Normal
+  | Export (Export_default_decl st) ->
+      let o = exec t s this st in
+      let name = match st.stmt with Function_decl f -> f.name | Class_decl c -> c.class_name | _ -> None in
+      Option.iter (fun x -> Option.iter (fun (b : binding) -> declare s "*default*" ~constant:true b.value) (lookup s x)) name;
+      o
+  | Export (Export_names _ | Export_all _) -> Normal
 
 (*****************************************************************************)
 (* Entry points *)
@@ -824,6 +878,9 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
 let run_in_run (t : t) (program : A.program) : value =
       (* the value of the last expression statement: a console's echo *)
       let last = ref Undefined in
+      (* a script's own this is the global object (a page's window): what
+       * a library wrapped in (function (root) { ... })(this) is given *)
+      let this = match Hashtbl.find_opt t.globals.vars "globalThis" with Some b -> b.value | None -> Undefined in
       hoist t.globals program;
       List.iter
         (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare t.globals (Option.get f.name) ~constant:false (closure t.globals Undefined f) | _ -> ())
@@ -834,9 +891,9 @@ let run_in_run (t : t) (program : A.program) : value =
           | Expr e ->
               t.line <- st.line;
               tick t;
-              last := eval_expr t t.globals Undefined e
+              last := eval_expr t t.globals this e
           | _ -> (
-              match exec t t.globals Undefined st with
+              match exec t t.globals this st with
               | Normal -> ()
               | Return _ -> throw "SyntaxError" "Illegal return statement"
               | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
@@ -850,9 +907,13 @@ let eval_in_run (t : t) (text : string) : value =
 
 let default_budget = 10_000_000
 
+(* the library's part written in JavaScript (Js_prelude), parsed once *)
+let prelude : A.program Lazy.t =
+  lazy (match Js_parse.parse Js_prelude.text with Ok program -> program | Error e -> failwith (Printf.sprintf "data/prelude/library.js, line %d: %s" e.line e.message))
+
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = { vars = Hashtbl.create 64; parent = None; subject = None; in_with = false } in
-  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = [] } in
+  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
   (* new Function(params, body); an async one's constructor makes async ones *)
@@ -879,7 +940,32 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:(fun v -> items_of t v) ~report define);
   (* the global object, by its standard name (a page's window is the browser's) *)
   define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Hashtbl.find_opt globals.vars k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
+  (* the rest of the library, in the language itself *)
+  (try ignore (run_in_run t (Lazy.force prelude)) with Throw v -> log ("data/prelude/library.js: " ^ display v));
+  Js_promise.drain (Option.get t.promises);
+  t.steps <- t.budget;
   t
+
+(* the engine running, for an object asked to be a primitive in the
+ * middle of an operator (Js_value.own_primitive): its Symbol.toPrimitive,
+ * else its valueOf and its toString, in the order the hint says, if
+ * they are functions written in JavaScript and give a primitive *)
+let running : t option ref = ref None
+
+let () =
+  Js_value.own_primitive :=
+    fun v hint ->
+      match !running with
+      | None -> None
+      | Some t -> (
+          let ask (k : string) (args : value list) : value option =
+            match get t v k with
+            | Object { kind = Closure _; _ } as f -> ( match call_value t f ~this:v args with Object _ -> None | p -> Some p)
+            | _ -> None
+          in
+          match ask "@@toPrimitive" [ String hint ] with
+          | Some p -> Some p
+          | None -> List.find_map (fun k -> ask k []) (if hint = "string" then [ "toString"; "valueOf" ] else [ "valueOf"; "toString" ]))
 
 (* the error a console shows: an error object as "Name: message", any
  * other value thrown as "Uncaught " and it *)
@@ -899,7 +985,9 @@ let error_of (t : t) (v : value) : error =
 let guarded (t : t) (f : unit -> value) : (value, error) result =
   t.steps <- t.budget;
   t.depth <- 0;
-  Fun.protect ~finally:(fun () -> Js_promise.drain (Option.get t.promises)) @@ fun () ->
+  let before = !running in
+  running := Some t;
+  Fun.protect ~finally:(fun () -> Js_promise.drain (Option.get t.promises); running := before) @@ fun () ->
   match f () with
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)
@@ -910,6 +998,35 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
       Error { line = t.line; message = "InternalError: " ^ Printexc.to_string e }
 
 let run (t : t) (program : A.program) : (value, error) result = guarded t (fun () -> run_in_run t program)
+
+(*****************************************************************************)
+(* What modules ask (Js_module) *)
+(*****************************************************************************)
+
+let protect = guarded
+let set_importer (t : t) (import : base:string -> string -> value) : unit = t.importer <- Some import
+let names_of = pattern_names
+
+(* a module's own scope, under the globals: what it declares is its
+ * own, not the page's *)
+let module_scope (t : t) ~(url : string) : scope =
+  let s = new_scope t.globals in
+  declare s "%module" ~constant:true (String url);
+  s
+
+(* a module's functions, there before it runs: what a module in a
+ * circle with it can already take *)
+let hoist_module (s : scope) (program : A.program) : unit =
+  hoist s program;
+  declare_functions s Undefined program
+
+(* a module's body, in its scope *)
+let exec_module (t : t) (s : scope) (program : A.program) : unit =
+  hoist s program;
+  match exec_block t s Undefined program with
+  | Normal -> ()
+  | Return _ -> throw "SyntaxError" "Illegal return statement"
+  | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"
 
 let call_in_run = call_value
 

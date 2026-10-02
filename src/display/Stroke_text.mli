@@ -43,11 +43,11 @@
  * address: Gui_text) is [words], a character a cell: a column needs no
  * width, and Cairo's letters are smoother than a pen's.
  *
- * Shared by the office apps (TinyBravo and TinyWord first) and
- * TinyMosaic. *)
+ * In elm-playground, shared by the office apps (TinyBravo and TinyWord
+ * first) and its browsers; here the browser's, and the older ones'. *)
 
 (* the width of a character in a look: Hershey's, scaled to its size *)
-val metrics : Page.metrics
+val metrics : Style.t -> string -> float
 
 (* [glyph color look ch ~x ~baseline]: [ch] drawn in [look], its left
  * edge at [x] and its baseline at [baseline], in the playground's

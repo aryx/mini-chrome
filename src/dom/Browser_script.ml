@@ -20,6 +20,13 @@ type t = Script_types.t
 (* Entry points *)
 (*****************************************************************************)
 
+(* data/prelude/web.js, parsed once *)
+let prelude : Js_ast.program Lazy.t =
+  lazy (match Js_parse.parse Script_prelude.text with Ok program -> program | Error e -> failwith (Printf.sprintf "data/prelude/web.js, line %d: %s" e.line e.message))
+
+(* [inserted], which is written after what it needs *)
+let inserted_later : (t -> node -> unit) ref = ref (fun _ _ -> ())
+
 let say (t : t) (line : string) : unit =
   t.console <- line :: t.console;
   t.log line
@@ -140,11 +147,12 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; navigation = None; current_script = None; cookies;
-      more = (fun _ _ -> None); dispatch = (fun _ _ -> false); once = []; protos = [] }
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
+      more = (fun _ _ -> None); dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
   t.dispatch <- dispatch_event ~nested:true t;
+  t.inserted <- (fun n -> !inserted_later t n);
   (* Date's clock: the page's, from [epoch] *)
   clock := (fun () -> epoch +. t.now);
   lines := say t;
@@ -177,6 +185,10 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   XMLHttpRequest.install t (Js_eval.define engine);
   Script_fetch.install t (Js_eval.define engine);
   WebSocket.install t (Js_eval.define engine);
+  (* modules: import() is there even in a page with none *)
+  ignore (Script_modules.modules t);
+  (* the small web APIs written in JavaScript *)
+  (match Js_eval.run engine (Lazy.force prelude) with Ok _ -> () | Error e -> log (Printf.sprintf "data/prelude/web.js, line %d: %s" e.line e.message));
   Script_url.install t (Js_eval.define engine);
   t
 
@@ -186,11 +198,67 @@ let eval (t : t) (text : string) : (value, Js_eval.error) result =
   r
 
 (* a script the page's: JavaScript by its type= (not JSON-LD, not a
- * module, not a template) *)
+ * template; a module is run apart), and not one for the browsers
+ * that have no modules (nomodule) *)
 let runnable (s : node) : bool =
+  attribute s "nomodule" = None
+  &&
   match Option.map String.lowercase_ascii (attribute s "type") with
   | None | Some "" | Some "text/javascript" | Some "application/javascript" -> true
   | Some _ -> false
+
+let is_module (s : node) : bool = Option.map String.lowercase_ascii (attribute s "type") = Some "module"
+
+(* the modules ready to run (Script_modules), each a task; one's run
+ * may make others ready *)
+let rec run_modules (t : t) : unit =
+  match Script_modules.take_jobs t with
+  | [] -> ()
+  | jobs ->
+      List.iter
+        (fun job ->
+          let run = host_function "module" (fun ~this:_ _ -> job (); Undefined) in
+          match Js_eval.call t.engine run ~this:Undefined [] with
+          | Ok _ -> ()
+          | Error e ->
+              (* a module's error says which module: its line is that file's *)
+              let where = match Js_module.take_failing (Script_modules.modules t) with Some url -> " in " ^ url | None -> "" in
+              report t { e with message = e.message ^ where })
+        jobs;
+      run_modules t
+
+(* a <script> a script put in the page (document.head.appendChild(s):
+ * how a loader fetches the rest of a site's code): its text run at
+ * once, or its src fetched then run, and its load event, or error --
+ * each once *)
+let inserted (t : t) (n : node) : unit =
+  let connected (n : node) = let rec up (n : node) = n == t.root || (match n.parent with Some p -> up p | None -> false) in up n in
+  let ran (s : node) = List.mem_assoc "%ran" s.expando in
+  let event (s : node) (typ : string) = ignore (t.dispatch (Some s) (Script_events.make ~bubbles:false typ [])) in
+  let run (s : node) (text : string) : unit =
+    let before = t.current_script in
+    t.current_script <- Some s;
+    (try ignore (Js_eval.eval_in_run t.engine text) with Throw v -> report t (Js_eval.error_of t.engine v));
+    t.current_script <- before
+  in
+  if connected n then
+    List.iter
+      (fun (s : node) ->
+        if not (ran s) then (
+          s.expando <- ("%ran", Bool true) :: s.expando;
+          match (attribute s "src", is_module s) with
+          | Some src, false when runnable s ->
+              ignore
+                (Script_fetch.ask ~cors:false t ~meth:"GET" ~url:src ~post:None (fun answer ->
+                     match answer with
+                     | Ok a when a.status / 100 = 2 -> run s a.body; event s "load"
+                     | _ -> event s "error"))
+          | Some src, true -> Script_modules.start t ~url:(Browser_url.resolve t.base src) None
+          | None, false when runnable s -> run s (text_content s)
+          | _ -> ()))
+      (List.filter (fun (e : node) -> e.name = "script") (n :: elements n))
+
+let () = inserted_later := inserted
 
 let script_sources (t : t) : string list =
   List.filter_map
@@ -209,6 +277,19 @@ let run_scripts ?(source = fun (_ : string) -> None) (t : t) : unit =
       | None -> ignore (eval t (text_content s)));
       t.current_script <- None)
     (List.filter (fun e -> e.name = "script" && runnable e) (elements t.root));
+  (* then its modules, in order: deferred, each run once what it
+   * imports has come -- now, if nothing is missing; the page's import
+   * map first *)
+  List.iter
+    (fun (s : node) -> if Option.map String.lowercase_ascii (attribute s "type") = Some "importmap" then Script_modules.read_import_map t (text_content s))
+    (List.filter (fun e -> e.name = "script") (elements t.root));
+  List.iteri
+    (fun i (s : node) ->
+      match attribute s "src" with
+      | Some src -> Script_modules.start t ~url:(Browser_url.resolve t.base src) None
+      | None -> Script_modules.start t ~url:(Printf.sprintf "%s#module-%d" (fst (Browser_url.split_fragment t.base)) (i + 1)) (Some (text_content s)))
+    (List.filter (fun e -> e.name = "script" && is_module e) (elements t.root));
+  run_modules t;
   (* then the document is loaded: its listeners told *)
   List.iter
     (fun typ ->
@@ -256,6 +337,15 @@ let input (t : t) (e : Dom.element) (text : string) : unit =
       ignore (dispatch t n "input" [])
   | None -> ()
 
+(* an attribute of an element of the last [tree] set, or removed
+ * (None): what the browser itself changes (a <details> opened) *)
+let set_attribute (t : t) (e : Dom.element) (name : string) (value : string option) : unit =
+  match node_of_element t e with
+  | Some n ->
+      (match value with Some v -> Script_dom.set_attribute n name v | None -> n.attributes <- List.remove_assoc name n.attributes);
+      touch t
+  | None -> ()
+
 let advance (t : t) (ms : float) : unit =
   t.now <- t.now +. ms;
   (* the timers due, the earliest first, each a task; an interval put
@@ -277,7 +367,9 @@ let advance (t : t) (ms : float) : unit =
  * own (its promises' thens run after it) *)
 let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
   let give = host_function "answer" (fun ~this:_ _ -> Script_fetch.answer t rid result; Undefined) in
-  match Js_eval.call t.engine give ~this:Undefined [] with Ok _ -> () | Error e -> report t e
+  (match Js_eval.call t.engine give ~this:Undefined [] with Ok _ -> () | Error e -> report t e);
+  (* a module's text, perhaps the last its graph waited for *)
+  run_modules t
 
 (* what a socket's connection said, given to the script: a task, as an
  * answer is; false when the page has no such socket (it is another

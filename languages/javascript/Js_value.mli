@@ -139,7 +139,13 @@ val throw : string -> string -> 'a
 
 val typeof : value -> string
 val truthy : value -> bool
-val to_primitive : value -> value
+val to_primitive : ?hint:string -> value -> value
+
+(* an object's own way to be a primitive (its Symbol.toPrimitive, its
+ * valueOf, its toString, written in JavaScript), asked of the engine
+ * that is running: Js_eval sets it, [to_primitive] asks it for a plain
+ * object. [hint]: "number", "string" or "default" *)
+val own_primitive : (value -> string -> value option) ref
 val to_string : value -> string
 val to_number : value -> float
 

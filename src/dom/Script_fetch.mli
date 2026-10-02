@@ -77,8 +77,10 @@ open Script_types
 
 (* [ask t ~meth ~url ~post k]: a request queued for the browser, [url]
  * resolved against the page's; [k] called with its answer, or with why
- * there is none. The request's number *)
-val ask : t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
+ * there is none. The request's number. [cors] (true): whether the
+ * answer is given only if the page may read it -- false for a classic
+ * <script src>, which runs from anywhere *)
+val ask : ?cors:bool -> t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
 
 (* the request of that number will not be answered to (abort) *)
 val forget : t -> int -> unit

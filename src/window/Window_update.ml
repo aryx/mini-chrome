@@ -83,7 +83,7 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
   | Shown p, Some (x, y) -> (
       (* the page's scripts first (the element under the pointer, its
        * click bubbling); then, unless one prevented it, the browser's *)
-      let control = pointed_control m and link = hovered m in
+      let control = pointed_control m and link = hovered m and element = Hit.element_at p.layout ~x ~y in
       let m, cmd, prevented = task network m (fun s -> match Hit.element_at p.layout ~x ~y with Some e -> Browser_script.click s e | None -> false) in
       if prevented then (m, cmd)
       else
@@ -91,7 +91,13 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
           match (control, link, (current_tab m).state) with
           | Some e, _, Shown p -> form network ~keep_focus:false (Browser_forms.click p e) m
           | _, Some href, Shown p -> visit network (resolve p.url href) m
-          | _ -> on_current m (fun _ tab -> ({ tab with focus = None }, Cmd.none))
+          | _ ->
+              (* a <details>'s summary: opened or closed; else the field
+               * typed into gives up the keys *)
+              on_current m (fun cfg tab ->
+                  match Option.bind element (fun e -> Browser_tab.details cfg network e tab) with
+                  | Some opened -> opened
+                  | None -> ({ tab with focus = None }, Cmd.none))
         in
         (m, Cmd.batch [ cmd; cmd2 ]))
   | _ -> (m, Cmd.none)

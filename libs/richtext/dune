@@ -1,9 +1,8 @@
-; text with looks -- bold, italic, underline, strike, sizes --
-; and the page it is laid out on; the look the browser's letters are
-; drawn in (src/stroke_text). It never sees a font: the widths of the
-; glyphs are the caller's, as Linebreak's word widths are.
+; a look -- bold, italic, underline, strike, a size -- (Style): what
+; the pen that draws the browser's letters is told (src/display's
+; Stroke_text). What is left here of elm-playground's richtext kit,
+; whose text with runs of looks and pages laid out (Rich, Page, Flow)
+; are its word processors' and were not the browser's.
 (library
  (name appkit_richtext)
- (wrapped false)
- (libraries tiny_libs.gui) ; Text, Text_edit: the characters, the caret, the piece table
-)
+ (wrapped false))
