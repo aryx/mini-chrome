@@ -397,10 +397,15 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   in its own commit or alongside it.
 - Comments mentioning `appkits/browser/...`, `engine/...`,
   `src/browser/...`, `apps/internet/`, `TinyMosaic`/`TinyNetscape`/
-  `TinyFirefox`, and the `notes_*.md` / `plan_*.md` files refer to
-  elm-playground's tree, not this one. The notes and plans are in
-  `../ocaml-elm-playground/docs/claude_notes/` (`tutorials/`, `plans/`);
-  `plan_tiny_chrome.md` lists the target sites and what each needs.
+  `TinyFirefox` refer to elm-playground's tree, not this one. The
+  browser's own notes and plans were brought to `docs/` here
+  (`notes_browser.md`, `notes_css_engine.md`, `notes_javascript.md`,
+  `notes_tls.md`, `notes_browser_related_work.md`, `plan_tiny_chrome.md`
+  -- the target sites and what each needs --, `plan_tiny_firefox.md`,
+  `plan_browser_teaching.md`): tutorials written as the code was, with
+  that tree's paths. The other `notes_*.md` and `plan_*.md` a comment
+  cites (`notes_gui.md`, `notes_images.md`, `notes_opti_ocaml.md`...)
+  are still in `../ocaml-elm-playground/docs/claude_notes/`.
 - `libs/network` is a copy of elm-playground's networking meant to
   diverge here (cookies, done: `Cookie`, `Cookie_jar`; keep-alive); the cryptography stays
   `tiny_libs.crypto`, and the compressions (`Http` decompresses a body with

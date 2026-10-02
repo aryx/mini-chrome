@@ -163,7 +163,13 @@ docs/                 architecture.md: the running program's shape (the
                       threads next to Chrome's); tags.md: the theme tags of the
                       interfaces' comments (cs-history:, modern:...);
                       history.md: how it came
-                      to be; notes_debugging_techniques.txt: how a
+                      to be; notes_browser.md, notes_css_engine.md,
+                      notes_javascript.md, notes_tls.md: the
+                      tutorials, a browser built stage by stage (and
+                      plan_browser_teaching.md, plan_tiny_firefox.md,
+                      plan_tiny_chrome.md, the plans they followed;
+                      notes_browser_related_work.md, the browsers
+                      since 1990); notes_debugging_techniques.txt: how a
                       page that looks wrong, or slow, was looked into;
                       plan_performance.md: where a load's time goes,
                       what to change; sites.md: the sites it shows, and

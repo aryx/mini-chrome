@@ -436,6 +436,11 @@
   5.5.1), make build-docker
 
 ** internals
+- the browser's notes and plans are here: docs/notes_browser.md,
+  notes_css_engine.md, notes_javascript.md, notes_tls.md,
+  notes_browser_related_work.md, plan_browser_teaching.md,
+  plan_tiny_firefox.md, plan_tiny_chrome.md, from elm-playground's
+  docs/claude_notes (which points here for all but the TLS one)
 - the budget does not count the interfaces' opening comments, where
   the modules teach: 22,396 of 30,000 (75%), the browser's 27,341
   lines less their 4,945
