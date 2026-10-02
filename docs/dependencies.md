@@ -58,7 +58,7 @@ libraries. By what they are, with the modules the browser names:
 | `graphics_avi`, `graphics_fli`, `graphics_y4m` | `Avi`, `Fli`, `Y4m` | AVI (Motion JPEG), FLC, raw video | `src/viewers`, `src/about` |
 | `audio`, `audio_signal` | `Audio`, `Signal`, `Resample` | the mixer a sound is played through; samples, their rate changed | `src/viewers`, `src/about` |
 | `audio_mpeg` | `Mpeg_audio` | MP2 and MP3 | `src/viewers` |
-| `audio_wav`, `audio_midi`, `audio_mod`, `audio_abc` | `Wav`, `Midi`, `Mod`, `Abc` | the other sounds a media file may be | `src/viewers` |
+| `audio_wav`, `audio_midi`, `audio_mod`, `audio_abc` | `Wav`, `Midi`, `Mod`, `Mod_player`, `Abc`, `Doremi` | the other sounds a media file may be; `about:tube`'s tune written in each | `src/viewers`, `src/about` |
 
 ### Compression
 
@@ -159,7 +159,7 @@ each beside the script that says how it was made.
 
 | Tool | Made |
 |---|---|
-| ffmpeg (libvpx, libvorbis, libopus, LAME) | `about:tube`'s `.mpg`, `.webm` and `.mp3`; the clips of `tests/video` and `tests/audio`, and what each must decode to |
+| ffmpeg (libvpx, libvorbis, libopus, LAME) | `about:tube`'s `.mpg`, `.webm`, `.mp3`, `.opus`, `.ogg` and `.mp2`; the clips of `tests/video` and `tests/audio`, and what each must decode to |
 | libwebp, through Python's Pillow | the pictures of `tests/images` and what each must decode to |
 | Google's Brotli encoder (Python) | the streams of `tests/compression` |
 | RFC 6386's text | `Vp8_tables`, taken from it by a program |

@@ -67,6 +67,29 @@ let tests =
           let n = min (Array.length webm.left) (Array.length opus.left) in
           Alcotest.(check bool) "the same sound from both" true (Array.sub webm.left 0 n = Array.sub opus.left 0 n && Array.sub webm.right 0 n = Array.sub opus.right 0 n);
           Alcotest.(check bool) "heard, and two channels that differ" true (Array.exists (fun v -> Float.abs v > 0.2) opus.left && opus.left <> opus.right));
+      Testo.create "about:tube: every file of it opens, as what it says" (fun () ->
+          let kinds =
+            List.map
+              (fun (name, bytes) ->
+                match Media.open_ ~name (Lazy.force bytes) with
+                | Ok (kind, media) ->
+                    (* what plays has a length; a module is rendered by the page's player *)
+                    (match media with
+                     | Module song -> Alcotest.(check bool) (name ^ ": a few seconds") true (Array.length (Media.module_sound song).left > Signal.rate)
+                     | m -> Alcotest.(check bool) (name ^ ": a length") true (match Media.duration m with Some d -> d > 0.5 | None -> false));
+                    (name, Media.kind_name kind)
+                | Error why -> Alcotest.fail why)
+              Tube_clips.playlist
+          in
+          Alcotest.(check (list (pair string string))) "the kinds"
+            [ ("ball_and_square.avi", "AVI"); ("ball_and_square.flc", "FLIC"); ("ball_and_square.m1v", "MPEG-1"); ("ball_and_square.webm", "WebM");
+              ("ball_and_square.y4m", "Y4M"); ("blips.wav", "WAV"); ("bouncing_ball.gif", "GIF"); ("chirps.mp2", "MP2"); ("chirps.ogg", "Ogg Vorbis");
+              ("chirps.opus", "Ogg Opus"); ("chirps.webm", "WebM"); ("ffmpeg_muxed.mpg", "MPEG-1 system"); ("lame_encoded.mp3", "MP3");
+              ("tune.abc", "ABC"); ("tune.doremi", "solfege"); ("tune.mid", "MIDI"); ("tune.mod", "MOD") ]
+            (List.sort compare kinds);
+          (* and the page names only files there are *)
+          let page = fst (Option.get (Tube.about "tube")) in
+          List.iter (fun (name, _) -> if not (String.length name > 0 && (let re = "about:clip/" ^ name in let n = String.length re in let rec has i = i + n <= String.length page && (String.sub page i n = re || has (i + 1)) in has 0)) then Alcotest.failf "%s is not on the page" name) Tube_clips.playlist);
       Testo.create "what cannot be played is said, not raised" (fun () ->
           let bytes = clip "ball_and_square.webm" in
           Alcotest.(check bool) "a file cut short" true (Result.is_error (Media.open_ ~name:"cut.webm" (String.sub bytes 0 40)));

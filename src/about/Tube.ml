@@ -21,6 +21,8 @@ let clips : clip list =
     { file = "ffmpeg_muxed.mpg"; title = "The ball and the square"; format = "MPEG-1 and MP2, in an .mpg";
       about =
         "A Video CD's formats (1993): MPEG-1 video -- its I, P and B pictures, motion vectors and the DCT -- and MPEG-1 audio layer II, interleaved in a system stream, the picture following the sound's clock. Decoded by graphics/videos/mpeg1 and audio/formats/mpeg_audio." };
+    { file = "ball_and_square.m1v"; title = "The ball and the square, by our own encoder"; format = "MPEG-1 video alone";
+      about = "The same codec with no container and no sound, encoded when the page is first opened: I and P pictures only, whole-pixel vectors. A stream of start codes, 00 00 01 and a byte, which is all a decoder needs to find its place." };
     { file = "ball_and_square.avi"; title = "The ball and the square, in an AVI"; format = "Motion JPEG and PCM, in an AVI";
       about = "Video for Windows' container (1992): each frame a JPEG of its own, the sound plain samples, RIFF's chunks around them." };
     { file = "ball_and_square.flc"; title = "The ball and the square, animated"; format = "FLC, Autodesk Animator's";
@@ -29,6 +31,23 @@ let clips : clip list =
       about = "Nothing compressed: each frame's luma and its chroma at a quarter, as a codec takes them in." };
     { file = "bouncing_ball.gif"; title = "A bouncing ball"; format = "an animated GIF";
       about = "The web's first moving pictures (Netscape 2.0, 1995): a GIF's frames, each with its delay, looped." } ]
+
+(* the sounds, for <audio>: the same in the web's codecs and the ones
+ * before; then a tune in the formats that hold notes, not samples *)
+let sounds : clip list =
+  [ { file = "chirps.opus"; title = "Two chirps"; format = "Opus, in its own file (2012)";
+      about = "Today's web: what a call and a video's sound are in. libs/audio's Opus and Celt: each band's energy kept, its shape a few pulses." };
+    { file = "chirps.webm"; title = "Two chirps"; format = "Opus, in a WebM of sound alone"; about = "The same packets in Matroska's container." };
+    { file = "chirps.ogg"; title = "Two chirps"; format = "Vorbis, in an Ogg file (2002)";
+      about = "The free codec made when MP3's licence was asked for: its tables sent in the stream. libs/audio's Vorbis." };
+    { file = "lame_encoded.mp3"; title = "Two chirps"; format = "MP3 (1993), LAME's"; about = "What everyone had: 32 bands, each cut in 18 again, Huffman's codes." };
+    { file = "chirps.mp2"; title = "Two chirps"; format = "MP2 (1993)"; about = "MP3's elder: the 32 bands and nothing more. A Video CD's and digital radio's sound." };
+    { file = "blips.wav"; title = "Two blips"; format = "WAV: plain samples (1991)"; about = "Nothing compressed: 44,100 numbers a second, in RIFF's chunks." };
+    { file = "tune.mid"; title = "Au clair de la lune"; format = "a MIDI file (1988)"; about = "No sound in the file: keys pressed and released, in time. The synthesizer is ours." };
+    { file = "tune.mod"; title = "Au clair de la lune"; format = "a tracker's module (Amiga, 1987)";
+      about = "A recording of one note, 32 bytes long, and a grid saying when to play it at which pitch: sampled sound in a kilobyte." };
+    { file = "tune.abc"; title = "Au clair de la lune"; format = "ABC, a tune as text"; about = "Folk music's notation by electronic mail: C C C D | E2 D2 |" };
+    { file = "tune.doremi"; title = "Au clair de la lune"; format = "solfege, as text"; about = "do do do re | mi:2 re:2 |" } ]
 
 let clip_url (c : clip) : string = "about:clip/" ^ c.file
 
@@ -54,7 +73,8 @@ let style =
   .next { width: 250px }
   .next div { margin-bottom: 10px }
   .next a { color: #0f0f0f; text-decoration: none; font-weight: bold }
-  audio { width: 400px }
+  audio { width: 288px }
+  h2 { font-size: 18px; margin: 24px 0 10px }
 </style>|}
 
 let header = {|<header><a href="about:tube"><svg width="28" height="20" viewBox="0 0 28 20"><rect width="28" height="20" rx="5" fill="#f00"/><path d="M11 5 L19 10 L11 15 Z" fill="white"/></svg> TinyTube</a><p>a video site of our own: nothing fetched, the codecs ours</p></header>|}
@@ -72,7 +92,14 @@ let index () : string =
              Printf.sprintf {|<div class="card"><a href="about:tube-%d"><video src="%s" width="288" height="216"></video><b>%s</b></a><span class="muted">%s</span></div>|}
                (i + 1) (clip_url c) (escape c.title) (escape c.format))
            clips)
-    ^ {|</div><h2>A sound</h2><p class="muted">Two chirps, an MP3 (LAME's; decoded by our own reader):</p><audio controls src="about:clip/lame_encoded.mp3"></audio>|})
+    ^ {|</div><h2>Sounds</h2><div class="grid">|}
+    ^ String.concat ""
+        (List.map
+           (fun c ->
+             Printf.sprintf {|<div class="card"><b>%s</b><span class="muted">%s</span><br><audio controls src="%s"></audio><p class="muted">%s</p></div>|} (escape c.title)
+               (escape c.format) (clip_url c) (escape c.about))
+           sounds)
+    ^ {|</div>|})
 
 let watch (i : int) (c : clip) : string =
   page (c.title ^ " - TinyTube")

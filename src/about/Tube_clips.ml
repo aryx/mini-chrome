@@ -132,6 +132,29 @@ let clip_sound : Signal.t Lazy.t =
   List.iter (fun at -> Array.iteri (fun i v -> if at + i < Array.length out then out.(at + i) <- out.(at + i) +. v) blip) [ 0; Signal.rate ];
   out)
 
+(* a tune for the formats that hold notes, not sound: Au clair de la
+ * lune, in ABC; as a MIDI file; in solfege; and as a tracker's module,
+ * whose one instrument is 32 bytes of a triangle wave (played at C-2's
+ * rate, 8,287 bytes a second, it turns 259 times: a C) *)
+let tune_abc = "X:1\nT:Au clair de la lune\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C C D | E2 D2 | C E D D | C4 |\n"
+let tune_doremi = "% Au clair de la lune\ntempo 120\ndo do do re | mi:2 re:2 | do mi re re | do:4\n"
+
+let tune_mod : string Lazy.t =
+  lazy
+    (let silent : Mod.instrument = { name = ""; finetune = 0; volume = 0; loop_start = 0; loop_length = 0; data = "" } in
+     let triangle = Mod.data_of_floats (Array.init 32 (fun i -> if i < 16 then (float_of_int i /. 8.) -. 1. else 3. -. (float_of_int i /. 8.))) in
+     let instruments = Array.init 31 (fun i -> if i = 0 then { silent with name = "triangle"; volume = 64; loop_length = 32; data = triangle } else silent) in
+     (* a note a beat, four rows a beat, on the first of four channels *)
+     let notes = [ (0, "C-2"); (4, "C-2"); (8, "C-2"); (12, "D-2"); (16, "E-2"); (24, "D-2"); (32, "C-2"); (36, "E-2"); (40, "D-2"); (44, "D-2"); (48, "C-2") ] in
+     let pattern =
+       Array.init 64 (fun row ->
+           Array.init 4 (fun channel ->
+               match List.assoc_opt row notes with
+               | Some name when channel = 0 -> { Mod.instrument = 1; period = Option.get (Mod.period_of_name name); fx = 0; param = 0 }
+               | _ -> Mod.empty_cell))
+     in
+     Mod.to_string { title = "au clair de la lune"; instruments; restart = 0; positions = [| 0 |]; patterns = [| pattern |]; tag = "M.K." })
+
 let playlist : (string * string Lazy.t) list =
   [
     ("bouncing_ball.gif", Lazy.from_val bouncing_ball_gif);
@@ -147,4 +170,19 @@ let playlist : (string * string Lazy.t) list =
     (* two chirps encoded by LAME, once: we decode MP3, we have no
      * encoder *)
     ("lame_encoded.mp3", Lazy.from_val Tube_files.stereo_mp3);
+    (* the clip's video alone, by our own encoder (Mpeg1_encode: I and P pictures) *)
+    ("ball_and_square.m1v", lazy (fst (Mpeg1_encode.encode ~rate:(25, 1) (Lazy.force clip))));
+    (* the chirps again, by ffmpeg, once: Opus (libopus, CELT alone)
+     * in its own file and in a WebM, Vorbis (libvorbis), MP2 *)
+    ("chirps.opus", Lazy.from_val Tube_files.chirps_opus);
+    ("chirps.webm", Lazy.from_val Tube_files.chirps_webm);
+    ("chirps.ogg", Lazy.from_val Tube_files.chirps_ogg);
+    ("chirps.mp2", Lazy.from_val Tube_files.chirps_mp2);
+    (* the clip's blips as plain samples, by tiny_libs' writer *)
+    ("blips.wav", lazy (Wav.to_string (Lazy.force clip_sound)));
+    (* the tune: as text twice, as a MIDI file, as a module *)
+    ("tune.abc", Lazy.from_val tune_abc);
+    ("tune.mid", lazy (match Abc.parse tune_abc with Ok t -> Midi.of_tune t | Error why -> failwith why));
+    ("tune.doremi", Lazy.from_val tune_doremi);
+    ("tune.mod", tune_mod);
   ]

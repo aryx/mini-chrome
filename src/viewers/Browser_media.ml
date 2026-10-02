@@ -43,7 +43,8 @@ let opened (p : player) ~(media : string -> string option) : (Media.media, strin
       match media p.url with
       | Some "" -> Error "the file could not be had"
       | Some bytes ->
-          let r = Result.map snd (Media.open_ ~name:p.url bytes) in
+          (* a module is played live by its own player elsewhere; here, rendered whole *)
+          let r = Result.map (fun (_, (m : Media.media)) -> match m with Module song -> Media.Sound { samples = Media.module_sound song; notes = [] } | m -> m) (Media.open_ ~name:p.url bytes) in
           p.opened <- Some r;
           r
       | None -> Error "loading...")

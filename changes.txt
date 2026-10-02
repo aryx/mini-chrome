@@ -119,6 +119,12 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- about:tube shows every kind of media the browser plays: the clip
+  also as MPEG-1 alone (our encoder); a section of sounds, an <audio>
+  each -- two chirps as Opus (its file, a WebM), Vorbis, MP3, MP2,
+  blips as a WAV, and a tune as a MIDI file, a tracker's module, ABC
+  and solfege. A module plays in a page (rendered whole by its
+  player: Media.module_sound). A test opens every file of the page
 - Opus (libs/audio/opus), where it is CELT -- music, and what a file made
   for a page holds: Opus (a packet's first byte and its one to 48
   frames, OpusHead), Celt (a frame: the bands' energies, the

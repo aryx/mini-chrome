@@ -215,7 +215,10 @@ The built-in site is the browser's demonstration: `about:chrome`
 (`data/about/chrome.html`, `chrome.css`) has a card for each thing the
 engine does (the box model, the attributes' hints, flexbox, grid,
 SVG), with the CSS that does it said in the card. A new feature of the
-engine gets its card there, or its own page.
+engine gets its card there, or its own page. `about:tube` is the
+same for what the browser plays: every kind of media it reads has a
+clip or a sound there (`Tube`, `Tube_clips`; a test opens each), and
+a new format gets one.
 
 JavaScript is cut in three. `languages/javascript` is the language
 alone (values, functions, promises; an async function's body is a
