@@ -17,32 +17,55 @@ type expr =
   | Null
   | Name of string
   | This
-  | Array of expr list
-  | Object of property list
-  | Function of func
   | Unary of string * expr
   | Update of string * bool * expr
   | Binary of string * expr * expr
   | Logical of string * expr * expr
   | Assign of string * expr * expr
   | Conditional of expr * expr * expr
+  | Comma of expr * expr
   | Member of expr * string
   | Index of expr * expr
   | Call of expr * expr list
   | New of expr * expr list
+  | Function of func
+  | Array of expr list
+  | Object of property list
   | Regex of string * string
-  | Comma of expr * expr (* a, b: a for what it does, b's value *)
   | Template of string list * expr list
   | Spread of expr
+  | Class of class_
+  | Super_call of expr list
+  | Super_member of string
+  | Opt of expr
+  | Optional of expr
 
-and func = { name : string option; params : (pattern * expr option) list; rest : pattern option; body : stmt list; arrow : bool }
-and property = Prop of key * expr | Getter of key * func | Setter of key * func | Spread_prop of expr
+and func = {
+  name : string option;
+  params : (pattern * expr option) list;
+  rest : pattern option;
+  body : stmt list;
+  arrow : bool;
+}
+
+and property =
+  | Prop of key * expr
+  | Getter of key * func
+  | Setter of key * func
+  | Spread_prop of expr
+
 and key = Key of string | Computed of expr
+
+and class_ = { class_name : string option; parent : expr option; ctor : func option; members : member list }
+
+and member = { static : bool; key : key; what : member_kind }
+and member_kind = Method of func | Get of func | Set of func | Field of expr option
 
 and pattern =
   | Bind of string
   | Object_pattern of (key * pattern * expr option) list * pattern option
   | Array_pattern of (pattern * expr option) option list * pattern option
+
 and stmt = { line : int; stmt : statement }
 
 and statement =
@@ -53,22 +76,18 @@ and statement =
   | If of expr * stmt * stmt option
   | While of expr * stmt
   | For of stmt option * expr option * expr option * stmt
-  | For_of of let_kind * pattern * expr * stmt
-  (* for (var k in o), for (k in o), for (o.k in o) *)
   | For_in of for_target * expr * stmt
-  | Do_while of stmt * expr
-  (* switch (e) { case a: ...; default: ... }: a case's test (None: the
-   * default) and its statements, which fall into the next's *)
-  | Switch of expr * (expr option * stmt list) list
-  | Labeled of string * stmt
-  | Break of string option (* its label, if it names one *)
+  | Break of string option
   | Continue of string option
-  | Throw of expr
-  (* try, catch (its name, if it takes one) and finally: one of the two
-   * at least *)
-  | Try of stmt list * (string option * stmt list) option * stmt list option
   | Block of stmt list
   | Empty
+  | Do_while of stmt * expr
+  | Switch of expr * (expr option * stmt list) list
+  | Labeled of string * stmt
+  | Throw of expr
+  | Try of stmt list * (string option * stmt list) option * stmt list option
+  | For_of of let_kind * pattern * expr * stmt
+  | Class_decl of class_
 
 and for_target = Declared of let_kind * string | Target of expr
 
@@ -122,6 +141,11 @@ let rec expr_to_string (e : expr) : string =
   | Function { arrow = true; params; rest = None; body = [ { stmt = Return (Some e); _ } ]; _ } ->
       p "(%s) => %s" (list param_to_string params) (expr_to_string e)
   | Spread e -> "..." ^ expr_to_string e
+  | Opt e -> expr_to_string e ^ "?"
+  | Optional e -> expr_to_string e
+  | Class c -> class_to_string c
+  | Super_call args -> p "(super(%s))" (list expr_to_string args)
+  | Super_member k -> "(super." ^ k ^ ")"
   | Function f -> func_to_string f
   | Unary (("typeof" as op), e) -> p "(%s %s)" op (expr_to_string e)
   | Unary (op, e) -> p "(%s%s)" op (expr_to_string e)
@@ -136,6 +160,24 @@ let rec expr_to_string (e : expr) : string =
   | Regex (r, f) -> p "/%s/%s" r f
   | Comma (a, b) -> p "(%s, %s)" (expr_to_string a) (expr_to_string b)
   | Template (strings, es) -> p "`%s`" (String.concat "${}" strings) ^ if es = [] then "" else p " [%s]" (list expr_to_string es)
+
+and class_to_string (c : class_) : string =
+  Printf.sprintf "Class%s%s {%s}"
+    (match c.class_name with Some n -> " " ^ n | None -> "")
+    (match c.parent with Some e -> " extends " ^ expr_to_string e | None -> "")
+    (String.concat "; "
+       ((match c.ctor with Some f -> [ "constructor " ^ func_to_string f ] | None -> [])
+       @ List.map
+           (fun (m : member) ->
+             (if m.static then "static " else "")
+             ^ key_to_string m.key
+             ^ match m.what with
+               | Method f -> " " ^ func_to_string f
+               | Get f -> " get " ^ func_to_string f
+               | Set f -> " set " ^ func_to_string f
+               | Field (Some e) -> " = " ^ expr_to_string e
+               | Field None -> "")
+           c.members))
 
 and key_to_string (k : key) : string = match k with Key k -> k | Computed e -> "[" ^ expr_to_string e ^ "]"
 
@@ -169,6 +211,7 @@ and stmt_to_string (s : stmt) : string =
   | Let (k, decls) ->
       kind_to_string k ^ " " ^ list (fun (x, init) -> match init with Some v -> pattern_to_string x ^ " " ^ e v | None -> pattern_to_string x) decls
   | Function_decl f -> func_to_string f
+  | Class_decl c -> class_to_string c
   | Return None -> "Return"
   | Return (Some x) -> "Return " ^ e x
   | If (c, a, None) -> p "If (%s, %s)" (e c) (stmt_to_string a)

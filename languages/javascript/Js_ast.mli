@@ -19,57 +19,112 @@
    operation in parentheses, so that a test says in one string how the
    parser grouped the operators: 1 + 2 * 3 is "(1 + (2 * 3))". *)
 
+(* {1 When each came}
+
+   The nodes are grouped by the edition of the language they arrived
+   in, each group under its tag, so that the tree can be read as its
+   history -- what is the core of 1997, what ES5 added, what a class
+   is an extension of. A node that grew later says so beside it. A new
+   node goes in its edition's group, or opens one.
+
+     ES1     1997  the first standard, of Netscape's JavaScript 1.1
+                   (1996): what the language was born with in 1995,
+                   and little more
+     ES3     1999  the language of the first web applications: literals
+                   for arrays, objects and regular expressions,
+                   function expressions, exceptions, switch
+     ES5     2009  ten years later (ES4 was abandoned): getters and
+                   setters, strict mode, JSON
+     ES2015        "ES6", the largest: let, classes, arrows, templates,
+                   destructuring, for-of, modules, promises
+     ES2016, ...   an edition a year since: ** (2016), async (2017),
+                   object spread (2018), ?. and ?? (2020), class
+                   fields (2022) *)
+
 type expr =
+  (* ES1 (1997): values, names, operators, calls *)
   | Number of float
   | String of string
   | Bool of bool
   | Null
   | Name of string (* a variable; undefined is one, the global's *)
   | This
-  | Array of expr list
-  (* { k: v, [e]: v, k, m() { }, get k() { }, ...o }: its properties in
-   * the order written *)
-  | Object of property list
-  | Function of func (* function (...) {...}, or an arrow *)
   | Unary of string * expr (* - + ! ~ typeof void delete *)
   | Update of string * bool * expr (* ++ or --, prefix (true) or postfix, on a target *)
-  | Binary of string * expr * expr (* + - * / % ** < > <= >= === !== == != & | ^ << >> >>> in instanceof *)
-  | Logical of string * expr * expr (* && || ?? : the right side only if needed *)
-  | Assign of string * expr * expr (* = and an operator's (+= ... >>>=), on a target *)
+  (* + - * / % < > <= >= == != & | ^ << >> >>>; ES3: === !== in
+   * instanceof; ES2016: ** *)
+  | Binary of string * expr * expr
+  | Logical of string * expr * expr (* && ||; ES2020: ??. The right side only if needed *)
+  | Assign of string * expr * expr (* = and an operator's (+= ... >>>=; ES2016: **=), on a target *)
   | Conditional of expr * expr * expr (* c ? a : b *)
+  | Comma of expr * expr (* a, b: a for what it does, b's value *)
   | Member of expr * string (* o.x *)
   | Index of expr * expr (* o[i] *)
   | Call of expr * expr list (* f(a, b), o.m(a): a method call when f is a Member or an Index *)
   | New of expr * expr list (* new F(a): an object made by F, its prototype F.prototype *)
+  (* a function declared; ES3: function (...) {...} as an expression;
+   * ES2015: an arrow *)
+  | Function of func
+  (* ES3 (1999): literals for arrays, objects and regular expressions *)
+  | Array of expr list (* [a, b]; ES2015: a ...spread among its items *)
+  (* { k: v }; ES5 (2009): get k() { }, set k(v) { }, a keyword as a
+   * key; ES2015: k alone, m() { }, [e]: v; ES2018: ...o. Its
+   * properties in the order written *)
+  | Object of property list
   | Regex of string * string (* /pattern/flags *)
-  | Comma of expr * expr (* a, b: a for what it does, b's value *)
-  (* `a${x}b`: its strings (one more than its expressions), and them *)
-  | Template of string list * expr list
-  (* ...xs, in an array's items or a call's arguments: each of xs *)
-  | Spread of expr
+  (* ES2015 ("ES6"): templates, spread, classes *)
+  | Template of string list * expr list (* `a${x}b`: its strings (one more than its expressions), and them *)
+  | Spread of expr (* ...xs, in an array's items or a call's arguments: each of xs *)
+  | Class of class_ (* class A extends B { ... } *)
+  (* in a class's constructor and methods: super(a) calls the parent's
+   * constructor on this; super.m is the parent's m *)
+  | Super_call of expr list
+  | Super_member of string
+  (* ES2020: optional chaining, a?.b, a?.[k], a?.(x). [Opt a] is a, and
+   * the end of the chain it is in if a is null or undefined;
+   * [Optional] is that chain, undefined then: a?.b.c is Optional
+   * (Member (Member (Opt a, b), c)) *)
+  | Opt of expr
+  | Optional of expr
 
 (* a function: its name if it has one, its parameters, its body; an
  * arrow's expression body is [Return e]; an arrow has no this of its
  * own *)
 and func = {
   name : string option;
-  params : (pattern * expr option) list; (* each with its default: (a, b = 1) *)
-  rest : pattern option; (* (...xs): the arguments left *)
+  params : (pattern * expr option) list; (* ES1: names; ES2015: patterns, each with its default: (a, b = 1) *)
+  rest : pattern option; (* ES2015: (...xs), the arguments left *)
   body : stmt list;
-  arrow : bool;
+  arrow : bool; (* ES2015 *)
 }
 
 (* a property of an object literal: its key and its value ("k" alone is
  * k: k; m() { } is m: function () { }), a getter or a setter (a
  * function called when the property is read, or assigned to), or
  * another object's properties *)
-and property = Prop of key * expr | Getter of key * func | Setter of key * func | Spread_prop of expr
+and property =
+  | Prop of key * expr (* ES3 *)
+  (* ES5 *)
+  | Getter of key * func
+  | Setter of key * func
+  | Spread_prop of expr (* ES2018 *)
 
-(* k, "k", 1, or [e]: computed *)
+(* k, "k", 1 (ES3), or [e], computed (ES2015) *)
 and key = Key of string | Computed of expr
 
-(* what a declaration, a parameter or a for-of names: one name, or the
- * parts of a value taken apart -- "destructuring":
+(* ES2015. A class: its name if it has one, the class it extends, its
+ * constructor (None: the default one), and its members *)
+and class_ = { class_name : string option; parent : expr option; ctor : func option; members : member list }
+
+(* a member, of the instances' prototype or (static) of the class
+ * itself: a method, a getter, a setter (ES2015); or a field, set on
+ * each instance when it is made (x = 1: ES2022) *)
+and member = { static : bool; key : key; what : member_kind }
+and member_kind = Method of func | Get of func | Set of func | Field of expr option
+
+(* ES2015 (the rest of an object: ES2018). What a declaration, a
+ * parameter or a for-of names: one name, or the parts of a value taken
+ * apart -- "destructuring":
  *
  *   let { a, b: { c }, d = 1, ...others } = o    a's, o.b.c as c, d or 1
  *   let [x, , y = 2, ...more] = xs               the first, the third or 2
@@ -84,33 +139,38 @@ and pattern =
 and stmt = { line : int; stmt : statement }
 
 and statement =
+  (* ES1 (1997) *)
   | Expr of expr
-  | Let of let_kind * (pattern * expr option) list (* let a = 1, b, { c } = o *)
+  | Let of let_kind * (pattern * expr option) list (* var a = 1, b; ES2015: let, const, and a pattern: { c } = o *)
   | Function_decl of func
   | Return of expr option
   | If of expr * stmt * stmt option
   | While of expr * stmt
   | For of stmt option * expr option * expr option * stmt (* for (init; test; update) body *)
-  | For_of of let_kind * pattern * expr * stmt (* for (let x of xs) body *)
   | For_in of for_target * expr * stmt (* for (var k in o) body: o's keys *)
+  | Break of string option (* break; ES3: break outer, to a label *)
+  | Continue of string option
+  | Block of stmt list
+  | Empty (* a lone ; *)
+  (* ES3 (1999): do, switch, labels, exceptions *)
   | Do_while of stmt * expr (* do body while (test) *)
   (* switch (e) { case a: ...; default: ... }: each case's test (None:
    * the default) and its statements, which fall into the next's *)
   | Switch of expr * (expr option * stmt list) list
   | Labeled of string * stmt (* outer: for (...) ... *)
-  | Break of string option (* break, or break outer *)
-  | Continue of string option
   | Throw of expr
-  (* try { } catch (e) { } finally { }: the catch (its name, if it takes
-   * the error) or the finally, one at least *)
+  (* try { } catch (e) { } finally { }: the catch or the finally, one at
+   * least; ES2019: a catch that takes no name, catch { } *)
   | Try of stmt list * (string option * stmt list) option * stmt list option
-  | Block of stmt list
-  | Empty (* a lone ; *)
+  (* ES2015 *)
+  | For_of of let_kind * pattern * expr * stmt (* for (let x of xs) body *)
+  | Class_decl of class_
 
 (* what a for-in sets at each turn: a name it declares (for (var k in
  * o)), or something assigned to (for (k in o), for (o.k in o)) *)
 and for_target = Declared of let_kind * string | Target of expr
 
+(* var: ES1; let and const: ES2015 *)
 and let_kind = Let_kind | Const_kind | Var_kind
 
 type program = stmt list

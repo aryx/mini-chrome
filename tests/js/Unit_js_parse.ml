@@ -66,6 +66,6 @@ let tests =
           check_program "a missing )" "let a = f(1,\n2;" [ "error on line 2: expected ')', not ';'" ];
           check_program "two expressions on one line" "a b" [ "error on line 1: expected ';' or a new line, not 'b'" ];
           check_program "not a target" "1 = 2" [ "error on line 1: that cannot be assigned to" ];
-          Alcotest.(check int) "class: left out, said so" 3 (error_line "a\nb\nclass C {}");
+          Alcotest.(check int) "a class without a name" 3 (error_line "a\nb\nclass {}");
           Alcotest.(check int) "a lexer's mistake too" 2 (error_line "a\n'b"));
     ]

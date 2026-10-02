@@ -83,8 +83,8 @@ running; 🔴 does not parse.
 | jQuery 3.7 slim (minified) | 🟡 | `Cannot read properties of undefined (reading 'pseudos')` |
 | htmx 1.9 | 🟡 | `document.createEvent` is not a function |
 | example.com's `s.js` | 🟡 | parses; in the survey's empty page it stops at the paragraph it expects |
-| Alpine 3 | 🔴 | optional chaining: `a?.b` |
-| Vue 3 (minified) | 🔴 | `class` |
+| Vue 3 (minified) | 🟡 | `Promise` is not defined |
+| Alpine 3 | 🔴 | `async function` |
 
 Running to its end in an empty page is not the library working: it is
 defined, nothing of it was called.
@@ -98,13 +98,14 @@ How it moved, the same day:
 | template literals, destructuring, default and rest parameters, spread, an object literal's short forms, getters and setters | 2 | 8 | 2 |
 | regular expressions: lookaheads, lookbehinds, backreferences, named groups, the flags s, u, y | 3 | 7 | 2 |
 | the globals libraries look for (`Symbol`, `Map`, `Set`, `Object.defineProperty`, `isFinite`...), an undeclared name assigned to | 6 | 4 | 2 |
+| classes (`extends`, `super`, fields, statics), optional chaining | 6 | 5 | 1 |
 
 ## Next, by what it would turn green
 
 - **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
   page not in English.
-- **`class`, optional chaining, and what jQuery and htmx expect of
-  `window` and `document`**: the scripts above;
+- **Promises and `async` functions** (Vue, Alpine), **and what jQuery
+  and htmx expect of `window` and `document`**: the scripts above;
   then the sites' own scripts can be tried (`scripts=`).
 - **Brotli**: Berkshire Hathaway (and a server that will not send
   gzip).

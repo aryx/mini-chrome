@@ -28,6 +28,15 @@ type outcome = Normal | Return of value | Break of string option | Continue of s
 
 let max_depth = 2_000
 
+(* a?.b with a null or undefined: the chain it is in ends, undefined *)
+exception Short_circuit
+
+(* get k() and set k(v) of the same k are one property of [o]: the
+ * getter or the setter given, the other kept *)
+let define_accessor (o : obj) (k : string) ~(getter : value option) ~(setter : value option) : unit =
+  let g, st = match get_own o k with Some (Object { kind = Accessor (g, st); _ }) -> (g, st) | _ -> (Undefined, Undefined) in
+  set_own o k (Object { (new_object ()) with kind = Accessor (Option.value getter ~default:g, Option.value setter ~default:st) })
+
 (*****************************************************************************)
 (* Scopes *)
 (*****************************************************************************)
@@ -107,11 +116,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Object props ->
       let o = new_object () in
       let key (k : A.key) = match k with Key k -> k | Computed e -> key_of (eval_expr t s this e) in
-      (* get k() and set k(v) of the same k are one property *)
-      let accessor k ~getter ~setter =
-        let g, st = match get_own o k with Some (Object { kind = Accessor (g, st); _ }) -> (g, st) | _ -> (Undefined, Undefined) in
-        set_own o k (Object { (new_object ()) with kind = Accessor (Option.value getter ~default:g, Option.value setter ~default:st) })
-      in
+      let accessor = define_accessor o in
       List.iter
         (fun (pr : A.property) ->
           match pr with
@@ -130,6 +135,23 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
         props;
       Object o
   | Function f -> closure s this f
+  | Class c -> make_class t s this c
+  (* super(a): the parent's constructor, on this object; then this
+   * class's fields. A host constructor (Error) gives an object of its
+   * own: what it holds is this object's *)
+  | Super_call args ->
+      let hidden x = match lookup s x with Some b -> b.value | None -> Undefined in
+      (match (call_value t (hidden "%super") ~this (eval_list t s this args), this) with
+      | Object made, Object self when made != self -> List.iter (fun k -> set_own self k (Option.get (get_own made k))) (keys made)
+      | _ -> ());
+      ignore (call_value t (hidden "%init") ~this []);
+      Undefined
+  | Super_member k -> (
+      match lookup s "%home" with
+      | Some { value = Object { proto = Some parent; _ }; _ } -> get t (Object parent) k
+      | _ -> Undefined)
+  | Opt e -> ( match eval_expr t s this e with Undefined | Null -> raise Short_circuit | v -> v)
+  | Optional e -> ( try eval_expr t s this e with Short_circuit -> Undefined)
   | Unary (op, x) -> (
       match op with
       (* typeof of an undeclared name is "undefined", not an error *)
@@ -209,11 +231,70 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
         match f with
         | Member (o, k) -> let o = eval_expr t s this o in (get t o k, o)
         | Index (o, k) -> let o = eval_expr t s this o in (get t o (key_of (eval_expr t s this k)), o)
+        (* o.m?.(): the method, if there is one, still on o *)
+        | Opt (Member (o, k)) -> (
+            let o = eval_expr t s this o in
+            match get t o k with Undefined | Null -> raise Short_circuit | fn -> (fn, o))
+        (* super.m(): the parent's m, on this *)
+        | Super_member _ -> (eval_expr t s this f, this)
         | _ -> (eval_expr t s this f, Undefined)
       in
       let args = eval_list t s this args in
       (match fn with Object { kind = Closure _ | Host_function _; _ } -> () | _ -> throw "TypeError" (describe f ^ " is not a function"));
       call_value t fn ~this:self args
+
+(* class A extends B { ... }: a constructor function whose prototype
+ * has the methods, and B's prototype behind it; the class's static
+ * members on the function itself, B behind it. Its constructor and
+ * methods are made in a scope that knows the parent (%super), the
+ * prototype (%home: super.m is looked for behind it) and how to set
+ * the fields of a new object (%init) *)
+and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
+  let cs = new_scope s in
+  let proto = new_object () in
+  let parent = Option.map (eval_expr t s this) c.parent in
+  (match parent with
+  | None | Some Null -> ()
+  | Some (Object { kind = Closure _ | Host_function _; _ } as pv) -> ( match get t pv "prototype" with Object pp -> proto.proto <- Some pp | _ -> ())
+  | Some v -> throw "TypeError" (Printf.sprintf "Class extends value %s is not a constructor or null" (display v)));
+  let key (k : A.key) = match k with Key k -> k | Computed e -> key_of (eval_expr t cs this e) in
+  let fields = List.filter_map (fun (m : A.member) -> match m.what with Field e when not m.static -> Some (key m.key, e) | _ -> None) c.members in
+  let init =
+    host_function "fields" (fun ~this _ ->
+        List.iter (fun (k, e) -> put t this k (match e with Some e -> eval_expr t cs this e | None -> Undefined)) fields;
+        Undefined)
+  in
+  declare cs "%super" ~constant:true (Option.value parent ~default:Undefined);
+  declare cs "%home" ~constant:true (Object proto);
+  declare cs "%init" ~constant:true init;
+  let stmt e : A.stmt = { line = t.line; stmt = Expr e } in
+  (* its fields first (a class of its own), or by super() (one that
+   * extends); with no constructor written: the parent's, called with
+   * what it was given *)
+  let ctor : A.func =
+    match (c.ctor, c.parent) with
+    | Some f, Some _ -> f
+    | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
+    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false }
+    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false }
+  in
+  let made = closure cs this { ctor with name = c.class_name } in
+  let f = match made with Object f -> f | _ -> assert false in
+  set_own f "prototype" (Object proto);
+  set_own proto "constructor" made;
+  (match parent with Some (Object pc) -> f.proto <- Some pc | _ -> ());
+  Option.iter (fun name -> declare cs name ~constant:true made) c.class_name;
+  List.iter
+    (fun (m : A.member) ->
+      let target = if m.static then f else proto in
+      match m.what with
+      | Method fn -> set_own target (key m.key) (closure cs this fn)
+      | Get fn -> define_accessor target (key m.key) ~getter:(Some (closure cs this fn)) ~setter:None
+      | Set fn -> define_accessor target (key m.key) ~getter:None ~setter:(Some (closure cs this fn))
+      | Field e when m.static -> set_own f (key m.key) (match e with Some e -> eval_expr t cs made e | None -> Undefined)
+      | Field _ -> ())
+    c.members;
+  made
 
 (* an array's items or a call's arguments: each one's value, a ...xs
  * each of xs' *)
@@ -435,6 +516,9 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
         decls;
       Normal
   | Function_decl _ -> Normal (* defined by its block, first *)
+  | Class_decl c ->
+      declare s (Option.get c.class_name) ~constant:false (make_class t s this c);
+      Normal
   | Return e -> Return (match e with Some e -> eval e | None -> Undefined)
   | If (c, a, b) -> (
       if truthy (eval c) then exec t (new_scope s) this a

@@ -42,7 +42,8 @@ let puncts2 =
 let puncts1 = "{}()[];,.<>+-*/%=!?:&|^~"
 
 let is_digit c = c >= '0' && c <= '9'
-let is_name_start c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '$'
+(* '#': a class's private name, #x (ES2022), read as a name like any *)
+let is_name_start c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '$' || c = '#'
 let is_name_char c = is_name_start c || is_digit c
 
 (* a code point as UTF-8's bytes: a string's \u escape *)
@@ -113,6 +114,8 @@ let tokenize (s : string) : token list =
       | '`' -> go (template i)
       | _ -> (
           let starts p = i + String.length p <= n && sub i (i + String.length p) = p in
+          (* "?." before a digit is "?" and ".5": c ?.5 : 1 *)
+          let starts p = starts p && not (p = "?." && i + 2 < n && is_digit s.[i + 2]) in
           match List.find_opt starts (puncts3 @ puncts2) with
           | Some p ->
               emit (Punct p) !line;

@@ -81,6 +81,12 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript: classes (a constructor, methods, getters and setters,
+  static members, fields, extends with super(...) and super.m(),
+  private names read as names) and optional chaining (a?.b, a?.[k],
+  a?.(x): the whole chain ends). Js_ast.mli's nodes grouped by the
+  edition they came in (ES1, ES3, ES5, ES2015...). [] and [^] in a
+  regular expression: nothing, anything. Vue parses
 - JavaScript, what libraries look for first (Js_globals): Object's
   defineProperty (a value, or a getter and a setter), entries, values,
   getOwnPropertyNames and the like, Number's and isFinite, Symbol (a

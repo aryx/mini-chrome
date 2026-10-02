@@ -62,6 +62,31 @@ let tests =
           check "a name alone, a method, a computed key, a keyword and a number as keys" "var x = 1, k = 'dyn'; var o = { x, twice() { return this.x * 2 }, [k + '!']: 3, if: 4, 5: 6 }; [o.x, o.twice(), o['dyn!'], o.if, o[5]]"
             "[1, 2, 3, 4, 6]";
           check "get and set are names too" "var o = { get: 1, set: 2, get() { return 3 } }; [typeof o.get, o.set]" "[\"function\", 2]");
+      Testo.create "classes" (fun () ->
+          check "a constructor, a method, a getter and a setter, a static"
+            {|class Point { constructor(x, y) { this.x = x; this.y = y } sum() { return this.x + this.y } get twice() { return this.sum() * 2 } set both(v) { this.x = this.y = v } static origin() { return new Point(0, 0) } } var p = new Point(1, 2); p.both = 5; [p.sum(), p.twice, Point.origin().x, p instanceof Point, typeof Point, Object.keys(p)]|}
+            {|[10, 20, 0, true, "function", ["x", "y"]]|};
+          check "it is the old way underneath: a function and its prototype" {|class A { m() { return 1 } } [A.prototype.m === new A().m, A.prototype.constructor === A, new A().hasOwnProperty('m')]|} "[true, true, false]";
+          check "extends: its methods, the parent's behind them; super(...) and super.m()"
+            {|class Animal { constructor(name) { this.name = name } says() { return this.name + ' makes a sound' } } class Dog extends Animal { constructor(name) { super(name); this.legs = 4 } says() { return super.says() + ': woof' } } var d = new Dog('Rex'); [d.says(), d.legs, d instanceof Dog, d instanceof Animal, Object.getPrototypeOf(Dog.prototype) === Animal.prototype]|}
+            {|["Rex makes a sound: woof", 4, true, true, true]|};
+          check "no constructor: the parent's, with what was given" {|class A { constructor(x) { this.x = x } } class B extends A {} new B(7).x|} "7";
+          check "statics are inherited too" {|class A { static make() { return 'made by ' + this.name2 } } A.name2 = 'A'; class B extends A {} B.name2 = 'B'; B.make()|} "made by B";
+          check "fields: on each object made, before the constructor's own lines; a static one on the class" {|class C { count = 1; items = []; static made = 0; constructor() { this.count += 1; C.made++ } } var a = new C(), b = new C(); a.items.push(1); [a.count, b.items.length, C.made]|}
+            "[2, 0, 2]";
+          check "a field of a class that extends: after super()" {|class A { constructor() { this.a = 1 } } class B extends A { b = this.a + 1 } new B().b|} "2";
+          check "a class as a value; a computed name; get and static as names" {|var k = 'dyn'; var C = class { [k]() { return 1 } get() { return 2 } static() { return 3 } }; var c = new C(); [c.dyn(), c.get(), c.static()]|} "[1, 2, 3]";
+          check "an error of one's own" {|class Missing extends Error { constructor(what) { super(what + ' is missing'); this.what = what } } var r; try { throw new Missing('key') } catch (e) { r = [e.message, e.what, e instanceof Missing, e instanceof Error] } r|}
+            {|["key is missing", "key", true, true]|};
+          check "extending what is no class" {|class A extends 5 {}|} "line 1: TypeError: Class extends value 5 is not a constructor or null";
+          check "a private name is a name" {|class Counter { #n = 0; inc() { this.#n++; return this.#n } } var c = new Counter(); c.inc(); c.inc()|} "2");
+      Testo.create "optional chaining, and ??" (fun () ->
+          check "a property of what may be nothing" {|var o = { a: { b: 1 } }, none = null; [o?.a?.b, none?.a, o.missing?.b, o.a?.['b']]|} "[1, undefined, undefined, 1]";
+          check "the whole chain ends, not one step" {|var none; [none?.a.b.c, none?.a.b(), none?.[0].x]|} "[undefined, undefined, undefined]";
+          check "a call that may not be there, the method still on its object" {|var o = { n: 5, get() { return this.n } }; [o.get?.(), o.other?.(), o?.get()]|} "[5, undefined, 5]";
+          check "what is skipped is not run" {|var n = 0, none = null; none?.f(n++); n|} "0";
+          check "it is not a ?: before a number" {|true ?.5 : 1|} "0.5";
+          check "?? takes the right side for null and undefined only" {|[0 ?? 'd', '' ?? 'd', null ?? 'd', undefined ?? 'd', null?.x ?? 'none']|} {|[0, "", "d", "d", "none"]|});
       Testo.create "getters and setters" (fun () ->
           check "read by calling, assigned by calling" "var log = []; var o = { _v: 1, get v() { log.push('get'); return this._v }, set v(x) { log.push('set ' + x); this._v = x * 2 } }; o.v = 5; [o.v, log]"
             "[10, [\"set 5\", \"get\"]]";

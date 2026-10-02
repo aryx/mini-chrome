@@ -130,9 +130,24 @@ and loop (p : t) (min : int) (left : expr) : expr =
   match t.kind with
   | Punct "." when postfix_power >= min ->
       ignore (advance p);
-      (* a keyword is a property name too: o.default, e.catch *)
-      let x = match (advance p).kind with Name x | Keyword x -> x | _ -> p.pos <- p.pos - 1; unexpected p "a property name" in
-      loop p min (Member (left, x))
+      loop p min (Member (left, property_name p))
+  (* a?.b, a?.[k], a?.(x): the chain from here read whole, so that it
+   * ends as one if a is null or undefined *)
+  | Punct "?." when postfix_power >= min ->
+      let rec chain (e : expr) : expr =
+        match (peek p).kind with
+        | Punct "?." -> (
+            ignore (advance p);
+            match (peek p).kind with
+            | Punct "[" -> ignore (advance p); let i = inside p (fun () -> expression p 0) in expect p "]"; chain (Index (Opt e, i))
+            | Punct "(" -> ignore (advance p); chain (Call (Opt e, arguments p))
+            | _ -> chain (Member (Opt e, property_name p)))
+        | Punct "." -> ignore (advance p); chain (Member (e, property_name p))
+        | Punct "[" -> ignore (advance p); let i = inside p (fun () -> expression p 0) in expect p "]"; chain (Index (e, i))
+        | Punct "(" -> ignore (advance p); chain (Call (e, arguments p))
+        | _ -> e
+      in
+      loop p min (Optional (chain left))
   | Punct "[" when postfix_power >= min ->
       ignore (advance p);
       let i = expression p 0 in
@@ -173,6 +188,10 @@ and loop (p : t) (min : int) (left : expr) : expr =
       | _ -> left)
   | _ -> left
 
+(* after a ".": a name, and a keyword is one too (o.default, e.catch) *)
+and property_name (p : t) : string =
+  match (advance p).kind with Name x | Keyword x -> x | _ -> p.pos <- p.pos - 1; unexpected p "a property name"
+
 (* what can start an expression *)
 and prefix (p : t) : expr =
   if arrow_ahead p then arrow p
@@ -181,6 +200,13 @@ and prefix (p : t) : expr =
     match t.kind with
     | Number f -> Number f
     | String s -> String s
+    (* super(a), super.m: the class's parent *)
+    | Name "super" when is_punct p "(" ->
+        ignore (advance p);
+        Super_call (arguments p)
+    | Name "super" when is_punct p "." ->
+        ignore (advance p);
+        Super_member (property_name p)
     | Name x -> Name x
     | Keyword "true" -> Bool true
     | Keyword "false" -> Bool false
@@ -246,9 +272,7 @@ and prefix (p : t) : expr =
         let callee = members (prefix p) in
         let args = if is_punct p "(" then (ignore (advance p); arguments p) else [] in
         New (callee, args)
-    | Keyword ("class" as k) ->
-        p.pos <- p.pos - 1;
-        fail p (Printf.sprintf "%s is not supported here (an exercise: prototypes and new are)" k)
+    | Keyword "class" -> Class (class_ p)
     | _ ->
         p.pos <- p.pos - 1;
         unexpected p "an expression"
@@ -392,6 +416,40 @@ and func (p : t) ~(arrow : bool) : func =
   let ps, rest = params p in
   { name; params = ps; rest; body = block_body p; arrow }
 
+(* class Name extends Parent { members }: what is after the keyword. A
+ * member: [static] then a method m() { }, an accessor get k() { } or
+ * set k(v) { }, or a field k = e; the method called constructor is
+ * the class's *)
+and class_ (p : t) : class_ =
+  let class_name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
+  let parent = if (peek p).kind = Name "extends" then (ignore (advance p); Some (expression p prefix_power |> fun e -> loop p postfix_power e)) else None in
+  expect p "{";
+  let ctor = ref None in
+  let rec members acc =
+    if is_punct p "}" then (ignore (advance p); List.rev acc)
+    else if is_punct p ";" then (ignore (advance p); members acc)
+    else
+      (* a word before a member's key, not the key itself: static x, get x() *)
+      let modifier w = (peek p).kind = Name w && (match (peek_at p 1).kind with Punct ("(" | "=" | ";" | "}") -> false | _ -> true) in
+      let static = modifier "static" && (ignore (advance p); true) in
+      let accessor = if modifier "get" then (ignore (advance p); Some `Get) else if modifier "set" then (ignore (advance p); Some `Set) else None in
+      let k = key p in
+      let method_ () = let ps, rest = params p in { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = block_body p; arrow = false } in
+      match (accessor, (peek p).kind, k) with
+      | None, Punct "(", Key "constructor" when not static ->
+          ctor := Some (method_ ());
+          members acc
+      | Some `Get, _, _ -> members ({ static; key = k; what = Get (method_ ()) } :: acc)
+      | Some `Set, _, _ -> members ({ static; key = k; what = Set (method_ ()) } :: acc)
+      | None, Punct "(", _ -> members ({ static; key = k; what = Method (method_ ()) } :: acc)
+      | None, _, _ ->
+          let init = default p in
+          end_statement p;
+          members ({ static; key = k; what = Field init } :: acc)
+  in
+  let members = members [] in
+  { class_name; parent; ctor = !ctor; members }
+
 (*****************************************************************************)
 (* Statements: recursive descent *)
 (*****************************************************************************)
@@ -523,7 +581,11 @@ and statement (p : t) : stmt =
       let finally = if is_keyword p "finally" then (ignore (advance p); Some (block_body p)) else None in
       if handler = None && finally = None then unexpected p "catch or finally";
       s (Try (body, handler, finally))
-  | Keyword "class" -> fail p "class is not supported here (an exercise: prototypes and new are)"
+  | Keyword "class" ->
+      ignore (advance p);
+      let c = class_ p in
+      if c.class_name = None then fail p "a class declaration needs a name";
+      s (Class_decl c)
   | _ ->
       let e = expression p 0 in
       end_statement p;

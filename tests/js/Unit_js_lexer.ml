@@ -46,5 +46,5 @@ let tests =
           Alcotest.(check int) "a comment not closed: its first line" 1 (fst (error "/* a\nb"));
           Alcotest.(check (pair int string)) "a template not closed" (2, "a template never closed") (error "x\n`abc");
           Alcotest.(check string) "a template's ${ } not closed" "a template's ${ never closed" (snd (error "`a${b + (c"));
-          Alcotest.(check int) "#" 3 (fst (error "a\nb\n#")));
+          Alcotest.(check int) "a character of no token" 3 (fst (error "a\nb\n@")));
     ]

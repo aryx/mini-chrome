@@ -184,7 +184,9 @@ let parse (p : string) : node list list * int * (string * int) list =
     let rec items acc first =
       match peek () with
       | None -> raise (Bad "a [ never closed")
-      | Some ']' when not first -> incr pos; List.rev acc
+      (* [] matches nothing and [^] anything: a ] first closes the set
+       * (in JavaScript; POSIX reads it as a character) *)
+      | Some ']' -> ignore first; incr pos; List.rev acc
       | Some _ ->
           let lo =
             match next () with

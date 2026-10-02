@@ -81,6 +81,19 @@
    A template literal comes from the lexer as its strings and the
    tokens of each ${ }, read here as expressions.
 
+   {2 Classes, and chains that may end}
+
+   class A extends B { ... } is read member by member: a method m() { },
+   an accessor (get k() { }, set k(v) { }), a field (k = e), each
+   perhaps static; "constructor" is the class's own function. "get",
+   "set" and "static" are such words only before a member's name:
+   alone before a "(", they are a method's name. Inside, "super(" and
+   "super." are the parent's constructor and methods.
+
+   a?.b is read with all that follows it -- .c, [d], (e), other ?. --
+   as one chain (Js_ast.Optional), so that a null a ends all of it and
+   not one step: a?.b.c is undefined, not an error on ".c".
+
    Left-associative: the right side is read with power + 1, so the next
    operator of the same power stops it and becomes the loop's next;
    right-associative: with the same power, so it goes on. That "+ 1" is
