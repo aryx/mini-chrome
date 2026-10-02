@@ -10,14 +10,14 @@
 
 (* See Stroke_text.mli *)
 
-(* Hershey has glyphs for printable ASCII; anything else is its '?' *)
-let char_of (s : string) = if String.length s = 1 then s.[0] else '?'
+(* a character's glyph: Hershey's for ASCII, Glyph_unicode's for the
+ * letters with a mark, the quotes and dashes, a few signs; else "?" *)
 
 (* font units to the playground's, at a look's size *)
 let scale_of (look : Style.t) = look.size /. Hershey.units_per_em
 
 let metrics look s =
-  let g = Hershey.glyph (char_of s) in
+  let g = Glyph_unicode.glyph s in
   float_of_int (g.right - g.left) *. scale_of look
 
 (* the line under text, and the one through it: [width] long
@@ -30,7 +30,7 @@ let underline color (look : Style.t) ~x ~width ~baseline = line color look ~x ~w
 let strike color (look : Style.t) ~x ~width ~baseline = line color look ~x ~width (baseline +. (look.size *. 0.25))
 
 let glyph_segments color (look : Style.t) s ~x ~baseline =
-  let g = Hershey.glyph (char_of s) in
+  let g = Glyph_unicode.glyph s in
   let k = scale_of look in
   (* a look is a pen: thicker for bold *)
   let pen = if look.bold then look.size /. 7. else look.size /. 16. in
@@ -85,7 +85,7 @@ let glyph_segments color (look : Style.t) s ~x ~baseline =
 let glyph_picture color (look : Style.t) s ~x ~baseline =
   match color with
   | Color.Rgb (r, g, b) ->
-      let g' = Hershey.glyph (char_of s) in
+      let g' = Glyph_unicode.glyph s in
       let k = scale_of look in
       let pen = if look.bold then look.size /. 7. else look.size /. 16. in
       let slant = if look.italic then 0.2 else 0. in

@@ -111,6 +111,15 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- text beyond ASCII (Glyph_unicode): a letter with a mark is its
+  Hershey letter and the mark's strokes, above a small letter or a
+  capital, below, or across -- Latin-1 and Latin Extended-A, the
+  languages of Western and Central Europe, Turkish; the ligatures æ œ
+  ß; the curly quotes, dashes, the ellipsis, the no-break and
+  zero-width spaces; some signs drawn (° · • € £ ¥ ¢ ¡ ¿ the arrows,
+  ✓). The rest is still "?": its .mli says what all of Unicode asks
+  of a browser. An ASCII letter's glyph costs 0.013 microseconds
+  where it cost 0.010. Wikipedia in French reads
 - a Google search works: the browser says it is an old Opera Mini to
   google.com (Browser_agent: a name by host, each with why), which is
   then sent results as plain HTML where a browser it does not know

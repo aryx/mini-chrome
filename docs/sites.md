@@ -25,8 +25,8 @@ then look at the pictures and correct the rows.
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 8 of 16 | the web of the 1990s, the text-only sites, Hacker News, Google's search |
-| 🟡 | 6 of 16 | Wikipedia, DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
+| 🟢 | 9 of 16 | the web of the 1990s, the text-only sites, Hacker News, Google's search, Wikipedia |
+| 🟡 | 5 of 16 | DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
 | 🔴 | 2 of 16 | one that does not load (a TLS handshake), one whose page is unusable |
 
 By part, what holds the most sites back, the worst first:
@@ -36,8 +36,9 @@ By part, what holds the most sites back, the worst first:
    (Google's search is used as the page it sends to a small browser
    with none).
 2. **CSS**: 5 sites laid out wrong, in places or wholly.
-3. **Text**: letters beyond ASCII are a `?` (accents, curly quotes):
-   seen on 3 sites.
+3. **Text**: the Latin alphabet's letters are all there (accents,
+   quotes, dashes: `Glyph_unicode`); every other script is a `?`,
+   which no site of this list is written in.
 4. **Network**: 2 sites do not load at all.
 
 ## The sites
@@ -53,11 +54,11 @@ Oldest web first, then by how much they ask.
 | **Hacker News** | 🟢 | 🟢 read; signing in and voting not tried | 🟢 | 🟢 tables, attributes | 🟢 | 🟢 | 🟢 `hn.js` runs (folding, votes not tried) |
 | **Lobsters** | 🟡 | 🟢 read | 🟢 29 requests | 🟢 | 🟡 a story's second line is cut in two, its "caches" link on a line of its own | 🟢 | 🔴 not run |
 | **text.npr.org** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟢 | ⚪ |
-| **CNN Lite** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟡 curly quotes and accents are `?` | ⚪ |
+| **CNN Lite** | 🟢 | 🟢 read | 🟢 | 🟢 | 🟢 | 🟢 its quotes, dashes and accents | ⚪ |
 | **Craigslist** | 🔴 does not load | 🔴 | 🔴 the connection closes during the TLS handshake (why: not known) | ? | ? | ? | ? |
 | **Project Gutenberg** | 🟢 | 🟡 read; its search and menus not tried | 🟢 30 requests | 🟢 | 🟢 the top of the page | 🟢 | 🟡 not run: its menus do not open |
-| **Wikipedia** (an article) | 🟡 | 🟡 read, with holes in the words; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🔴 every accented letter and phonetic sign is `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
-| **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟡 `?` in the snippets | ⚪ |
+| **Wikipedia** (an article) | 🟢 | 🟢 read, in English and in French; its search not tried | 🟢 gzip, 21 requests | 🟢 | 🟢 its columns are a grid (from 1120 wide) | 🟡 the accented letters are there; the phonetic signs and the names in other scripts (Greek, Cyrillic, Chinese) are `?` | 🔴 not run: its startup script parses, then stops (`NORLQ is not defined`) |
+| **DuckDuckGo** (the HTML results) | 🟡 | 🟢 searched from the omnibox; its own form not tried | 🟢 | 🟢 | 🟡 the header's logo, field and filters overlap; the results are readable | 🟢 | ⚪ |
 | **Google** | 🟢 a search works, from the home page to the results | 🟢 a query typed and sent, the consent page answered once (a form posted, its cookie kept), the results read and followed | 🟢 said to be an old Opera Mini (`Browser_agent`): to a browser it does not know Google sends a script to run and no result | 🟢 | 🟢 flexbox, a field that is a flex item | 🟢 | ⚪ none needed: the page sent to that name is plain HTML. (Its challenge for the others, 63 KB of obfuscated script, loads and runs here and gives no token) |
 | **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page | ? | 🔴 nothing shows | ? | 🔴 not run |
 | **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🔴 not run: its scripts are modules (`<script type=module>`), and each file's last commit comes by them |
@@ -118,8 +119,9 @@ By the stricter measure, used and not only loaded: 6 🟢, 6 🟡, 0 🔴.
 
 ## Next, by what it would turn green
 
-- **Text beyond ASCII**: Wikipedia, CNN Lite, DuckDuckGo, and every
-  page not in English.
+- **Scripts beyond Latin** (Greek and Cyrillic first: Hershey drew
+  them): no site of this list, and half the web
+  (`Glyph_unicode.mli` says what all of Unicode asks of a browser).
 - **WebP** (a decoder, in elm-playground beside the others): the
   BBC's pictures, and most pictures of today's web.
 - **Modules** (`<script type=module>`, import and export): GitHub's

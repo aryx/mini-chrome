@@ -102,7 +102,8 @@ src/url/              links resolved (Browser_url)
 src/layout/           where everything goes: CSS's box model (Box_layout,
                       over Box_tree, Box_inline and Box_flow), flexbox,
                       grid (Box_grid, Grid_layout), tables, Mosaic's flow; a point back to a link (Hit)
-src/display/          a page drawn as shapes: Hershey's letters, pictures,
+src/display/          a page drawn as shapes: Hershey's letters (and those
+                      with an accent, put together: Glyph_unicode), pictures,
                       boxes (Browser_draw, Browser_boxes)
 src/www/              the page as a document (Browser_page), its forms
 src/dom/              JavaScript in a browser: the DOM a page's scripts
