@@ -103,6 +103,15 @@ let tick (t : t) : unit =
   t.steps <- t.steps - 1;
   if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)"
 
+(* a statement begun: its line, for an error; one step of the budget *)
+let step (t : t) (line : int) : unit =
+  t.line <- line;
+  tick t
+
+(* opti: who compiles a function's body, if somebody does: Js_compile,
+ * which is after this module and says so when the program starts *)
+let compiler : (t -> A.func -> scope -> value -> value) option ref = ref None
+
 let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   match e with
   | Number f -> Number f
@@ -637,7 +646,16 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       let line = t.line in
       (* the caller's line back when the call returns; not when it
        * throws, so that the error keeps the line it was thrown on *)
-      let body () = match exec_block t frame this c.func.body with Return v -> v | _ -> Undefined in
+      let body () =
+        match c.func.frame with
+        (* opti: its body compiled (Js_compile), the first time it is called *)
+        | Some { code = Code run; _ } -> run frame this
+        | Some ({ code = A.No_code; _ } as l) when !Mini_opti.compiled && !compiler <> None ->
+            let run = (Option.get !compiler) t c.func in
+            l.code <- Code run;
+            run frame this
+        | _ -> ( match exec_block t frame this c.func.body with Return v -> v | _ -> Undefined)
+      in
       (* an async function: its body a coroutine, run to its first
        * await; the call gives its promise *)
       (match if c.func.generator then generator t body else if c.func.async then Js_promise.async (Option.get t.promises) body else body () with

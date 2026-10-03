@@ -308,6 +308,33 @@
     if (typeof data === "number") { this.width = data; this.height = width; this.data = new Uint8ClampedArray(4 * data * width); }
     else { this.data = data; this.width = width; this.height = height; }
   });
+  // Web Audio, the least of it: a context, its clock, a buffer of
+  // samples and its source started at a time (AudioContext.mli); the
+  // clock and the playing are the browser's (__audio)
+  if (typeof __audio === "object") {
+    global("AudioContext", class AudioContext {
+      constructor() { this.state = "running"; this.sampleRate = 44100; this.destination = { context: this }; this.baseLatency = 0; this.outputLatency = 0; }
+      get currentTime() { return __audio.now(); }
+      resume() { this.state = "running"; return Promise.resolve(); }
+      suspend() { return Promise.resolve(); }
+      close() { this.state = "closed"; return Promise.resolve(); }
+      createBuffer(channels, length, rate) {
+        var data = [];
+        for (var c = 0; c < channels; c++) data.push(new Float32Array(length));
+        return { numberOfChannels: channels, length: length, sampleRate: rate, duration: length / rate, getChannelData: function (c) { return data[c]; } };
+      }
+      createBufferSource() {
+        return {
+          buffer: null, onended: null, connect: function (to) { return to; }, disconnect: nothing, stop: nothing,
+          start: function (when) {
+            var b = this.buffer;
+            if (b) __audio.play(b.getChannelData(0), b.getChannelData(b.numberOfChannels > 1 ? 1 : 0), b.sampleRate, when || 0);
+          }
+        };
+      }
+    });
+    global("webkitAudioContext", g.AudioContext);
+  }
   method(E, "scrollTo", nothing);
   method(E, "scrollBy", nothing);
   reflects(E, "role", "role");

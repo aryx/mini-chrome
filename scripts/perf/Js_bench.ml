@@ -27,9 +27,11 @@ let timed (f : unit -> 'a) : 'a * float =
 let () =
   let args = List.tl (Array.to_list Sys.argv) in
   if List.mem "opti=off" args then Mini_opti.enabled := false;
+  if List.mem "compile=off" args then Mini_opti.compiled := false;
   let no_loops = List.mem "loops=off" args in
-  let args = List.filter (fun a -> a <> "opti=off" && a <> "loops=off") args in
+  let args = List.filter (fun a -> a <> "opti=off" && a <> "loops=off" && a <> "compile=off") args in
   if not !Mini_opti.enabled then print_endline "opti=off";
+  if not !Mini_opti.compiled then print_endline "compile=off";
   List.iter
     (fun (name, text) ->
       let engine = Js_eval.create () in

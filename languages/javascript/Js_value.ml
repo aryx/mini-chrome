@@ -37,6 +37,8 @@ and binding = { mutable value : value; constant : bool }
 
 exception Throw of value
 
+type Js_ast.code += Code of (scope -> value -> value)
+
 (*****************************************************************************)
 (* Objects *)
 (*****************************************************************************)

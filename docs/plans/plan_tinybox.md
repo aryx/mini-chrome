@@ -212,14 +212,31 @@ compiled by js_of_ocaml, run by Node and by `mini-node`, the two
 outputs compared (`js_of_ocaml t.byte`; equalities, `compare`,
 `Hashtbl`, `Printf`, `Int64`: the same here).
 
+Since (2026-10-04):
+
+- **the engine again**: function bodies compiled to closures
+  (`Js_compile`, apart from the evaluator, `js=walk` to compare). A
+  quarter, not the three to five times hoped: a menu frame 195 ms to
+  172. The profile says why (`Js_compile.mli`): what is left is a
+  frame made at each call, the arguments as a list, a number a new
+  value, a name some scopes up -- not the tree's dispatch.
+- **sound**: `AudioContext` (a buffer's source started at a time) and
+  `Audio_queue`: TinyMissileCommand's script schedules its 4.8 s of
+  sound in 5 s of play (counted without a sound card; to be heard by
+  ears). At six frames a second the platform's schedule (300 ms ahead
+  at most) has gaps: the sound is there, cut.
+- the animation's time, the menu's sources failing at once: as above.
+
 Next, in the order of what is felt:
 
-1. **the engine again** (above): to sixty frames a second, a factor
-   of twelve.
+1. **the engine, differently**: to sixty frames a second is a factor
+   of ten, and no more of it is in the tree: variables in registers
+   (no scope made at a call), arguments passed without a list,
+   properties by a shape and a slot. A compiler with its own idea of
+   a function, beside the evaluator as `Js_compile` is.
 2. **a canvas and bytes**: typed arrays as bytes and not as arrays of
    numbers, `putImageData` and `toDataURL` kept as a picture the page
    can show: the code map, and every program that draws a bitmap.
-3. **sound** (`AudioContext`).
 4. the Playground's label (the window's size and frame rate) drawn
    over the page: an option of the platform's.
 

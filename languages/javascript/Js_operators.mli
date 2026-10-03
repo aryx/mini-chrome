@@ -47,3 +47,8 @@ val of_int32 : int32 -> Js_value.value
 
 (* [arithmetic op a b]: a op b, for the operators above *)
 val arithmetic : string -> Js_value.value -> Js_value.value -> Js_value.value
+
+(* the same with no shortcut for two numbers: the definition (what
+ * [arithmetic] is with Mini_opti off, and what compiled code falls
+ * back on: Js_compile) *)
+val arithmetic_simple : string -> Js_value.value -> Js_value.value -> Js_value.value

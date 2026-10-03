@@ -78,7 +78,7 @@ let sniff ~(name : string) (bytes : string) : kind option =
 (*****************************************************************************)
 
 type media =
-  | Sound of { samples : Signal.stereo; notes : Midi.note list }
+  | Sound of { samples : Signal.stereo; notes : Midi.note list; stream : Sound_stream.t option }
   | Module of Mod.song
   | Picture of Rgba_image.t
   | Movie of { movie : Movie.t; sound : Signal.stereo option; mpeg : (Mpeg1.header * (int -> Mpeg1.info) * Movie.t Lazy.t) option }
@@ -114,7 +114,7 @@ let gif_movie (frames : (Rgba_image.t * float) list) : Movie.t = Movie.of_frames
  * the MIDI file it makes (Midi.of_tune), for the piano roll *)
 let tune (t : Abc.tune) : media =
   let notes = match Midi.parse (Midi.of_tune t) with Ok score -> score.notes | Error _ -> [] in
-  Sound { samples = Synth.render_stereo (Music.to_sound t); notes }
+  Sound { samples = Synth.render_stereo (Music.to_sound t); notes; stream = None }
 
 (* an MP2 or MP3, at our sample rate *)
 let mpeg_sound (bytes : string) : (Signal.stereo, string) result =
@@ -166,6 +166,28 @@ let decoded_sound (rate : int) (channels : float array array) : Signal.stereo =
   | [| mono |] -> Signal.both (at_our_rate mono)
   | _ -> { left = at_our_rate channels.(0); right = at_our_rate channels.(1) }
 
+(* an Ogg file's sound, Vorbis's or Opus's: decoded as it plays
+ * (Sound_stream), a packet at a time after the headers, if the file
+ * says how long it is (its last page); else whole, now -- the simple
+ * way, which opti=off keeps *)
+let ogg_sound (kind : kind) (bytes : string) : media =
+  let whole () =
+    let rate, channels = if kind = Opus then (Opus.rate, snd (Opus.of_ogg bytes)) else let d, c = Vorbis.of_ogg bytes in (Vorbis.rate d, c) in
+    Sound { samples = decoded_sound rate channels; notes = []; stream = None }
+  in
+  match (Ogg.length bytes, Ogg.packets bytes) with
+  | Some length, head :: _ :: rest when !Mini_opti.enabled && kind = Opus ->
+      let d = Opus.create ~head and packets = ref rest in
+      let next () = match !packets with p :: rest -> packets := rest; Some (Opus.decode d p) | [] -> None in
+      let stream = Sound_stream.create ~rate:Opus.rate ~length:(max 0 (length - Opus.pre_skip d)) ~skip:(Opus.pre_skip d) ~next in
+      Sound { samples = Sound_stream.samples stream; notes = []; stream = Some stream }
+  | Some length, identification :: _ :: setup :: rest when !Mini_opti.enabled && kind <> Opus ->
+      let d = Vorbis.create ~identification ~setup and packets = ref rest in
+      let next () = match !packets with p :: rest -> packets := rest; Some (Vorbis.decode d p) | [] -> None in
+      let stream = Sound_stream.create ~rate:(Vorbis.rate d) ~length ~skip:0 ~next in
+      Sound { samples = Sound_stream.samples stream; notes = []; stream = Some stream }
+  | _ -> whole ()
+
 (* a WebM file's sound, if it has one that is Vorbis or Opus: the
  * track's headers (Vorbis's three, Opus's one), then its packets,
  * decoded whole; [from], the time the picture starts at *)
@@ -197,7 +219,7 @@ let webm_movie (bytes : string) : (media, string) result =
   match Webm.video webm with
   | None -> (
       match (webm_sound webm ~from:0., Webm.audio webm) with
-      | Some samples, _ -> Ok (Sound { samples; notes = [] })
+      | Some samples, _ -> Ok (Sound { samples; notes = []; stream = None })
       | None, Some (track, _) -> Error (Printf.sprintf "a WebM file whose sound is %s: only Vorbis and Opus are decoded" track.codec)
       | None, None -> Error "a WebM file with no video and no sound in it")
   | Some (track, _) when track.codec <> "V_VP8" -> Error (Printf.sprintf "a WebM file whose video is %s: only VP8 is decoded" track.codec)
@@ -228,9 +250,9 @@ let open_ ~(name : string) (bytes : string) : (kind * media, string) result =
        * broken file is caught there *)
       let media () =
         match kind with
-        | Wav -> Result.map (fun s -> Sound { samples = Signal.both s; notes = [] }) (Wav.of_string bytes)
-        | Mp2 | Mp3 -> Result.map (fun samples -> Sound { samples; notes = [] }) (mpeg_sound bytes)
-        | Midi -> Result.map (fun (score : Midi.score) -> Sound { samples = Signal.both (Music.render_score score); notes = score.notes }) (Midi.parse bytes)
+        | Wav -> Result.map (fun s -> Sound { samples = Signal.both s; notes = []; stream = None }) (Wav.of_string bytes)
+        | Mp2 | Mp3 -> Result.map (fun samples -> Sound { samples; notes = []; stream = None }) (mpeg_sound bytes)
+        | Midi -> Result.map (fun (score : Midi.score) -> Sound { samples = Signal.both (Music.render_score score); notes = score.notes; stream = None }) (Midi.parse bytes)
         | Mod -> Result.map (fun song -> Module song) (Mod.of_string bytes)
         | Abc -> Result.map tune (Abc.parse bytes)
         | Solfege -> Result.map tune (Doremi.parse bytes)
@@ -247,10 +269,7 @@ let open_ ~(name : string) (bytes : string) : (kind * media, string) result =
         | Mpeg1 -> Ok (mpeg1_movie bytes ~sound:None)
         | Mpg -> mpg bytes
         | Webm -> webm_movie bytes
-        | Ogg ->
-            let decoder, channels = Vorbis.of_ogg bytes in
-            Ok (Sound { samples = decoded_sound (Vorbis.rate decoder) channels; notes = [] })
-        | Opus -> Ok (Sound { samples = decoded_sound Opus.rate (snd (Opus.of_ogg bytes)); notes = [] })
+        | Ogg | Opus -> Ok (ogg_sound kind bytes)
       in
       match media () with Ok m -> Ok (kind, m) | Error e -> Error (name ^ ": " ^ e) | exception e -> Error (name ^ ": " ^ Printexc.to_string e))
 
@@ -267,6 +286,12 @@ let module_sound (song : Mod.song) : Signal.stereo =
   in
   let parts = go [] 0 in
   { left = Array.concat (List.map (fun (c : Signal.stereo) -> c.left) parts); right = Array.concat (List.map (fun (c : Signal.stereo) -> c.right) parts) }
+
+(* a sound decoded as it plays: decoded to that many seconds, at least *)
+let ahead (m : media) (seconds : float) : unit =
+  match m with
+  | Sound { stream = Some s; _ } -> Sound_stream.ahead s (int_of_float (seconds *. float_of_int Signal.rate))
+  | _ -> ()
 
 let duration (m : media) : float option =
   match m with

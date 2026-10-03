@@ -87,6 +87,7 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "getComputedStyle" (fn "getComputedStyle" (fun args -> computed_style (node_of t (arg args 0))));
   List.iter (fun name -> define name (observer name)) [ "MutationObserver"; "ResizeObserver"; "IntersectionObserver"; "PerformanceObserver" ];
   LocalStorage.install define;
+  AudioContext.install define;
   define "performance" (object_of [ ("now", fn "now" (fun _ -> Number t.now)); nothing "mark"; nothing "measure"; ("timeOrigin", Number 0.) ]);
   define "matchMedia"
     (fn "matchMedia" (fun args ->

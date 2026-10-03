@@ -17,6 +17,9 @@ module Names = Hashtbl.Make (struct
   let hash = Hashtbl.hash
 end)
 
+type code = ..
+type code += No_code
+
 type place = { mutable hops : int; mutable slot : int }
 
 let place () : place = { hops = -1; slot = 0 }
@@ -68,7 +71,7 @@ and func = {
   frame : frame option;
 }
 
-and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place }
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place; arguments : bool; mutable code : code }
 
 and property =
   | Prop of key * expr

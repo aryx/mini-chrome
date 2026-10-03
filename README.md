@@ -116,7 +116,8 @@ Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
 `scripts=off` (or the hosts whose scripts run), `profile=DIR` or
 `profile=off`, `scale=N`, `opti=off` (the simple code where an
-optimized one replaced it), `letters=segments` (a letter drawn as its
+optimized one replaced it), `js=walk` (a script's functions walked
+by the evaluator, not compiled), `letters=segments` (a letter drawn as its
 pen's strokes), `pdf=strokes` (a PDF's text in our own letters;
 `pdf=plain` for its simplest rendering). With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits

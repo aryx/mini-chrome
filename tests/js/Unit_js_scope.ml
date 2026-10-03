@@ -10,16 +10,18 @@
 
 (* See Unit_js_scope.mli *)
 
-let run (opti : bool) (s : string) : string =
-  let before = !Mini_opti.enabled in
+let run ?(compiled = true) (opti : bool) (s : string) : string =
+  let before = (!Mini_opti.enabled, !Mini_opti.compiled) in
   Mini_opti.enabled := opti;
-  Fun.protect ~finally:(fun () -> Mini_opti.enabled := before) @@ fun () ->
+  Mini_opti.compiled := compiled;
+  Fun.protect ~finally:(fun () -> Mini_opti.enabled := fst before; Mini_opti.compiled := snd before) @@ fun () ->
   let t = Js_eval.create () in
   match Js_eval.eval t s with Ok v -> Js_value.display v | Error e -> Printf.sprintf "line %d: %s" e.line e.message
 
 (* the program on slots and on tables: the same answer, the one expected *)
 let check (what : string) (s : string) (expected : string) : unit =
-  Alcotest.(check string) (what ^ " (slots)") expected (run true s);
+  Alcotest.(check string) (what ^ " (slots, compiled)") expected (run true s);
+  Alcotest.(check string) (what ^ " (slots, walked)") expected (run ~compiled:false true s);
   Alcotest.(check string) (what ^ " (tables)") expected (run false s)
 
 let many = String.concat "; " (List.init 40 (fun i -> Printf.sprintf "var v%d = %d" i i))
@@ -78,6 +80,23 @@ let tests =
           (* past sixteen: the frame's names by an index *)
           check "forty var's and a closure over them" ("function f(p) { " ^ many ^ "; return function () { return v0 + v17 + v39 + p } } f(1)()") "57";
           check "and more declared as it runs" ("function f() { " ^ many ^ "; let a = 1; const b = 2; function h() { return a + b + v20 } return h() } f()") "23");
+      Testo.create "Js_compile: a body compiled does what the evaluator does" (fun () ->
+          check "the worked example" "function sum(n) { var s = 0; for (var i = 0; i < n; i++) { s = s + i } return s } sum(100)" "4950";
+          check "+= and ++, on names, properties and items" "function f() { var a = 1, o = { n: 2 }, xs = [3]; a += 4; a++; o.n += 5; xs[0] *= 2; ++o.n; return [a, o.n, xs[0], a--, a] } f()"
+            "[6, 8, 6, 6, 5]";
+          check "a switch falls through to a break; its default" "function f(k) { var r = ''; switch (k) { case 1: r += 'a'; case 2: r += 'b'; break; case 3: r += 'c'; default: r += 'd' } return r } [f(1), f(2), f(3), f(9)]"
+            "[\"ab\", \"b\", \"cd\", \"d\"]";
+          check "try, catch, finally: the order, and a return in each" "function f(k) { var log = []; function g() { try { if (k) throw 'x'; return 'r' } catch (e) { log.push(e); return 'c' } finally { log.push('f') } } var v = g(); return [v, log] } [f(0), f(1)]"
+            "[[\"r\", [\"f\"]], [\"c\", [\"x\", \"f\"]]]";
+          check "a loop's break and continue, and one with a label" "function f() { var n = 0; outer: for (var i = 0; i < 4; i++) { for (var j = 0; j < 4; j++) { if (j == 2) continue outer; if (i == 3) break outer; n++ } } var m = 0; while (true) { if (++m > 5) break; if (m % 2) continue; n += 10 } return n } f()"
+            "26";
+          check "a constant assigned to: the evaluator's error" "function f() { const c = 1; c = 2 } f()" "line 1: TypeError: Assignment to constant variable.";
+          check "what is not a function, named, on its line" "function f(o) {\n  return o.missing(1)\n}\nf({})" "line 2: TypeError: o.missing is not a function";
+          check "a name nobody declared" "function f() { return nowhere + 1 } f()" "line 1: ReferenceError: nowhere is not defined";
+          check "arguments made only where it is said, and seen by an arrow" "function f() { return (() => arguments.length)() } function g(a) { return a } [f(1, 2, 3), g(7)]" "[3, 7]";
+          check "what is left to the evaluator, inside a compiled body" "function f(...xs) { var [a, b] = xs; var o = { a, ['k' + b]: `t${a}` }; class C { m() { return o.k2 } } return new C().m() + Math.max(...xs) } f(1, 2)"
+            "t12";
+          Alcotest.(check string) "a loop that never ends is stopped, compiled too" "line 1: RangeError: the script ran too long (a loop that never ends?)" (run true "function f() { while (true) {} } f()"));
       Testo.create "classes, generators, async: scopes kept alive" (fun () ->
           check "a class's methods see its scope" "var k = 2; class A { constructor(x) { this.x = x } twice() { return this.x * k } } class B extends A { twice() { return super.twice() + 1 } } new B(4).twice()"
             "9";

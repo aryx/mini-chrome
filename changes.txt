@@ -85,6 +85,24 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- JavaScript: a function's body compiled to closures at its first call
+  (Js_compile: an expression a function of its scope, made once from
+  those of its parts; SICP's "analyze", Feeley and Lapalme's closure
+  generation), apart from the evaluator, which it calls for what it
+  does not compile (classes, patterns, spreads, with, labels) and
+  which knows it by one reference; js=walk, and Js_bench's
+  compile=off, keep the evaluator. A quarter on a real program (the
+  Playground's menu: 195 ms a frame to 172), 1.6 times on a loop: what
+  is left is what a tree and its closures share (a frame a call, a
+  list of arguments, a value a number). A call makes its arguments
+  array only if the function says arguments. tests/js three times:
+  compiled, walked, opti=off
+- an Ogg file's sound (Vorbis, Opus) decoded as it plays, three
+  seconds ahead of the player, not whole when it is opened
+  (Sound_stream: the samples there at once, silent, filled from the
+  front; the rate changed sample by sample, with no seam): a song of
+  four minutes no longer makes its page wait a quarter of a minute.
+  Not a WebM's sound yet, and nothing is forgotten once played
 - the JavaScript engine about four times faster
   (docs/plans/plan_tinybox.md; scripts/perf/Js_bench.exe: a loop of 3M
   turns 5.9 s to 1.0, 1M calls 3.7 s to 0.67, the Playground's menu
@@ -137,6 +155,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- AudioContext (the Web Audio API's least: a context, its clock, a
+  buffer of samples, its source started at a time): the sound of the
+  Playground's games in the browser, TinyMissileCommand's among them.
+  The class in JavaScript (data/prelude/web.js) over two functions of
+  the browser's (AudioContext.ml: the clock, the samples handed over);
+  Audio_queue mixes what scripts scheduled with what the players play.
+  No graph of nodes (gain, oscillator), no decodeAudioData
 - a page that is a program: the Playground's own menu, tinybox
   (https://aryx.github.io/ocaml-elm-playground/tinybox.html, OCaml
   compiled to JavaScript by js_of_ocaml), runs in the browser that is

@@ -11,10 +11,19 @@
 (* See Js_quicken.mli *)
 open Js_ast
 
+(* whether the function being copied says arguments: a call makes
+ * that array only then (Js_frame) *)
+let says_arguments = ref false
+
 let rec expr (e : expr) : expr =
   match e with
-  | Name x -> Local (x, place ())
-  | Number _ | String _ | Bool _ | Null | This | Local _ | Regex _ | Super_member _ | Import_meta -> e
+  | Name x ->
+      if x = "arguments" then says_arguments := true;
+      Local (x, place ())
+  | Local (x, _) ->
+      if x = "arguments" then says_arguments := true;
+      e
+  | Number _ | String _ | Bool _ | Null | This | Regex _ | Super_member _ | Import_meta -> e
   | Unary (op, a) -> Unary (op, expr a)
   | Update (op, prefix, a) -> Update (op, prefix, expr a)
   | Binary (op, a, b) -> Binary (op, expr a, expr b)
@@ -42,8 +51,13 @@ let rec expr (e : expr) : expr =
 
 (* a function: its parts, then what its calls have in common *)
 and func (f : func) : func =
+  (* an arrow's arguments are those of the function around it *)
+  let around = !says_arguments in
+  if not f.arrow then says_arguments := false;
   let f = { f with params = List.map (fun (pt, d) -> (pattern pt, Option.map expr d)) f.params; rest = Option.map pattern f.rest; body = List.map stmt f.body } in
-  { f with frame = Some (Js_frame.layout f) }
+  let arguments = !says_arguments in
+  if not f.arrow then says_arguments := around;
+  { f with frame = Some (Js_frame.layout ~arguments f) }
 
 and key (k : key) : key = match k with Key _ -> k | Computed e -> Computed (expr e)
 

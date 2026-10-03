@@ -44,7 +44,7 @@ let opened (p : player) ~(media : string -> string option) : (Media.media, strin
       | Some "" -> Error "the file could not be had"
       | Some bytes ->
           (* a module is played live by its own player elsewhere; here, rendered whole *)
-          let r = Result.map (fun (_, (m : Media.media)) -> match m with Module song -> Media.Sound { samples = Media.module_sound song; notes = [] } | m -> m) (Media.open_ ~name:p.url bytes) in
+          let r = Result.map (fun (_, (m : Media.media)) -> match m with Module song -> Media.Sound { samples = Media.module_sound song; notes = []; stream = None } | m -> m) (Media.open_ ~name:p.url bytes) in
           p.opened <- Some r;
           r
       | None -> Error "loading...")
@@ -64,13 +64,15 @@ let fill (out : Signal.stereo) : unit =
   let n = Array.length out.left in
   Array.fill out.left 0 n 0.;
   Array.fill out.right 0 n 0.;
-  match deck.samples with
+  (match deck.samples with
   | Some s when not deck.paused ->
       let k = max 0 (min n (Array.length s.left - deck.pos)) in
       Array.blit s.left deck.pos out.left 0 k;
       Array.blit s.right deck.pos out.right 0 k;
       deck.pos <- deck.pos + k
-  | _ -> ()
+  | _ -> ());
+  (* and what the page's scripts scheduled (AudioContext) *)
+  Audio_queue.mix out
 
 let install () : unit =
   ignore (Audio.instrument "tinychrome" (fun () -> { Instrument.note_on = (fun _ _ -> ()); note_off = ignore; set = (fun _ _ -> ()); fill }))
@@ -90,6 +92,8 @@ let position (p : player) ~(now : float) ~(loop : bool) (m : Media.media) : floa
     else if deck.owner = p.url && sound_of m <> None then float_of_int deck.pos /. float_of_int Signal.rate
     else p.offset +. (now -. p.started)
   in
+  (* a sound decoded as it plays: three seconds ahead of the player *)
+  if p.playing then Media.ahead m (t +. 3.);
   if d > 0. && t >= d then
     if loop then (
       p.offset <- 0.;
@@ -106,6 +110,7 @@ let position (p : player) ~(now : float) ~(loop : bool) (m : Media.media) : floa
 let play (p : player) ~(now : float) (m : Media.media) : unit =
   p.playing <- true;
   p.started <- now;
+  Media.ahead m (p.offset +. 1.);
   match sound_of m with
   | Some s ->
       deck.samples <- Some s;

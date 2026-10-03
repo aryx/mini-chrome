@@ -65,7 +65,7 @@ let simple ~(params : params) (c : closure) (fn : value) (this : value) (args : 
 (* opti: what every call of a function declares, found once in its
  * text: arguments, the var's (each once), the parameters when they
  * are plain names; and each parameter's slot *)
-let layout (f : A.func) : A.frame =
+let layout ?(arguments = true) (f : A.func) : A.frame =
   let plain = List.for_all (fun (pt, default) -> match ((pt : A.pattern), default) with Bind _, None -> true | _ -> false) f.params in
   let slots = A.Names.create 16 and names = ref [] in
   let slot (x : string) : int =
@@ -81,7 +81,7 @@ let layout (f : A.func) : A.frame =
   List.iter (fun x -> ignore (slot x)) (hoisted f.body);
   let params = if plain then List.map (fun ((pt : A.pattern), _) -> match pt with Bind x -> slot x | _ -> -1) f.params else [] in
   let names = Array.of_list (List.rev !names) in
-  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own = A.place () }
+  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own = A.place (); arguments; code = A.No_code }
 
 (* opti: a call's frame made at once from the function's layout, an
  * array of bindings beside the function's array of names (shared by
@@ -95,7 +95,8 @@ let opti ~(params : params) (l : A.frame) (c : closure) (fn : value) (this : val
     cells.(i) <- { value = Undefined; constant = false }
   done;
   let frame = Js_scope.frame c.scope ~names:l.names ~index:l.index ~cells ~strict in
-  if not f.arrow then cells.(0).value <- Object (new_array args);
+  (* the array of what was given: only for a function that says arguments *)
+  if l.arguments && not f.arrow then cells.(0).value <- Object (new_array args);
   (* its own name: looked for outside once, by the place it was found
    * (-2 hops: nowhere, and it is then the function's own for good) *)
   (match f.name with

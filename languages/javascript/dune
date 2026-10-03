@@ -3,7 +3,8 @@
 ; -- and why not yacc), Js_value (values, objects, the conversions),
 ; Js_eval (the tree walked: closures, this, the errors), Js_scope
 ; (where names live, the simple way and the fast one), Js_frame (a
-; call's), Js_quicken (the tree's copy the fast way runs),
+; call's), Js_quicken (the tree's copy the fast way runs), Js_compile
+; (a function's body made closures, apart from Js_eval),
 ; Js_builtins (console, Math, strings' and arrays' methods), Js_promise
 ; (promises and their jobs, async and await) over Js_coroutine. The
 ; language only: what a script can touch outside itself is its host's,
@@ -16,6 +17,9 @@
 (library
  (name javascript)
  (wrapped false)
+ ; every module linked, used by name or not: Js_compile tells Js_eval
+ ; of itself when the program starts, and nobody else names it
+ (library_flags (-linkall))
  (libraries
   mini_opti ; the simple scopes or the fast ones (Js_scope)
   tiny_libs.random ; Lehmer, Math.random's seeded numbers

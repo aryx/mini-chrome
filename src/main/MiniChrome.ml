@@ -215,6 +215,9 @@ let main = Program.main __MODULE__ (fun () ->
         Mini_opti.enabled := false;
         Logs.info (fun m -> m "opti=off: the simple code paths")
       end;
+      (* js=walk: a script's functions walked by the evaluator, not
+       * compiled when first called (Js_compile) *)
+      if List.assoc_opt "js" flags = Some "walk" then Mini_opti.compiled := false;
       (* letters=segments: a letter drawn as its pen's strokes,
        * the simple way, rather than as one picture (Glyph_picture) *)
       (match List.assoc_opt "letters" flags with

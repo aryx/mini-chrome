@@ -56,8 +56,9 @@ val hoisted : Js_ast.stmt list -> string list
 (* those names declared in a scope, undefined, but the ones it has *)
 val hoist : scope -> Js_ast.stmt list -> unit
 
-(* what every call of a function declares *)
-val layout : Js_ast.func -> Js_ast.frame
+(* what every call of a function declares; [arguments] (true): whether
+ * its text says arguments, which the caller knows (Js_quicken) *)
+val layout : ?arguments:bool -> Js_ast.func -> Js_ast.frame
 
 (* [simple ~params c fn this args ~strict]: the frame of a call of the
  * closure [c] (the function value [fn]) with [args] *)

@@ -13,3 +13,10 @@
  (alias runtest)
  (action
   (setenv MINI_OPTI off (run %{exe:Test.exe}))))
+
+; and a third time with the functions' bodies walked by the evaluator,
+; not compiled (Js_compile): the first run is the compiled one
+(rule
+ (alias runtest)
+ (action
+  (setenv MINI_OPTI walk (run %{exe:Test.exe}))))

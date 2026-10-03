@@ -26,7 +26,7 @@ opam, C, the machine) and what was brought in: keep it true when a
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all fourteen suites (js twice: opti on, then off)
+make test              # dune runtest -f, all fourteen suites (js three times: compiled, walked, opti=off)
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -56,7 +56,8 @@ several: a tab each). Program flags are `key=value` words
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
-`opti=off`, `letters=segments` (a letter as its pen's strokes, not one
+`opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
+compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
 picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
 PDF's text in our own letters; and `-gradients`, `-clips`,
 `-pictures`, `-transparency`, or `plain` for all: `Pdf_render.options`).
@@ -289,8 +290,15 @@ changes; an engine of the fast kind runs a copy of it made by
 `Var_set` for a `var`, a function's `frame`): a new kind of node, or a
 new place that needs a memory, goes through there, and the evaluator
 keeps the simple case beside the fast one. A call's frame is
-`Js_frame`'s (`simple`, `opti`). A scope is touched only through
-`Js_scope`; `tests/js` is run on both (its `dune`), and
+`Js_frame`'s (`simple`, `opti`). On top of that, and apart, a
+function's body is compiled to closures at its first call
+(`Js_compile`, which `Js_eval` knows by one reference,
+`Js_eval.compiler`; `Mini_opti.compiled`, `js=walk`): it compiles what
+programs spend their time in and leaves the rest to `Js_eval`, node by
+node, so a construct added to the language goes in `Js_eval` first,
+and in `Js_compile` only if it is hot -- there in the evaluator's own
+order of evaluation. A scope is touched only through
+`Js_scope`; `tests/js` is run on the three (its `dune`), and
 `scripts/perf/Js_bench.exe` says what a change costs or buys.
 
 A page that is a program is told of the window's keys and pointer
@@ -298,7 +306,11 @@ A page that is a program is told of the window's keys and pointer
 script listens), and an inline `<svg>` made of what the Playground's
 web platform writes is drawn as shapes (`Svg_shapes`; else `Svg`, a
 picture): what the Playground's own menu and games need to run here
-(`docs/plans/plan_tinybox.md`).
+(`docs/plans/plan_tinybox.md`). Their sound is `AudioContext`'s
+(`src/webapi/window`: buffers of samples started at a time, the class
+itself in `data/prelude/web.js`), mixed with the players' by
+`Audio_queue` (`src/viewers`); an Ogg file's Vorbis or Opus is decoded
+as it plays, three seconds ahead (`Sound_stream`), not when opened.
 
 ### Tabs, fetching and the program
 

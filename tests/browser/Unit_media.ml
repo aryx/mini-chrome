@@ -41,7 +41,19 @@ let tests =
           let read name = In_channel.with_open_bin ("../video/data/" ^ name) In_channel.input_all in
           let sound name =
             match Media.open_ ~name (read name) with
-            | Ok (kind, Sound { samples; _ }) -> (Media.kind_name kind, samples)
+            | Ok (kind, (Sound { samples; stream; _ } as m)) ->
+                (* an .ogg is decoded as it plays (Sound_stream): silent
+                 * at first, then a second of it and no more, then all *)
+                (match stream with
+                | Some st ->
+                    Alcotest.(check bool) (name ^ ": nothing decoded when opened") true (Sound_stream.ready st = 0 && Array.for_all (fun v -> v = 0.) samples.left);
+                    Media.ahead m 0.1;
+                    Alcotest.(check bool) (name ^ ": a tenth of a second asked, not the whole") true
+                      (Sound_stream.ready st >= Signal.rate / 10 && Sound_stream.ready st < Array.length samples.left);
+                    Media.ahead m 1000.;
+                    Alcotest.(check int) (name ^ ": then all of it") (Array.length samples.left) (Sound_stream.ready st)
+                | None -> Alcotest.(check bool) (name ^ ": decoded whole") true (name <> "sound.ogg"));
+                (Media.kind_name kind, samples)
             | Ok _ -> Alcotest.fail (name ^ ": not a sound")
             | Error why -> Alcotest.fail why
           in
@@ -56,7 +68,9 @@ let tests =
       Testo.create "Opus: an .opus file, a WebM of it, the same packets" (fun () ->
           let sound path name =
             match Media.open_ ~name (In_channel.with_open_bin path In_channel.input_all) with
-            | Ok (kind, Sound { samples; _ }) -> (Media.kind_name kind, samples)
+            | Ok (kind, (Sound { samples; _ } as m)) ->
+                Media.ahead m 1000.;
+                (Media.kind_name kind, samples)
             | Ok _ -> Alcotest.fail (name ^ ": not a sound")
             | Error why -> Alcotest.fail why
           in
@@ -64,9 +78,67 @@ let tests =
           Alcotest.(check (pair string string)) "recognized" ("Ogg Opus", "WebM") (opus_kind, webm_kind);
           (* 48,000 Hz in the files, the player's 44,100 here *)
           Alcotest.(check (float 0.03)) "half a second, at the player's rate" 0.5 (float_of_int (Array.length opus.left) /. float_of_int Signal.rate);
-          let n = min (Array.length webm.left) (Array.length opus.left) in
+          (* but the file's last two samples, read past its end (Sound_stream) *)
+          let n = min (Array.length webm.left) (Array.length opus.left) - 2 in
           Alcotest.(check bool) "the same sound from both" true (Array.sub webm.left 0 n = Array.sub opus.left 0 n && Array.sub webm.right 0 n = Array.sub opus.right 0 n);
           Alcotest.(check bool) "heard, and two channels that differ" true (Array.exists (fun v -> Float.abs v > 0.2) opus.left && opus.left <> opus.right));
+      Testo.create "Sound_stream: decoded as it plays, the same samples as decoded whole" (fun () ->
+          let read path = In_channel.with_open_bin path In_channel.input_all in
+          (* decoded whole, the simple way: every packet, then the rate changed *)
+          let whole (path : string) : Signal.stereo =
+            let bytes = read path in
+            let rate, channels = if Filename.check_suffix path ".opus" then (Opus.rate, snd (Opus.of_ogg bytes)) else let d, c = Vorbis.of_ogg bytes in (Vorbis.rate d, c) in
+            let ours x = Resample.to_rate Cubic rate x in
+            { left = ours channels.(0); right = ours channels.(if Array.length channels > 1 then 1 else 0) }
+          in
+          let streamed (path : string) : Signal.stereo =
+            match Media.open_ ~name:(Filename.basename path) (read path) with
+            | Ok (_, (Sound { samples; stream = Some _; _ } as m)) ->
+                (* a few packets at a time, as a player asks *)
+                let seconds = ref 0. in
+                while !seconds < 2. do
+                  Media.ahead m !seconds;
+                  seconds := !seconds +. 0.05
+                done;
+                samples
+            | _ -> Alcotest.fail (path ^ ": not a sound decoded as it plays")
+          in
+          List.iter
+            (fun path ->
+              let whole = whole path and streamed = streamed path in
+              (* the stream is as long as the file says its sound is; decoded
+               * whole, as long as its packets gave: a few hundredths of a
+               * second apart, silent in the stream. And the last samples
+               * are read past the end of what was decoded (a cubic's two
+               * neighbours after, at a rate half ours), which is not the
+               * same end *)
+              let n = min (Array.length whole.left) (Array.length streamed.left) - 8 in
+              Alcotest.(check bool) (path ^ ": as long, to a twentieth of a second") true (abs (Array.length whole.left - Array.length streamed.left) < Signal.rate / 20);
+              Alcotest.(check bool) (path ^ ": the same samples, left and right") true
+                (Array.sub whole.left 0 n = Array.sub streamed.left 0 n && Array.sub whole.right 0 n = Array.sub streamed.right 0 n);
+              Alcotest.(check bool) (path ^ ": silent past what was decoded") true
+                (let from = min (n + 16) (Array.length streamed.left) in
+                 Array.for_all (fun v -> v = 0.) (Array.sub streamed.left from (Array.length streamed.left - from))))
+            [ "../video/data/sound.ogg"; "../audio/data/stereo.ogg"; "../audio/data/bell.ogg"; "../audio/data/music.opus"; "../audio/data/speech.opus" ]);
+      Testo.create "Audio_queue: a script's sounds mixed at their time" (fun () ->
+          let block () : Signal.stereo =
+            let out : Signal.stereo = { left = Array.make 4 0.1; right = Array.make 4 0. } in
+            Audio_queue.mix out;
+            out
+          in
+          let t0 = Audio_queue.now () in
+          let sample = 1. /. float_of_int Signal.rate in
+          (* two samples, to start six samples from now: across two blocks of four; and one at once *)
+          Audio_queue.play ~at:(t0 +. (6. *. sample)) ~rate:Signal.rate [| 0.5; 0.25 |] [| -0.5; -0.25 |];
+          Audio_queue.play ~at:0. ~rate:Signal.rate [| 1. |] [| 1. |];
+          let a = block () in
+          let b = block () in
+          let c = block () in
+          Alcotest.(check (list (float 1e-9))) "the first block: the one due now, added to what was there" [ 1.1; 0.1; 0.1; 0.1 ] (Array.to_list a.left);
+          Alcotest.(check (list (float 1e-9))) "the second: the other, at its place" [ 0.1; 0.1; 0.6; 0.35 ] (Array.to_list b.left);
+          Alcotest.(check (list (float 1e-9))) "its right channel" [ 0.; 0.; -0.5; -0.25 ] (Array.to_list b.right);
+          Alcotest.(check (list (float 1e-9))) "then nothing more" [ 0.1; 0.1; 0.1; 0.1 ] (Array.to_list c.left);
+          Alcotest.(check (float 1e-9)) "the clock moved by what was played" (12. *. sample) (Audio_queue.now () -. t0));
       Testo.create "about:tube: every file of it opens, as what it says" (fun () ->
           let kinds =
             List.map

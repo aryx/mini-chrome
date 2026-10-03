@@ -184,3 +184,39 @@ val protect : t -> (unit -> Js_value.value) -> (Js_value.value, error) result
 
 (* the names a pattern binds: [a, {b}] binds a and b *)
 val names_of : Js_ast.pattern -> string list
+
+(*****************************************************************************)
+(* {1 What the compiler asks} *)
+(*****************************************************************************)
+
+(* Js_compile's, which is after this one: a function's body made
+ * closures, calling back here for what it does not compile and for
+ * what a value is asked (a property, a call). In a run: these throw. *)
+
+(* how a statement ended *)
+type outcome = Normal | Return of Js_value.value | Break of string option | Continue of string option
+
+(* an expression's value, a statement's effect, in a scope and with a this *)
+val eval_expr : t -> Js_value.scope -> Js_value.value -> Js_ast.expr -> Js_value.value
+val exec : ?labels:string list -> t -> Js_value.scope -> Js_value.value -> Js_ast.stmt -> outcome
+
+(* a statement begun: its line kept for an error, a step of the budget taken *)
+val step : t -> int -> unit
+
+(* a block's function declarations made, first; whether a block
+ * declares a name of its own, and so needs a scope *)
+val declare_functions : Js_value.scope -> Js_value.value -> Js_ast.stmt list -> unit
+val declares : Js_ast.stmt list -> bool
+
+(* o.k = v; o[k] and o[k] = v, k a value; target = v, any target; a
+ * function's value, made in a scope; "o.m", what an error names *)
+val put : t -> Js_value.value -> string -> Js_value.value -> unit
+val item : t -> Js_value.value -> Js_value.value -> Js_value.value
+val put_item : t -> Js_value.value -> Js_value.value -> Js_value.value -> unit
+val assign : t -> Js_value.scope -> Js_value.value -> Js_ast.expr -> Js_value.value -> unit
+val closure : Js_value.scope -> Js_value.value -> Js_ast.func -> Js_value.value
+val describe : Js_ast.expr -> string
+
+(* who compiles a function's body: set by Js_compile, read at a
+ * function's first call when Mini_opti.compiled *)
+val compiler : (t -> Js_ast.func -> Js_value.scope -> Js_value.value -> Js_value.value) option ref

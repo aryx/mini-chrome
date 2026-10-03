@@ -66,7 +66,11 @@ val kind_name : kind -> string
 val sniff : name:string -> string -> kind option
 
 type media =
-  | Sound of { samples : Signal.stereo; notes : Midi.note list (* none for a recording *) }
+  | Sound of {
+      samples : Signal.stereo;
+      notes : Midi.note list; (* none for a recording *)
+      stream : Sound_stream.t option; (* an Ogg file's: decoded as it plays, [samples] silent past it *)
+    }
   | Module of Mod.song
   | Picture of Rgba_image.t
   | Movie of {
@@ -78,6 +82,10 @@ type media =
 
 (* [open_ ~name bytes]: what it is and what it holds, or why not *)
 val open_ : name:string -> string -> (kind * media, string) result
+
+(* a sound decoded as it plays (an Ogg file's Vorbis or Opus:
+ * Sound_stream) decoded to [seconds] at least; nothing for the others *)
+val ahead : media -> float -> unit
 
 (* how long a sound or a movie lasts, in seconds; None for the others *)
 val duration : media -> float option

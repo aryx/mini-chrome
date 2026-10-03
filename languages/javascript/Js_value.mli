@@ -110,6 +110,10 @@ and binding = { mutable value : value; constant : bool }
  * usually an error object *)
 exception Throw of value
 
+(* opti: a function's body compiled: given the call's frame and its
+ * this, what the call returns (Js_compile makes it, Js_eval calls it) *)
+type Js_ast.code += Code of (scope -> value -> value)
+
 (*****************************************************************************)
 (* {1 Objects} *)
 (*****************************************************************************)

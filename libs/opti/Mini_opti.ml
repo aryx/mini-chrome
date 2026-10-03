@@ -11,6 +11,7 @@
 (* See Mini_opti.mli *)
 
 let enabled = ref true
+let compiled = ref true
 
 type letters = Segments | Pictures
 

@@ -1,6 +1,6 @@
 (* How fast the JavaScript engine is: small loops, and a real program.
 
-     Js_bench.exe [page.html [frames]] [opti=off] [loops=off]
+     Js_bench.exe [page.html [frames]] [opti=off] [compile=off] [loops=off]
 
    The loops, each a script of its own, timed:
 
@@ -24,5 +24,7 @@
    engine must run sixty times a second.
 
    loops=off runs the page alone (under a profiler: valgrind
-   --tool=callgrind, then callgrind_annotate). opti=off runs the simple code paths (Mini_opti): what an
+   --tool=callgrind, then callgrind_annotate). compile=off keeps the
+   evaluator (Js_eval) where a function's body would be compiled
+   (Js_compile); opti=off runs the simple code paths (Mini_opti): what an
    optimization of the engine buys is the two runs compared. *)

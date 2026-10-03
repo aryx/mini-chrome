@@ -74,6 +74,17 @@ let tests =
           Browser_script.advance t 5.;
           check "failed, a moment later" "failed" t "said";
           check "an empty picture" "data:," t "url");
+      Testo.create "AudioContext: a buffer of samples started at a time" (fun () ->
+          let played = ref [] and before = !AudioContext.output in
+          AudioContext.output := { now = (fun () -> 1.5); play = (fun ~at ~rate left right -> played := (at, rate, Array.to_list left, Array.to_list right) :: !played) };
+          Fun.protect ~finally:(fun () -> AudioContext.output := before) @@ fun () ->
+          let t =
+            page
+              "<script>var ctx = new AudioContext(), b = ctx.createBuffer(2, 3, 44100);\nvar l = b.getChannelData(0), r = b.getChannelData(1);\nfor (var i = 0; i < 3; i++) { l[i] = i / 4; r[i] = -i / 4 }\nvar s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(ctx.currentTime + 0.25);\nvar mono = ctx.createBuffer(1, 2, 22050); mono.getChannelData(0)[1] = 1; var m = ctx.createBufferSource(); m.buffer = mono; m.start()</script>"
+          in
+          check "running, and the clock is the sound's" "[\"running\", 1.5, 3]" t "[ctx.state, ctx.currentTime, b.length]";
+          Alcotest.(check bool) "two channels at their time; one channel in both ears, now" true
+            (List.rev !played = [ (1.75, 44100, [ 0.; 0.25; 0.5 ], [ 0.; -0.25; -0.5 ]); (0., 22050, [ 0.; 1. ], [ 0.; 1. ]) ]));
       Testo.create "Svg_shapes: the Playground's shapes read back" (fun () ->
           let shapes inside = Svg_shapes.shapes ~picture_of:(fun _ -> None) (svg inside) ~width:400. ~height:200. in
           let open Playground in

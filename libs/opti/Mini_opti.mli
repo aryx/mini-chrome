@@ -50,10 +50,21 @@
      (Js_frame.opti, where Js_frame.simple declares name by name). With
      Js_operators.arithmetic and Js_eval.item (two numbers, an array's
      item, with no conversion): the engine four times faster. In
-     Js_scope.mli; tests/js is run on both. *)
+     Js_scope.mli; tests/js is run on both.
+   - Js_eval.call_value, with [compiled]: a function's body compiled to
+     closures when first called (Js_compile), not walked at each call:
+     a quarter more on a real program. In Js_compile.mli.
+   - Media.open_: an Ogg file's sound decoded as it plays
+     (Sound_stream), not whole when the file is opened. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref
+
+(* with [enabled]: a JavaScript function's body compiled to closures
+ * when it is first called (Js_compile), rather than its tree walked
+ * at each call (Js_eval), which false keeps, with the rest of the
+ * optimizations: what the compiler alone buys *)
+val compiled : bool ref
 
 (* how a letter of the page is drawn, where there are several
  * ways to set against each other (docs/plans/plan_performance.md, step 4b);

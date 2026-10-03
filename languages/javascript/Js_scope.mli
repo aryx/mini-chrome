@@ -159,6 +159,10 @@ val lookup : scope -> string -> binding option
  * was last found (the place is written when it is not there) *)
 val find : scope -> string -> Js_ast.place -> binding option
 
+(* [find] for a scope of the fast kind, with no option made: [nothing]
+ * itself (==) when the name is nowhere *)
+val at : scope -> string -> Js_ast.place -> binding
+
 (* a for's next iteration: the same names in new bindings, holding the
  * same values *)
 val copy : scope -> scope

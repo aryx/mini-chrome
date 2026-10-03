@@ -56,6 +56,13 @@
  * by the comparison of any two values) *)
 module Names : Hashtbl.S with type key = string
 
+(* opti: a function's body compiled (Js_compile), kept with the
+ * function it is of. What it is made of is said later (Js_value:
+ * functions over scopes and values, which are not known here), so the
+ * type is open; No_code until the function is first called *)
+type code = ..
+type code += No_code
+
 (* opti: where a name was found the last time it was looked for: how
  * many scopes up, and which slot there (Js_scope.find, which tells the
  * story: an inline cache); -1 scopes up is "not looked for yet". Not
@@ -144,9 +151,11 @@ and func = {
  * of it declares, in the order of their slots (arguments, the var's,
  * the parameters), and their index when they are many; each
  * parameter's slot; whether the parameters are
- * plain names (no default, no pattern); and where the function's own
- * name was found outside it (Js_frame) *)
-and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place }
+ * plain names (no default, no pattern); where the function's own
+ * name was found outside it; whether its text says arguments (a call
+ * makes that array only then); and its body compiled, once it has
+ * been called (Js_frame, Js_compile) *)
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place; arguments : bool; mutable code : code }
 
 (* a property of an object literal: its key and its value ("k" alone is
  * k: k; m() { } is m: function () { }), a getter or a setter (a

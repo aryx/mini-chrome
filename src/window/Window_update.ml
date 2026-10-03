@@ -20,7 +20,7 @@ let resolve = Browser_url.resolve
  * that are not a flag's name -- an address or words to search, as
  * typed in the omnibox (the Playground cuts a word at its first =: put
  * back, for an address with a query) *)
-let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf" ]
+let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js" ]
 
 let first_pages (engine : string) (flags : flags) : string list =
   let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in
@@ -162,6 +162,8 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m :
    * moves the page, and by Escape *)
   let m = match msg with Wheel _ | Resized _ | Key ("Escape" | "escape") -> { m with menu = None } | _ -> m in
   Browser_media.install ();
+  (* a script's sound (AudioContext) goes where the players' does *)
+  AudioContext.output := { now = Audio_queue.now; play = Audio_queue.play };
   match msg with
   | Got (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
   | Got_picture (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_picture cfg network url r tab)
