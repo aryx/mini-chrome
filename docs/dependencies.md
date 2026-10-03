@@ -104,8 +104,8 @@ which is why `libs/images` is wrapped.
 | `conf-openssl` (tests only) | the `openssl` program: the TLS server `tests/network_unix` talks to |
 | `tsdl`, `cairo2`, `ctypes` | not ours: what the Playground's platforms bind SDL and Cairo with |
 
-Versions: OCaml 4.14 or 5; elm-playground after 0.3.4 (Brotli a
-library apart there). `configure`'s pin and `dune-project`'s bound
+Versions: OCaml 4.14 or 5; elm-playground after 0.3.5 (Brotli a
+library apart there since 0.3.4; `set_cursor` after 0.3.5). `configure`'s pin and `dune-project`'s bound
 still say 0.3.1: both are behind, and a fresh checkout does not build
 until they are raised to a release that has it.
 

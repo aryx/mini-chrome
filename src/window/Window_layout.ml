@@ -104,6 +104,12 @@ let pointed_control (m : model) : Dom.element option =
   | Shown p, Some (x, y) -> ( match Hit.fragment_at p.layout ~x ~y with Some { control = Some c; _ } -> Some c.element | _ -> None)
   | _ -> None
 
+(* a control that is typed in *)
+let is_text_control (e : Dom.element) : bool =
+  e.name = "textarea"
+  || e.name = "input"
+     && List.mem (String.lowercase_ascii (Option.value ~default:"text" (Dom.attribute "type" e))) [ "text"; "search"; "email"; "url"; "password"; "tel"; "number"; "" ]
+
 (* the chrome's pieces (libs/gui), built from the model: the
  * toolbar's buttons, the strip of tabs *)
 let buttons (m : model) : Gui_toolbar.t =
@@ -127,3 +133,13 @@ let panel_button (m : model) : string option =
   else if near (left m +. 90.) (panel_header_y m) 60. 16. m then Some "Elements"
   else if near (left m +. 170.) (panel_header_y m) 60. 16. m then Some "Network"
   else None
+
+(* the mouse's cursor for what is under it, as Chrome's: a hand over a
+ * link, the I-beam where text is typed (the omnibox, a page's field),
+ * the arrow elsewhere -- and over the right click's menu, whatever is
+ * under it *)
+let cursor_of (m : model) : Playground.cursor =
+  if m.menu <> None then Arrow
+  else if on_omnibox m then Text
+  else if hovered m <> None then Hand
+  else match pointed_control m with Some e when is_text_control e -> Text | _ -> Arrow

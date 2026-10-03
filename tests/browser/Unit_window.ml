@@ -25,9 +25,37 @@ let window caps (url : string) : Window_model.model =
   let m = after caps (Window_update.init caps (Browser_profile.empty, None) ~desktop:1. ~window:(800, 600) [ ("url", url); ("threads", "off") ]) in
   List.fold_left (fun m t -> tick caps (float_of_int t) m) m [ 1; 2; 3 ]
 
+(* the cursors met with the pointer put all over the page's area, and all over the chrome above it *)
+let cursors (m : Window_model.model) ~(page : bool) : Playground.cursor list =
+  let top = Window_layout.area_top m in
+  let found = ref [] in
+  let w = Window_layout.width m and h = Window_layout.height m in
+  for ix = 1 to int_of_float (w /. 8.) - 1 do
+    for iy = 1 to int_of_float (h /. 6.) - 1 do
+      let x = (float_of_int ix *. 8.) -. (w /. 2.) and y = (float_of_int iy *. 6.) -. (h /. 2.) in
+      if (y < top -. 4.) = page then (
+        let c = Window_layout.cursor_of { m with mouse = (x, y) } in
+        if not (List.mem c !found) then found := c :: !found)
+    done
+  done;
+  List.sort compare !found
+
 let tests caps =
   Testo.categorize "Window"
     [
+      Testo.create "the cursor: a hand over a link, the I-beam where text is typed, the arrow elsewhere" (fun () ->
+          let home = window caps "about:home" and form = window caps "about:form" in
+          Alcotest.(check bool) "a page of links: the arrow and the hand" true (cursors home ~page:true = [ Playground.Arrow; Hand ]);
+          Alcotest.(check bool) "a form: its text fields too" true (List.mem Playground.Text (cursors form ~page:true) && List.mem Playground.Arrow (cursors form ~page:true));
+          let name (c : Playground.cursor) = match c with Arrow -> "arrow" | Hand -> "hand" | Text -> "text" | Crosshair -> "crosshair" | Hidden -> "hidden" in
+          Alcotest.(check (list string)) "the chrome: the I-beam over the omnibox, the arrow over the rest" [ "arrow"; "text" ] (List.map name (cursors home ~page:false));
+          (* a menu open: the arrow, whatever is under it *)
+          let menu : Browser_menu.action Gui_menu.t option = Some { at = (0., 0.); left = 0.; top = 0.; items = [] } in
+          Alcotest.(check bool) "under the right click's menu" true (cursors { home with menu } ~page:true = [ Playground.Arrow ]);
+          Alcotest.(check bool) "a field that is typed in, one that is not" true
+            (let el name attributes : Dom.element = { name; attributes; extensions = []; origin = Core; children = [] } in
+             Window_layout.is_text_control (el "input" []) && Window_layout.is_text_control (el "textarea" []) && Window_layout.is_text_control (el "input" [ ("type", "Search") ])
+             && (not (Window_layout.is_text_control (el "input" [ ("type", "checkbox") ]))) && not (Window_layout.is_text_control (el "button" []))));
       Testo.create "the view of a window at rest is the list of the frame before; opti=off, a new one" (fun () ->
           let m = window caps "about:history" in
           Alcotest.(check bool) "the page is shown" false (Window_layout.loading (Window_layout.current_tab m));

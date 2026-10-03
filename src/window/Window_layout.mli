@@ -102,3 +102,14 @@ val on_omnibox : model -> bool
 
 (* the panel's header: "Inspect", "Elements", "Network" *)
 val panel_button : model -> string option
+
+(* whether a form's control is one that is typed in: a textarea, an
+ * input of text, search, email, url, password, tel, number, or of no
+ * type said *)
+val is_text_control : Dom.element -> bool
+
+(* the mouse's cursor for what is under it: a hand over a link, the
+ * I-beam over the omnibox and a page's text field, the arrow elsewhere
+ * and while the right click's menu is open. The main gives it to the
+ * platform after each message (Playground_platform.set_cursor) *)
+val cursor_of : model -> Playground.cursor

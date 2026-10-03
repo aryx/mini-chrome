@@ -182,7 +182,9 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
     update =
       (fun msg m ->
         let m, cmd = Window_update.update caps msg m in
-        (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> ());
+        (* the cursor follows what is under the pointer, after anything that may have changed it:
+         * the pointer moved, the page scrolled or came (asking for the one shown costs nothing) *)
+        (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
         unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
         (m, cmd));
     view = Window_view.view;

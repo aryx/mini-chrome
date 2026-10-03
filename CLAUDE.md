@@ -113,6 +113,13 @@ its fields), not in a mutable thing beside it; and a new field of the
 model is named in `Window_view.same_but_time`. What moves by itself
 (a loading tab's wheel, a player) is `Window_view.animated`'s.
 
+The mouse's cursor is a function of the model too
+(`Window_layout.cursor_of`: a hand over a link, the I-beam where text
+is typed, the arrow elsewhere), handed to the platform by the main
+after each message that is not a `Tick`
+(`Playground_platform.set_cursor`, elm-playground after 0.3.5; SDL's
+dummy driver has no cursor, so a dump shows none: it needs eyes).
+
 Ctrl+Q quits: the Playground's key (its window's `platform_keys = false`
 would give the program every key; not used here). That is
 elm-playground after 0.3.1; in 0.3.1 it was a plain `q`, which no
