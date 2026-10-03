@@ -120,23 +120,6 @@ let dispatch (t : t) (target : node) (typ : string) (fields : (string * value) l
 let node_of_element (t : t) (e : Dom.element) : node option = List.find_map (fun (e', n) -> if e' == e then Some n else None) t.frozen
 
 (*****************************************************************************)
-(* Timers *)
-(*****************************************************************************)
-
-let add_timer (t : t) (args : value list) ~(repeat : bool) : value =
-  let f = arg args 0 in
-  (* 1 ms at least: a setInterval(f, 0) must let the clock move *)
-  let ms = Float.max 1. (match arg args 1 with Undefined -> 0. | v -> to_number v) in
-  t.next_timer <- t.next_timer + 1;
-  t.timers <- t.timers @ [ { tid = t.next_timer; due = t.now +. ms; every = (if repeat then Some ms else None); fn = f } ];
-  Number (float_of_int t.next_timer)
-
-let clear_timer (t : t) (args : value list) : value =
-  let id = int_of_float (to_number (arg args 0)) in
-  t.timers <- List.filter (fun tm -> tm.tid <> id) t.timers;
-  Undefined
-
-(*****************************************************************************)
 (* Entry points *)
 (*****************************************************************************)
 
@@ -162,13 +145,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let (_ : value) = Script_window.install t ~viewport (Js_eval.define engine) in
   Script_events.install (Js_eval.define engine);
   Js_eval.define engine "document" (Script_document.document t);
-  define "setTimeout" (fun args -> add_timer t args ~repeat:false);
-  define "setInterval" (fun args -> add_timer t args ~repeat:true);
-  define "clearTimeout" (clear_timer t);
-  define "clearInterval" (clear_timer t);
-  (* the next frame: a timer of a sixtieth of a second *)
-  define "requestAnimationFrame" (fun args -> add_timer t [ arg args 0; Number 16. ] ~repeat:false);
-  define "cancelAnimationFrame" (clear_timer t);
+  Event_loop.install t define;
   define "alert" (fun args -> t.alerts <- str (arg args 0) :: t.alerts; Undefined);
   Js_eval.define engine "location" (location t);
   Js_eval.define engine "navigator"
@@ -346,22 +323,8 @@ let set_attribute (t : t) (e : Dom.element) (name : string) (value : string opti
       touch t
   | None -> ()
 
-let advance (t : t) (ms : float) : unit =
-  t.now <- t.now +. ms;
-  (* the timers due, the earliest first, each a task; an interval put
-   * back at its next time; a thousand at most, so that a page cannot
-   * keep the browser here *)
-  let rec go (runs : int) =
-    match List.sort (fun a b -> compare (a.due, a.tid) (b.due, b.tid)) (List.filter (fun tm -> tm.due <= t.now) t.timers) with
-    | tm :: _ when runs < 1000 ->
-        (match tm.every with
-        | Some every -> tm.due <- tm.due +. every
-        | None -> t.timers <- List.filter (fun x -> x.tid <> tm.tid) t.timers);
-        ignore (run_handler t tm.fn ~this:Undefined Undefined);
-        go (runs + 1)
-    | _ -> ()
-  in
-  go 0
+(* the loop's turn for the timers (Event_loop): each one due is a task *)
+let advance (t : t) (ms : float) : unit = Event_loop.advance t ms ~task:(fun f -> ignore (run_handler t f ~this:Undefined Undefined))
 
 (* a request's answer, given to the script that asked: a task of its
  * own (its promises' thens run after it) *)

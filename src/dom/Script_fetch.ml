@@ -13,10 +13,7 @@ open Js_value
 open Script_types
 open Script_host
 
-let origin (url : string) : string = List.assoc "origin" (url_parts url)
-
-let header (a : answer) (name : string) : string option =
-  List.find_map (fun (k, v) -> if String.lowercase_ascii k = String.lowercase_ascii name then Some v else None) a.headers
+let header (a : answer) (name : string) : string option = Cors.header a.headers name
 
 (*****************************************************************************)
 (* The request out, the answer back *)
@@ -36,12 +33,6 @@ let ask ?(cors = true) (t : t) ~(meth : string) ~(url : string) ~(post : (string
 
 let forget (t : t) (rid : int) : unit = t.waiting <- List.remove_assoc rid t.waiting
 
-(* whether the page may read an answer: its own origin's, or one that
- * says so (CORS) *)
-let readable (t : t) (a : answer) : bool =
-  origin a.final = origin t.base
-  || match header a "Access-Control-Allow-Origin" with Some allowed -> allowed = "*" || allowed = origin t.base | None -> false
-
 let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
   match List.assoc_opt rid t.waiting with
   | None -> ()
@@ -49,8 +40,9 @@ let answer (t : t) (rid : int) (result : (answer, string) result) : unit =
       forget t rid;
       k
         (match result with
-        | Ok a when (not (List.mem rid t.exempt)) && not (readable t a) ->
-            let why = Printf.sprintf "%s has been blocked by CORS policy: no Access-Control-Allow-Origin header for %s" a.final (origin t.base) in
+        (* an answer the page may not read (Cors) is no answer *)
+        | Ok a when (not (List.mem rid t.exempt)) && not (Cors.readable ~page:t.base ~url:a.final a.headers) ->
+            let why = Cors.blocked ~page:t.base ~url:a.final in
             t.console <- why :: t.console;
             t.log why;
             Error why

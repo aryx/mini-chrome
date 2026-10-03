@@ -30,32 +30,12 @@
    (a TypeError, as browsers say it) only when there is no answer: no
    network, or one the page may not read.
 
-   **Who may read what.** A request carries the user's cookies
-   (Cookie_jar). Were any page's script free to read any answer, a
-   page could ask the reader's bank for their account and send it
-   home. Netscape saw it the year scripts arrived (Navigator 2, 1995):
-   a script reads only what comes from its own *origin* -- the same
-   scheme, host and port as its page -- the same-origin policy, the
-   one rule the web's security stands on.
-
-   cs-history:
-   It was too strict for pages that had a good reason to ask another
-   site (a map, a font, an API), and for ten years they went around it:
-   a <script> element may come from anywhere, so a server wrapped its
-   data in a call to a function of the page ("JSONP", Bob Ippolito,
-   2005), giving that server the run of the page. The remedy lets the
-   *other* site decide: CORS, Cross-Origin Resource Sharing (a W3C
-   draft from 2006, in browsers from 2009, a Recommendation in 2014).
-   An answer of another origin is the script's to read only if it
-   carries "Access-Control-Allow-Origin: *" or the page's own origin.
-   Else the script is told the request failed, and nothing of the
-   answer -- the request was sent all the same: CORS protects what is
-   read, not what is asked.
-
-   Here that one check is all of CORS: no "preflight" (the OPTIONS
-   request a browser sends first, to ask whether a POST of JSON or a
-   DELETE may be sent at all), no distinction of requests with
-   credentials (for which "*" is not enough).
+   **Who may read what.** An answer of another site is given to the
+   script only if that site allows it: the same-origin policy and
+   CORS, told in Cors.mli. [answer] asks [Cors.readable]; an answer
+   that is not is a failure to the script, and said on the console.
+   One check is all of it here: no preflight, no distinction of
+   requests with credentials.
 
    GET and POST only (what the browser's Fetch sends); a script's own
    request headers are not sent, but a POST's Content-Type.
@@ -67,10 +47,8 @@
    does -- a page's, a picture's, a script's -- was at last written in
    one place.
 
-   Reference: the Fetch Standard (fetch.spec.whatwg.org), sections 3.2
-   (CORS), 5 (the fetch method). RFC 6454, "The Web Origin Concept"
-   (Barth, 2011). Michal Zalewski, "The Tangled Web" (2011), chapter 9,
-   on the same-origin policy and its holes. *)
+   Reference: the Fetch Standard (fetch.spec.whatwg.org), section 5
+   (the fetch method). *)
 
 open Js_value
 open Script_types
@@ -89,9 +67,6 @@ val forget : t -> int -> unit
  * asked, if the page may read it. To be called in a task of the
  * engine's (Browser_script.answer) *)
 val answer : t -> int -> (answer, string) result -> unit
-
-(* a URL's origin: "https://example.com", "http://localhost:8000" *)
-val origin : string -> string
 
 (* a header's value, whatever its name's case *)
 val header : answer -> string -> string option

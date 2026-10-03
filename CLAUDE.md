@@ -260,6 +260,8 @@ The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
 objects (`Script_host`; `Script_element`, `Script_events`,
 `Script_document` and `Script_window` for what libraries ask;
+`Cors` for who may read an answer, `LocalStorage`, `Event_loop` for
+the timers and the order things run in,
 `WebSocket` for a socket that stays open (its asks and what the
 connection says go the same way: `take_socket_asks`, the program's
 `Web_sockets` in the `Fetch.t`, stepped each frame, `Got_socket`);

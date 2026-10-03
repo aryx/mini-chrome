@@ -36,7 +36,7 @@
      MutationObserver, ResizeObserver, IntersectionObserver
          can be made and told to observe; are never called back
      localStorage, sessionStorage
-         kept as long as the page is, not after
+         kept as long as the page is, not after (LocalStorage.mli)
      matchMedia(query)       never matches
      history.pushState       the address does not change
      performance.now()       the page's clock

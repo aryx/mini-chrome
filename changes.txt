@@ -118,6 +118,13 @@
 - scripts/perf: Page_bench.exe (a page's stages timed) and
   load_timeline.sh (the real program's load in time)
 
+** Internals
+- famous names given modules of their own, each with its story in its
+  interface: Omnibox (src/chrome), Cors (the same-origin policy and
+  the header that opens it; its origin now leaves out a scheme's own
+  port), LocalStorage, Event_loop (the timers, and the order tasks and
+  microtasks run in), Bfcache (the page kept with its history entry)
+
 ** Features
 - the omnibox is a module of its own (src/chrome/Omnibox: its keys,
   clicks and drags, what is typed made an address or a search, its

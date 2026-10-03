@@ -75,9 +75,9 @@ type kind = Document | Sheet | Script | Picture | Media | Fetch (* Media: a <vid
 type request = { url : string; kind : kind; status : int option; bytes : int }
 type view = Page | Source
 
-(* a page in the history: where, and itself if it is kept (with its
- * scripts' world), and how far down it was *)
-type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int; document : Pdf_viewer.t option }
+(* a page in the history: where, and itself if it was shown, kept
+ * whole to come back to (Bfcache) *)
+type entry = { at : string; kept : Bfcache.t option }
 
 type t = {
   state : state;

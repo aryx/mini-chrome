@@ -12,7 +12,7 @@
 
 type state = Loading of string | Shown of Browser_page.t
 type view = Page | Source
-type entry = { at : string; kept : (Browser_page.t * Browser_script.t option) option; scrolled_to : int; document : Pdf_viewer.t option }
+type entry = { at : string; kept : Bfcache.t option }
 
 type kind = Document | Sheet | Script | Picture | Media | Fetch
 type request = { url : string; kind : kind; status : int option; bytes : int }
@@ -342,8 +342,8 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
 
 let entry_of (tab : t) : entry =
   match tab.state with
-  | Shown p -> { at = p.url; kept = Some (p, tab.script); scrolled_to = tab.scroll; document = tab.pdf }
-  | Loading url -> { at = url; kept = None; scrolled_to = 0; document = None }
+  | Shown p -> { at = p.url; kept = Some { page = p; script = tab.script; document = tab.pdf; scroll = tab.scroll } }
+  | Loading url -> { at = url; kept = None }
 
 let visit ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
   let target, fragment = Browser_url.split_fragment url in
@@ -391,8 +391,8 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
 
 let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (tab : t) : t * 'msg Cmd.t =
   match e.kept with
-  | Some (p, script) ->
-      with_pictures cfg network (scrolled cfg 0 { (relaid cfg { tab with state = Shown p; script; pdf = e.document }) with scroll = e.scrolled_to }, Cmd.none)
+  (* kept whole: shown at once, as it was *)
+  | Some k -> with_pictures cfg network (scrolled cfg 0 { (relaid cfg { tab with state = Shown k.page; script = k.script; pdf = k.document }) with scroll = k.scroll }, Cmd.none)
   | None -> load cfg network e.at tab
 
 let back cfg network tab =

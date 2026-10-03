@@ -80,7 +80,8 @@
    place. An error goes to the console (its line and message) and the
    next script still runs, as in every browser.
 
-   **Events** (notes_javascript.md section 10). The browser runs one
+   **Events** (notes_javascript.md section 10; Event_loop.mli tells
+   the loop and the timers). The browser runs one
    thing at a time, a **task**: the page's scripts at load, one event's
    handlers, one timer's function, each run to its end (a script is
    never interrupted: while it runs, the page does not move); then, if
@@ -185,7 +186,8 @@ val input : t -> Dom.element -> string -> unit
 val set_attribute : t -> Dom.element -> string -> string option -> unit
 
 (* the page's clock moved on by [ms]: the timers due run, the earliest
- * first, each a task (a thousand at most per call) *)
+ * first, each a task (a thousand at most per call): the event loop's
+ * turn for them (Event_loop.mli) *)
 val advance : t -> float -> unit
 
 (* the GETs XMLHttpRequest and fetch queued since the last call, the

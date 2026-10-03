@@ -128,6 +128,37 @@ let tests =
               history.pushState({}, "", "/x");
               [localStorage.getItem("k"), localStorage.getItem("nope"), localStorage.length, sessionStorage.length, matchMedia("(min-width: 1px)").matches, typeof performance.now(), typeof requestAnimationFrame]|}
             {|["1", null, 2, 0, false, "number", "function"]|});
+      Testo.create "Event_loop, the worked example: a task, its microtasks, then the next task" (fun () ->
+          let t = Browser_script.create ~base:"http://site.test/" (Html_tree.of_string "<body></body>") in
+          let seen () = match Browser_script.eval t "seen.join(' ')" with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in
+          ignore (Browser_script.eval t {|var seen = []; seen.push(1); setTimeout(() => seen.push(4), 0); Promise.resolve().then(() => seen.push(3)); seen.push(2)|});
+          Alcotest.(check string) "the script to its end, then the promise's then; the timer is another task" "1 2 3" (seen ());
+          Browser_script.advance t 1.;
+          Alcotest.(check string) "the clock moved: the timer's turn" "1 2 3 4" (seen ());
+          (* timers in the order they are due, an interval again and again, one cleared never *)
+          ignore (Browser_script.eval t {|seen = []; setTimeout(() => seen.push("b"), 20); setTimeout(() => seen.push("a"), 10); const never = setTimeout(() => seen.push("x"), 15); clearTimeout(never);
+                                           let n = 0; const every = setInterval(() => { seen.push("i" + ++n); if (n == 3) clearInterval(every) }, 10); requestAnimationFrame(() => seen.push("frame"))|});
+          Browser_script.advance t 5.;
+          Alcotest.(check string) "nothing due yet" "" (seen ());
+          Browser_script.advance t 50.;
+          Alcotest.(check string) "by their times, then by the order they were set" "a i1 frame b i2 i3" (seen ());
+          (* a timer's own microtasks run before the next timer *)
+          ignore (Browser_script.eval t {|seen = []; setTimeout(() => { seen.push("t1"); Promise.resolve().then(() => seen.push("m1")) }, 1); setTimeout(() => seen.push("t2"), 1)|});
+          Browser_script.advance t 5.;
+          Alcotest.(check string) "each task's microtasks before the next task" "t1 m1 t2" (seen ()));
+      Testo.create "LocalStorage, the worked example: names and strings" (fun () ->
+          let t = Browser_script.create ~base:"http://site.test/" (Html_tree.of_string "<body></body>") in
+          let ask s = match Browser_script.eval t s with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in
+          Alcotest.(check string) "set, got, as a property, counted, by its place"
+            {|["dark", null, "dark", 1, "theme"]|}
+            (ask {|localStorage.setItem("theme", "dark"); [localStorage.getItem("theme"), localStorage.getItem("nope"), localStorage.theme, localStorage.length, localStorage.key(0)]|});
+          Alcotest.(check string) "strings only: a number, an object"
+            {|["1", "[object Object]", "{\"a\":1}"]|}
+            (ask {|localStorage.setItem("n", 1); localStorage.o = {a: 1}; localStorage.j = JSON.stringify({a: 1}); [localStorage.n, localStorage.getItem("o"), localStorage.j]|});
+          Alcotest.(check string) "set again: its value changed, its place kept; removed; cleared"
+            {|["light", "theme", 3, 0, undefined]|}
+            (ask {|localStorage.setItem("theme", "light"); const a = [localStorage.theme, localStorage.key(0)]; localStorage.removeItem("n"); a.push(localStorage.length); localStorage.clear(); a.push(localStorage.length, localStorage.theme); a|});
+          Alcotest.(check string) "sessionStorage: a store of its own" {|[null, "s"]|} (ask {|localStorage.setItem("only", "l"); sessionStorage.setItem("only", "s"); localStorage.clear(); [localStorage.getItem("only"), sessionStorage.getItem("only")]|}));
       Testo.create "a script sends the page elsewhere" (fun () ->
           let t = Browser_script.create ~base:"http://site.test/a/page.html?q=1#top" (Html_tree.of_string "<body></body>") in
           let ask s = match Browser_script.eval t s with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in

@@ -69,7 +69,7 @@ let make (t : t) (o : obj) (url : string) : unit =
     | Opened ->
         set "readyState" (Number 1.);
         fire "open" []
-    | Message data -> fire "message" [ ("data", String data); ("origin", String (Script_fetch.origin url)) ]
+    | Message data -> fire "message" [ ("data", String data); ("origin", String (Cors.origin url)) ]
     | Failed _ -> fire "error" []
     | Closed { code; reason; clean } ->
         set "readyState" (Number 3.);
@@ -77,7 +77,7 @@ let make (t : t) (o : obj) (url : string) : unit =
         fire "close" [ ("code", Number (float_of_int code)); ("reason", String reason); ("wasClean", Bool clean) ]
   in
   t.sockets <- (id, told) :: t.sockets;
-  ask (Socket_open (id, url, Script_fetch.origin t.base))
+  ask (Socket_open (id, url, Cors.origin t.base))
 
 let install (t : t) (define : string -> value -> unit) : unit =
   let c =

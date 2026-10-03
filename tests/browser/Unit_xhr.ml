@@ -133,5 +133,5 @@ let tests =
           Alcotest.(check bool) "and said on the console" true
             (List.exists (fun l -> String.starts_with ~prefix:"http://other.test/private has been blocked by CORS policy" l) (Browser_script.console t));
           Alcotest.(check (list string)) "an origin: the scheme, the host, the port" [ "https://example.com"; "http://localhost:8000"; "http://site.test" ]
-            (List.map Script_fetch.origin [ "https://example.com/a/b?q#h"; "http://localhost:8000/"; "http://site.test" ]));
+            (List.map Cors.origin [ "https://example.com/a/b?q#h"; "http://localhost:8000/"; "http://site.test" ]));
     ]

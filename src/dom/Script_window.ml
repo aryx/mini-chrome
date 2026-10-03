@@ -82,33 +82,11 @@ let observer (name : string) : value =
   let c = fn name (fun _ -> object_of [ nothing "observe"; nothing "unobserve"; nothing "disconnect"; ("takeRecords", fn "takeRecords" (fun _ -> Object (new_array []))) ]) in
   c
 
-(* localStorage: kept as long as the page *)
-let storage () : value =
-  let items : (string * string) list ref = ref [] in
-  let set k v = items := List.remove_assoc k !items @ [ (k, v) ] in
-  host_object
-    {
-      class_name = "Storage";
-      get =
-        (fun k ->
-          match k with
-          | "getItem" -> fn k (fun args -> match List.assoc_opt (str (arg args 0)) !items with Some v -> String v | None -> Null)
-          | "setItem" -> fn k (fun args -> set (str (arg args 0)) (str (arg args 1)); Undefined)
-          | "removeItem" -> fn k (fun args -> items := List.remove_assoc (str (arg args 0)) !items; Undefined)
-          | "clear" -> fn k (fun _ -> items := []; Undefined)
-          | "key" -> fn k (fun args -> match List.nth_opt !items (int_of_float (to_number (arg args 0))) with Some (k, _) -> String k | None -> Null)
-          | "length" -> Number (float_of_int (List.length !items))
-          | k -> ( match List.assoc_opt k !items with Some v -> String v | None -> Undefined));
-      set = (fun k v -> set k (str v));
-      show = (fun () -> "Storage");
-    }
-
 let install (t : t) ~(viewport : float * float) (define : string -> value -> unit) : value =
   install_classes t define;
   define "getComputedStyle" (fn "getComputedStyle" (fun args -> computed_style (node_of t (arg args 0))));
   List.iter (fun name -> define name (observer name)) [ "MutationObserver"; "ResizeObserver"; "IntersectionObserver"; "PerformanceObserver" ];
-  define "localStorage" (storage ());
-  define "sessionStorage" (storage ());
+  LocalStorage.install define;
   define "performance" (object_of [ ("now", fn "now" (fun _ -> Number t.now)); nothing "mark"; nothing "measure"; ("timeOrigin", Number 0.) ]);
   define "matchMedia"
     (fn "matchMedia" (fun args ->
@@ -141,7 +119,7 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "open" (fn "open" (fun _ -> Null));
   define "confirm" (fn "confirm" (fun _ -> Bool true));
   define "prompt" (fn "prompt" (fun _ -> Null));
-  define "origin" (String (Script_fetch.origin t.base));
+  define "origin" (String (Cors.origin t.base));
   define "isSecureContext" (Bool (Browser_url.starts_with "https://" t.base));
   define "name" (String "");
   define "closed" (Bool false);

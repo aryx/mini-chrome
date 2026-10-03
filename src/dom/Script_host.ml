@@ -290,7 +290,7 @@ let url_parts (href : string) : (string * string) list =
   in
   let hostname = match String.index_opt host ':' with Some i -> String.sub host 0 i | None -> host in
   [ ("href", href); ("protocol", protocol); ("host", host); ("hostname", hostname); ("pathname", pathname); ("search", search); ("hash", hash);
-    ("origin", if host = "" then "null" else protocol ^ "//" ^ host) ]
+    ("origin", Cors.origin href) ]
 
 (* an object of a URL's parts; URL's searchParams, and toString *)
 let url_object (href : string) : value =
