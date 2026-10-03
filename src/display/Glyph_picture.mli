@@ -40,7 +40,8 @@
 
    What it costs. A picture is pixels, made for one size on the screen:
    [density], the screen's dots for one unit of the page (the window's
-   scale times the page's zoom), set by the view before any letter of
+   scale times the page's zoom, times the dots a Retina screen has for
+   a point), set by the view before any letter of
    the page is built (Window_view.page_shapes: a line's letters, a list
    item's number, a control's text are all built there, when shown --
    not at the layout, which knows no screen). At another density the letters are other pictures

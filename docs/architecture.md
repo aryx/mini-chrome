@@ -89,7 +89,10 @@ holds the one `Fetch.t` that performs them and steps it on every `Tick`.
 Three sizes of "one", each a multiple of the next:
 
 ```
-   the screen's dots        what the window is measured in (model.window)
+   the screen's dots        what the window is measured in (model.window);
+                            on macOS that is points, and a Retina has
+                            model.dots (2) of its dots for each, which the
+                            Playground draws on: the scale stays 1
      / scale                the desktop's (Gui_scale: Xft.dpi / 96), or the
                             one chosen with Ctrl+Shift + and -
    the program's units      the chrome is laid out in these (model.screen,

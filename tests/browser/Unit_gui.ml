@@ -75,7 +75,11 @@ let tests =
           Alcotest.(check scale) "no Xft.dpi" None (Gui_scale.of_xrdb "Xft.antialias:\t1\n");
           Alcotest.(check scale) "not a number" None (Gui_scale.of_xrdb "Xft.dpi:\tbig\n");
           Alcotest.(check scale) "not believed" None (Gui_scale.of_xrdb "Xft.dpi:\t9600\n");
-          Alcotest.(check scale) "nothing" None (Gui_scale.of_xrdb ""));
+          Alcotest.(check scale) "nothing" None (Gui_scale.of_xrdb "");
+          Alcotest.(check bool) "X's display" false (Gui_scale.of_launchd ":0");
+          Alcotest.(check bool) "a host's" false (Gui_scale.of_launchd "localhost:10.0");
+          Alcotest.(check bool) "launchd's socket: macOS" true
+            (Gui_scale.of_launchd "/var/run/com.apple.launchd.xWCBaDyqgY/org.xquartz:0"));
       Testo.create "Gui_scrollbar, the worked example: the thumb, a drag, the track" (fun () ->
           let thumb = Alcotest.(option (pair number number)) in
           let bar : Gui_scrollbar.t = { right = 500.; top = 250.; height = 600.; total = 300.; shown = 60.; offset = 120. } in

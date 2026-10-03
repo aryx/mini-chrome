@@ -17,6 +17,17 @@
  * (its window is then that many times fewer units wide); a person's
  * own choice, if the program offers one, goes over it.
  *
+ * macOS is not asked. Its window is Cocoa's, not X's, and its size is
+ * in points, which a Retina screen has two dots of: the Playground
+ * asks SDL for those dots and draws each point on them (its platforms'
+ * density), so the program's unit is already the size the desktop's
+ * other programs give it, and 1 is right there. And where XQuartz is installed, DISPLAY is always set,
+ * to a socket launchd listens on, and the first X client to connect to
+ * it starts the X server -- xrdb would, each time the browser starts:
+ *
+ *   DISPLAY=:0                                             X: ask xrdb
+ *   DISPLAY=/var/run/com.apple.launchd.xWCBaDyqgY/org.xquartz:0   no
+ *
  * Asking runs a program, an authority the caller hands down
  * (Cap.forkew: fork, exec and wait), with Cap.env for the display's
  * name. *)
@@ -25,7 +36,12 @@
  * 0.5 and 5) *)
 val of_xrdb : string -> float option
 
+(* a DISPLAY that is launchd's socket (a path), macOS's with XQuartz
+ * installed: connecting to it starts the X server *)
+val of_launchd : string -> bool
+
 (* the desktop's scale: Xft.dpi's, asked of the xrdb program; 1. when
- * there is none to ask (no X display, SDL's dummy driver: a frame
- * dumped is the same on every machine), no xrdb, or no Xft.dpi *)
+ * there is none to ask (no X display, launchd's on macOS, SDL's dummy
+ * driver: a frame dumped is the same on every machine), no xrdb, or
+ * no Xft.dpi *)
 val desktop : < Cap.forkew ; Cap.env ; .. > -> float

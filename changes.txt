@@ -437,7 +437,12 @@
   desktop's by default (Gui_scale: xrdb's Xft.dpi, 2 where GNOME scales
   a screen of many dots twice -- SDL does not follow it, and the
   omnibox's letters could barely be read), or the one chosen with
-  Ctrl+Shift and +, -, 0 or scale=N, kept in the profile; a first
+  Ctrl+Shift and +, -, 0 or scale=N, kept in the profile; on macOS
+  xrdb is not run (DISPLAY is launchd's socket there, and any X
+  client connecting to it starts XQuartz): the scale is 1, and a
+  Retina screen's two dots a point are known from the Playground
+  (pixel_ratio, the model's dots): the page's letters, pictures made
+  for the screen, are made for those dots, not blown up twice; a first
   window is 1280 by 900 of the program's units. A site's zoom multiplies
   it
 - a scrollbar at the right of a page longer than the window, over its

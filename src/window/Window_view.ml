@@ -48,8 +48,9 @@ let page_shapes (m : model) (p : Browser_page.t) : shape list =
   (* the screen's dots for a unit of the page, said before any
    * of its letters is built below (the lines shown, the controls'
    * text, a player's time): each is a picture made for that density
-   * (Glyph_picture) *)
-  Glyph_picture.density := z *. scale_of m;
+   * (Glyph_picture); a Retina has two dots for each of the window's
+   * points, which the platform draws on, not the program's scale *)
+  Glyph_picture.density := z *. scale_of m *. m.dots;
   let outline =
     match (m.panel, m.selected) with
     | Elements, Some e -> (
@@ -166,12 +167,12 @@ let animated (m : model) : bool =
  * warning here until it is said whether the view reads it *)
 let same_but_time
     ({ tabs; current; next_id; omnibox; mouse; time = _; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
-       profile_dir; saved; changed; menu; window; desktop; shift; grab } :
+       profile_dir; saved; changed; menu; window; desktop; dots; shift; grab } :
       model) (m : model) : bool =
   tabs == m.tabs && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
   && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
-  && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && shift == m.shift
+  && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && dots == m.dots && shift == m.shift
   && grab == m.grab
 
 (* the last model drawn, its shapes, and whether it moves by itself

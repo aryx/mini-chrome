@@ -64,7 +64,13 @@ PDF's text in our own letters; and `-gradients`, `-clips`,
 Everything is drawn at a scale (`Window_layout.scale_of`): the one
 chosen (Ctrl+Shift with `+`, `-`, `0`; `scale=N`; the profile's
 `"scale"`), else the desktop's, which `Gui_scale` reads from `xrdb`'s
-`Xft.dpi` (2 on a screen GNOME scales twice). The model's `screen` and
+`Xft.dpi` (2 on a screen GNOME scales twice). Not on macOS, where
+`DISPLAY` is launchd's socket and `xrdb` would start XQuartz: the
+scale is 1 there, the window's size being in points, and a Retina's
+two dots a point are the Playground's to draw on -- the model's `dots`
+(`Playground_platform.pixel_ratio`, read on `Tick`), which a picture
+the program makes itself must be made for (`Glyph_picture.density`).
+The model's `screen` and
 `mouse` are in the program's units, the window's dots divided by the
 scale (`window` has the dots), and `view` scales the whole picture. With
 SDL's dummy driver the desktop's scale is 1, so a dumped frame is the

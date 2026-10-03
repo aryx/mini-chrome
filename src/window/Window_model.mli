@@ -38,6 +38,7 @@ type model = {
   menu : Browser_menu.action Gui_menu.t option; (* the right click's menu, while it is open *)
   window : int * int; (* the window's size, in the screen's dots; [screen] is in the program's units *)
   desktop : float; (* the desktop's scale (Gui_scale), when none is chosen *)
+  dots : float; (* the screen's dots for one of the window's points (Playground_platform.pixel_ratio): 2 on a Retina, else 1 *)
   shift : bool; (* a Shift key held *)
   grab : float option; (* the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
 }

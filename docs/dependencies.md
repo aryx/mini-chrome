@@ -126,7 +126,7 @@ and the JavaScript engine are OCaml.
 | the resolver (`getaddrinfo`) and TCP sockets | every request | no network: the built-in pages only |
 | `/dev/urandom` | TLS's secrets, WebSocket's keys and masks | no https |
 | the root certificates (`/etc/ssl/certs/ca-certificates.crt`, or the three other usual places) | whom TLS trusts | every https site refused |
-| `xrdb` (optional) | the desktop's scale (`Xft.dpi`) | scale 1 |
+| `xrdb` (optional; not run on macOS, where it would start XQuartz) | the desktop's scale (`Xft.dpi`) | scale 1 |
 | `~/.config/mini-chrome/` | the profile and the cookies | defaults; nothing saved |
 
 ## 6. What is not a dependency any more

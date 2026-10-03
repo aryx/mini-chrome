@@ -40,7 +40,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; shift = false; grab = None }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; dots = 1.; shift = false; grab = None }
   in
   (* a tab a page, the first one shown *)
   let m, cmd =
@@ -141,6 +141,15 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Tick time ->
       (* the shown tab's timers on the frame clock (the others wait, as
        * Chrome slows a hidden tab's) *)
+      (* the screen's dots for a point, which the platform knows once
+       * it has drawn, and which change with the screen the window is on *)
+      let dots = Playground_platform.pixel_ratio () in
+      let m =
+        if dots = m.dots then m
+        else (
+          Logs.info (fun f -> f "the screen's dots for a point: %g" dots);
+          { m with dots })
+      in
       let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s (1000. /. 60.); false) in
       (* the requests in flight stepped: the answers, Got and
        * Got_picture, as the next messages *)

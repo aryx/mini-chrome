@@ -20,9 +20,16 @@ let of_xrdb (text : string) : float option =
              | _ -> None)
          | _ -> None)
 
+let of_launchd (display : string) : bool = String.length display > 0 && display.[0] = '/'
+
 let desktop (caps : < Cap.forkew ; Cap.env ; .. >) : float =
   let env name = match CapSys.getenv caps name with v -> Some v | exception Not_found -> None in
-  if env "SDL_VIDEODRIVER" = Some "dummy" || env "DISPLAY" = None then 1.
+  let display = env "DISPLAY" in
+  if env "SDL_VIDEODRIVER" = Some "dummy" || display = None then 1.
+  else if Option.fold ~none:false ~some:of_launchd display then (
+    (* macOS: any X client run, xrdb too, would start XQuartz *)
+    Logs.info (fun m -> m "the desktop's scale: 1 (macOS: xrdb not run)");
+    1.)
   else
     (* the authority to run xrdb -- a process forked, the program
      * executed in it, its end waited for -- asked for before it is run *)
