@@ -40,7 +40,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; pressed = false; dots = 1.; shift = false; grab = None }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; pressed = false; fresh = []; late = []; dots = 1.; shift = false; grab = None }
   in
   (* a tab a page, the first one shown *)
   let m, cmd =
@@ -144,7 +144,8 @@ let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) opt
   | Wheel notches when (not m.ctrl) && over_page m.mouse -> Some ("wheel", ("deltaY", number (-100. *. notches)) :: ("deltaMode", number 0.) :: pointer m.mouse ~button:0. ~buttons:0.)
   | _ -> None
 
-let rec update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+(* a message: for the page's scripts, then for the browser *)
+let rec step (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
   (* a page that is a program (a game, the Playground's own web
    * platform) is told first; then the browser does its own, unless a
@@ -153,8 +154,27 @@ let rec update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : mod
   | Some (typ, fields), Some s when Browser_script.listens s typ ->
       let m, cmd, prevented = task network m (fun s -> Browser_script.window_event s typ fields) in
       let m = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
+      (* what went down, until the page's next frame ([update]) *)
+      let m = match msg with Key k -> { m with fresh = String.lowercase_ascii k :: m.fresh } | Click -> { m with fresh = "mouse" :: m.fresh } | _ -> m in
       if prevented then (m, cmd) else let m, cmd' = update_browser caps msg m in (m, Cmd.batch [ cmd; cmd' ])
   | _ -> update_browser caps msg m
+
+(* [step], and a tap not lost. A program reads the keys held at each
+ * of its frames (the Playground's games do); a key down and up between
+ * two of them was never held for it, and a page whose frame is long --
+ * ours of a program compiled to JavaScript: a sixth of a second -- loses
+ * most taps. So a key, or the button, let go before the page has run a
+ * frame since it went down is kept ([late]) and told right after that
+ * frame, which is this Tick's (the page's timers run on it) *)
+and update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+  match msg with
+  | Key_up k when List.mem (String.lowercase_ascii k) m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
+  | Mouse_up when List.mem "mouse" m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
+  | Tick _ when m.fresh <> [] ->
+      let late = m.late in
+      let m, cmd = step caps msg { m with fresh = []; late = [] } in
+      (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) late))
+  | _ -> step caps msg m
 
 and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in

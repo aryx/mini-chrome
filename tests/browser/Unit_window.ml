@@ -113,6 +113,40 @@ let tests caps =
           Mini_opti.enabled := false;
           Fun.protect ~finally:(fun () -> Mini_opti.enabled := true) (fun () ->
               Alcotest.(check bool) "opti=off: a new list at each frame" true (Window_view.view m != Window_view.view (tick caps 5. m))));
+      Testo.create "a page that is a program: a key tapped between two of its frames is seen held" (fun () ->
+          let m = window caps "about:chrome" in
+          let script = match (Window_layout.current_tab m).script with Some s -> s | None -> Alcotest.fail "about:chrome runs scripts" in
+          (* a program that reads, at each frame, the keys held *)
+          (match
+             Browser_script.eval script
+               "var held = [], frames = [];\naddEventListener('keydown', function (e) { held.push(e.key) });\naddEventListener('keyup', function (e) { held = held.filter(function (k) { return k !== e.key }) });\naddEventListener('mousedown', function () { held.push('button') });\naddEventListener('mouseup', function () { held = held.filter(function (k) { return k !== 'button' }) });\nfunction frame() { frames.push(held.join('+')); requestAnimationFrame(frame) }\nrequestAnimationFrame(frame)"
+           with
+          | Ok _ -> ()
+          | Error e -> Alcotest.fail e.message);
+          let send msg m = after caps (Window_update.update caps msg m) in
+          let frames () = match Browser_script.eval script "frames.slice(-3).join(' | ')" with Ok v -> Js_value.display v | Error e -> e.message in
+          let m = { m with omnibox = None } in
+          let m = tick caps 10. (tick caps 10.02 m) in
+          (* down and up with no frame between: the up waits for the frame *)
+          let m = send (Key_up "a") (send (Key "a") m) in
+          Alcotest.(check int) "the key let go is kept" 1 (List.length m.late);
+          let m = tick caps 10.04 m in
+          Alcotest.(check string) "the frame saw it held" " |  | a" (frames ());
+          Alcotest.(check bool) "then it was let go" true (m.late = [] && m.fresh = []);
+          let m = tick caps 10.06 m in
+          Alcotest.(check string) "and the next frame sees it up" " | a | " (frames ());
+          (* a key held across a frame: its up is told at once *)
+          let m = tick caps 10.08 (send (Key "ArrowLeft") m) in
+          let m = send (Key_up "ArrowLeft") m in
+          Alcotest.(check int) "nothing kept" 0 (List.length m.late);
+          let m = tick caps 10.1 m in
+          Alcotest.(check string) "held one frame, then up" " | ArrowLeft | " (frames ());
+          (* the button, pressed and let go over the page in one frame *)
+          let m = send Mouse_up (send Click (send (Mouse_move (0., 0.)) m)) in
+          Alcotest.(check bool) "the button let go is kept" true (m.late = [ Mouse_up ]);
+          let m = tick caps 10.12 m in
+          Alcotest.(check string) "the frame saw it pressed" "ArrowLeft |  | button" (frames ());
+          ignore m);
       Testo.create "a URL's host" (fun () ->
           Alcotest.(check string) "a page" "news.ycombinator.com" (Window_layout.host_of "https://news.ycombinator.com/item?id=1");
           Alcotest.(check string) "a port" "localhost" (Window_layout.host_of "http://localhost:8000/a");

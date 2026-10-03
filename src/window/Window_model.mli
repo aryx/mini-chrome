@@ -44,6 +44,8 @@ type model = {
   selecting : bool; (* the button held since a click in the omnibox: the pointer drags its selection *)
   last_click : float; (* when the button last went down (time): a second one soon after is a double click *)
   pressed : bool; (* the button held since a press a page's script was told of: it is told when it is let go *)
+  fresh : string list; (* the keys (and "mouse", the button) a page's script was told went down, since its last frame *)
+  late : msg list; (* those let go before that frame: told after it (Window_update.update) *)
 }
 
 and msg =

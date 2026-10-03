@@ -155,6 +155,12 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a key tapped, or the button clicked, between two frames of a page
+  that is a program is not lost: the page is told at once that it
+  went down, and that it went up only after it has run a frame since
+  (Window_update.update, over the plain step): a game that reads the
+  keys held at each of its frames sees it held once, however long its
+  frames are
 - AudioContext (the Web Audio API's least: a context, its clock, a
   buffer of samples, its source started at a time): the sound of the
   Playground's games in the browser, TinyMissileCommand's among them.

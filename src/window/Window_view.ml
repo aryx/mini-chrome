@@ -154,7 +154,7 @@ let animated (m : model) : bool =
  * warning here until it is said whether the view reads it *)
 let same_but_time
     ({ tabs; current; next_id; omnibox; mouse; time = _; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
-       profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _; pressed = _ } :
+       profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _; pressed = _; fresh = _; late = _ } :
       model) (m : model) : bool =
   tabs == m.tabs && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
