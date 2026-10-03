@@ -150,8 +150,9 @@ programs).
 The three marks are reached, slowly: the menu is drawn as Chrome draws
 it (`docs/screenshots/tinybox.png`), it answers to the keys and to the
 mouse, and Enter on TinyInvaders opens the game's page, which is
-played with the arrows and space (`invaders.png`). 597 lines of the
-budget (33,325 of 40,000).
+played with the arrows and space (`invaders.png`). 802 lines of the
+budget (33,530 of 40,000), 205 of them to keep the parser's tree
+plain and the calls' frames in a module of their own.
 
 | | before | now |
 |---|---|---|
@@ -170,7 +171,9 @@ What each step became:
   the tree remembers where it was found, and checks it
   (`Js_scope.mli` says why that is enough, and the one program where
   it differs). Scopes as arrays, a call's frame made at once
-  (`Js_eval.frame_opti`). The simple way kept, `opti=off`, and
+  (`Js_frame.opti`). The parser's tree is left as it is: the places
+  are in a copy made before the run (`Js_quicken`), in nodes the
+  simple evaluator never meets. The simple way kept, `opti=off`, and
   `tests/js` run on both.
 - **2, the rest.** Two numbers added with no conversion, an array's
   item by its number (it was written as a string and read back), an

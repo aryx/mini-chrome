@@ -30,6 +30,21 @@ let tests =
       Testo.create "the worked example" (fun () ->
           check "total found two scopes up, n in the call's frame"
             "var total = 0;\nfunction add(n) {\n  for (var i = 0; i < n; i++) { total = total + i }\n}\nadd(4); add(3); total" "9");
+      Testo.create "Js_quicken: the tree's copy, its names given places" (fun () ->
+          let parsed = match Js_parse.parse "var i = 0, n; total = total + i; function f(a, b) { var s = a; return s }" with Ok p -> p | Error e -> Alcotest.fail e.message in
+          let fresh (p : Js_ast.place) = p.hops = -1 in
+          (match List.map (fun (st : Js_ast.stmt) -> st.stmt) parsed with
+          | [ Let (Var_kind, [ (Bind "i", Some (Number 0.)); (Bind "n", None) ]); Expr (Assign ("=", Name "total", Binary ("+", Name "total", Name "i"))); Function_decl { frame = None; _ } ] -> ()
+          | _ -> Alcotest.fail "the parser's tree: names, and nothing remembered");
+          (match List.map (fun (st : Js_ast.stmt) -> st.stmt) (Js_quicken.program parsed) with
+          | [ Var_set [ ("i", p, Some (Number 0.)); ("n", q, None) ]; Expr (Assign ("=", Local ("total", r), Binary ("+", Local ("total", r'), Local ("i", _)))); Function_decl { frame = Some l; body = [ { stmt = Var_set [ ("s", _, Some (Local ("a", _))) ]; _ }; _ ]; _ } ] ->
+              Alcotest.(check bool) "nothing found yet" true (fresh p && fresh q && fresh r);
+              Alcotest.(check bool) "a place each time the name is written" true (r != r');
+              Alcotest.(check (list string)) "the call's names, in the order of their slots" [ "arguments"; "s"; "a"; "b" ] (Array.to_list l.names);
+              Alcotest.(check (list int)) "a's slot and b's" [ 2; 3 ] (Array.to_list l.slots);
+              Alcotest.(check bool) "plain names" true l.plain
+          | _ -> Alcotest.fail "the copy: Var_set, Local, a function's frame");
+          check "a default among the parameters: they are the evaluator's" "function f(a, b = a) { return a + b } f(2)" "4");
       Testo.create "a name shadowed" (fun () ->
           check "the nearest x, at each depth" "var x = 1; function f() { var x = 2; { let x = 3; return [x, g()] } function g() { return x } } [f(), x]"
             "[[3, 2], 1]";

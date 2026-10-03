@@ -64,6 +64,7 @@ let new_scope = Js_scope.nested
 let lookup = Js_scope.lookup
 let find = Js_scope.find
 let declare = Js_scope.declare
+let hoist = Js_frame.hoist
 
 (* the address of the module the code is in ("" in a script): a name
  * of its scope that no script can write *)
@@ -87,7 +88,7 @@ open Js_operators
 (* "x", "o.m": what a TypeError names *)
 let rec describe (e : A.expr) : string =
   match e with
-  | Name (x, _) -> x
+  | Name x | Local (x, _) -> x
   | This -> "this"
   | Member (o, x) -> describe o ^ "." ^ x
   | Index (o, _) -> describe o ^ "[...]"
@@ -109,10 +110,14 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Bool b -> Bool b
   | Null -> Null
   | This -> this
-  | Name (x, p) -> (
+  | Name x -> (
       match if s.in_with then with_subject t s x else None with
       | Some o -> get t o x
-      | None -> ( match find s x p with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined")))
+      | None -> ( match lookup s x with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined")))
+  (* opti: the name looked for where it was last found (Js_quicken,
+   * Js_scope.find); in a with, as a Name *)
+  | Local (x, _) when s.in_with -> eval_expr t s this (Name x)
+  | Local (x, p) -> ( match find s x p with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined"))
   | Array es -> Object (new_array (eval_list t s this es))
   | Spread _ -> throw "SyntaxError" "... is for an array's items or a call's arguments"
   | Object props ->
@@ -186,7 +191,9 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       (* typeof of an undeclared name is "undefined", not an error *)
       | "typeof" -> (
           match x with
-          | Name (n, p) when find s n p = None && not (s.in_with && with_subject t s n <> None) -> String "undefined"
+          | Name n when lookup s n = None && not (s.in_with && with_subject t s n <> None) -> String "undefined"
+          | Local (n, _) when s.in_with -> eval_expr t s this (Unary (op, Name n))
+          | Local (n, p) when find s n p = None -> String "undefined"
           | _ -> String (typeof (eval_expr t s this x)))
       | "!" -> Bool (not (truthy (eval_expr t s this x)))
       | "-" -> Number (-.to_number (eval_expr t s this x))
@@ -323,13 +330,15 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
   let ctor : A.func =
     match (c.ctor, c.parent) with
     | Some f, Some _ -> f
-    | Some f, None -> { f with body = stmt (Call (Member (Name ("%init", A.place ()), "call"), [ This ])) :: f.body }
+    | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
     | None, None ->
-        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name ("%init", A.place ()), "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None }
+        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None }
     | None, Some _ ->
-        { name = c.class_name; params = []; rest = Some (Bind ("args", A.place ())); body = [ stmt (Super_call [ Spread (Name ("args", A.place ())) ]) ]; arrow = false; generator = false; async = false; frame = None }
+        { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false; frame = None }
   in
-  let made = closure cs this { ctor with name = c.class_name; frame = None } in
+  (* opti: a constructor made here is quickened as the written ones were *)
+  let ctor = if ctor.frame = None && Js_scope.slotted s then Js_quicken.func ctor else ctor in
+  let made = closure cs this { ctor with name = c.class_name } in
   let f = match made with Object f -> f | _ -> assert false in
   set_own f "prototype" (Object proto);
   set_own proto "constructor" made;
@@ -521,10 +530,10 @@ and put (t : t) (target : value) (k : string) (v : value) : unit =
  * name to the value; { } to its properties, by key, and what is left;
  * [ ] to its items, in order, and those left. A part that is
  * undefined takes its default *)
-and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) (bind : string -> A.place -> value -> unit) : unit =
+and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) (bind : string -> value -> unit) : unit =
   let or_default (v : value) (default : A.expr option) = match (v, default) with Undefined, Some d -> eval_expr t s this d | v, _ -> v in
   match pt with
-  | Bind (x, p) -> bind x p v
+  | Bind x -> bind x v
   | Object_pattern (parts, rest) ->
       (match v with Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot destructure '%s' as it is %s." (display v) (to_string v)) | _ -> ());
       let taken =
@@ -559,9 +568,10 @@ and closure (s : scope) (this : value) (f : A.func) : value =
 
 and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : unit =
   match target with
-  | Name (x, _) when s.in_with && with_subject t s x <> None -> put t (Option.get (with_subject t s x)) x v
-  | Name (x, p) -> (
-      match find s x p with
+  | Name x when s.in_with && with_subject t s x <> None -> put t (Option.get (with_subject t s x)) x v
+  | Local (x, _) when s.in_with -> assign t s this (Name x) v
+  | (Name x | Local (x, _)) as target -> (
+      match (match target with Local (_, p) -> find s x p | _ -> lookup s x) with
       | Some { constant = true; _ } -> throw "TypeError" "Assignment to constant variable."
       | Some b -> b.value <- v
       (* a name nobody declared, assigned to: a global made, as scripts
@@ -613,7 +623,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       (* "use strict": its own, or that of the code it is written in (a
        * module and a class are strict always) *)
       let strict = c.scope.strict || match c.func.body with { stmt = Expr (String "use strict"); _ } :: _ -> true | _ -> false in
-      let frame = if Js_scope.slotted c.scope then frame_opti t c fn this args ~strict else frame_simple t c fn this args ~strict in
+      let frame = Js_frame.make ~params:(bind_params t) c fn this args ~strict in
       let this =
         match (c.this, this) with
         | Some captured, _ -> captured
@@ -643,7 +653,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
 (* the parameters bound in a call's frame to what it was given, each
  * by its name: a pattern's parts, a default, and those left *)
 and bind_params (t : t) (frame : scope) (this : value) (ps : (A.pattern * A.expr option) list) (rest : A.pattern option) (args : value list) : unit =
-  let bind x _ v = declare frame x ~constant:false v in
+  let bind x v = declare frame x ~constant:false v in
   match ps with
   | [] -> Option.iter (fun r -> destructure t frame this r (Object (new_array args)) bind) rest
   | (pt, default) :: more ->
@@ -653,111 +663,9 @@ and bind_params (t : t) (frame : scope) (this : value) (ps : (A.pattern * A.expr
       destructure t frame this pt v bind;
       bind_params t frame this more rest left
 
-(* a call's frame, the simple way: a scope under the function's, and
- * in it arguments, the var's hoisted, then the parameters *)
-and frame_simple (t : t) (c : closure) (fn : value) (this : value) (args : value list) ~(strict : bool) : scope =
-  let frame = if strict then Js_scope.strict c.scope else new_scope c.scope in
-  if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
-  (* a function expression's own name, in its body (var f =
-   * function again(n) { ... again(n - 1) }), unless the name is
-   * already somebody's *)
-  (match c.func.name with Some n when lookup c.scope n = None -> declare frame n ~constant:false fn | _ -> ());
-  hoist frame c.func.body;
-  bind_params t frame this c.func.params c.func.rest args;
-  frame
-
-(* opti: what every call of a function declares, found once in its
- * text: arguments, the var's (each once), the parameters when they
- * are plain names; and each parameter's slot *)
-and layout (f : A.func) : A.frame =
-  let plain = List.for_all (fun (pt, default) -> match ((pt : A.pattern), default) with Bind _, None -> true | _ -> false) f.params in
-  let slots = A.Names.create 16 and names = ref [] in
-  let slot (x : string) : int =
-    match A.Names.find_opt slots x with
-    | Some i -> i
-    | None ->
-        let i = A.Names.length slots in
-        A.Names.replace slots x i;
-        names := x :: !names;
-        i
-  in
-  if not f.arrow then ignore (slot "arguments");
-  List.iter (fun x -> ignore (slot x)) (hoisted f.body);
-  let params = if plain then List.map (fun ((pt : A.pattern), _) -> match pt with Bind (x, _) -> slot x | _ -> -1) f.params else [] in
-  let names = Array.of_list (List.rev !names) in
-  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own = A.place () }
-
-(* opti: a call's frame made at once from the function's layout, an
- * array of bindings beside the function's array of names (shared by
- * its every call), the parameters set by their slots -- where
- * frame_simple declares each name in a table, one after the other.
- * The same frame in the end: frame_simple's words in another order.
- * 1M calls of a function of two arguments: 3,700 ms to 670, with
- * Js_scope's places *)
-and frame_opti (t : t) (c : closure) (fn : value) (this : value) (args : value list) ~(strict : bool) : scope =
-  let f = c.func in
-  let l = match f.frame with Some l -> l | None -> let l = layout f in f.frame <- Some l; l in
-  let cells = Array.make (Array.length l.names) Js_scope.nothing in
-  for i = 0 to Array.length cells - 1 do
-    cells.(i) <- { value = Undefined; constant = false }
-  done;
-  let frame = Js_scope.frame c.scope ~names:l.names ~index:l.index ~cells ~strict in
-  if not f.arrow then cells.(0).value <- Object (new_array args);
-  (* its own name: looked for outside once, by the place it was found
-   * (-2 hops: nowhere, and it is then the function's own for good) *)
-  (match f.name with
-  | Some n when l.own.hops = -2 || (match find c.scope n l.own with None -> l.own.hops <- -2; true | Some _ -> false) -> declare frame n ~constant:false fn
-  | _ -> ());
-  if l.plain then (
-    let rec set (i : int) (args : value list) : value list =
-      if i >= Array.length l.slots then args
-      else
-        match args with
-        | v :: left -> cells.(l.slots.(i)).value <- v; set (i + 1) left
-        | [] -> cells.(l.slots.(i)).value <- Undefined; set (i + 1) []
-    in
-    bind_params t frame this [] f.rest (set 0 args))
-  else bind_params t frame this f.params f.rest args;
-  frame
-
 (*****************************************************************************)
 (* Statements *)
 (*****************************************************************************)
-
-(* the names a pattern binds *)
-and pattern_names (pt : A.pattern) : string list =
-  match pt with
-  | Bind (x, _) -> [ x ]
-  | Object_pattern (parts, rest) -> List.concat_map (fun (_, pt, _) -> pattern_names pt) parts @ (match rest with Some r -> pattern_names r | None -> [])
-  | Array_pattern (parts, rest) ->
-      List.concat_map (fun part -> match part with Some (pt, _) -> pattern_names pt | None -> []) parts @ (match rest with Some r -> pattern_names r | None -> [])
-
-(* var's names, declared (undefined) at the top of their function: a
- * var in a block or a loop is the function's -- hoisting, ES5's, what
- * let (block-scoped) came to fix *)
-and hoisted (body : A.stmt list) : string list =
-  let rec names (st : A.stmt) : string list =
-    match st.stmt with
-    | Let (Var_kind, decls) -> List.concat_map (fun (pt, _) -> pattern_names pt) decls
-    | If (_, a, b) -> names a @ (match b with Some b -> names b | None -> [])
-    | While (_, b) | With (_, b) -> names b
-    | For (init, _, _, b) -> (match init with Some i -> names i | None -> []) @ names b
-    | For_of (Var_kind, x, _, b) | For_await (Var_kind, x, _, b) -> pattern_names x @ names b
-    | For_in (Declared (Var_kind, x), _, b) -> x :: names b
-    | For_of (_, _, _, b) | For_await (_, _, _, b) | For_in (_, _, b) | Do_while (b, _) | Labeled (_, b) -> names b
-    | Switch (_, cases) -> List.concat_map (fun (_, body) -> List.concat_map names body) cases
-    | Try (a, handler, finally) ->
-        List.concat_map names a
-        @ (match handler with Some (_, h) -> List.concat_map names h | None -> [])
-        @ (match finally with Some f -> List.concat_map names f | None -> [])
-    | Block b -> List.concat_map names b
-    | Export (Export_decl st) -> names st
-    | _ -> []
-  in
-  List.concat_map names body
-
-and hoist (s : scope) (body : A.stmt list) : unit =
-  List.iter (fun x -> if Js_scope.own s x = None then declare s x ~constant:false Undefined) (hoisted body)
 
 (* a block's statements in [s]: its function declarations first *)
 and declare_functions (s : scope) (this : value) (body : A.stmt list) : unit =
@@ -805,19 +713,31 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
   | Expr e -> ignore (eval e); Normal
   | Let (Var_kind, decls) ->
       (* the function's binding, hoisted: set, not declared again *)
-      let bind x p v = match find s x p with Some b -> b.value <- v | None -> declare s x ~constant:false v in
+      let bind x v = match lookup s x with Some b -> b.value <- v | None -> declare s x ~constant:false v in
       List.iter
         (fun ((pt : A.pattern), init) ->
           match (pt, init) with
           (* var x; again: what it holds stays *)
-          | Bind (x, p), None -> if find s x p = None then declare s x ~constant:false Undefined
+          | Bind x, None -> if lookup s x = None then declare s x ~constant:false Undefined
           | pt, init -> destructure t s this pt (match init with Some e -> eval e | None -> Undefined) bind)
         decls;
       Normal
   | Let (kind, decls) ->
       List.iter
         (fun (pt, init) ->
-          destructure t s this pt (match init with Some e -> eval e | None -> Undefined) (fun x _ v -> declare s x ~constant:(kind = Const_kind) v))
+          destructure t s this pt (match init with Some e -> eval e | None -> Undefined) (fun x v -> declare s x ~constant:(kind = Const_kind) v))
+        decls;
+      Normal
+  (* opti: a var's plain names, each looked for where it was last
+   * found (Js_quicken): the words of Let (Var_kind, ...) above *)
+  | Var_set decls ->
+      List.iter
+        (fun (x, p, init) ->
+          match init with
+          | None -> if find s x p = None then declare s x ~constant:false Undefined
+          | Some e -> (
+              let v = eval e in
+              match find s x p with Some b -> b.value <- v | None -> declare s x ~constant:false v))
         decls;
       Normal
   | Function_decl _ -> Normal (* defined by its block, first *)
@@ -867,7 +787,7 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
       let turn (v : value) : bool =
         let it = new_scope s in
         (* a var's, or a name's already there: set; else this turn's own *)
-        let bind x p v = match (kind, find s x p) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
+        let bind x v = match (kind, lookup s x) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
         destructure t it this x v bind;
         match after labels (exec t it this body) with None -> true | Some o -> ended := o; false
       in
@@ -970,7 +890,12 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
 (*****************************************************************************)
 
 (* a program's statements, in the global scope *)
+(* opti: a program's tree given its places, for an engine of the fast
+ * kind (Js_quicken) *)
+let quickened (s : scope) (program : A.program) : A.program = if Js_scope.slotted s then Js_quicken.program program else program
+
 let run_in_run (t : t) (program : A.program) : value =
+      let program = quickened t.globals program in
       (* the value of the last expression statement: a console's echo *)
       let last = ref Undefined in
       (* a script's own this is the global object (a page's window): what
@@ -1100,7 +1025,7 @@ let run (t : t) (program : A.program) : (value, error) result = guarded t (fun (
 
 let protect = guarded
 let set_importer (t : t) (import : base:string -> string -> value) : unit = t.importer <- Some import
-let names_of = pattern_names
+let names_of = Js_frame.pattern_names
 
 (* a module's own scope, under the globals: what it declares is its
  * own, not the page's *)
@@ -1112,11 +1037,13 @@ let module_scope (t : t) ~(url : string) : scope =
 (* a module's functions, there before it runs: what a module in a
  * circle with it can already take *)
 let hoist_module (s : scope) (program : A.program) : unit =
+  let program = quickened s program in
   hoist s program;
   declare_functions s Undefined program
 
 (* a module's body, in its scope *)
 let exec_module (t : t) (s : scope) (program : A.program) : unit =
+  let program = quickened s program in
   hoist s program;
   match exec_block t s Undefined program with
   | Normal -> ()

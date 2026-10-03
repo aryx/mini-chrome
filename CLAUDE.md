@@ -282,9 +282,15 @@ Scripts run only on the built-in pages and on allow-listed hosts
 
 The engine has two ways to find a name (`Js_scope`): the simple one, a
 table in each scope, and the fast one, scopes as arrays and each name
-of the program's text remembering its place (`Js_ast.place`), chosen
-when the engine is made (`Mini_opti.enabled`). A scope is touched only
-through `Js_scope`; `tests/js` is run on both (its `dune`), and
+of the program's text remembering its place, chosen when the engine is
+made (`Mini_opti.enabled`). The parser's tree is plain and never
+changes; an engine of the fast kind runs a copy of it made by
+`Js_quicken`, whose nodes carry the places (`Local` for `Name`,
+`Var_set` for a `var`, a function's `frame`): a new kind of node, or a
+new place that needs a memory, goes through there, and the evaluator
+keeps the simple case beside the fast one. A call's frame is
+`Js_frame`'s (`simple`, `opti`). A scope is touched only through
+`Js_scope`; `tests/js` is run on both (its `dune`), and
 `scripts/perf/Js_bench.exe` says what a change costs or buys.
 
 A page that is a program is told of the window's keys and pointer

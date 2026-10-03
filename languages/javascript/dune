@@ -1,7 +1,9 @@
 ; a small JavaScript: Js_lexer (the text to tokens), Js_ast (the
 ; tree), Js_parse (statements by recursive descent, expressions by Pratt
 ; -- and why not yacc), Js_value (values, objects, the conversions),
-; Js_eval (the tree walked: scopes, closures, this, the errors),
+; Js_eval (the tree walked: closures, this, the errors), Js_scope
+; (where names live, the simple way and the fast one), Js_frame (a
+; call's), Js_quicken (the tree's copy the fast way runs),
 ; Js_builtins (console, Math, strings' and arrays' methods), Js_promise
 ; (promises and their jobs, async and await) over Js_coroutine. The
 ; language only: what a script can touch outside itself is its host's,

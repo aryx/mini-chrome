@@ -1,4 +1,4 @@
-(* Js_scope: its worked example, a name found the fast way where the
+(* Js_scope, Js_frame and Js_quicken: their worked examples, a name found the fast way where the
  * simple way finds it (each program run on both, the two answers the
  * same and the one expected), in the corners where a remembered place
  * could be wrong: a name shadowed, a function called from two places,

@@ -26,7 +26,8 @@ type expr =
   | String of string
   | Bool of bool
   | Null
-  | Name of string * place
+  | Name of string
+  | Local of string * place
   | This
   | Unary of string * expr
   | Update of string * bool * expr
@@ -64,7 +65,7 @@ and func = {
   arrow : bool;
   generator : bool;
   async : bool;
-  mutable frame : frame option;
+  frame : frame option;
 }
 
 and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place }
@@ -83,7 +84,7 @@ and member = { static : bool; key : key; what : member_kind }
 and member_kind = Method of func | Get of func | Set of func | Field of expr option | Static_block of stmt list
 
 and pattern =
-  | Bind of string * place
+  | Bind of string
   | Object_pattern of (key * pattern * expr option) list * pattern option
   | Array_pattern of (pattern * expr option) option list * pattern option
 
@@ -92,6 +93,7 @@ and stmt = { line : int; stmt : statement }
 and statement =
   | Expr of expr
   | Let of let_kind * (pattern * expr option) list
+  | Var_set of (string * place * expr option) list
   | Function_decl of func
   | Return of expr option
   | If of expr * stmt * stmt option
@@ -161,7 +163,7 @@ let rec expr_to_string (e : expr) : string =
   | String s -> p "%S" s
   | Bool b -> string_of_bool b
   | Null -> "null"
-  | Name (x, _) -> x
+  | Name x | Local (x, _) -> x
   | This -> "this"
   | Array es -> p "[%s]" (list expr_to_string es)
   | Object props ->
@@ -226,7 +228,7 @@ and key_to_string (k : key) : string = match k with Key k -> k | Computed e -> "
 and pattern_to_string (pt : pattern) : string =
   let rest r = match r with Some r -> [ "..." ^ pattern_to_string r ] | None -> [] in
   match pt with
-  | Bind (x, _) -> x
+  | Bind x -> x
   | Object_pattern (parts, r) ->
       "{" ^ String.concat ", " (List.map (fun (k, pt, d) -> key_to_string k ^ ": " ^ param_to_string (pt, d)) parts @ rest r) ^ "}"
   | Array_pattern (parts, r) ->
@@ -252,6 +254,7 @@ and stmt_to_string (s : stmt) : string =
   | Expr x -> "Expr " ^ e x
   | Let (k, decls) ->
       kind_to_string k ^ " " ^ list (fun (x, init) -> match init with Some v -> pattern_to_string x ^ " " ^ e v | None -> pattern_to_string x) decls
+  | Var_set decls -> "Var " ^ list (fun (x, _, init) -> match init with Some v -> x ^ " " ^ e v | None -> x) decls
   | Function_decl f -> func_to_string f
   | Class_decl c -> class_to_string c
   | Import (n, from) ->

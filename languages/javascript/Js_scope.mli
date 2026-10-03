@@ -30,7 +30,8 @@
    beside in the order they were declared ([Js_value.slots]), and each
    place in the program's text where a name is written remembers where
    it found it the last time: how many scopes up, and which slot there
-   ([Js_ast.place], kept in the tree). [find] goes straight there, and
+   ([Js_ast.place], in the copy of the tree Js_quicken makes: a Name
+   there is a Local). [find] goes straight there, and
    checks that the slot's name is the one asked -- one comparison,
    most often of two addresses, the lexer making one string of a name
    written many times. If it is not (the first time; a name declared
@@ -63,8 +64,8 @@
    name to its slot): the globals, and the one function a bundler or
    js_of_ocaml wraps a whole program in, thousands of names in one
    frame. A call's frame shares its function's array of names and its
-   index with every other call (Js_ast.frame, made by Js_eval's
-   frame_opti): the arrays are never written past their end, a longer
+   index with every other call (Js_ast.frame; Js_frame.opti makes the
+   frame): the arrays are never written past their end, a longer
    one is made.
 
    What it bought, with what else is marked "opti:" in the engine
@@ -103,8 +104,9 @@
    1972; Nystrom's Crafting Interpreters, "Resolving and Binding").
    No check when the program runs; but the pass has to know every way
    the language makes a scope, with, eval and hoisting among them, and
-   to be kept true to the evaluator. Here the evaluator itself teaches
-   the tree, a name at a time.
+   to be kept true to the evaluator. Here the pass before the run
+   (Js_quicken) only makes room, and the evaluator itself fills it, a
+   name at a time.
 
    modern:
    A real engine compiles: the tree becomes bytecode in which a local

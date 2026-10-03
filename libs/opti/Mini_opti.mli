@@ -43,9 +43,11 @@
      (dct4_opti) rather than by its definition (dct4_simple): a second
      of Vorbis decoded in 0.06 s, not 1.2. In Mdct.mli.
    - Js_scope.global: a JavaScript engine's scopes as arrays, each name
-     of the program remembering its place (find_opti), rather than a
-     table in each scope searched by the name (lookup); and a call's
-     frame made at once (Js_eval.frame_opti). With
+     of the program remembering its place (find_opti; the places put in
+     a copy of the tree by Js_quicken, which such an engine runs
+     instead of the parser's), rather than a table in each scope
+     searched by the name (lookup); and a call's frame made at once
+     (Js_frame.opti, where Js_frame.simple declares name by name). With
      Js_operators.arithmetic and Js_eval.item (two numbers, an array's
      item, with no conversion): the engine four times faster. In
      Js_scope.mli; tests/js is run on both. *)

@@ -263,7 +263,7 @@ and prefix (p : t) : expr =
     | Name "import" when is_punct p "." && (peek_at p 1).kind = Name "meta" ->
         p.pos <- p.pos + 2;
         Import_meta
-    | Name x -> Name (x, place ())
+    | Name x -> Name x
     | Keyword "true" -> Bool true
     | Keyword "false" -> Bool false
     | Keyword "null" -> Null
@@ -280,7 +280,7 @@ and prefix (p : t) : expr =
         let rec elements acc =
           if is_punct p "]" then List.rev acc
           (* [a, , b]: a hole, undefined *)
-          else if is_punct p "," then (ignore (advance p); elements (Name ("undefined", place ()) :: acc))
+          else if is_punct p "," then (ignore (advance p); elements (Name "undefined" :: acc))
           else
             let e = spread_or p in
             if is_punct p "," then (ignore (advance p); elements (e :: acc))
@@ -383,8 +383,8 @@ and property (p : t) : property =
       (* { a }: a: a; { a = 1 }, in a pattern: its default *)
       | Punct "=", Key x ->
           ignore (advance p);
-          Prop (k, Assign ("=", Name (x, place ()), expression p 1))
-      | _, Key x -> Prop (k, Name (x, place ()))
+          Prop (k, Assign ("=", Name x, expression p 1))
+      | _, Key x -> Prop (k, Name x)
       | _, Computed _ -> unexpected p "':'")
 
 (* f(a, b): what is after the "(" *)
@@ -414,7 +414,7 @@ and pattern (p : t) : pattern =
         else
           let k = key p in
           (* { a }, or { a: its own pattern } *)
-          let pt = if is_punct p ":" then (ignore (advance p); pattern p) else match k with Key x -> Bind (x, place ()) | Computed _ -> unexpected p "':'" in
+          let pt = if is_punct p ":" then (ignore (advance p); pattern p) else match k with Key x -> Bind x | Computed _ -> unexpected p "':'" in
           let part = (k, pt, default p) in
           if is_punct p "," then (ignore (advance p); parts (part :: acc))
           else (expect p "}"; Object_pattern (List.rev (part :: acc), None))
@@ -437,7 +437,7 @@ and pattern (p : t) : pattern =
           else (expect p "]"; Array_pattern (List.rev (part :: acc), None))
       in
       parts []
-  | _ -> Bind (name p, place ())
+  | _ -> Bind (name p)
 
 (* "= e" after a pattern: what it is when there is no value *)
 and default (p : t) : expr option = if is_punct p "=" then (ignore (advance p); Some (expression p 1)) else None
@@ -462,7 +462,7 @@ and params (p : t) : (pattern * expr option) list * pattern option =
 
 (* x => ..., (a, b) => ...: a body in braces, or an expression returned *)
 and arrow (p : t) ~(async : bool) : expr =
-  let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p, place ()), None) ], None) in
+  let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p), None) ], None) in
   let line = (peek p).line in
   expect p "=>";
   let body =
@@ -785,7 +785,7 @@ and for_rest (p : t) : statement =
           let xs = expression p 1 in
           expect p ")";
           For_of (let_kind k, first, xs, statement p)
-      | Keyword "in", Bind (x, _) ->
+      | Keyword "in", Bind x ->
           ignore (advance p);
           let o = expression p 0 in
           expect p ")";
@@ -812,7 +812,7 @@ and for_rest (p : t) : statement =
         ignore (advance p);
         let xs = expression p 1 in
         expect p ")";
-        match e with Name (x, _) -> For_of (Var_kind, Bind (x, place ()), xs, statement p) | _ -> fail p "for (... of): a name")
+        match e with Name x -> For_of (Var_kind, Bind x, xs, statement p) | _ -> fail p "for (... of): a name")
       else for_parts p (Some { line; stmt = Expr e })
 
 (* for (init; test; update) body: after the first part *)

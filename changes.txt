@@ -93,7 +93,10 @@
   scope is now an array of bindings and each name in the program's
   text remembers where it was found, how many scopes up and which slot
   (Js_scope: an inline cache; a call's frame made at once from its
-  function's layout, Js_eval.frame_opti). The simple way is kept
+  function's layout, Js_frame.opti). The parser's tree stays as
+  written: the places are in a copy of it made before it runs, a Name
+  there a Local, a var's names a Var_set, a function with its layout
+  (Js_quicken: the JVM's and CPython's word). The simple way is kept
   beside it (tables, a name hashed in each scope: opti=off), and
   tests/js is run on both. Also: two numbers added with no conversion
   (Js_operators.arithmetic_opti), an array's item by its number and
