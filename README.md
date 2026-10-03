@@ -6,14 +6,12 @@ CSS and JavaScript, which are most of it -- and, since a browser is
 also everything a page may point to, it has its own network stack,
 its own decoders of pictures, video and sound, and a PDF viewer.
 
-<a href="docs/screenshots/hackernews.png"><img src="docs/screenshots/hackernews.png" width="800" alt="mini-chrome showing Hacker News: its window, a tab, the omnibox, the page"></a>
-
 | | | |
 |---|---|---|
-| <a href="docs/screenshots/wikipedia.png"><img src="docs/screenshots/wikipedia.png" width="260" alt="Wikipedia's article on OCaml"></a> | <a href="docs/screenshots/tube.png"><img src="docs/screenshots/tube.png" width="260" alt="about:tube, the built-in video site"></a> | <a href="docs/screenshots/pdf.png"><img src="docs/screenshots/pdf.png" width="260" alt="about:pdf, a PDF file in a tab"></a> |
-| Wikipedia, an article | `about:tube`: every kind of media it plays | `about:pdf`: a PDF file in a tab |
-| <a href="docs/screenshots/chrome.png"><img src="docs/screenshots/chrome.png" width="260" alt="about:chrome, the built-in demonstration"></a> | <a href="docs/screenshots/github.png"><img src="docs/screenshots/github.png" width="260" alt="GitHub, the OCaml repository"></a> | |
-| `about:chrome`: what the engine does, a card each | GitHub: readable, not yet right | |
+| <a href="docs/screenshots/hackernews.png"><img src="docs/screenshots/hackernews.png" width="260" alt="Hacker News"></a> | <a href="docs/screenshots/wikipedia.png"><img src="docs/screenshots/wikipedia.png" width="260" alt="Wikipedia's article on OCaml"></a> | <a href="docs/screenshots/github.png"><img src="docs/screenshots/github.png" width="260" alt="GitHub, the OCaml repository"></a> |
+| Hacker News | Wikipedia, an article | GitHub: readable, not yet right |
+| <a href="docs/screenshots/chrome.png"><img src="docs/screenshots/chrome.png" width="260" alt="about:chrome, the built-in demonstration"></a> | <a href="docs/screenshots/tube.png"><img src="docs/screenshots/tube.png" width="260" alt="about:tube, the built-in video site"></a> | <a href="docs/screenshots/pdf.png"><img src="docs/screenshots/pdf.png" width="260" alt="about:pdf, a PDF file in a tab"></a> |
+| `about:chrome`: what the engine does, a card each | `about:tube`: every kind of media it plays | `about:pdf`: a PDF file in a tab |
 
 (The pictures are the real program's, on the real sites:
 `scripts/sites/screenshots.sh` takes them again.)
