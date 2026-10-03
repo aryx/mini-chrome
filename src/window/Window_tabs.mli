@@ -72,11 +72,6 @@ val saved : < Cap.open_out ; .. > -> model -> model
 
 (* {1 The omnibox and the panel} *)
 
-(* where words are searched, by the engine's name; what is typed in the
- * omnibox: an address (a scheme, or a host with a dot), else words
- * searched *)
-val search_url : string -> string -> string
-val typed_url : string -> string -> string
 
 (* the panel showing a view, or closed: the pages laid out again if the
  * page area's height changed (it is their 100vh) *)

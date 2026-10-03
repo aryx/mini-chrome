@@ -150,7 +150,9 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
 | The strip of tabs | `Gui_tabs` | generic over what a tab is |
 | Back, Forward, Reload, Stop | `Gui_toolbar` | a row of picture buttons |
 | A menu opened at a point | `Gui_menu` | generic over what an item is |
-| A line of text typed into | `Gui_field` | the omnibox's text and box |
+| A line of text typed into | `Gui_field` | a caret and a selection; the omnibox's text |
+| The clipboard | `Gui_clipboard` | the program's own text until the main gives it the platform's |
+| The omnibox | `src/chrome/Omnibox` | a browser's: an address shown, an address or a search typed |
 | A scrollbar | `Gui_scrollbar` | generic over the unit scrolled; the grab of a drag is the model's |
 | The desktop's scale | `Gui_scale` | any window on a screen of many dots |
 | Colours, the box hit test | `Gui_kit` | shared by the pieces |

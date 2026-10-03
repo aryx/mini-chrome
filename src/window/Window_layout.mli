@@ -100,6 +100,9 @@ val pointed_control : model -> Dom.element option
 val near : float -> float -> float -> float -> model -> bool
 val on_omnibox : model -> bool
 
+(* the omnibox, built from the model (src/chrome's Omnibox) *)
+val omnibox : model -> Omnibox.t
+
 (* the panel's header: "Inspect", "Elements", "Network" *)
 val panel_button : model -> string option
 

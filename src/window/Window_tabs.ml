@@ -160,25 +160,6 @@ let close_tab (network : < Cap.network ; .. >) (id : int) (m : model) : model * 
       let current = if m.current = id then (List.nth rest (max 0 (List.length rest - 1))).id else m.current in
       ({ m with tabs = rest; current; selected = None }, Cmd.none)
 
-(* where words typed in the omnibox are searched: an engine whose page
- * works without scripts and answers a program -- Wikipedia's (the
- * default: Google's needs JavaScript, and DuckDuckGo's page without
- * scripts, like Mojeek's, soon takes a program asking again and again
- * for a robot and asks it to pick ducks), or DuckDuckGo's
- * (search=duckduckgo) *)
-let search_url (engine : string) (words : string) : string =
-  match engine with
-  | "duckduckgo" -> "https://html.duckduckgo.com/html/?" ^ Urlencoded.encode [ ("q", words) ]
-  | _ -> "https://en.wikipedia.org/w/index.php?" ^ Urlencoded.encode [ ("search", words) ]
-
-(* what is typed in the omnibox: an address (a scheme, or a host with a
- * dot), else words searched *)
-let typed_url (engine : string) (s : string) : string =
-  let s = String.trim s in
-  if String.contains s ':' && not (String.contains s ' ') then s
-  else if String.contains s '.' && not (String.contains s ' ') then "https://" ^ s
-  else search_url engine s
-
 (* the panel opened, closed or showing another view; the page
  * area's height is the pages' 100vh, so when it changes they are laid
  * out again *)

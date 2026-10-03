@@ -26,7 +26,7 @@ type model = {
   panel : panel;
   inspecting : bool; (* the next click on the page picks an element *)
   selected : Dom.element option;
-  engine : string; (* the omnibox's searches: search_url *)
+  engine : string; (* the omnibox's searches: Omnibox.search_url *)
   allowed : string list; (* the sites whose scripts run (hosts): Chrome's per-site setting *)
   fetches : msg Fetch.t; (* the tabs' requests in flight, stepped on each Tick *)
   screen : float * float; (* the window's size in the program's units (its dots, divided by the scale): the page's width *)
@@ -41,6 +41,8 @@ type model = {
   dots : float; (* the screen's dots for one of the window's points (Playground_platform.pixel_ratio): 2 on a Retina, else 1 *)
   shift : bool; (* a Shift key held *)
   grab : float option; (* the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
+  selecting : bool; (* the button held since a click in the omnibox: the pointer drags its selection *)
+  last_click : float; (* when the button last went down (time): a second one soon after is a double click *)
 }
 
 and msg =

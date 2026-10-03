@@ -35,7 +35,7 @@
  * it, its x to close it, + for a new one), each a Browser_tab of its
  * own, its answers routed to it by its number; below, Back, Forward,
  * Reload, and the **omnibox** (click it, type, Return): an address, or
- * words -- then a search, Wikipedia's (search_url: the engines' pages
+ * words -- then a search, Wikipedia's (Omnibox.search_url: the engines' pages
  * without scripts that answer a program; DuckDuckGo's, search=duckduckgo,
  * its links going through a <meta http-equiv=refresh>, which the tab
  * follows). A
@@ -221,6 +221,9 @@ let main = Program.main __MODULE__ (fun () ->
       | Some "segments" -> Mini_opti.letters := Segments
       | Some "pictures" -> Mini_opti.letters := Pictures
       | _ -> ());
+      (* the omnibox copies to and pastes from the desktop's clipboard, not one of its own *)
+      Gui_clipboard.read := Playground_platform.clipboard;
+      Gui_clipboard.write := Playground_platform.set_clipboard;
       (* pdf=strokes: a PDF file's text drawn with our own letters at
        * the file's widths, not with the fonts it carries; and
        * -gradients, -clips, -pictures, -transparency, or plain for the

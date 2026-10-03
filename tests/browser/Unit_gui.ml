@@ -56,16 +56,57 @@ let tests =
           Alcotest.(check string) "characters, not bytes" "f\xc3\xa9" (Gui_text.tail 2 "caf\xc3\xa9");
           (* the edge, the card, the letters *)
           Alcotest.(check int) "bubble" 5 (List.length (Gui_text.bubble ~left:(-500.) ~y:(-339.) "a b c")));
-      Testo.create "Gui_field, the worked example: a fresh field's text is replaced" (fun () ->
-          let shown f = Gui_field.shown f in
+      Testo.create "Gui_field, the worked example: a caret, a selection" (fun () ->
+          (* a field as the .mli draws it: [..] the selection, | the caret *)
+          let show (f : Gui_field.t) =
+            let a, b = Gui_field.selection f and cs = Text.chars f.text in
+            let part from until = String.concat "" (List.filteri (fun i _ -> i >= from && i < until) cs) in
+            let n = List.length cs in
+            if a = b then part 0 a ^ "|" ^ part a n
+            else part 0 a ^ (if f.caret = a then "|[" else "[") ^ part a b ^ (if f.caret = b then "]|" else "]") ^ part b n
+          in
+          let check name expected f = Alcotest.(check string) name expected (show f) in
           let f = Gui_field.focused "about:chrome" in
-          Alcotest.(check string) "focused" "about:chrome_" (shown f);
-          let f = Gui_field.typed "n" (Gui_field.typed "h" f) in
-          Alcotest.(check string) "typed h, n" "hn_" (shown f);
-          Alcotest.(check string) "backspace" "h_" (shown (Gui_field.backspace f));
-          Alcotest.(check string) "a fresh field emptied" "_" (shown (Gui_field.backspace (Gui_field.focused "x")));
-          Alcotest.(check string) "a character, not a byte" "caf_" (shown (Gui_field.backspace (Gui_field.typed "caf\xc3\xa9" (Gui_field.focused ""))));
-          Alcotest.(check string) "nothing left to take" "_" (shown (Gui_field.backspace (Gui_field.backspace (Gui_field.typed "a" (Gui_field.focused "")))));
+          check "a field just clicked: all selected" "[about:chrome]|" f;
+          let f = Gui_field.typed "h" f in
+          check "typing replaces the selection" "h|" f;
+          let f = Gui_field.typed "n" f in
+          check "then adds" "hn|" f;
+          let f = Gui_field.backspace f in
+          check "backspace" "h|" f;
+          let f = Gui_field.moved Left f in
+          check "the caret moved" "|h" f;
+          let f = Gui_field.moved ~select:true Right f in
+          check "with Shift: the anchor stays" "[h]|" f;
+          check "backspace: the selection gone" "|" (Gui_field.backspace f);
+          (* the rest of the usual *)
+          let f = Gui_field.caret_at 3 (Gui_field.focused "example.com") in
+          check "a click puts the caret" "exa|mple.com" f;
+          check "a drag selects from it, either way" "exa[mple]|.com" (Gui_field.caret_at ~select:true 7 f);
+          check "backwards" "e|[xa]mple.com" (Gui_field.caret_at ~select:true 1 f);
+          Alcotest.(check string) "what a copy takes" "mple" (Gui_field.selected (Gui_field.caret_at ~select:true 7 f));
+          check "typed in the middle" "exaX|mple.com" (Gui_field.typed "X" f);
+          check "pasted over a selection" "exaNEW|.com" (Gui_field.typed "NEW" (Gui_field.caret_at ~select:true 7 f));
+          check "Delete takes the character after" "exa|ple.com" (Gui_field.delete f);
+          check "Backspace the one before" "ex|mple.com" (Gui_field.backspace f);
+          check "Home, End" "|example.com" (Gui_field.moved Home f);
+          check "Shift and End" "exa[mple.com]|" (Gui_field.moved ~select:true End f);
+          check "an arrow from a selection goes to its end, and ends it" "example.com|" (Gui_field.moved Right (Gui_field.select_all f));
+          check "or its start" "|example.com" (Gui_field.moved Left (Gui_field.select_all f));
+          check "all selected again, then Backspace: empty" "|" (Gui_field.backspace (Gui_field.select_all f));
+          check "nothing left to take" "|" (Gui_field.backspace (Gui_field.backspace (Gui_field.typed "a" (Gui_field.focused ""))));
+          check "a character, not a byte" "caf|" (Gui_field.backspace (Gui_field.typed "caf\xc3\xa9" (Gui_field.focused "")));
+          check "a click past the end" "abc|" (Gui_field.caret_at 99 (Gui_field.focused "abc"));
+          (* a text too long for its box: its end in view, and the caret *)
+          let long = Gui_field.focused "0123456789" in
+          Alcotest.(check string) "the end shown" "56789" (Gui_field.shown long ~room:6);
+          Alcotest.(check string) "the caret brought back in view" "23456" (Gui_field.shown (Gui_field.caret_at 2 long) ~room:5);
+          Alcotest.(check int) "a point is a character: the fourth letter of those shown" 8 (Gui_field.index_at long ~room:6 ~x:100. ~cell:10. 131.);
+          Alcotest.(check (pair int int)) "the selection's band and the caret; the caret alone" (2, 1)
+            (List.length (Gui_field.marks long ~room:20 ~x:0. ~y:0. ~cell:10.), List.length (Gui_field.marks (Gui_field.caret_at 1 long) ~room:20 ~x:0. ~y:0. ~cell:10.));
+          (* the clipboard, the program's own until the main gives the system's *)
+          Gui_clipboard.set "copied";
+          Alcotest.(check string) "what was copied" "copied" (Gui_clipboard.get ());
           Alcotest.(check int) "its box: the edge, the white" 2 (List.length (Gui_field.box ~x:0. ~y:0. ~w:100.)));
       Testo.create "Gui_scale, the worked example: xrdb's Xft.dpi" (fun () ->
           let scale = Alcotest.(option (float 0.0001)) in

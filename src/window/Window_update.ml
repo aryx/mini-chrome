@@ -24,7 +24,7 @@ let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profi
 
 let first_pages (engine : string) (flags : flags) : string list =
   let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in
-  match Option.to_list (List.assoc_opt "url" flags) @ List.map (fun (name, value) -> typed_url engine (if value = "" then name else name ^ "=" ^ value)) words with
+  match Option.to_list (List.assoc_opt "url" flags) @ List.map (fun (name, value) -> Omnibox.destination engine (if value = "" then name else name ^ "=" ^ value)) words with
   | [] -> [ home ]
   | urls -> urls
 
@@ -40,7 +40,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; dots = 1.; shift = false; grab = None }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; dots = 1.; shift = false; grab = None }
   in
   (* a tab a page, the first one shown *)
   let m, cmd =
@@ -52,11 +52,11 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
   ({ m with selected }, cmd)
 
 let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_field.t) (m : model) : model * msg Cmd.t =
-  match key with
-  | "enter" | "return" -> visit network (typed_url m.engine field.text) m
-  | "escape" -> ({ m with omnibox = None }, Cmd.none)
-  | "backspace" -> ({ m with omnibox = Some (Gui_field.backspace field) }, Cmd.none)
-  | _ -> (m, Cmd.none)
+  match Omnibox.key ~ctrl:m.ctrl ~shift:m.shift key field with
+  | Edit field -> ({ m with omnibox = Some field }, Cmd.none)
+  | Go typed -> visit network (Omnibox.destination m.engine typed) m
+  | Leave -> ({ m with omnibox = None }, Cmd.none)
+  | Nothing -> (m, Cmd.none)
 
 let form (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (m : model) : model * msg Cmd.t =
   on_current m (fun cfg tab -> Browser_tab.form_effect cfg network ~keep_focus outcome tab)
@@ -165,10 +165,12 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
   | Mouse_move (x, y) -> (
       let m = { m with mouse = (x /. scale_of m, y /. scale_of m) } in
       (* the scrollbar's thumb held: the page follows the pointer *)
+      (* the button held since a click in the omnibox: its selection follows the pointer *)
+      let m = if m.selecting then { m with omnibox = Omnibox.dragged (omnibox m) (fst m.mouse) } else m in
       match m.grab with
       | Some grab -> (scrolled (int_of_float (Float.round (Gui_scrollbar.dragged (scrollbar m) ~grab (snd m.mouse))) - (current_tab m).scroll) m, Cmd.none)
       | None -> (m, Cmd.none))
-  | Mouse_up -> ({ m with grab = None }, Cmd.none)
+  | Mouse_up -> ({ m with grab = None; selecting = false }, Cmd.none)
   (* the window's size changed (not the first time, when it is
    * told the size it started at): kept in the profile, and every tab's
    * page laid out again at its new width *)
@@ -200,9 +202,13 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
       | Some After -> (scrolled (pages m 1) m, Cmd.none)
       | None -> (m, Cmd.none))
   | Click -> (
-      let m = { m with omnibox = None } in
+      let double = m.time -. m.last_click < 0.4 and before = m.omnibox in
+      let m = { m with omnibox = None; last_click = m.time } in
       if on_omnibox m then
-        on_current { m with omnibox = Some (Gui_field.focused (current_url m)) } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
+        (* a first click takes it, its address all selected; then a click
+         * puts the caret, and a drag from it selects (Omnibox.clicked) *)
+        let field = Omnibox.clicked (omnibox { m with omnibox = before }) ~double (fst m.mouse) in
+        on_current { m with omnibox = Some field; selecting = before <> None && not double } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
       else if near (wrench_x m -. 12.) (toolbar_y m) 24. 28. m then (toggle_panel m, Cmd.none)
       else if near (js_x m) (toolbar_y m) 22. 20. m then
         (* the site's scripts on or off, and the page loaded again *)
@@ -236,8 +242,9 @@ let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) 
       (rescreened (with_profile { m.profile with scale } m), Cmd.none)
   | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Browser_zoom.apply (Option.get (Browser_zoom.key key))) m, Cmd.none)
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
-  | Typed s when m.omnibox <> None -> ({ m with omnibox = Option.map (Gui_field.typed s) m.omnibox }, Cmd.none)
-  | Key key when m.omnibox <> None -> edit_omnibox network (String.lowercase_ascii key) (Option.get m.omnibox) m
+  (* with Ctrl held a letter is a command (edit_omnibox), not typed *)
+  | Typed s when m.omnibox <> None -> ({ m with omnibox = Option.map (Omnibox.typed ~ctrl:m.ctrl s) m.omnibox }, Cmd.none)
+  | Key key when m.omnibox <> None -> edit_omnibox network key (Option.get m.omnibox) m
   | Typed s when (current_tab m).focus <> None -> (
       match ((current_tab m).state, (current_tab m).focus) with
       | Shown p, Some e -> form network ~keep_focus:true (Changed (Browser_forms.typed p e s)) m

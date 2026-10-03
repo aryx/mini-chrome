@@ -111,19 +111,8 @@ let view_unscaled (m : model) : shape list =
   let tab = current_tab m in
   let body = match tab.state with Shown p -> page_shapes m p | Loading _ -> [] in
   let background = match tab.state with Shown { background = Some (r, g, b); _ } -> rgb r g b | _ -> white in
-  let editing = m.omnibox <> None in
-  let omnibox = match m.omnibox with Some field -> Gui_field.shown field | None -> current_url m in
-  (* the address as Chrome shows it: the scheme and host dark, the rest
-   * grey *)
-  let host_end =
-    match String.index_from_opt omnibox (min (String.length omnibox) (try String.index omnibox ':' + 3 with Not_found -> 0)) '/' with
-    | Some i when not editing -> i
-    | _ -> String.length omnibox
-  in
   (* the zoom, when not 100%, left of "JS" *)
   let percent = Browser_zoom.label (zoom_of m tab) in
-  let shown = Browser_text.tail (int_of_float ((omnibox_w m -. 52. -. (cell *. float_of_int (String.length percent + 1))) /. cell)) omnibox in
-  let dark = String.sub shown 0 (min (String.length shown) host_end) in
   [ rectangle background (width m) (height m) ]
   @ body
   @ (let bar = Window_tabs.scrollbar m in
@@ -134,9 +123,7 @@ let view_unscaled (m : model) : shape list =
       rectangle edge (width m) 1. |> move_y (area_top m) ]
   @ Gui_tabs.shapes (strip m) ~time:m.time
   @ Gui_toolbar.shapes (buttons m)
-  @ Gui_field.box ~x:(omnibox_x m) ~y:(toolbar_y m) ~w:(omnibox_w m)
-  @ monospace (omnibox_x m +. 10.) (toolbar_y m) muted shown
-  @ monospace (omnibox_x m +. 10.) (toolbar_y m) ink dark
+  @ Omnibox.shapes (omnibox m)
   @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
   @ (let on = tab.script <> None in
      [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x m +. 11.) (toolbar_y m) ]
@@ -167,13 +154,13 @@ let animated (m : model) : bool =
  * warning here until it is said whether the view reads it *)
 let same_but_time
     ({ tabs; current; next_id; omnibox; mouse; time = _; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
-       profile_dir; saved; changed; menu; window; desktop; dots; shift; grab } :
+       profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _ } :
       model) (m : model) : bool =
   tabs == m.tabs && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
   && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
   && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && dots == m.dots && shift == m.shift
-  && grab == m.grab
+  && grab == m.grab && selecting == m.selecting
 
 (* the last model drawn, its shapes, and whether it moves by itself
  * (asked once a model, not once a frame: it reads the page's every

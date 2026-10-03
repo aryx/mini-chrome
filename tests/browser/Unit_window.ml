@@ -43,6 +43,44 @@ let cursors (m : Window_model.model) ~(page : bool) : Playground.cursor list =
 let tests caps =
   Testo.categorize "Window"
     [
+      Testo.create "the omnibox: clicked, its text selected; the keys, a drag, a double click, copy and paste" (fun () ->
+          let m = window caps "about:home" in
+          let send msg m = after caps (Window_update.update caps msg m) in
+          let keys names m = List.fold_left (fun m k -> send (Key k) m) m names in
+          let at_char i (m : Window_model.model) = { m with mouse = (Window_layout.omnibox_x m +. 10. +. (Gui_text.cell *. float_of_int i), Window_layout.toolbar_y m) } in
+          let field (m : Window_model.model) = match m.omnibox with Some f -> (f.text, Gui_field.selected f, f.caret) | None -> ("", "", -1) in
+          let check name expected m = Alcotest.(check (triple string string int)) name expected (field m) in
+          let m = send Click (at_char 2 m) in
+          check "a click: the address, all selected" ("about:home", "about:home", 10) m;
+          let m = send Mouse_up m in
+          let end_ = keys [ "End" ] m in
+          check "End: the caret after it, nothing selected" ("about:home", "", 10) end_;
+          check "typed there: added" ("about:home!", "", 11) (send (Typed "!") end_);
+          (* Shift and arrows *)
+          let shifted = keys [ "Left"; "Left"; "Left"; "Left" ] { end_ with shift = true } in
+          check "Shift and four Lefts" ("about:home", "home", 6) shifted;
+          (* a second click, later: the caret; the pointer moved with the button held: a selection *)
+          let later = tick caps 9. m in
+          let clicked = send Click (at_char 6 later) in
+          check "a click in a field that has the keys: the caret" ("about:home", "", 6) clicked;
+          let dragged = send (Mouse_move (fst (at_char 10 clicked).mouse *. Window_layout.scale_of clicked, snd clicked.mouse *. Window_layout.scale_of clicked)) clicked in
+          check "dragged to the end" ("about:home", "home", 10) dragged;
+          let released = send Mouse_up dragged in
+          Alcotest.(check bool) "released: the pointer no longer selects" true (not released.selecting && field (send (Mouse_move (0., 0.)) released) = field released);
+          (* copied, then pasted over everything *)
+          let copied = keys [ "c" ] { released with ctrl = true } in
+          Alcotest.(check string) "Ctrl+C: on the clipboard" "home" (Gui_clipboard.get ());
+          check "and the field as it was" ("about:home", "home", 10) copied;
+          let pasted = keys [ "a"; "v" ] copied in
+          check "Ctrl+A, Ctrl+V: the line replaced" ("home", "", 4) pasted;
+          check "a letter typed with Ctrl held is not text" ("home", "", 4) (send (Typed "v") pasted);
+          let cut = keys [ "a"; "x" ] pasted in
+          check "Ctrl+A, Ctrl+X: cut" ("", "", 0) cut;
+          (* a double click selects the line; Backspace then deletes it *)
+          let again = send Click (send Mouse_up (send Click (at_char 1 (keys [ "v"; "v" ] cut)))) in
+          check "a double click: all selected" ("homehome", "homehome", 8) again;
+          check "Backspace: the line gone" ("", "", 0) (keys [ "Backspace" ] { again with ctrl = false });
+          Alcotest.(check bool) "Escape gives the keys back" true ((keys [ "Escape" ] again).omnibox = None));
       Testo.create "the cursor: a hand over a link, the I-beam where text is typed, the arrow elsewhere" (fun () ->
           let home = window caps "about:home" and form = window caps "about:form" in
           Alcotest.(check bool) "a page of links: the arrow and the hand" true (cursors home ~page:true = [ Playground.Arrow; Hand ]);
@@ -81,10 +119,10 @@ let tests caps =
           Alcotest.(check string) "no path" "x.org" (Window_layout.host_of "http://x.org");
           Alcotest.(check string) "a built-in page: none" "" (Window_layout.host_of "about:chrome"));
       Testo.create "what is typed in the omnibox: an address, or words searched" (fun () ->
-          Alcotest.(check string) "a scheme" "about:tube" (Window_tabs.typed_url "wikipedia" " about:tube ");
-          Alcotest.(check string) "a host with a dot" "https://news.ycombinator.com" (Window_tabs.typed_url "wikipedia" "news.ycombinator.com");
-          Alcotest.(check string) "a word" "https://en.wikipedia.org/w/index.php?search=ocaml" (Window_tabs.typed_url "wikipedia" "ocaml");
-          Alcotest.(check string) "words with a dot" "https://html.duckduckgo.com/html/?q=ocaml+5.0" (Window_tabs.typed_url "duckduckgo" "ocaml 5.0"));
+          Alcotest.(check string) "a scheme" "about:tube" (Omnibox.destination "wikipedia" " about:tube ");
+          Alcotest.(check string) "a host with a dot" "https://news.ycombinator.com" (Omnibox.destination "wikipedia" "news.ycombinator.com");
+          Alcotest.(check string) "a word" "https://en.wikipedia.org/w/index.php?search=ocaml" (Omnibox.destination "wikipedia" "ocaml");
+          Alcotest.(check string) "words with a dot" "https://html.duckduckgo.com/html/?q=ocaml+5.0" (Omnibox.destination "duckduckgo" "ocaml 5.0"));
       Testo.create "the command line: the words that are not flags are pages" (fun () ->
           let pages = Window_update.first_pages "wikipedia" in
           Alcotest.(check (list string)) "none: the home page" [ "about:chrome" ] (pages [ ("profile", "off"); ("threads", "on") ]);

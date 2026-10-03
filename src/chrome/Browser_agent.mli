@@ -32,7 +32,7 @@
                   name that works by one path and not by another, for
                   a site that does not want to be read by what it does
                   not know: taken out the day it went in. The omnibox
-                  searches elsewhere (Window_tabs.search_url).
+                  searches elsewhere (Omnibox.search_url).
 
    road-not-taken:
    The lesson is the user agent's own. A name borrowed gets the page

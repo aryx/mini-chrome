@@ -336,14 +336,17 @@ predates it.
 
 What the window's chrome is made of and that is not a browser's goes in
 `libs/gui` (`Gui_text`, `Gui_tabs`, `Gui_toolbar`, `Gui_menu`,
-`Gui_field`, `Gui_scrollbar`, the colours in `Gui_kit`, the desktop's
+`Gui_field` (a line of text with a caret and a selection),
+`Gui_clipboard`, `Gui_scrollbar`, the colours in `Gui_kit`, the desktop's
 scale in `Gui_scale`), as values built from the model: `shapes` for the
 view, a hit test (`at`, `chosen`) for update, no state, callback or
 message of their own. `Window_layout` and `Window_tabs` build them
 (`strip m`, `buttons m`, `scrollbar m`) and `Window_update` decides
 what a hit means. A new piece of chrome goes there
 unless it is specific to a browser (then `src/chrome`, as
-`Browser_menu`).
+`Browser_menu` and `Omnibox`: the address shown, what a key, a click
+and a drag make of its text, and what is typed made an address or a
+search).
 
 ### Build wiring worth knowing
 

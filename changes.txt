@@ -119,6 +119,16 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the omnibox is a module of its own (src/chrome/Omnibox: its keys,
+  clicks and drags, what is typed made an address or a search, its
+  drawing), and its text can be selected and edited as a line of text
+  usually is (Gui_field: a caret and an anchor): a first click selects
+  it all, then a click puts the caret, a drag selects, a double click
+  selects all; the arrows, Home and End move the caret, with Shift
+  they select; typing, Backspace and Delete replace the selection;
+  Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, to and from the desktop's
+  clipboard (Gui_clipboard, which the main gives the platform's:
+  Playground_platform.clipboard, new in elm-playground)
 - the mouse's cursor follows what is under it, as Chrome's: a hand
   over a link, the I-beam over the omnibox and a page's text field,
   the arrow elsewhere (Window_layout.cursor_of; given to the platform

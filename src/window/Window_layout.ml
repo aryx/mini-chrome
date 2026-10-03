@@ -124,7 +124,14 @@ let strip (m : model) : int Gui_tabs.t =
 
 let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool = Gui_kit.near x0 y0 w h m.mouse
 
-let on_omnibox (m : model) : bool = near (omnibox_x m) (toolbar_y m) (omnibox_w m) 28. m
+(* the omnibox (src/chrome's), built from the model: the zoom, when
+ * it is not 100%, and JS are at its right, and leave it less room *)
+let omnibox (m : model) : Omnibox.t =
+  let percent = Browser_zoom.label (zoom_of m (current_tab m)) in
+  { x = omnibox_x m; y = toolbar_y m; w = omnibox_w m; address = current_url m; field = m.omnibox;
+    room = int_of_float ((omnibox_w m -. 52. -. (cell *. float_of_int (String.length percent + 1))) /. cell) }
+
+let on_omnibox (m : model) : bool = Omnibox.at (omnibox m) m.mouse
 
 (* the panel's header: its views' names and Inspect *)
 let panel_button (m : model) : string option =
