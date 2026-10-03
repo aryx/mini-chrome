@@ -14,6 +14,9 @@ use it; the techniques behind them are in
   - `dump_sites.sh`: each site of the list loaded without a screen and
     dumped as a PNG, its requests and failures said: to look at, and
     bring `docs/sites.md` up to date
+  - `screenshots.sh`: the README's pictures (`docs/screenshots/`)
+    taken again: Hacker News, Wikipedia, GitHub and three built-in
+    pages, each window dumped once its page has settled
 - `js/`: what real scripts ask of the JavaScript engine
   - `Js_survey.exe`: each script given parsed, then run in an empty
     page; its first mistake, and the mistakes counted; a library then
