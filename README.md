@@ -147,7 +147,8 @@ src/display/          a page drawn as shapes: Hershey's letters (and those
                       with an accent, put together: Glyph_unicode), pictures,
                       boxes (Browser_draw, Browser_boxes)
 src/www/              the page as a document (Browser_page), its forms
-src/dom/              JavaScript in a browser: the DOM a page's scripts
+src/webapi/           the web APIs, JavaScript in a browser (in dom/, net/,
+                      window/, run/): the DOM a page's scripts
                       see (Script_dom, Script_host, Script_element,
                       Script_events, Script_document), window's globals
                       (Script_window), a script asking the network

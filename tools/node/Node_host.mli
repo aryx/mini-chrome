@@ -3,7 +3,7 @@
    The engine (languages/javascript) is a language and nothing else: it
    cannot print, wait, read a file, nor even be given a second file.
    Everything of the kind is its host's. In the browser the host is a
-   page (src/dom: document, window, the events). Here it is a terminal:
+   page (src/webapi: document, window, the events). Here it is a terminal:
 
    cs-history:
    JavaScript outside a browser is as old as JavaScript: Netscape's
@@ -24,7 +24,7 @@
               |                      promises -- no way out
        +------+--------+
        |               |
-     src/dom        tools/node
+     src/webapi        tools/node
      a page         a terminal
      document       console (the standard output)
      events         process.argv, .env, .exit, .stdout.write

@@ -10,6 +10,6 @@
  (libraries
    caps logs tiny_libs.core network
    lang_html lang_css javascript browser_layout
-   browser_url browser_display browser_www browser_dom browser_about browser_chrome
+   browser_url browser_display browser_www browser_webapi browser_about browser_chrome
    mosaic_engine
    elm_playground mini_platform))

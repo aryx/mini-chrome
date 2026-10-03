@@ -1,6 +1,6 @@
 ; the page as a document: read, styled and laid out, every stage
 ; kept (Browser_page), its forms' clicks and keys (Browser_forms). Its
-; scripts are src/dom's.
+; scripts are src/webapi's.
 (library
  (name browser_www)
  (wrapped false)

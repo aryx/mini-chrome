@@ -6,7 +6,7 @@
 ; (promises and their jobs, async and await) over Js_coroutine. The
 ; language only: what a script can touch outside itself is its host's,
 ; a record of functions, so the browser gives it a page
-; (src/dom's Browser_script), a terminal gives it files and timers
+; (src/webapi's Browser_script), a terminal gives it files and timers
 ; (tools/node: mini-node), and a test gives it nothing.
 ;
 ; Pure OCaml, no Playground; the modules are Js_ because the libraries

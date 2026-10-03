@@ -11,7 +11,7 @@ it (`copy_files`), and becomes a generated module there.
 | `tube/` | `about:tube`'s files made elsewhere, by ffmpeg: an MPEG-1 video and its WebM twin (VP8 by libvpx, the `.mpg`'s sound again as Vorbis by libvorbis); two chirps as an MP3 (LAME), and from it as Opus (libopus, in its own file and in a WebM), Vorbis and MP2 | `Tube_files` | `src/about` |
 | `css/ua.css` | the browser's own style sheet: what an element looks like before the page says anything (CSS 2.1's appendix D, grown) | `Ua_sheet` | `languages/css` |
 | `prelude/library.js` | the JavaScript standard library's later additions (ES2016 to ES2024, `Date`, `JSON.stringify`), written in JavaScript and run in every engine before any script | `Js_prelude` | `languages/javascript` |
-| `prelude/web.js` | small web APIs (`AbortController`, `TextEncoder`, `structuredClone`, `Headers`, `Intl`...) written in JavaScript and run in every page before its scripts | `Script_prelude` | `src/dom` |
+| `prelude/web.js` | small web APIs (`AbortController`, `TextEncoder`, `structuredClone`, `Headers`, `Intl`...) written in JavaScript and run in every page before its scripts | `Script_prelude` | `src/webapi` |
 
 Why here and not beside the code: a source directory holds one
 language. The `.mli` of each generated module (`Js_prelude.mli`,

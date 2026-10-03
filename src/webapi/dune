@@ -1,0 +1,50 @@
+; the web APIs: what a browser gives a page's scripts beyond the
+; language (languages/javascript, which knows nothing of pages) --
+; MDN's name for the set. One library, in four folders:
+;
+;   dom/      the document a script sees: Script_dom (the page's
+;             mutable copy), Script_host (an element's host object),
+;             Script_element (its members since the first DOM),
+;             Script_events (an event of a script's own),
+;             Script_document (document)
+;   net/      a script asking the network: Script_fetch (fetch),
+;             XMLHttpRequest, WebSocket (a socket that stays), Cors
+;             (who may read the answer)
+;   window/   what window has besides: Script_window (its globals),
+;             LocalStorage (a page's store), Script_url
+;             (URLSearchParams)
+;   run/      when things run: Browser_script (the tasks: the scripts,
+;             an event dispatched; what the browser asks of them),
+;             Event_loop (the timers, the order things run in),
+;             Script_modules (ES modules)
+;
+; and here, what they share: Script_types (their types) and
+; Script_prelude (the small APIs written in JavaScript).
+(include_subdirs unqualified)
+
+(library
+ (name browser_webapi)
+ (wrapped false)
+ (modules_without_implementation script_types) ; types alone
+ (flags (:standard -open Network)) ; ours, not the Playground's (libs/network/dune)
+ (libraries
+   lang_html lang_css javascript
+   browser_url
+   network)) ; Urlencoded, a URL's query
+
+; the small web APIs written in JavaScript (data/prelude/web.js: data,
+; kept in data/ at the top and copied here at build time), embedded
+; as a string: Script_prelude
+(copy_files ../../data/prelude/web.js)
+
+(rule
+ (targets Script_prelude.ml)
+ (deps web.js)
+ (action
+  (with-stdout-to
+   %{targets}
+   (progn
+    (echo "(* generated from data/prelude/web.js by src/webapi/dune *)\n")
+    (echo "let text = {prelude|")
+    (cat web.js)
+    (echo "|prelude}\n")))))

@@ -2,7 +2,7 @@
 ; and text. Under the languages: what the markup ones are read
 ; into -- HTML (languages/html's Html_tree) and XML (languages/xml's
 ; Xml) -- and what CSS's selectors match on; the layout walks it, an
-; SVG is drawn from it, a script is given a copy (src/dom). It knows
+; SVG is drawn from it, a script is given a copy (src/webapi). It knows
 ; none of them. Pure OCaml, no dependency.
 (library
  (name mini_dom)

@@ -238,7 +238,10 @@ a new format gets one.
 JavaScript is cut in three. `languages/javascript` is the language
 alone (values, functions, promises; an async function's body is a
 thread, `Js_coroutine`): nothing in it knows of a page, and nothing
-of a browser goes there. `src/dom` is JavaScript in a browser: the DOM
+of a browser goes there. `src/webapi` is JavaScript in a browser, the web APIs (one library
+in four folders: `dom/` the document a script sees, `net/` a script
+asking the network, `window/` what `window` has besides, `run/` when
+things run; `libs/dom` is the tree itself): the DOM
 and what `window` has. `tools/node` is the same engine with a terminal
 for host, `mini-node` (`bin/mini-node file.js`, `-e text`, or a
 console: `Node_host` has console, process, timers and the loop that
@@ -256,7 +259,7 @@ language's part: scopes, exports, who runs before whom) and
 `Script_modules` (the browser's: the graph fetched by
 `Script_fetch.ask`, the import map, the jobs `Browser_script` runs).
 
-The `Dom` tree is an immutable value. `Browser_script` (src/dom) gives a page's
+The `Dom` tree is an immutable value. `Browser_script` (src/webapi) gives a page's
 scripts a mutable copy (`Script_dom`: thaw), reached through host
 objects (`Script_host`; `Script_element`, `Script_events`,
 `Script_document` and `Script_window` for what libraries ask;

@@ -16,7 +16,7 @@
  * page is also a program, in JavaScript, which the browser runs. This
  * one runs it with an engine written from scratch
  * (languages/javascript: a lexer, a Pratt parser, a tree walker)
- * over the page's tree (src/dom's Browser_script: the DOM, the
+ * over the page's tree (src/webapi's Browser_script: the DOM, the
  * events, the timers), and shows what the scripts do in a panel under
  * the page, after Firebug (Joe Hewitt, 2006, a Firefox extension, the
  * ancestor of every browser's developer tools):

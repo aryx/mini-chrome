@@ -16,5 +16,5 @@
    mini_opti ; the same view for the same model (Window_view)
    mini_gui ; the chrome's pieces
    lang_html lang_css browser_layout
-   browser_url browser_display browser_www browser_dom browser_viewers browser_about browser_chrome
+   browser_url browser_display browser_www browser_webapi browser_viewers browser_about browser_chrome
    elm_playground))

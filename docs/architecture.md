@@ -30,7 +30,7 @@ host's, and there are two hosts:
 ```
                  languages/javascript     values, functions, promises
                     |              |
-                 src/dom        tools/node
+                 src/webapi     tools/node
                  a page         a terminal (mini-node)
                  document,      console, process, require and its
                  events,        modules, fs, timers on the machine's

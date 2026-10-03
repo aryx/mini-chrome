@@ -22,7 +22,7 @@
    language: nodes, with a parent, children and attributes. Levels 2
    (2000) and 3 (2004) added events, styles and ranges; it is now a
    living standard of the WHATWG's. Here it is the tree alone, as
-   an OCaml value; what a script sees of it is src/dom's.
+   an OCaml value; what a script sees of it is src/webapi's.
 
      html                       the root, always there (Html_tree
       +- head                    makes the three of them even when the
