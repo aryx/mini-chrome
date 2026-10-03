@@ -38,7 +38,7 @@ type answer = { status : int; headers : (string * string) list; body : string; f
  * page's origin), a message sent, a close (its code and reason) *)
 type socket_ask = Socket_open of int * string * string | Socket_send of int * string | Socket_close of int * int * string
 
-type timer = { tid : int; mutable due : float; every : float option; fn : value }
+type timer = { tid : int; mutable due : float; every : float option; fn : value; frame : bool (* requestAnimationFrame's: called with the time *) }
 
 type t = {
   engine : Js_eval.t;

@@ -179,3 +179,7 @@ val size : node -> (float * float) option
 (* [render ?color node ~width ~height]: the picture, [color] (black)
  * being currentColor *)
 val render : ?color:int * int * int -> node -> width:int -> height:int -> Rgba_image.t
+
+(* a colour as SVG writes one (red, #edd400, rgb(12,10,28)); None for
+ * none, and for what is not a colour *)
+val color : string -> (int * int * int) option

@@ -84,13 +84,15 @@ open Script_types
 val install : t -> (string -> (value list -> value) -> unit) -> unit
 
 (* [add t [f; ms] ~repeat]: f to be run in ms milliseconds (1 at
- * least), again every ms if [repeat]; the timer's number *)
-val add : t -> value list -> repeat:bool -> value
+ * least), again every ms if [repeat]; the timer's number. [frame]:
+ * requestAnimationFrame's, whose f is given the time *)
+val add : ?frame:bool -> t -> value list -> repeat:bool -> value
 
 (* the timer of that number forgotten *)
 val clear : t -> value list -> value
 
 (* [advance t ms ~task]: the page's clock moved on by [ms]; the timers
- * due run, the earliest first, each given to [task] (a thousand at
- * most per call) *)
-val advance : t -> float -> task:(value -> unit) -> unit
+ * due run, the earliest first, each given to [task] with what it is
+ * called with (the time, for an animation frame's; else undefined), a
+ * thousand at most per call *)
+val advance : t -> float -> task:(value -> value -> unit) -> unit

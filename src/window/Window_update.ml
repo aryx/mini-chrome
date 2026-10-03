@@ -40,7 +40,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
        * the frame waits *)
       fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
-      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; dots = 1.; shift = false; grab = None }
+      screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; pressed = false; dots = 1.; shift = false; grab = None }
   in
   (* a tab a page, the first one shown *)
   let m, cmd =
@@ -117,7 +117,46 @@ let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui
       let selected = match ((current_tab m).state, page_point_at m menu.at) with Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y | _ -> None in
       (with_panel Elements { m with inspecting = false; selected }, Cmd.none)
 
-let update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+(* what the user does, as the event a page's script would be told of
+ * (Browser_script.window_event): a key down or up when nothing of the
+ * browser's is typed in, the pointer over the page moved, pressed, let
+ * go, the wheel -- its place in the page's window, y down *)
+let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) option =
+  let number f = Js_value.Number f and flag b = Js_value.Bool b in
+  let key k = [ ("key", Js_value.String k); ("ctrlKey", flag m.ctrl); ("shiftKey", flag m.shift); ("altKey", flag false); ("metaKey", flag false) ] in
+  let z = zoom_of m (current_tab m) in
+  let place (x, y) = ((x -. area_left m) /. z, (area_top m -. y) /. z) in
+  let pointer ?(moved = (0., 0.)) at ~button ~buttons =
+    let x, y = place at in
+    [ ("clientX", number x); ("clientY", number y); ("button", number button); ("buttons", number buttons); ("movementX", number (fst moved)); ("movementY", number (snd moved)) ]
+  in
+  let free = m.omnibox = None && (current_tab m).focus = None && m.menu = None in
+  let over_page at = page_point_at m at <> None && Gui_scrollbar.at (scrollbar m) at = None in
+  match msg with
+  | Key k when free -> Some ("keydown", key k)
+  | Key_up k when free -> Some ("keyup", key k)
+  | Mouse_move (x, y) ->
+      let at = (x /. scale_of m, y /. scale_of m) in
+      let (x0, y0), (x1, y1) = (place m.mouse, place at) in
+      if over_page at then Some ("mousemove", pointer at ~moved:(x1 -. x0, y1 -. y0) ~button:0. ~buttons:(if m.pressed then 1. else 0.)) else None
+  | Click when m.menu = None && over_page m.mouse -> Some ("mousedown", pointer m.mouse ~button:0. ~buttons:1.)
+  | Mouse_up when m.pressed -> Some ("mouseup", pointer m.mouse ~button:0. ~buttons:0.)
+  | Wheel notches when (not m.ctrl) && over_page m.mouse -> Some ("wheel", ("deltaY", number (-100. *. notches)) :: ("deltaMode", number 0.) :: pointer m.mouse ~button:0. ~buttons:0.)
+  | _ -> None
+
+let rec update (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+  let network = (caps :> < Cap.network >) in
+  (* a page that is a program (a game, the Playground's own web
+   * platform) is told first; then the browser does its own, unless a
+   * script prevented it *)
+  match (told m msg, (current_tab m).script) with
+  | Some (typ, fields), Some s when Browser_script.listens s typ ->
+      let m, cmd, prevented = task network m (fun s -> Browser_script.window_event s typ fields) in
+      let m = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
+      if prevented then (m, cmd) else let m, cmd' = update_browser caps msg m in (m, Cmd.batch [ cmd; cmd' ])
+  | _ -> update_browser caps msg m
+
+and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
   (* the menu is over a page that stays as it is: closed by what
    * moves the page, and by Escape *)

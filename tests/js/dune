@@ -3,5 +3,13 @@
 ; literals read by its lexer (languages/json)
 (test
  (name Test)
- (libraries alcotest testo javascript lang_json) ; Json, over Js_lexer
+ (libraries alcotest testo mini_opti javascript lang_json) ; Json, over Js_lexer
 )
+
+; the same tests on the engine's simple code paths (Mini_opti: scopes
+; as tables, Js_scope; the operators and an array's items the long
+; way): what the optimized paths give, the simple ones must
+(rule
+ (alias runtest)
+ (action
+  (setenv MINI_OPTI off (run %{exe:Test.exe}))))

@@ -10,12 +10,23 @@
 
 (* See Js_ast.mli *)
 
+module Names = Hashtbl.Make (struct
+  type t = string
+
+  let equal = String.equal
+  let hash = Hashtbl.hash
+end)
+
+type place = { mutable hops : int; mutable slot : int }
+
+let place () : place = { hops = -1; slot = 0 }
+
 type expr =
   | Number of float
   | String of string
   | Bool of bool
   | Null
-  | Name of string
+  | Name of string * place
   | This
   | Unary of string * expr
   | Update of string * bool * expr
@@ -53,7 +64,10 @@ and func = {
   arrow : bool;
   generator : bool;
   async : bool;
+  mutable frame : frame option;
 }
+
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place }
 
 and property =
   | Prop of key * expr
@@ -69,7 +83,7 @@ and member = { static : bool; key : key; what : member_kind }
 and member_kind = Method of func | Get of func | Set of func | Field of expr option | Static_block of stmt list
 
 and pattern =
-  | Bind of string
+  | Bind of string * place
   | Object_pattern of (key * pattern * expr option) list * pattern option
   | Array_pattern of (pattern * expr option) option list * pattern option
 
@@ -147,7 +161,7 @@ let rec expr_to_string (e : expr) : string =
   | String s -> p "%S" s
   | Bool b -> string_of_bool b
   | Null -> "null"
-  | Name x -> x
+  | Name (x, _) -> x
   | This -> "this"
   | Array es -> p "[%s]" (list expr_to_string es)
   | Object props ->
@@ -212,7 +226,7 @@ and key_to_string (k : key) : string = match k with Key k -> k | Computed e -> "
 and pattern_to_string (pt : pattern) : string =
   let rest r = match r with Some r -> [ "..." ^ pattern_to_string r ] | None -> [] in
   match pt with
-  | Bind x -> x
+  | Bind (x, _) -> x
   | Object_pattern (parts, r) ->
       "{" ^ String.concat ", " (List.map (fun (k, pt, d) -> key_to_string k ^ ": " ^ param_to_string (pt, d)) parts @ rest r) ^ "}"
   | Array_pattern (parts, r) ->

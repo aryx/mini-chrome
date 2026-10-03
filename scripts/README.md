@@ -31,6 +31,10 @@ use it; the techniques behind them are in
     stage of the pipeline timed on the page fetched (`Page_bench.mli`;
     `dune build scripts/perf/Page_bench.exe`, then
     `./_build/default/scripts/perf/Page_bench.exe [URL] [WxH] [opti=off]`)
+  - `Js_bench.exe`: how fast the JavaScript engine is: five small
+    loops, then a saved page's scripts and its animation frames
+    (`Js_bench.mli`; `Js_bench.exe page.html 10 [opti=off] [loops=off]`;
+    `docs/plans/plan_tinybox.md`)
   - `load_timeline.sh`: the real program's load without a screen, a
     time before each line of `-v`, then the clock's time against the
     CPU's (`FRAMES=n` for the frame to stop at)

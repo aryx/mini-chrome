@@ -7,7 +7,18 @@
 ; the tests: browser_display's shapes are the Playground's.
 (executable
  (name Page_bench)
+ (modules Page_bench)
  (flags (:standard -open Network))
  (libraries unix caps mini_opti network lang_html lang_css browser_layout browser_url browser_display browser_www browser_viewers browser_about
    tiny_libs.graphics_core ; Framebuffer, what the rasterizer draws into
    elm_playground elm_playground_software))
+
+; how fast the JavaScript engine is: small loops, then a page's
+; scripts and its animation frames (Js_bench.mli;
+; docs/plans/plan_tinybox.md):
+;   ./_build/default/scripts/perf/Js_bench.exe tinybox.html 10 [opti=off]
+(executable
+ (name Js_bench)
+ (modules Js_bench)
+ (flags (:standard -open Network))
+ (libraries unix mini_opti lang_html javascript browser_webapi network elm_playground elm_playground_software))

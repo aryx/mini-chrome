@@ -71,6 +71,10 @@ let tokenize (s : string) : token list =
   in
   let error msg = raise (Error (!line, msg)) in
   let sub i j = String.sub s i (j - i) in
+  (* opti: a name written many times is one string, so that two of
+   * them are told equal by their address (Js_scope.find) *)
+  let names : (string, string) Hashtbl.t = Hashtbl.create 256 in
+  let shared (w : string) : string = match Hashtbl.find_opt names w with Some w -> w | None -> Hashtbl.replace names w w; w in
   (* inside a template's ${ }: how many { are open in it (one count a
    * template, the innermost first); its } with none open ends it *)
   let depths : int list ref = ref [] in
@@ -121,7 +125,7 @@ let tokenize (s : string) : token list =
           if !j + 1 < n && s.[!j] = '\\' && s.[!j + 1] = 'u' then go (escaped_name i)
           else (
             let w = sub i !j in
-            emit (if List.mem w keywords then Keyword w else Name w) !line;
+            emit (if List.mem w keywords then Keyword w else Name (shared w)) !line;
             go !j)
       (* a name with a letter written as its number, \uFB01: a
        * minifier's way with letters beyond ASCII *)
@@ -168,9 +172,10 @@ let tokenize (s : string) : token list =
     while !k < n && is_name_char s.[!k] do incr k done;
     emit (Regex (sub (i + 1) close, sub (close + 1) !k)) !line;
     !k
-  (* digits, a fraction, an exponent; or 0x and hexadecimal digits *)
+  (* digits, a fraction, an exponent; or 0x and hexadecimal digits (0o
+   * and octal ones, 0b and binary ones: OCaml reads the three alike) *)
   and number i =
-    if i + 1 < n && s.[i] = '0' && (s.[i + 1] = 'x' || s.[i + 1] = 'X') then (
+    if i + 1 < n && s.[i] = '0' && String.contains "xXoObB" s.[i + 1] then (
       let j = ref (i + 2) in
       while !j < n && (is_digit s.[!j] || (Char.lowercase_ascii s.[!j] >= 'a' && Char.lowercase_ascii s.[!j] <= 'f')) do
         incr j

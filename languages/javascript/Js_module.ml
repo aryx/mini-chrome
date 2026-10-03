@@ -76,7 +76,7 @@ let rec find (t : t) (url : string) : modul =
       let scope = Js_eval.module_scope t.engine ~url in
       let m = { url; scope; program; state = Fresh; exports = []; stars = []; namespace = None; late = [] } in
       Hashtbl.replace t.modules url m;
-      let local x () = Hashtbl.find_opt scope.vars x in
+      let local x () = Js_scope.own scope x in
       List.iter
         (fun (st : A.stmt) ->
           match st.stmt with
@@ -145,15 +145,15 @@ let rec evaluate (t : t) (url : string) : modul =
                  * what the exporter assigns, the importer sees *)
                 let rec bind there here =
                   (match export t dep there with
-                  | Some b -> Hashtbl.replace m.scope.vars here b
+                  | Some b -> Js_scope.share m.scope here b
                   (* a circle of modules, and that one not run yet: its
                    * functions are there, the rest undefined until it has *)
-                  | None when dep.state = Running -> Hashtbl.replace m.scope.vars here { value = Undefined; constant = true }
+                  | None when dep.state = Running -> Js_scope.declare m.scope here ~constant:true Undefined
                   | None -> throw "SyntaxError" (Printf.sprintf "The requested module '%s' does not provide an export named '%s'" from there));
                   if dep.state = Running then dep.late <- (fun () -> bind there here) :: dep.late
                 in
                 Option.iter (bind "default") n.default;
-                Option.iter (fun ns -> Hashtbl.replace m.scope.vars ns { value = namespace t dep; constant = true }) n.namespace;
+                Option.iter (fun ns -> Js_scope.declare m.scope ns ~constant:true (namespace t dep)) n.namespace;
                 List.iter (fun (there, here) -> bind there here) n.named
             | _ -> ())
           m.program;

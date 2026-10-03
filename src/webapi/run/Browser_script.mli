@@ -177,6 +177,20 @@ val click : t -> Dom.element -> bool
  * bubbling to the document, event.key the key; whether prevented *)
 val key : t -> string -> bool
 
+(* whether a script listens on the window for events of that type *)
+val listens : t -> string -> bool
+
+(* an event of the window's, told to its listeners (those of
+ * window.addEventListener and document's): a key down or up
+ * ("keydown", its field "key" the platform's name of the key, made the
+ * web's: "return" is "Enter"), the pointer moved, pressed or let go
+ * ("mousemove", "mousedown", "mouseup": clientX, clientY, button,
+ * buttons), the wheel ("wheel": deltaY). What a page that is a
+ * program listens to: a game, the Playground's web platform
+ * (docs/plans/plan_tinybox.md). Nothing is done, and false, if no
+ * script listens; else whether one prevented what the browser does *)
+val window_event : t -> string -> (string * Js_value.value) list -> bool
+
 (* a form's field typed into: its value= the text, then its input
  * event *)
 val input : t -> Dom.element -> string -> unit

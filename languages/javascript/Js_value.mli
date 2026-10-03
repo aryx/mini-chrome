@@ -94,9 +94,16 @@ and closure = { func : Js_ast.func; scope : scope; this : value option (* an arr
 (* a frame of names, and the frame around it *)
 (* [subject] is the object of a with (obj) { }: a name that is
  * a property of it is that property; [in_with] says whether this
- * frame or one around it has one (else no frame is asked) *)
-and scope = { vars : (string, binding) Hashtbl.t; parent : scope option; subject : value option; in_with : bool }
+ * frame or one around it has one (else no frame is asked); [strict]:
+ * the code here is in strict mode ("use strict", a module, a class) *)
+and scope = { vars : vars; parent : scope option; subject : value option; in_with : bool; strict : bool }
 
+(* a scope's names: a table of them, the simple way; or, opti, an array
+ * of bindings in the order they were declared, their names beside
+ * (the first [used] of each), and when they are many an index of the
+ * first [fixed] of them, never written once made (Js_scope) *)
+and vars = Table of (string, binding) Hashtbl.t | Slots of slots
+and slots = { mutable names : string array; mutable cells : binding array; mutable used : int; mutable index : int Js_ast.Names.t option; mutable fixed : int }
 and binding = { mutable value : value; constant : bool }
 
 (* a JavaScript exception, thrown by [throw] or by the engine: any value,

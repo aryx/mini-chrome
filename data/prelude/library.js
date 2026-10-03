@@ -34,6 +34,11 @@
     return out;
   });
   def(A, "flatMap", function (f, self) { return this.map(f, self).flat(); });
+  // a typed array (Uint8Array...) is an array here: the two methods it
+  // has that an array has not. subarray gives a copy, not a view: read
+  // from, as a runtime does to write bytes out, it is the same
+  def(A, "subarray", function (a, b) { return this.slice(a, b); });
+  def(A, "set", function (from, at) { at = at || 0; for (var i = 0; i < from.length; i++) this[at + i] = from[i]; });
   def(A, "findLastIndex", function (f, self) {
     for (var i = this.length - 1; i >= 0; i--) if (f.call(self, this[i], i, this)) return i;
     return -1;

@@ -34,6 +34,8 @@ let tests =
       Testo.create "numbers" (fun () ->
           check "integer, fraction, exponent, hexadecimal, .5" "7 0.25 1e3 0xff .5"
             [ "Number 7"; "Number 0.25"; "Number 1000"; "Number 255"; "Number 0.5" ]);
+      Testo.create "numbers: octal and binary (ES2015)" (fun () ->
+          check "0o7777 as js_of_ocaml writes a file's mode, 0b101" "0o7777 0O17 0b101 0B11" [ "Number 4095"; "Number 15"; "Number 5"; "Number 3" ]);
       Testo.create "strings: escapes decoded" (fun () ->
           check "\\n, \\', \\u00e9" "'a\\nb' \"it\\'s\" \"caf\\u00e9\""
             [ "String \"a\\nb\""; "String \"it's\""; "String \"caf\\195\\169\"" ]);

@@ -358,7 +358,13 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     | _ -> None
   in
   let s_in = { s with margin = (let t, r, b, _ = s.margin in (t, r, b, Len Css_values.zero)) } in
-  let box, _ = layout_block env (ref []) e s_in ~cb_x:0. ~cb_width:cw ~y:0. ~marker:None ?content () in
+  (* a positioned <svg> is a picture still, a box of one line: its
+   * percents of the window if it is fixed (a Playground program's
+   * page is one svg, 100% by 100%) *)
+  let box =
+    if e.name = "svg" then picture_box ctx e s ~src:"" (svg_size ctx e s ~within:(cw, match s.position with Fixed -> snd env.viewport | _ -> 0.))
+    else fst (layout_block env (ref []) e s_in ~cb_x:0. ~cb_width:cw ~y:0. ~marker:None ?content ())
+  in
   let x = match (left, right) with Some l, _ -> cx +. l +. ml | None, Some r -> cx +. cw -. r -. box.width | None, None -> static_x +. ml in
   let y = match size s.top 0. with Some t -> cy +. t | None -> static_y in
   env.positioned := moved (x -. box.x) (y -. box.y) box :: !(env.positioned)
@@ -397,13 +403,14 @@ and picture_size (ctx : ctx) (e : Dom.element) (s : Computed.t) : (float * float
   | Some (w, h), Some m when w > m && w > 0. -> Some (m, h *. m /. w)
   | _ -> wh
 
-and svg_size (ctx : ctx) (e : Dom.element) (s : Computed.t) : float * float =
+and svg_size ?within (ctx : ctx) (e : Dom.element) (s : Computed.t) : float * float =
+  let cw, ch = Option.value within ~default:(ctx.width, 0.) in
   let view_box =
     match Option.map (fun v -> List.filter_map float_of_string_opt (String.split_on_char ' ' (String.map (fun c -> if c = ',' then ' ' else c) v))) (Dom.attribute "viewbox" e) with
     | Some [ _; _; w; h ] when w > 0. && h > 0. -> Some (w, h)
     | _ -> None
   in
-  match (size s.width ctx.width, size s.height 0., view_box) with
+  match (size s.width cw, size s.height ch, view_box) with
   | Some w, Some h, _ -> (w, h)
   | Some w, None, Some (vw, vh) -> (w, w *. vh /. vw)
   | None, Some h, Some (vw, vh) -> (h *. vw /. vh, h)
@@ -414,8 +421,9 @@ and svg_size (ctx : ctx) (e : Dom.element) (s : Computed.t) : float * float =
 
 (* a floated picture as a box of one line *)
 and image_box (ctx : ctx) (e : Dom.element) (s : Computed.t) : box =
-  let w, h = Option.value (picture_size ctx e s) ~default:(0., 0.) in
-  let src = Option.value (picture_src e) ~default:"" in
+  picture_box ctx e s ~src:(Option.value (picture_src e) ~default:"") (Option.value (picture_size ctx e s) ~default:(0., 0.))
+
+and picture_box (ctx : ctx) (e : Dom.element) (s : Computed.t) ~(src : string) ((w, h) : float * float) : box =
   let ws = word_style s ~link:ctx.link in
   let frag : Html_layout.fragment =
     { text = ""; look = ws.look; x = 0.; width = w; baseline = h; picture = Some { src; height = h; middle = false }; control = None; element = e }

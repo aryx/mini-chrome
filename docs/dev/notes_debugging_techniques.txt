@@ -237,3 +237,120 @@ Lessons
 - A bench of one stage alone can be three times off the program's.
 - Make the measure long enough that the run's own noise is small in
   it, and change one thing between two runs.
+
+
+Session 4 (2026-10-03): "a program compiled to JavaScript runs at one frame a second"
+---------------------------------------------------------------------------------------
+
+The Playground's menu (tinybox: OCaml compiled by js_of_ocaml, 538 KB
+of JavaScript) took 6.8 s to start in our engine and 870 ms a frame.
+The plan (docs/plans/plan_tinybox.md) had a guess, read in the code:
+the scopes' tables. Session 2 had no profiler; this time one was
+looked for first, and there was one.
+
+1. A profiler that needs nothing: valgrind's callgrind
+-------------------------------------------------------
+`which perf valgrind gprof`: perf was not installed, valgrind was.
+callgrind runs the program on a simulated processor and counts the
+instructions of each function. No flag at compile time, no root; the
+price is a program fifty times slower, so what is run under it is
+small.
+
+  valgrind --tool=callgrind --callgrind-out-file=/tmp/cg.out \
+    ./_build/default/tools/node/MiniNode.exe loop.js
+  callgrind_annotate /tmp/cg.out | head -50
+
+(loop.js: 100,000 calls of a function of two arguments, a line of
+JavaScript; half a minute under valgrind.) The answer, the functions
+by the instructions they ran themselves:
+
+  195,918,918 (11.47%)  runtime/hash.c:caml_hash
+  147,101,995 ( 8.61%)  stdlib/hashtbl.ml:camlStdlib__Hashtbl__key_index
+  112,117,652 ( 6.56%)  runtime/memory.c:caml_page_table_lookup
+  109,372,576 ( 6.40%)  runtime/compare.c:do_compare_val
+   99,280,699 ( 5.81%)  runtime/hash.c:caml_hash_mix_string
+   62,427,434 ( 3.65%)  runtime/array.c:caml_make_vect
+   60,772,465 ( 3.56%)  camlJs_eval__eval_expr
+
+How to read it:
+- The total divided by what the program did is the number to keep:
+  1,708 million instructions for 100,000 calls is 17,000 a call. It
+  does not move from a run to the next (a count, not a clock), so a
+  change of 2% shows, where a time needs a long run to show 10%.
+- The OCaml runtime's names say what the OCaml code asked: caml_hash
+  and Hashtbl's key_index are a table looked into; do_compare_val and
+  caml_page_table_lookup are the comparison of any two values (=,
+  compare, List.assoc, a Hashtbl's keys) where the types were known;
+  caml_make_vect is Array.make (here Hashtbl.create's); caml_alloc_string
+  with printf below it is a number written as text. Two thirds of
+  this profile were names hashed and tables made.
+- A name ending in '2 is the function called from itself (the
+  evaluator is recursive): add the two lines.
+- camlJs_eval__fun_3514 is a function with no name: a closure, or
+  the body the compiler made of a function with an optional
+  argument. `objdump -d prog | awk '/<camlJs_eval__fun_3514>:/,/ret/'`
+  and the calls it makes (bl ...tick, bl ...eval_expr) said which.
+- --inclusive=yes (a function with what it calls) gives nonsense on
+  a recursive program: millions of percents. Keep to the exclusive
+  list.
+
+2. The small program first, then the real one
+----------------------------------------------
+The loop's profile gave the first fix (the scopes); the real program
+then showed what no small loop had: a[1] writing 1 as a string to
+read it back as a number (printf in the profile of a program that
+prints nothing), and an object's keys compared as any two values. A
+bench was written to run the real one with no window
+(scripts/perf/Js_bench.exe page.html 3 loops=off: three minutes under
+callgrind), and run again after each change. When the list became
+flat -- the evaluator itself first at 10%, nothing of the runtime's
+above 4% -- there was no more to take that way: four times faster,
+and the next factor is another design, not another fix.
+
+3. Two runs of one program to find a wrong answer
+--------------------------------------------------
+The menu drew, the arrows moved its selection, and a click or the key
+"a" did nothing. Suspected: the engine wrong on something js_of_ocaml's
+runtime does (its comparison of two values). A bundle of 538 KB with
+its names shortened cannot be read; but OCaml can be compiled to
+JavaScript here, and Node is the reference:
+
+  ocamlfind ocamlc -package js_of_ocaml -linkpkg t.ml -o t.byte
+  js_of_ocaml t.byte -o t.js
+  node t.js > node.out; ./bin/mini-node t.js > mini.out
+  diff node.out mini.out
+
+t.ml: fourteen lines of Printf over =, compare, Hashtbl, String, List,
+Int64, floats. The first diff was the bug's kind (a typed array's
+subarray missing); with it the outputs were the same, so the engine's
+arithmetic was not at fault -- a suspect cleared in ten minutes. A
+program of this kind is the cheapest test of the engine against a
+real compiler's output.
+
+4. The first error, each time
+------------------------------
+What was wrong was said on the console all along (-v): "ba.data.subarray
+is not a function", then, that one fixed, "d.getContext is not a
+function". The second was thrown inside the function
+requestAnimationFrame calls, before it asks for the next frame: the
+animation stopped there, and every key after it "did nothing". Three
+runs had been spent on the keys and the mouse (a page of a few lines
+that logs each event it is given: they were right) before the line
+on the console was read as the cause and not as a side matter.
+
+A Proxy round an event (new Proxy(e, { get(t, k) { seen.push(k);
+return t[k] } }), given to window.dispatchEvent) says which of its
+fields a program reads: the way to know what an event must carry
+without reading the program.
+
+Lessons
+-------
+- Look for the profiler before deciding there is none: `which
+  valgrind`.
+- Instructions counted are steadier than seconds; divide them by what
+  the program did.
+- An uncaught error in a callback that re-arms itself (an animation
+  frame, a timer set again at its end) stops everything after it:
+  read the console before the events.
+- When a big program gives a wrong answer, make a small one with the
+  same compiler and compare with another engine.

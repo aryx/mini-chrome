@@ -24,6 +24,7 @@ type t = {
   (* import("m") in the module whose address is [base]: a promise of
    * its names (Js_module's, once there are modules) *)
   mutable importer : (base:string -> string -> value) option;
+  global_this : A.place; (* opti: where globalThis is, in the globals *)
 }
 
 (* a generator between its body and who calls next(): what the body
@@ -56,24 +57,17 @@ let define_accessor (o : obj) (k : string) ~(getter : value option) ~(setter : v
 (* Scopes *)
 (*****************************************************************************)
 
-let new_scope (parent : scope) : scope = { vars = Hashtbl.create 8; parent = Some parent; subject = None; in_with = parent.in_with }
-
-let rec lookup (s : scope) (x : string) : binding option =
-  match Hashtbl.find_opt s.vars x with Some b -> Some b | None -> Option.bind s.parent (fun p -> lookup p x)
-
-let declare (s : scope) (x : string) ~(constant : bool) (v : value) : unit = Hashtbl.replace s.vars x { value = v; constant }
+(* Js_scope's: a scope under another, a name looked for from a scope
+ * up (by its name alone; [find] remembers where it was), a name
+ * declared *)
+let new_scope = Js_scope.nested
+let lookup = Js_scope.lookup
+let find = Js_scope.find
+let declare = Js_scope.declare
 
 (* the address of the module the code is in ("" in a script): a name
  * of its scope that no script can write *)
 let module_url (s : scope) : string = match lookup s "%module" with Some { value = String url; _ } -> url | _ -> ""
-
-(* a for's next iteration: the same names, in new bindings holding the
- * same values (Hashtbl.copy would share the bindings, and every
- * iteration's closures would see the last i) *)
-let copy_scope (s : scope) : scope =
-  let vars = Hashtbl.create 8 in
-  Hashtbl.iter (fun x (b : binding) -> Hashtbl.replace vars x { b with value = b.value }) s.vars;
-  { s with vars }
 
 (*****************************************************************************)
 (* Properties *)
@@ -93,7 +87,7 @@ open Js_operators
 (* "x", "o.m": what a TypeError names *)
 let rec describe (e : A.expr) : string =
   match e with
-  | Name x -> x
+  | Name (x, _) -> x
   | This -> "this"
   | Member (o, x) -> describe o ^ "." ^ x
   | Index (o, _) -> describe o ^ "[...]"
@@ -115,10 +109,10 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Bool b -> Bool b
   | Null -> Null
   | This -> this
-  | Name x -> (
+  | Name (x, p) -> (
       match if s.in_with then with_subject t s x else None with
       | Some o -> get t o x
-      | None -> ( match lookup s x with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined")))
+      | None -> ( match find s x p with Some b -> b.value | None -> throw "ReferenceError" (x ^ " is not defined")))
   | Array es -> Object (new_array (eval_list t s this es))
   | Spread _ -> throw "SyntaxError" "... is for an array's items or a call's arguments"
   | Object props ->
@@ -192,7 +186,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       (* typeof of an undeclared name is "undefined", not an error *)
       | "typeof" -> (
           match x with
-          | Name n when lookup s n = None && not (s.in_with && with_subject t s n <> None) -> String "undefined"
+          | Name (n, p) when find s n p = None && not (s.in_with && with_subject t s n <> None) -> String "undefined"
           | _ -> String (typeof (eval_expr t s this x)))
       | "!" -> Bool (not (truthy (eval_expr t s this x)))
       | "-" -> Number (-.to_number (eval_expr t s this x))
@@ -261,9 +255,9 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       v
   | Assign ("=", Index (o, k), v) ->
       let o = eval_expr t s this o in
-      let k = key_of (eval_expr t s this k) in
+      let k = eval_expr t s this k in
       let v = eval_expr t s this v in
-      put t o k v;
+      put_item t o k v;
       v
   | Assign ("=", target, v) ->
       let v = eval_expr t s this v in
@@ -279,13 +273,13 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Member (o, k) -> get t (eval_expr t s this o) k
   | Index (o, k) ->
       let o = eval_expr t s this o in
-      get t o (key_of (eval_expr t s this k))
+      item t o (eval_expr t s this k)
   | Call (f, args) ->
       (* a method call: this is the object the function was read from *)
       let fn, self =
         match f with
         | Member (o, k) -> let o = eval_expr t s this o in (get t o k, o)
-        | Index (o, k) -> let o = eval_expr t s this o in (get t o (key_of (eval_expr t s this k)), o)
+        | Index (o, k) -> let o = eval_expr t s this o in (item t o (eval_expr t s this k), o)
         (* o.m?.(): the method, if there is one, still on o *)
         | Opt (Member (o, k)) -> (
             let o = eval_expr t s this o in
@@ -305,7 +299,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
  * prototype (%home: super.m is looked for behind it) and how to set
  * the fields of a new object (%init) *)
 and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
-  let cs = new_scope s in
+  let cs = Js_scope.strict s in
   let proto = new_object () in
   let parent = Option.map (eval_expr t s this) c.parent in
   (match parent with
@@ -329,11 +323,13 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
   let ctor : A.func =
     match (c.ctor, c.parent) with
     | Some f, Some _ -> f
-    | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
-    | None, None -> { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false }
-    | None, Some _ -> { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false }
+    | Some f, None -> { f with body = stmt (Call (Member (Name ("%init", A.place ()), "call"), [ This ])) :: f.body }
+    | None, None ->
+        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name ("%init", A.place ()), "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None }
+    | None, Some _ ->
+        { name = c.class_name; params = []; rest = Some (Bind ("args", A.place ())); body = [ stmt (Super_call [ Spread (Name ("args", A.place ())) ]) ]; arrow = false; generator = false; async = false; frame = None }
   in
-  let made = closure cs this { ctor with name = c.class_name } in
+  let made = closure cs this { ctor with name = c.class_name; frame = None } in
   let f = match made with Object f -> f | _ -> assert false in
   set_own f "prototype" (Object proto);
   set_own proto "constructor" made;
@@ -355,7 +351,10 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
 (* an array's items or a call's arguments: each one's value, a ...xs
  * each of xs' *)
 and eval_list (t : t) (s : scope) (this : value) (es : A.expr list) : value list =
-  List.concat_map (fun (e : A.expr) -> match e with Spread x -> items_of t (eval_expr t s this x) | e -> [ eval_expr t s this e ]) es
+  match es with
+  | [] -> []
+  | Spread x :: rest -> let items = items_of t (eval_expr t s this x) in items @ eval_list t s this rest
+  | e :: rest -> let v = eval_expr t s this e in v :: eval_list t s this rest
 
 (* what a for-of, a ...spread or an array pattern goes through, one
  * item at a time, [f] saying whether to go on: an array's items, a
@@ -459,6 +458,31 @@ and get (t : t) (target : value) (k : string) : value =
       | Object { kind = Accessor (getter, _); _ } -> if getter = Undefined then Undefined else call_value t getter ~this:target []
       | v -> v)
 
+(* o[k], o[k] = v: the property whose key is k as a string *)
+and item_simple (t : t) (o : value) (k : value) : value = get t o (key_of k)
+and put_item_simple (t : t) (o : value) (k : value) (v : value) : unit = put t o (key_of k) v
+
+(* opti: an array's item that is there, by a number: read and written
+ * in place -- where the simple way writes the number as a string
+ * ("3"), and Js_props reads the string back as a number. 1M reads:
+ * 1,300 ms to 470 *)
+and item_opti (t : t) (o : value) (k : value) : value =
+  match (o, k) with
+  | Object { kind = Array a; _ }, Number f ->
+      let i = Float.to_int f in
+      if i >= 0 && i < a.length && Float.of_int i = f then Array.unsafe_get a.elements i else item_simple t o k
+  | _ -> item_simple t o k
+
+and put_item_opti (t : t) (o : value) (k : value) (v : value) : unit =
+  match (o, k) with
+  | Object { kind = Array a; _ }, Number f ->
+      let i = Float.to_int f in
+      if i >= 0 && i < a.length && Float.of_int i = f then a.elements.(i) <- v else put_item_simple t o k v
+  | _ -> put_item_simple t o k v
+
+and item (t : t) (o : value) (k : value) : value = if !Mini_opti.enabled then item_opti t o k else item_simple t o k
+and put_item (t : t) (o : value) (k : value) (v : value) : unit = if !Mini_opti.enabled then put_item_opti t o k v else put_item_simple t o k v
+
 (* a handler's trap, if it has that one *)
 and trap (t : t) (handler : obj) (name : string) : value option =
   match Js_props.get (protos t) (Object handler) name with Object { kind = Closure _ | Host_function _; _ } as f -> Some f | _ -> None
@@ -474,7 +498,7 @@ and has_property (t : t) (o : value) (k : string) : bool =
 (* the object of the nearest with (o) { } around [s] that has [x], if
  * no frame nearer declares x *)
 and with_subject (t : t) (s : scope) (x : string) : value option =
-  if Hashtbl.mem s.vars x then None
+  if Js_scope.own s x <> None then None
   else
     match (s.subject, s.parent) with
     | Some o, _ when has_property t o x -> Some o
@@ -497,10 +521,10 @@ and put (t : t) (target : value) (k : string) (v : value) : unit =
  * name to the value; { } to its properties, by key, and what is left;
  * [ ] to its items, in order, and those left. A part that is
  * undefined takes its default *)
-and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) (bind : string -> value -> unit) : unit =
+and destructure (t : t) (s : scope) (this : value) (pt : A.pattern) (v : value) (bind : string -> A.place -> value -> unit) : unit =
   let or_default (v : value) (default : A.expr option) = match (v, default) with Undefined, Some d -> eval_expr t s this d | v, _ -> v in
   match pt with
-  | Bind x -> bind x v
+  | Bind (x, p) -> bind x p v
   | Object_pattern (parts, rest) ->
       (match v with Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot destructure '%s' as it is %s." (display v) (to_string v)) | _ -> ());
       let taken =
@@ -535,9 +559,9 @@ and closure (s : scope) (this : value) (f : A.func) : value =
 
 and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : unit =
   match target with
-  | Name x when s.in_with && with_subject t s x <> None -> put t (Option.get (with_subject t s x)) x v
-  | Name x -> (
-      match lookup s x with
+  | Name (x, _) when s.in_with && with_subject t s x <> None -> put t (Option.get (with_subject t s x)) x v
+  | Name (x, p) -> (
+      match find s x p with
       | Some { constant = true; _ } -> throw "TypeError" "Assignment to constant variable."
       | Some b -> b.value <- v
       (* a name nobody declared, assigned to: a global made, as scripts
@@ -547,7 +571,7 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
   | Member (o, k) -> put t (eval_expr t s this o) k v
   | Index (o, k) ->
       let o = eval_expr t s this o in
-      put t o (key_of (eval_expr t s this k)) v
+      put_item t o (eval_expr t s this k) v
   (* [a, b] = v, ({ a, b: o.x } = v): the literal read as a pattern, each
    * part assigned to; "= d" after a part, its default *)
   | Array es ->
@@ -586,33 +610,10 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
   | Object { kind = Closure c; _ } ->
       if t.depth >= max_depth then throw "RangeError" "Maximum call stack size exceeded";
       t.depth <- t.depth + 1;
-      let frame = new_scope c.scope in
-      (* arguments, the var's hoisted, then the parameters *)
-      if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
-      (* a function expression's own name, in its body (var f =
-       * function again(n) { ... again(n - 1) }), unless the name is
-       * already somebody's *)
-      (match c.func.name with Some n when lookup c.scope n = None -> declare frame n ~constant:false fn | _ -> ());
-      hoist frame c.func.body;
-      let bind x v = declare frame x ~constant:false v in
-      let rec params (ps : (A.pattern * A.expr option) list) (args : value list) =
-        match ps with
-        | [] -> Option.iter (fun r -> destructure t frame this r (Object (new_array args)) bind) c.func.rest
-        | (pt, default) :: more ->
-            let v, left = match args with v :: left -> (v, left) | [] -> (Undefined, []) in
-            (* a default is read in the call's frame: it sees the parameters before it *)
-            let v = match (v, default) with Undefined, Some d -> eval_expr t frame this d | v, _ -> v in
-            destructure t frame this pt v bind;
-            params more left
-      in
-      params c.func.params args;
       (* "use strict": its own, or that of the code it is written in (a
        * module and a class are strict always) *)
-      let strict =
-        (match c.func.body with { stmt = Expr (String "use strict"); _ } :: _ -> true | _ -> false)
-        || List.exists (fun mark -> lookup c.scope mark <> None) [ "%strict"; "%module"; "%home" ]
-      in
-      if strict then declare frame "%strict" ~constant:true Undefined;
+      let strict = c.scope.strict || match c.func.body with { stmt = Expr (String "use strict"); _ } :: _ -> true | _ -> false in
+      let frame = if Js_scope.slotted c.scope then frame_opti t c fn this args ~strict else frame_simple t c fn this args ~strict in
       let this =
         match (c.this, this) with
         | Some captured, _ -> captured
@@ -620,7 +621,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
          * strict: its this is the global object -- 1995's rule, which
          * old libraries count on: (function () { this.x = 1 })() *)
         | None, (Undefined | Null) when not strict -> (
-            match Hashtbl.find_opt t.globals.vars "globalThis" with Some b -> b.value | None -> this)
+            match find t.globals "globalThis" t.global_this with Some b -> b.value | None -> this)
         | None, this -> this
       in
       let line = t.line in
@@ -639,6 +640,86 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
           raise e)
   | _ -> throw "TypeError" (display fn ^ " is not a function")
 
+(* the parameters bound in a call's frame to what it was given, each
+ * by its name: a pattern's parts, a default, and those left *)
+and bind_params (t : t) (frame : scope) (this : value) (ps : (A.pattern * A.expr option) list) (rest : A.pattern option) (args : value list) : unit =
+  let bind x _ v = declare frame x ~constant:false v in
+  match ps with
+  | [] -> Option.iter (fun r -> destructure t frame this r (Object (new_array args)) bind) rest
+  | (pt, default) :: more ->
+      let v, left = match args with v :: left -> (v, left) | [] -> (Undefined, []) in
+      (* a default is read in the call's frame: it sees the parameters before it *)
+      let v = match (v, default) with Undefined, Some d -> eval_expr t frame this d | v, _ -> v in
+      destructure t frame this pt v bind;
+      bind_params t frame this more rest left
+
+(* a call's frame, the simple way: a scope under the function's, and
+ * in it arguments, the var's hoisted, then the parameters *)
+and frame_simple (t : t) (c : closure) (fn : value) (this : value) (args : value list) ~(strict : bool) : scope =
+  let frame = if strict then Js_scope.strict c.scope else new_scope c.scope in
+  if not c.func.arrow then declare frame "arguments" ~constant:false (Object (new_array args));
+  (* a function expression's own name, in its body (var f =
+   * function again(n) { ... again(n - 1) }), unless the name is
+   * already somebody's *)
+  (match c.func.name with Some n when lookup c.scope n = None -> declare frame n ~constant:false fn | _ -> ());
+  hoist frame c.func.body;
+  bind_params t frame this c.func.params c.func.rest args;
+  frame
+
+(* opti: what every call of a function declares, found once in its
+ * text: arguments, the var's (each once), the parameters when they
+ * are plain names; and each parameter's slot *)
+and layout (f : A.func) : A.frame =
+  let plain = List.for_all (fun (pt, default) -> match ((pt : A.pattern), default) with Bind _, None -> true | _ -> false) f.params in
+  let slots = A.Names.create 16 and names = ref [] in
+  let slot (x : string) : int =
+    match A.Names.find_opt slots x with
+    | Some i -> i
+    | None ->
+        let i = A.Names.length slots in
+        A.Names.replace slots x i;
+        names := x :: !names;
+        i
+  in
+  if not f.arrow then ignore (slot "arguments");
+  List.iter (fun x -> ignore (slot x)) (hoisted f.body);
+  let params = if plain then List.map (fun ((pt : A.pattern), _) -> match pt with Bind (x, _) -> slot x | _ -> -1) f.params else [] in
+  let names = Array.of_list (List.rev !names) in
+  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own = A.place () }
+
+(* opti: a call's frame made at once from the function's layout, an
+ * array of bindings beside the function's array of names (shared by
+ * its every call), the parameters set by their slots -- where
+ * frame_simple declares each name in a table, one after the other.
+ * The same frame in the end: frame_simple's words in another order.
+ * 1M calls of a function of two arguments: 3,700 ms to 670, with
+ * Js_scope's places *)
+and frame_opti (t : t) (c : closure) (fn : value) (this : value) (args : value list) ~(strict : bool) : scope =
+  let f = c.func in
+  let l = match f.frame with Some l -> l | None -> let l = layout f in f.frame <- Some l; l in
+  let cells = Array.make (Array.length l.names) Js_scope.nothing in
+  for i = 0 to Array.length cells - 1 do
+    cells.(i) <- { value = Undefined; constant = false }
+  done;
+  let frame = Js_scope.frame c.scope ~names:l.names ~index:l.index ~cells ~strict in
+  if not f.arrow then cells.(0).value <- Object (new_array args);
+  (* its own name: looked for outside once, by the place it was found
+   * (-2 hops: nowhere, and it is then the function's own for good) *)
+  (match f.name with
+  | Some n when l.own.hops = -2 || (match find c.scope n l.own with None -> l.own.hops <- -2; true | Some _ -> false) -> declare frame n ~constant:false fn
+  | _ -> ());
+  if l.plain then (
+    let rec set (i : int) (args : value list) : value list =
+      if i >= Array.length l.slots then args
+      else
+        match args with
+        | v :: left -> cells.(l.slots.(i)).value <- v; set (i + 1) left
+        | [] -> cells.(l.slots.(i)).value <- Undefined; set (i + 1) []
+    in
+    bind_params t frame this [] f.rest (set 0 args))
+  else bind_params t frame this f.params f.rest args;
+  frame
+
 (*****************************************************************************)
 (* Statements *)
 (*****************************************************************************)
@@ -646,7 +727,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
 (* the names a pattern binds *)
 and pattern_names (pt : A.pattern) : string list =
   match pt with
-  | Bind x -> [ x ]
+  | Bind (x, _) -> [ x ]
   | Object_pattern (parts, rest) -> List.concat_map (fun (_, pt, _) -> pattern_names pt) parts @ (match rest with Some r -> pattern_names r | None -> [])
   | Array_pattern (parts, rest) ->
       List.concat_map (fun part -> match part with Some (pt, _) -> pattern_names pt | None -> []) parts @ (match rest with Some r -> pattern_names r | None -> [])
@@ -654,7 +735,7 @@ and pattern_names (pt : A.pattern) : string list =
 (* var's names, declared (undefined) at the top of their function: a
  * var in a block or a loop is the function's -- hoisting, ES5's, what
  * let (block-scoped) came to fix *)
-and hoist (s : scope) (body : A.stmt list) : unit =
+and hoisted (body : A.stmt list) : string list =
   let rec names (st : A.stmt) : string list =
     match st.stmt with
     | Let (Var_kind, decls) -> List.concat_map (fun (pt, _) -> pattern_names pt) decls
@@ -673,7 +754,10 @@ and hoist (s : scope) (body : A.stmt list) : unit =
     | Export (Export_decl st) -> names st
     | _ -> []
   in
-  List.iter (fun x -> if not (Hashtbl.mem s.vars x) then declare s x ~constant:false Undefined) (List.concat_map names body)
+  List.concat_map names body
+
+and hoist (s : scope) (body : A.stmt list) : unit =
+  List.iter (fun x -> if Js_scope.own s x = None then declare s x ~constant:false Undefined) (hoisted body)
 
 (* a block's statements in [s]: its function declarations first *)
 and declare_functions (s : scope) (this : value) (body : A.stmt list) : unit =
@@ -694,37 +778,46 @@ and exec_block (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome
   in
   go body
 
+(* a loop's body ran: whether the loop goes on (None), or how it ends *)
+and after (labels : string list) (o : outcome) : outcome option =
+  match o with
+  | Normal | Continue None -> None
+  | Continue (Some l) when List.mem l labels -> None
+  | Break None -> Some Normal
+  | leave -> Some leave
+
+(* a branch's or a loop's body, in a scope of its own: a block makes its own *)
+and inside (t : t) (s : scope) (this : value) (body : A.stmt) : outcome =
+  match body.stmt with Block _ -> exec t s this body | _ -> exec t (new_scope s) this body
+
+(* whether a block's statements declare a name of the block's own (let,
+ * const, a class, a function): one that does not needs no scope *)
+and declares (body : A.stmt list) : bool =
+  List.exists (fun (st : A.stmt) -> match st.stmt with Let ((Let_kind | Const_kind), _) | Class_decl _ | Function_decl _ | Export _ -> true | _ -> false) body
+
 (* [labels]: those of the statement, if it is a loop: "continue l" with
  * one of them goes on with it *)
 and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outcome =
   t.line <- st.line;
   tick t;
-  let eval = eval_expr t s this in
-  (* a loop's body ran: whether the loop goes on (None), or how it ends *)
-  let after (o : outcome) : outcome option =
-    match o with
-    | Normal | Continue None -> None
-    | Continue (Some l) when List.mem l labels -> None
-    | Break None -> Some Normal
-    | leave -> Some leave
-  in
+  let eval e = eval_expr t s this e in
   match st.stmt with
   | Expr e -> ignore (eval e); Normal
   | Let (Var_kind, decls) ->
       (* the function's binding, hoisted: set, not declared again *)
-      let bind x v = match lookup s x with Some b -> b.value <- v | None -> declare s x ~constant:false v in
+      let bind x p v = match find s x p with Some b -> b.value <- v | None -> declare s x ~constant:false v in
       List.iter
         (fun ((pt : A.pattern), init) ->
           match (pt, init) with
           (* var x; again: what it holds stays *)
-          | Bind x, None -> if lookup s x = None then declare s x ~constant:false Undefined
+          | Bind (x, p), None -> if find s x p = None then declare s x ~constant:false Undefined
           | pt, init -> destructure t s this pt (match init with Some e -> eval e | None -> Undefined) bind)
         decls;
       Normal
   | Let (kind, decls) ->
       List.iter
         (fun (pt, init) ->
-          destructure t s this pt (match init with Some e -> eval e | None -> Undefined) (fun x v -> declare s x ~constant:(kind = Const_kind) v))
+          destructure t s this pt (match init with Some e -> eval e | None -> Undefined) (fun x _ v -> declare s x ~constant:(kind = Const_kind) v))
         decls;
       Normal
   | Function_decl _ -> Normal (* defined by its block, first *)
@@ -733,34 +826,36 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
       Normal
   | Return e -> Return (match e with Some e -> eval e | None -> Undefined)
   | If (c, a, b) -> (
-      if truthy (eval c) then exec t (new_scope s) this a
-      else match b with Some b -> exec t (new_scope s) this b | None -> Normal)
+      if truthy (eval c) then inside t s this a
+      else match b with Some b -> inside t s this b | None -> Normal)
   | While (c, body) ->
       let rec loop () =
-        if truthy (eval c) then match after (exec t (new_scope s) this body) with None -> loop () | Some o -> o else Normal
+        if truthy (eval c) then match after labels (inside t s this body) with None -> loop () | Some o -> o else Normal
       in
       loop ()
   | With (o, body) ->
       let o = eval o in
       (match o with Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot convert %s to object" (to_string o)) | _ -> ());
-      exec t { vars = Hashtbl.create 1; parent = Some s; subject = Some o; in_with = true } this body
+      exec t (Js_scope.with_subject s o) this body
   | Do_while (body, c) ->
       let rec loop () =
-        match after (exec t (new_scope s) this body) with None -> if truthy (eval c) then loop () else Normal | Some o -> o
+        match after labels (inside t s this body) with None -> if truthy (eval c) then loop () else Normal | Some o -> o
       in
       loop ()
   | For (init, test, update, body) ->
-      let first = new_scope s in
+      (* for (let i ...): a scope for i, and each iteration in a copy of
+       * the last: its own i. A var's i is the function's *)
+      let own = match init with Some { stmt = Let ((Let_kind | Const_kind), _); _ } -> true | _ -> false in
+      let first = if own then new_scope s else s in
       Option.iter (fun i -> ignore (exec t first this i)) init;
-      (* each iteration in a copy of the last: its own i *)
       let rec loop (it : scope) =
         let ok = match test with Some c -> truthy (eval_expr t it this c) | None -> true in
         if not ok then Normal
         else
-          match after (exec t (new_scope it) this body) with
+          match after labels (inside t it this body) with
           | Some o -> o
           | None ->
-              let next = copy_scope it in
+              let next = if own then Js_scope.copy it else it in
               Option.iter (fun u -> ignore (eval_expr t next this u)) update;
               loop next
       in
@@ -772,9 +867,9 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
       let turn (v : value) : bool =
         let it = new_scope s in
         (* a var's, or a name's already there: set; else this turn's own *)
-        let bind x v = match (kind, lookup s x) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
+        let bind x p v = match (kind, find s x p) with A.Var_kind, Some b -> b.value <- v | _ -> declare it x ~constant:(kind = Const_kind) v in
         destructure t it this x v bind;
-        match after (exec t it this body) with None -> true | Some o -> ended := o; false
+        match after labels (exec t it this body) with None -> true | Some o -> ended := o; false
       in
       let xs = eval xs in
       (match st.stmt with
@@ -805,7 +900,7 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
             | Declared (Var_kind, x) -> ( match lookup s x with Some b -> b.value <- String k | None -> declare s x ~constant:false (String k))
             | Declared (kind, x) -> declare it x ~constant:(kind = Const_kind) (String k)
             | Target e -> assign t s this e (String k));
-            match after (exec t it this body) with None -> loop rest | Some o -> o)
+            match after labels (exec t it this body) with None -> loop rest | Some o -> o)
       in
       loop
         (match eval o with
@@ -853,7 +948,7 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
               let scope = new_scope s in
               Option.iter (fun x -> declare scope x ~constant:false v) x;
               exec_block t scope this h)
-  | Block body -> exec_block t (new_scope s) this body
+  | Block body -> exec_block t (if declares body then new_scope s else s) this body
   | Empty -> Normal
   (* a module's (Js_module): what is imported was bound before its
    * body ran; an export is its declaration, and the default a name
@@ -880,7 +975,7 @@ let run_in_run (t : t) (program : A.program) : value =
       let last = ref Undefined in
       (* a script's own this is the global object (a page's window): what
        * a library wrapped in (function (root) { ... })(this) is given *)
-      let this = match Hashtbl.find_opt t.globals.vars "globalThis" with Some b -> b.value | None -> Undefined in
+      let this = match Js_scope.own t.globals "globalThis" with Some b -> b.value | None -> Undefined in
       hoist t.globals program;
       List.iter
         (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare t.globals (Option.get f.name) ~constant:false (closure t.globals Undefined f) | _ -> ())
@@ -912,8 +1007,8 @@ let prelude : A.program Lazy.t =
   lazy (match Js_parse.parse Js_prelude.text with Ok program -> program | Error e -> failwith (Printf.sprintf "data/prelude/library.js, line %d: %s" e.line e.message))
 
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
-  let globals = { vars = Hashtbl.create 64; parent = None; subject = None; in_with = false } in
-  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None } in
+  let globals = Js_scope.global () in
+  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None; global_this = A.place () } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
   (* new Function(params, body); an async one's constructor makes async ones *)
@@ -933,13 +1028,13 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
    * "direct" eval's are, in JavaScript) *)
   define "eval" (host_function "eval" (fun ~this:_ args -> match args with String text :: _ -> eval_in_run t text | v :: _ -> v | [] -> Undefined));
   (* the helpers libraries look for: Symbol, Map, Object.defineProperty... *)
-  Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Hashtbl.find_opt globals.vars x))
+  Js_globals.install ~call ~lookup:(fun x -> Option.map (fun (b : binding) -> b.value) (Js_scope.own globals x))
     ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~has:(has_property t) ~items:(fun v -> items_of t v) define;
   (* a rejection nobody handled, said as an error is *)
   let report v = log ("Uncaught (in promise) " ^ match v with Object o -> (match (get_own o "name", get_own o "message") with Some (String n), Some (String m) -> n ^ ": " ^ m | _ -> display v) | v -> display v) in
   t.promises <- Some (Js_promise.install ~call ~get:(get t) ~items:(fun v -> items_of t v) ~report define);
   (* the global object, by its standard name (a page's window is the browser's) *)
-  define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Hashtbl.find_opt globals.vars k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
+  define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Js_scope.own globals k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
   (* the rest of the library, in the language itself *)
   (try ignore (run_in_run t (Lazy.force prelude)) with Throw v -> log ("data/prelude/library.js: " ^ display v));
   Js_promise.drain (Option.get t.promises);
@@ -1010,7 +1105,7 @@ let names_of = pattern_names
 (* a module's own scope, under the globals: what it declares is its
  * own, not the page's *)
 let module_scope (t : t) ~(url : string) : scope =
-  let s = new_scope t.globals in
+  let s = Js_scope.strict t.globals in
   declare s "%module" ~constant:true (String url);
   s
 
@@ -1041,6 +1136,6 @@ let call (t : t) (f : value) ~(this : value) (args : value list) : (value, error
 let promise (t : t) = Js_promise.make (Option.get t.promises)
 let items = items_of
 
-let global (t : t) (x : string) : value option = Option.map (fun b -> b.value) (Hashtbl.find_opt t.globals.vars x)
+let global (t : t) (x : string) : value option = Option.map (fun (b : binding) -> b.value) (Js_scope.own t.globals x)
 let define (t : t) (x : string) (v : value) : unit = declare t.globals x ~constant:false v
 let set_budget (t : t) (steps : int) : unit = t.budget <- steps

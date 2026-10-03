@@ -26,7 +26,7 @@ opam, C, the machine) and what was brought in: keep it true when a
 ```bash
 ./configure            # opam deps; checks SDL2 and Cairo (--software: no Cairo)
 make                   # dune build
-make test              # dune runtest -f, all fourteen suites
+make test              # dune runtest -f, all fourteen suites (js twice: opti on, then off)
 make run               # dune exec mini-chrome
 make run-software      # dune exec mini-chrome-software
 ./bin/mini-node f.js   # the JavaScript engine in a terminal (no file: a console)
@@ -279,6 +279,20 @@ JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
 Scripts run only on the built-in pages and on allow-listed hosts
 (`default_allowed` in `Window_tabs`).
+
+The engine has two ways to find a name (`Js_scope`): the simple one, a
+table in each scope, and the fast one, scopes as arrays and each name
+of the program's text remembering its place (`Js_ast.place`), chosen
+when the engine is made (`Mini_opti.enabled`). A scope is touched only
+through `Js_scope`; `tests/js` is run on both (its `dune`), and
+`scripts/perf/Js_bench.exe` says what a change costs or buys.
+
+A page that is a program is told of the window's keys and pointer
+(`Browser_script.window_event`, from `Window_update.told`: only if a
+script listens), and an inline `<svg>` made of what the Playground's
+web platform writes is drawn as shapes (`Svg_shapes`; else `Svg`, a
+picture): what the Playground's own menu and games need to run here
+(`docs/plans/plan_tinybox.md`).
 
 ### Tabs, fetching and the program
 

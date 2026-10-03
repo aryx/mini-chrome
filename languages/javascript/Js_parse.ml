@@ -263,7 +263,7 @@ and prefix (p : t) : expr =
     | Name "import" when is_punct p "." && (peek_at p 1).kind = Name "meta" ->
         p.pos <- p.pos + 2;
         Import_meta
-    | Name x -> Name x
+    | Name x -> Name (x, place ())
     | Keyword "true" -> Bool true
     | Keyword "false" -> Bool false
     | Keyword "null" -> Null
@@ -280,7 +280,7 @@ and prefix (p : t) : expr =
         let rec elements acc =
           if is_punct p "]" then List.rev acc
           (* [a, , b]: a hole, undefined *)
-          else if is_punct p "," then (ignore (advance p); elements (Name "undefined" :: acc))
+          else if is_punct p "," then (ignore (advance p); elements (Name ("undefined", place ()) :: acc))
           else
             let e = spread_or p in
             if is_punct p "," then (ignore (advance p); elements (e :: acc))
@@ -344,7 +344,7 @@ and key (p : t) : key =
  * its key *)
 and method_ (p : t) (k : key) ~(async : bool) ~(generator : bool) : func =
   let ps, rest = params p in
-  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async }
+  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async; frame = None }
 
 (* one property of an object literal *)
 and property (p : t) : property =
@@ -360,7 +360,7 @@ and property (p : t) : property =
       ignore (advance p);
       let k = key p in
       let ps, rest = params p in
-      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false } in
+      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None } in
       if which = "get" then Getter (k, f) else Setter (k, f)
   (* async m() { } *)
   | Name "async" when accessor ->
@@ -383,8 +383,8 @@ and property (p : t) : property =
       (* { a }: a: a; { a = 1 }, in a pattern: its default *)
       | Punct "=", Key x ->
           ignore (advance p);
-          Prop (k, Assign ("=", Name x, expression p 1))
-      | _, Key x -> Prop (k, Name x)
+          Prop (k, Assign ("=", Name (x, place ()), expression p 1))
+      | _, Key x -> Prop (k, Name (x, place ()))
       | _, Computed _ -> unexpected p "':'")
 
 (* f(a, b): what is after the "(" *)
@@ -414,7 +414,7 @@ and pattern (p : t) : pattern =
         else
           let k = key p in
           (* { a }, or { a: its own pattern } *)
-          let pt = if is_punct p ":" then (ignore (advance p); pattern p) else match k with Key x -> Bind x | Computed _ -> unexpected p "':'" in
+          let pt = if is_punct p ":" then (ignore (advance p); pattern p) else match k with Key x -> Bind (x, place ()) | Computed _ -> unexpected p "':'" in
           let part = (k, pt, default p) in
           if is_punct p "," then (ignore (advance p); parts (part :: acc))
           else (expect p "}"; Object_pattern (List.rev (part :: acc), None))
@@ -437,7 +437,7 @@ and pattern (p : t) : pattern =
           else (expect p "]"; Array_pattern (List.rev (part :: acc), None))
       in
       parts []
-  | _ -> Bind (name p)
+  | _ -> Bind (name p, place ())
 
 (* "= e" after a pattern: what it is when there is no value *)
 and default (p : t) : expr option = if is_punct p "=" then (ignore (advance p); Some (expression p 1)) else None
@@ -462,13 +462,13 @@ and params (p : t) : (pattern * expr option) list * pattern option =
 
 (* x => ..., (a, b) => ...: a body in braces, or an expression returned *)
 and arrow (p : t) ~(async : bool) : expr =
-  let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p), None) ], None) in
+  let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p, place ()), None) ], None) in
   let line = (peek p).line in
   expect p "=>";
   let body =
     body_in p ~async ~generator:false (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
   in
-  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async }
+  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async; frame = None }
 
 (* function name? (params) { body }: what is after the keyword *)
 and func (p : t) ~(arrow : bool) ~(async : bool) : func =
@@ -476,7 +476,7 @@ and func (p : t) ~(arrow : bool) ~(async : bool) : func =
   let generator = is_punct p "*" && (ignore (advance p); true) in
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
   let ps, rest = params p in
-  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async }
+  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async; frame = None }
 
 (* class Name extends Parent { members }: what is after the keyword. A
  * member: [static] then a method m() { }, an accessor get k() { } or
@@ -785,7 +785,7 @@ and for_rest (p : t) : statement =
           let xs = expression p 1 in
           expect p ")";
           For_of (let_kind k, first, xs, statement p)
-      | Keyword "in", Bind x ->
+      | Keyword "in", Bind (x, _) ->
           ignore (advance p);
           let o = expression p 0 in
           expect p ")";
@@ -812,7 +812,7 @@ and for_rest (p : t) : statement =
         ignore (advance p);
         let xs = expression p 1 in
         expect p ")";
-        match e with Name x -> For_of (Var_kind, Bind x, xs, statement p) | _ -> fail p "for (... of): a name")
+        match e with Name (x, _) -> For_of (Var_kind, Bind (x, place ()), xs, statement p) | _ -> fail p "for (... of): a name")
       else for_parts p (Some { line; stmt = Expr e })
 
 (* for (init; test; update) body: after the first part *)

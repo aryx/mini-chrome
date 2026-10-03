@@ -272,7 +272,12 @@ let run_scripts ?(source = fun (_ : string) -> None) (t : t) : unit =
     (fun typ ->
       let listeners = List.filter (fun (ty, _) -> ty = typ) t.document_listeners in
       List.iter (fun (_, f) -> ignore (run_handler t f ~this:Undefined Undefined)) listeners)
-    [ "DOMContentLoaded"; "load" ]
+    [ "DOMContentLoaded"; "load" ];
+  (* and window.onload = f, the way of 1996, which a program compiled by
+   * js_of_ocaml still starts on *)
+  match Js_eval.global t.engine "onload" with
+  | Some (Object _ as f) -> ignore (run_handler t f ~this:Undefined Undefined)
+  | _ -> ()
 
 let tree (t : t) : Dom.element =
   t.changed <- false;
@@ -306,6 +311,27 @@ let key (t : t) (k : string) : bool =
   let body = match List.find_opt (fun n -> n.name = "body") (elements t.root) with Some b -> b | None -> t.root in
   dispatch t body "keydown" [ ("key", String k) ]
 
+(* whether the window (the document) has a listener of that type *)
+let listens (t : t) (typ : string) : bool = List.exists (fun (ty, _) -> ty = typ) t.document_listeners
+
+(* a key as the web names it, from the platform's name (SDL's, in
+ * lower case, but the arrows): "return" is "Enter", "space" is " " *)
+let web_key (k : string) : string =
+  match if String.length k > 1 && not (String.starts_with ~prefix:"Arrow" k) then String.lowercase_ascii k else k with
+  | "return" -> "Enter"
+  | "space" -> " "
+  | "left shift" | "right shift" -> "Shift"
+  | "left ctrl" | "right ctrl" -> "Control"
+  | "left alt" | "right alt" -> "Alt"
+  | "backspace" | "tab" | "escape" | "delete" | "home" | "end" | "insert" -> String.capitalize_ascii k
+  | "pageup" -> "PageUp"
+  | "pagedown" -> "PageDown"
+  | _ when String.length k >= 2 && k.[0] = 'f' && String.for_all (fun c -> c >= '0' && c <= '9') (String.sub k 1 (String.length k - 1)) -> String.capitalize_ascii k
+  | k -> k
+
+let window_event (t : t) (typ : string) (fields : (string * value) list) : bool =
+  listens t typ && dispatch_event t None (Script_events.make ~bubbles:true typ (List.map (fun (k, v) -> if k = "key" then (k, (match v with String s -> String (web_key s) | v -> v)) else (k, v)) fields))
+
 let input (t : t) (e : Dom.element) (text : string) : unit =
   match node_of_element t e with
   | Some n ->
@@ -324,7 +350,7 @@ let set_attribute (t : t) (e : Dom.element) (name : string) (value : string opti
   | None -> ()
 
 (* the loop's turn for the timers (Event_loop): each one due is a task *)
-let advance (t : t) (ms : float) : unit = Event_loop.advance t ms ~task:(fun f -> ignore (run_handler t f ~this:Undefined Undefined))
+let advance (t : t) (ms : float) : unit = Event_loop.advance t ms ~task:(fun f time -> ignore (run_handler t f ~this:Undefined time))
 
 (* a request's answer, given to the script that asked: a task of its
  * own (its promises' thens run after it) *)

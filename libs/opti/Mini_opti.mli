@@ -41,7 +41,14 @@
      twenty shapes (glyph_segments, the simple way); see [letters].
    - Mdct.dct4: a block's cosine transform by a Fourier transform
      (dct4_opti) rather than by its definition (dct4_simple): a second
-     of Vorbis decoded in 0.06 s, not 1.2. In Mdct.mli. *)
+     of Vorbis decoded in 0.06 s, not 1.2. In Mdct.mli.
+   - Js_scope.global: a JavaScript engine's scopes as arrays, each name
+     of the program remembering its place (find_opti), rather than a
+     table in each scope searched by the name (lookup); and a call's
+     frame made at once (Js_eval.frame_opti). With
+     Js_operators.arithmetic and Js_eval.item (two numbers, an array's
+     item, with no conversion): the engine four times faster. In
+     Js_scope.mli; tests/js is run on both. *)
 
 (* true: the optimized versions (the default) *)
 val enabled : bool ref

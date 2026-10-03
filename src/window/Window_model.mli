@@ -43,6 +43,7 @@ type model = {
   grab : float option; (* the scrollbar's thumb held: how far under its top (Gui_scrollbar) *)
   selecting : bool; (* the button held since a click in the omnibox: the pointer drags its selection *)
   last_click : float; (* when the button last went down (time): a second one soon after is a double click *)
+  pressed : bool; (* the button held since a press a page's script was told of: it is told when it is let go *)
 }
 
 and msg =

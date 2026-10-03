@@ -41,7 +41,8 @@
    functions made in the loop each keep their own i (the spec's
    CreatePerIterationEnvironment). Function declarations are defined
    first in their block ("hoisted"), so a function can be called above
-   where it is written.
+   where it is written. How a scope keeps its names and how one is
+   found, the simple way and the fast one, is Js_scope's.
 
    **Closures.** A function value keeps the frame it was *created* in;
    a call makes a frame for the parameters whose parent is that frame,

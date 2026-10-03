@@ -104,6 +104,8 @@ let paint ~(current : rgb) (v : string) : rgb option =
   | _ when String.starts_with ~prefix:"url(" v -> Some (160, 160, 160)
   | _ -> List.assoc_opt v names
 
+let color (v : string) : rgb option = paint ~current:(0, 0, 0) v
+
 (* "translate(10 5) scale(2)": the functions left to right, each
  * applied after the ones to its right *)
 let transform (s : string) : Affine.t =

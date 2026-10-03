@@ -85,6 +85,21 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- the JavaScript engine about four times faster
+  (docs/plans/plan_tinybox.md; scripts/perf/Js_bench.exe: a loop of 3M
+  turns 5.9 s to 1.0, 1M calls 3.7 s to 0.67, the Playground's menu
+  compiled by js_of_ocaml 6.8 s to start and 870 ms a frame, now 2.0 s
+  and 206 ms). Two thirds of the time was in the scopes' tables: a
+  scope is now an array of bindings and each name in the program's
+  text remembers where it was found, how many scopes up and which slot
+  (Js_scope: an inline cache; a call's frame made at once from its
+  function's layout, Js_eval.frame_opti). The simple way is kept
+  beside it (tables, a name hashed in each scope: opti=off), and
+  tests/js is run on both. Also: two numbers added with no conversion
+  (Js_operators.arithmetic_opti), an array's item by its number and
+  not by a string (Js_eval.item_opti), an object's keys compared as
+  strings, no scope for a block that declares nothing, strict mode a
+  flag of the scope and not three names looked up at each call
 - libs/opti: Mini_opti.enabled, the switch between an optimized
   function and the simple one kept runnable beside it (after
   elm-playground's Opti); opti=off on the command line, and on
@@ -119,6 +134,26 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a page that is a program: the Playground's own menu, tinybox
+  (https://aryx.github.io/ocaml-elm-playground/tinybox.html, OCaml
+  compiled to JavaScript by js_of_ocaml), runs in the browser that is
+  drawn by the Playground, and so do its games: Enter on TinyInvaders
+  opens it, the arrows and space play it (docs/plans/plan_tinybox.md;
+  docs/screenshots/tinybox.png, invaders.png). What it took:
+  window.onload called; requestAnimationFrame's function given the
+  time; the window's keys, pointer and wheel told to the scripts that
+  listen for them (Browser_script.window_event, from Window_update:
+  keydown, keyup, mousemove, mousedown, mouseup, wheel), the keys by
+  the web's names; an svg's createSVGPoint and getScreenCTM; an inline
+  <svg> made of the Playground's shapes drawn as those shapes, its
+  texts and pictures with them (Svg_shapes), not as a picture of it;
+  a positioned svg (position: fixed, 100% of the window) laid out as
+  a picture; an svg's <image href> fetched; aryx.github.io's scripts
+  allowed. Not there: a canvas (a stand-in that draws nothing: the
+  code map's panel is empty, and bitmaps), an answer as bytes (a
+  request with responseType arraybuffer fails at once), sound
+- JavaScript: 0o17 and 0b101 (ES2015's octal and binary numbers);
+  subarray and set on a typed array
 - the omnibox is a module of its own (src/chrome/Omnibox: its keys,
   clicks and drags, what is typed made an address or a search, its
   drawing), and its text can be selected and edited as a line of text

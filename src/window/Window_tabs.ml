@@ -31,7 +31,7 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
 
 (* the sites whose scripts are small and old enough for our engine
  * (plan_tiny_chrome.md, "Famous sites with simple scripts") *)
-let default_allowed = [ "news.ycombinator.com" ]
+let default_allowed = [ "news.ycombinator.com"; "aryx.github.io" (* the Playground's programs: docs/plans/plan_tinybox.md *) ]
 
 let config (m : model) (id : int) : msg Browser_tab.config =
   {

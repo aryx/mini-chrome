@@ -15,6 +15,7 @@
  (name javascript)
  (wrapped false)
  (libraries
+  mini_opti ; the simple scopes or the fast ones (Js_scope)
   tiny_libs.random ; Lehmer, Math.random's seeded numbers
   threads.posix ; Js_coroutine: an async function stopped at an await
  )

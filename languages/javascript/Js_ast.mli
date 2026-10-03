@@ -52,13 +52,25 @@
                    object spread (2018), ?. and ?? (2020), class
                    fields (2022) *)
 
+(* opti: a table whose keys are names (strings compared as strings, not
+ * by the comparison of any two values) *)
+module Names : Hashtbl.S with type key = string
+
+(* opti: where a name was found the last time it was looked for, kept
+ * in the tree beside the name: how many scopes up, and which slot
+ * there (Js_scope.find, which tells the story: an inline cache). Not
+ * part of the syntax: -1 scopes up is "not looked for yet" *)
+type place = { mutable hops : int; mutable slot : int }
+
+val place : unit -> place
+
 type expr =
   (* ES1 (1997): values, names, operators, calls *)
   | Number of float
   | String of string
   | Bool of bool
   | Null
-  | Name of string (* a variable; undefined is one, the global's *)
+  | Name of string * place (* a variable; undefined is one, the global's *)
   | This
   | Unary of string * expr (* - + ! ~ typeof void delete *)
   | Update of string * bool * expr (* ++ or --, prefix (true) or postfix, on a target *)
@@ -122,7 +134,16 @@ and func = {
   arrow : bool; (* ES2015 *)
   generator : bool; (* ES2015: function* f() { }, *m() { }: its call gives an iterator over what it yields *)
   async : bool; (* ES2017: async function f() { }, async x => ..., async m() { }: it gives a promise *)
+  mutable frame : frame option; (* opti: what its calls have in common, made at the first one *)
 }
+
+(* opti: a function's frame, known from its text: the names every call
+ * of it declares, in the order of their slots (arguments, the var's,
+ * the parameters), and their index when they are many; each
+ * parameter's slot; whether the parameters are
+ * plain names (no default, no pattern); and where the function's own
+ * name was found outside it. Js_eval.frame_opti makes it and reads it *)
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place }
 
 (* a property of an object literal: its key and its value ("k" alone is
  * k: k; m() { } is m: function () { }), a getter or a setter (a
@@ -160,7 +181,7 @@ and member_kind = Method of func | Get of func | Set of func | Field of expr opt
  * an object's parts by their keys (each a pattern and a default), then
  * what is left; an array's by their place (None: one skipped) *)
 and pattern =
-  | Bind of string
+  | Bind of string * place
   | Object_pattern of (key * pattern * expr option) list * pattern option
   | Array_pattern of (pattern * expr option) option list * pattern option
 

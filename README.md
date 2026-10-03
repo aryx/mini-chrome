@@ -12,6 +12,8 @@ its own decoders of pictures, video and sound, and a PDF viewer.
 | Hacker News | Wikipedia, an article | GitHub: readable, not yet right |
 | <a href="docs/screenshots/chrome.png"><img src="docs/screenshots/chrome.png" width="260" alt="about:chrome, the built-in demonstration"></a> | <a href="docs/screenshots/tube.png"><img src="docs/screenshots/tube.png" width="260" alt="about:tube, the built-in video site"></a> | <a href="docs/screenshots/pdf.png"><img src="docs/screenshots/pdf.png" width="260" alt="about:pdf, a PDF file in a tab"></a> |
 | `about:chrome`: what the engine does, a card each | `about:tube`: every kind of media it plays | `about:pdf`: a PDF file in a tab |
+| <a href="docs/screenshots/tinybox.png"><img src="docs/screenshots/tinybox.png" width="260" alt="tinybox, the Playground's menu, running in MiniChrome"></a> | <a href="docs/screenshots/invaders.png"><img src="docs/screenshots/invaders.png" width="260" alt="TinyInvaders, played in MiniChrome"></a> | |
+| [tinybox](https://aryx.github.io/ocaml-elm-playground/tinybox.html): the Playground's menu, OCaml compiled to JavaScript, run by our engine | one of its games, opened from the menu and played | the Playground draws the browser that runs the Playground |
 
 (The pictures are the real program's, on the real sites:
 `scripts/sites/screenshots.sh` takes them again.)

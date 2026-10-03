@@ -276,6 +276,38 @@
   method(E, "setPointerCapture", nothing);
   method(E, "releasePointerCapture", nothing);
   method(E, "hasPointerCapture", function () { return false; });
+  // an <svg>'s point and matrix: how a program turns the pointer's
+  // place in the window into its drawing's units,
+  // pt.matrixTransform(svg.getScreenCTM().inverse()) -- for an svg
+  // that fills the window (the Playground's), its viewBox fitted in it
+  function matrix(a, d, e, f) {
+    return { a: a, b: 0, c: 0, d: d, e: e, f: f, inverse: function () { return matrix(1 / a, 1 / d, -e / a, -f / d); } };
+  }
+  function point(x, y) {
+    return { x: x, y: y, matrixTransform: function (m) { return point(m.a * this.x + m.e, m.d * this.y + m.f); } };
+  }
+  method(E, "createSVGPoint", function () { return point(0, 0); });
+  method(E, "getScreenCTM", function () {
+    var box = String(this.getAttribute("viewBox") || this.getAttribute("viewbox") || "").split(/[ ,]+/).map(Number);
+    if (box.length !== 4 || !(box[2] > 0) || !(box[3] > 0)) return matrix(1, 1, 0, 0);
+    var k = Math.min(innerWidth / box[2], innerHeight / box[3]);
+    return matrix(k, k, (innerWidth - box[2] * k) / 2 - box[0] * k, (innerHeight - box[3] * k) / 2 - box[1] * k);
+  });
+  // a <canvas> not drawn yet: a script that draws on one goes on, and
+  // its picture is empty (docs/plans/plan_tinybox.md, "later")
+  method(E, "getContext", function () {
+    var canvas = this, context = { canvas: canvas };
+    ["putImageData", "drawImage", "fillRect", "clearRect", "strokeRect", "beginPath", "closePath", "moveTo", "lineTo", "arc", "rect", "fill", "stroke",
+     "fillText", "strokeText", "save", "restore", "translate", "rotate", "scale", "setTransform", "clip"].forEach(function (k) { context[k] = nothing; });
+    context.measureText = function (text) { return { width: 8 * String(text).length }; };
+    context.getImageData = context.createImageData = function (x, y, w, h) { return new ImageData(w || x, h || y); };
+    return context;
+  });
+  method(E, "toDataURL", function () { return "data:,"; });
+  global("ImageData", function ImageData(data, width, height) {
+    if (typeof data === "number") { this.width = data; this.height = width; this.data = new Uint8ClampedArray(4 * data * width); }
+    else { this.data = data; this.width = width; this.height = height; }
+  });
   method(E, "scrollTo", nothing);
   method(E, "scrollBy", nothing);
   reflects(E, "role", "role");

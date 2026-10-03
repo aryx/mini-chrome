@@ -11,7 +11,7 @@ each cell a colour and, when it is not green, what is missing.
 | 🔴 | broken or missing: the page cannot be used for what it is for |
 | ⚪ | the site asks nothing of that part |
 
-**Checked on 2026-10-02**, each site loaded once in a window 1000 by
+**Checked on 2026-10-02** (tinybox: 2026-10-03), each site loaded once in a window 1000 by
 700, its scripts not run unless said (they run on the built-in pages
 and on Hacker News only: `scripts=`), and its dump looked at: the top
 of the page, what a person sees first. A colour is a judgment of that
@@ -25,9 +25,9 @@ then look at the pictures and correct the rows.
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 8 of 16 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia |
-| 🟡 | 5 of 16 | DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right |
-| 🔴 | 3 of 16 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
+| 🟢 | 8 of 17 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia |
+| 🟡 | 6 of 17 | DuckDuckGo, Lobsters, GitHub, Berkshire Hathaway, BBC News: readable, not right; tinybox: it runs, slowly |
+| 🔴 | 3 of 17 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -63,6 +63,7 @@ Oldest web first, then by how much they ask.
 | **old.reddit.com** | 🔴 a blank page | 🔴 | 🟡 redirected to a sign-in page: every visitor not signed in is, a real browser's too (curl with Chrome's name: the same 302) | ? | 🔴 nothing shows | ? | 🔴 not run |
 | **GitHub** (a repository) | 🟡 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 24 requests | 🟢 | 🟡 the page's two columns are right (its `@media (width >= 48rem)`); the top bar is blank, the branch button an empty bar, the files have no icon, message or date | 🟢 | 🟡 with `scripts=github.com` its modules load through the page's import map and run (107 files); three then stop on what is not here (custom elements with a shadow tree, a `DataView` over a typed array), and each file's last commit, which they fetch, does not come |
 | **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP, and show (`libs/images`) |
+| **tinybox** (the Playground's menu and games: OCaml compiled to JavaScript by js_of_ocaml, a page that is one `<svg>` redrawn each frame) | 🟡 | 🟡 the menu answers to the keys and the mouse, a game opens and is played; five frames a second where a browser gives sixty, so a key tapped between two can be missed | 🟢 | 🟢 | 🟢 a fixed svg, 100% of the window | 🟢 the Playground's own letters | 🟡 931 KB of script run with no error, slowly (200 ms a frame); no canvas (the code map's panel, bitmaps), no bytes from a request, no sound |
 
 `?` in a cell: could not be told, the page did not get that far.
 

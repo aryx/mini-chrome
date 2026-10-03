@@ -297,6 +297,8 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let sheets = fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
       let pictures =
         (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_tree.picture_src e)))
+        (* an <svg>'s <image href> (Svg_shapes) *)
+        @ (Dom.find_all "image" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Dom.attribute ~extensions:true "href" e)))
         @ p.backgrounds
         |> List.filter (fun u -> not (had u) && Pdf_viewer.page_of_src u = None)
         |> fresh

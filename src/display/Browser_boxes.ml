@@ -57,10 +57,16 @@ let glyphs ~visited ~picture_of ?decorated (f : Html_layout.fragment) : shape li
       let centre = if middle then f.baseline else f.baseline -. (height /. 2.) in
       [ rectangle (if f.element.name = "video" then rgb 0 0 0 else rgb 241 243 244) f.width height |> move (f.x +. (f.width /. 2.)) (-.centre) ]
   | Some { src = ""; height; middle } when f.element.name = "svg" && f.width >= 1. && height >= 1. ->
-      let img = svg_picture f.element f.look.color (int_of_float (Float.round f.width)) (int_of_float (Float.round height)) in
       (* its bottom on the baseline, or its middle *)
       let centre = if middle then f.baseline else f.baseline -. (height /. 2.) in
-      [ bitmap f.width height img |> move (f.x +. (f.width /. 2.)) (-.centre) ]
+      (* the Playground's own shapes if it is made of them (Svg_shapes),
+       * else its picture *)
+      let arrived src = match picture_of src with Some (Browser_picture.Arrived img) -> Some img | _ -> None in
+      (match Svg_shapes.shapes ~picture_of:arrived f.element ~width:f.width ~height with
+      | Some shapes -> [ group shapes |> move (f.x +. (f.width /. 2.)) (-.centre) ]
+      | None ->
+          let img = svg_picture f.element f.look.color (int_of_float (Float.round f.width)) (int_of_float (Float.round height)) in
+          [ bitmap f.width height img |> move (f.x +. (f.width /. 2.)) (-.centre) ])
   (* a picture in a link without Mosaic's frame of the link's colour:
    * here borders are the style sheets' *)
   | Some _ -> Browser_draw.glyphs ~visited ~picture_of ?decorated { f with look = { f.look with link = None } }

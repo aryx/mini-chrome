@@ -27,7 +27,12 @@ and host = { class_name : string; get : string -> value; set : string -> value -
 
 and items = { mutable elements : value array; mutable length : int }
 and closure = { func : Js_ast.func; scope : scope; this : value option }
-and scope = { vars : (string, binding) Hashtbl.t; parent : scope option; subject : value option; in_with : bool }
+and scope = { vars : vars; parent : scope option; subject : value option; in_with : bool; strict : bool }
+
+(* a scope's names: a table of them, the simple way; or, opti, an array
+ * of bindings in the order they were declared (Js_scope) *)
+and vars = Table of (string, binding) Hashtbl.t | Slots of slots
+and slots = { mutable names : string array; mutable cells : binding array; mutable used : int; mutable index : int Js_ast.Names.t option; mutable fixed : int }
 and binding = { mutable value : value; constant : bool }
 
 exception Throw of value
@@ -55,11 +60,16 @@ let host_object (h : host) : value = Object (make (Host_object h))
  * through a proxy, without its traps *)
 let rec target (o : obj) : obj = match o.kind with Proxy (t, _) -> target t | _ -> o
 
-let get_own (o : obj) (k : string) : value option = Option.map ( ! ) (List.assoc_opt k (target o).props)
+(* List.assoc_opt, the keys compared as strings (it compares them as
+ * any two values: a third of a program's time was there) *)
+let rec property (k : string) (props : (string * value ref) list) : value ref option =
+  match props with [] -> None | (k', r) :: rest -> if String.equal k k' then Some r else property k rest
+
+let get_own (o : obj) (k : string) : value option = match property k (target o).props with Some r -> Some !r | None -> None
 
 let set_own (o : obj) (k : string) (v : value) : unit =
   let o = target o in
-  match List.assoc_opt k o.props with Some r -> r := v | None -> o.props <- (k, ref v) :: o.props
+  match property k o.props with Some r -> r := v | None -> o.props <- (k, ref v) :: o.props
 
 let keys (o : obj) : string list = List.rev_map fst (target o).props
 let array_items (o : obj) : value list = match (target o).kind with Array a -> Array.to_list (Array.sub a.elements 0 a.length) | _ -> []
