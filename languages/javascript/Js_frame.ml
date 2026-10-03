@@ -90,18 +90,35 @@ let layout ?(arguments = true) (f : A.func) : A.frame =
  * function of two arguments: 3,700 ms to 670, with Js_scope's places *)
 let opti ~(params : params) (l : A.frame) (c : closure) (fn : value) (this : value) (args : value list) ~(strict : bool) : scope =
   let f = c.func in
-  let cells = Array.make (Array.length l.names) Js_scope.nothing in
-  for i = 0 to Array.length cells - 1 do
-    cells.(i) <- { value = Undefined; constant = false }
-  done;
+  (* a binding a name; the small frames written out, which most are:
+   * Array.make is a call to the runtime (3% of a program's time) *)
+  let fresh () : binding = { value = Undefined; constant = false } in
+  let cells =
+    match Array.length l.names with
+    | 0 -> [||]
+    | 1 -> [| fresh () |]
+    | 2 -> [| fresh (); fresh () |]
+    | 3 -> [| fresh (); fresh (); fresh () |]
+    | 4 -> [| fresh (); fresh (); fresh (); fresh () |]
+    | n ->
+        let cells = Array.make n Js_scope.nothing in
+        for i = 0 to n - 1 do
+          cells.(i) <- fresh ()
+        done;
+        cells
+  in
   let frame = Js_scope.frame c.scope ~names:l.names ~index:l.index ~cells ~strict in
   (* the array of what was given: only for a function that says arguments *)
   if l.arguments && not f.arrow then cells.(0).value <- Object (new_array args);
-  (* its own name: looked for outside once, by the place it was found
-   * (-2 hops: nowhere, and it is then the function's own for good) *)
+  (* its own name: looked for outside at the first call, and the
+   * answer kept in the place's count of scopes: -2, nowhere, and it is
+   * the function's own for good; -3, somebody's outside *)
   (match f.name with
-  | Some n when l.own.hops = -2 || (match Js_scope.find c.scope n l.own with None -> l.own.hops <- -2; true | Some _ -> false) ->
-      Js_scope.declare frame n ~constant:false fn
+  | Some n when l.own.hops <> -3 ->
+      if l.own.hops = -2 || Js_scope.find c.scope n l.own = None then (
+        l.own.hops <- -2;
+        Js_scope.declare frame n ~constant:false fn)
+      else l.own.hops <- -3
   | _ -> ());
   if l.plain then (
     (* each by its slot; those the call did not give, undefined *)

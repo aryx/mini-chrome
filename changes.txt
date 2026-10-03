@@ -85,6 +85,19 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- JavaScript, the compiled bodies again (docs/plans/plan_js_speed.md):
+  what a frame of the Playground's menu asks was counted, and each
+  answered where it is asked, in Js_compile -- the function's own
+  names and the ones around's read by their slot with no call, no
+  scope for a body that declares nothing (an if without braces, a
+  switch, a try), typeof x, instanceof and a regexp's text no longer
+  the evaluator's, the common operators each their own closure, true
+  and false made once, an array's item and length at once, a built-in
+  method found once at the place that calls it, a small call frame
+  written out, an integer written as text without printf; the lexer's
+  keywords in a table. A menu frame 172 ms to 130 (773 million
+  instructions to 553), its start 1.7 s to 1.3, a loop 640 ms to 515.
+  Node with its compiler off is three to five times faster still
 - JavaScript: a function's body compiled to closures at its first call
   (Js_compile: an expression a function of its scope, made once from
   those of its parts; SICP's "analyze", Feeley and Lapalme's closure

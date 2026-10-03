@@ -29,6 +29,12 @@ let small (x : float) : bool = x >= -2147483648. && x <= 2147483647. && Float.of
 (* an operator found once, by its name: a function of two values, two
  * numbers first and anything else Js_operators'. None: one the
  * evaluator does itself (instanceof, in) *)
+(* true and false made once: a comparison's answer allocates nothing *)
+let yes = Bool true
+and no = Bool false
+
+let bool (b : bool) : value = if b then yes else no
+
 let binary (op : string) : (value -> value -> value) option =
   let slow = Js_operators.arithmetic_simple op in
   let numbers (f : float -> float -> value) : (value -> value -> value) option =
@@ -43,17 +49,31 @@ let binary (op : string) : (value -> value -> value) option =
   | "-" -> numbers (fun x y -> Number (x -. y))
   | "*" -> numbers (fun x y -> Number (x *. y))
   | "/" -> numbers (fun x y -> Number (x /. y))
-  | "<" -> numbers (fun x y -> Bool (x < y))
-  | ">" -> numbers (fun x y -> Bool (x > y))
-  | "<=" -> numbers (fun x y -> Bool (x <= y))
-  | ">=" -> numbers (fun x y -> Bool (x >= y))
-  | "===" | "==" -> numbers (fun x y -> Bool (x = y))
-  | "!==" | "!=" -> numbers (fun x y -> Bool (x <> y))
+  | "<" -> numbers (fun x y -> bool (x < y))
+  | ">" -> numbers (fun x y -> bool (x > y))
+  | "<=" -> numbers (fun x y -> bool (x <= y))
+  | ">=" -> numbers (fun x y -> bool (x >= y))
+  | "===" | "==" -> numbers (fun x y -> bool (x = y))
+  | "!==" | "!=" -> numbers (fun x y -> bool (x <> y))
   | "|" -> bits ( lor )
   | "&" -> bits ( land )
   | "^" -> bits ( lxor )
   | ">>" -> bits (fun x y -> x asr (y land 31))
   | _ -> Some slow
+
+(* opti: a method of a built-in prototype (an array's push, a string's
+ * charCodeAt), found once at the place that calls it and not by going
+ * through the prototype's forty names at each call: kept with the
+ * prototype's list of properties it was found in, and good as long as
+ * that list is the very one (==: a property added or deleted makes
+ * another). None: not there, or a getter -- the evaluator's *)
+let inherited (k : string) : obj -> value option =
+  let seen : (string * value ref) list ref = ref [] and found : value ref option ref = ref None in
+  fun (proto : obj) ->
+    if proto.props != !seen then (
+      seen := proto.props;
+      found := Js_value.property k proto.props);
+    match !found with Some { contents = Object { kind = Accessor _; _ } } | None -> None | Some cell -> Some !cell
 
 let callable (fn : value) : bool = match fn with Object { kind = Closure _ | Host_function _ | Proxy _; _ } -> true | _ -> false
 let spread (es : A.expr list) : bool = List.exists (fun (e : A.expr) -> match e with Spread _ -> true | _ -> false) es
@@ -75,27 +95,103 @@ let rec expr (t : E.t) (e : A.expr) : code =
   | Bool b -> let v = Bool b in fun _ _ -> v
   | Null -> fun _ _ -> Null
   | This -> fun _ this -> this
+  (* a name: three in four are the function's own or the one around's
+   * (a million reads a frame of the Playground's menu), read here by
+   * the place's slot if the name there is the very one (==); the rest,
+   * and a place not learned yet, by Js_scope.at *)
   | Local (x, p) ->
-      fun s this ->
+      let far (s : scope) (this : value) : value =
         if s.in_with then walk s this
         else
           let b = Js_scope.at s x p in
           if b == Js_scope.nothing then throw "ReferenceError" (x ^ " is not defined") else b.value
-  | Unary ("!", a) -> let a = expr t a in fun s this -> Bool (not (truthy (a s this)))
+      in
+      fun s this ->
+        if s.in_with then far s this
+        else if p.hops = 0 then
+          match s.vars with
+          | Slots sl when p.slot < sl.used && Array.unsafe_get sl.names p.slot == x -> (Array.unsafe_get sl.cells p.slot).value
+          | _ -> far s this
+        else if p.hops = 1 then
+          match s.parent with
+          | Some { vars = Slots sl; _ } when p.slot < sl.used && Array.unsafe_get sl.names p.slot == x -> (Array.unsafe_get sl.cells p.slot).value
+          | _ -> far s this
+        else far s this
+  | Unary ("!", a) -> let a = expr t a in fun s this -> bool (not (truthy (a s this)))
   | Unary ("-", a) -> let a = expr t a in fun s this -> Number (-.to_number (a s this))
   | Unary ("void", a) -> let a = expr t a in fun s this -> ignore (a s this); Undefined
   | Unary ("typeof", a) when (match a with Name _ | Local _ -> false | _ -> true) -> let a = expr t a in fun s this -> String (typeof (a s this))
+  (* typeof of a name: "undefined" if nobody declared it, not an error *)
+  | Unary ("typeof", Local (x, p)) ->
+      fun s this ->
+        if s.in_with then walk s this
+        else
+          let b = Js_scope.at s x p in
+          String (if b == Js_scope.nothing then "undefined" else typeof b.value)
+  (* the operators a program is made of, each its own closure: two
+   * numbers answered here, anything else Js_operators' *)
+  | Binary ("+", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> Number (x +. y) | _ -> Js_operators.arithmetic_simple "+" p q)
+  | Binary ("-", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> Number (x -. y) | _ -> Js_operators.arithmetic_simple "-" p q)
+  | Binary ("*", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> Number (x *. y) | _ -> Js_operators.arithmetic_simple "*" p q)
+  | Binary ("<", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x < y) | _ -> Js_operators.arithmetic_simple "<" p q)
+  | Binary ("<=", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x <= y) | _ -> Js_operators.arithmetic_simple "<=" p q)
+  | Binary (">", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x > y) | _ -> Js_operators.arithmetic_simple ">" p q)
+  | Binary (">=", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x >= y) | _ -> Js_operators.arithmetic_simple ">=" p q)
+  | Binary ("===", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x = y) | _ -> Js_operators.arithmetic_simple "===" p q)
+  | Binary ("!==", a, b) ->
+      let a = expr t a and b = expr t b in
+      fun s this -> let p = a s this in let q = b s this in ( match (p, q) with Number x, Number y -> bool (x <> y) | _ -> Js_operators.arithmetic_simple "!==" p q)
   | Binary (op, a, b) -> (
       match binary op with
       | Some f -> let a = expr t a and b = expr t b in fun s this -> let x = a s this in f x (b s this)
+      | None when op = "instanceof" -> let a = expr t a and b = expr t b in fun s this -> let x = a s this in bool (E.instance_of t x (b s this))
       | None -> walk)
+  (* /re/: read once, a new object each time (it has its lastIndex) *)
+  | Regex (source, flags) -> (
+      match Js_regexp.compile source flags with
+      | Ok re -> fun _ _ -> Js_builtins.regexp_value (E.protos t).regexps re
+      | Error _ -> walk)
   | Logical ("&&", a, b) -> let a = expr t a and b = expr t b in fun s this -> let v = a s this in if truthy v then b s this else v
   | Logical ("??", a, b) -> let a = expr t a and b = expr t b in fun s this -> ( match a s this with Undefined | Null -> b s this | v -> v)
   | Logical (_, a, b) -> let a = expr t a and b = expr t b in fun s this -> let v = a s this in if truthy v then v else b s this
   | Conditional (c, a, b) -> let c = expr t c and a = expr t a and b = expr t b in fun s this -> if truthy (c s this) then a s this else b s this
   | Comma (a, b) -> let a = expr t a and b = expr t b in fun s this -> ignore (a s this); b s this
+  (* an array's and a string's length, asked at each turn of a loop *)
+  | Member (o, "length") -> (
+      let o = expr t o in
+      fun s this ->
+        match o s this with
+        | Object { kind = Array a; _ } -> Number (Float.of_int a.length)
+        | String x -> Number (Float.of_int (String.length x))
+        | v -> E.get t v "length")
   | Member (o, k) -> let o = expr t o in fun s this -> E.get t (o s this) k
-  | Index (o, k) -> let o = expr t o and k = expr t k in fun s this -> let o = o s this in E.item t o (k s this)
+  (* o[k]: an array's item by a number at once, else the evaluator's *)
+  | Index (o, k) -> (
+      let o = expr t o and k = expr t k in
+      fun s this ->
+        let o = o s this in
+        let k = k s this in
+        match (o, k) with
+        | Object { kind = Array a; _ }, Number f ->
+            let i = Float.to_int f in
+            if i >= 0 && i < a.length && Float.of_int i = f then Array.unsafe_get a.elements i else E.item t o k
+        | _ -> E.item t o k)
   (* x = v: the binding set; one that is not there, or a constant, is
    * the evaluator's to say *)
   | Assign ("=", (Local (x, p) as target), v) ->
@@ -144,7 +240,17 @@ let rec expr (t : E.t) (e : A.expr) : code =
         E.call_in_run t fn ~this:self args
       in
       match f with
-      | Member (o, k) -> let o = expr t o in fun s this -> let o = o s this in call (E.get t o k) o s this
+      | Member (o, k) ->
+          let o = expr t o and array's = inherited k and string's = inherited k in
+          fun s this ->
+            let o = o s this in
+            let fn =
+              match o with
+              | Object { kind = Array _; props = []; proto = None; _ } -> ( match array's (E.protos t).arrays with Some fn -> fn | None -> E.get t o k)
+              | String _ -> ( match string's (E.protos t).strings with Some fn -> fn | None -> E.get t o k)
+              | _ -> E.get t o k
+            in
+            call fn o s this
       | Index (o, k) -> let o = expr t o and k = expr t k in fun s this -> let o = o s this in call (E.item t o (k s this)) o s this
       | Opt _ | Super_member _ -> walk
       | f -> let f = expr t f in fun s this -> call (f s this) Undefined s this)
@@ -234,10 +340,12 @@ and stmt (t : E.t) (st : A.stmt) : run =
       let bodies = Array.of_list (List.map (fun (_, body) -> Array.of_list (List.map (stmt t) body)) cases) in
       let n = Array.length tests in
       let default = let rec go i = if i >= n then -1 else match tests.(i) with None -> i | Some _ -> go (i + 1) in go 0 in
+      (* its scope: only if a case declares a name *)
+      let scoped = List.exists (fun (_, body) -> E.declares body) cases in
       fun s this ->
         E.step t line;
         let v = e s this in
-        let sc = Js_scope.nested s in
+        let sc = if scoped then Js_scope.nested s else s in
         let rec from i = if i >= n then default else match tests.(i) with Some test when strict_equal v (test sc this) -> i | _ -> from (i + 1) in
         let rec go i j : E.outcome =
           if i >= n then Normal
@@ -250,28 +358,33 @@ and stmt (t : E.t) (st : A.stmt) : run =
   (* finally runs however the rest ended, and its own ending wins if
    * it is not the normal one *)
   | Try (body, handler, finally) ->
-      let body = block t ~scoped:false body in
-      let handler = Option.map (fun (x, h) -> (x, block t ~scoped:false h)) handler in
-      let finally = Option.map (block t ~scoped:false) finally in
+      (* the evaluator gives each of the three a scope; here, one only
+       * where a name is declared: the catch's own, a let *)
+      let body = block t ~scoped:true body in
+      let handler = Option.map (fun (x, h) -> (x, block t ~scoped:(x = None) h)) handler in
+      let finally = Option.map (block t ~scoped:true) finally in
       fun s this ->
         E.step t line;
         let finish (ended : unit -> E.outcome) : E.outcome =
           match finally with
           | None -> ended ()
           | Some f -> (
-              let run () = f (Js_scope.nested s) this in
+              let run () = f s this in
               match ended () with
               | o -> ( match run () with Normal -> o | leave -> leave)
               | exception e -> ( match run () with Normal -> raise e | leave -> leave))
         in
         finish (fun () ->
-            match body (Js_scope.nested s) this with
+            match body s this with
             | outcome -> outcome
             | exception Throw v when handler <> None ->
                 let x, h = Option.get handler in
-                let scope = Js_scope.nested s in
-                Option.iter (fun x -> Js_scope.declare scope x ~constant:false v) x;
-                h scope this)
+                (match x with
+                | Some x ->
+                    let scope = Js_scope.nested s in
+                    Js_scope.declare scope x ~constant:false v;
+                    h scope this
+                | None -> h s this))
   | Function_decl _ | Empty -> fun _ _ -> E.step t line; Normal
   | Break l -> fun _ _ -> E.step t line; Break l
   | Continue l -> fun _ _ -> E.step t line; Continue l
@@ -284,7 +397,11 @@ and functions (body : A.stmt list) : bool = List.exists (fun (st : A.stmt) -> ma
 and inside (t : E.t) (st : A.stmt) : run =
   match st.stmt with
   | Block _ -> stmt t st
-  | _ -> let r = stmt t st in fun s this -> r (Js_scope.nested s) this
+  (* the evaluator gives every other body a scope; only a declaration
+   * can put a name in it: no scope made for the rest (116,000 a frame
+   * of the Playground's menu, with switch's below) *)
+  | Let _ | Class_decl _ | Function_decl _ | Export _ -> let r = stmt t st in fun s this -> r (Js_scope.nested s) this
+  | _ -> stmt t st
 
 (* statements one after the other, their functions first; [scoped]: in
  * a scope of their own if they declare a name (a block's; a

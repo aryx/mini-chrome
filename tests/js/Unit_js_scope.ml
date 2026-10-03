@@ -96,6 +96,17 @@ let tests =
           check "arguments made only where it is said, and seen by an arrow" "function f() { return (() => arguments.length)() } function g(a) { return a } [f(1, 2, 3), g(7)]" "[3, 7]";
           check "what is left to the evaluator, inside a compiled body" "function f(...xs) { var [a, b] = xs; var o = { a, ['k' + b]: `t${a}` }; class C { m() { return o.k2 } } return new C().m() + Math.max(...xs) } f(1, 2)"
             "t12";
+          check "typeof of a name, declared or not; instanceof" "function f(x) { return [typeof x, typeof nowhere, x instanceof Array, [] instanceof Array, typeof f] } f(1)"
+            "[\"number\", \"undefined\", false, true, \"function\"]";
+          check "a regexp written in a loop: a new one each turn, its lastIndex its own" "function f() { var out = []; for (var i = 0; i < 2; i++) { var re = /a/g; re.test('aa'); out.push(re.lastIndex) } return out } f()" "[1, 1]";
+          check "a built-in method found once, and found again after it is replaced" "function f(xs) { return xs.join('-') } var a = f([1, 2]); Array.prototype.join = function () { return 'mine' }; var b = f([1, 2]); var own = [3]; own.join = function () { return 'own' }; [a, b, f(own), 'x'.concat('y')]"
+            "[\"1-2\", \"mine\", \"own\", \"xy\"]";
+          check "length: an array's, a string's, a function's, an object's" "function f(a, b) { return [[1, 2, 3].length, 'four'.length, f.length, { length: 9 }.length] } f()" "[3, 4, 2, 9]";
+          check "a let in an if without braces, in a switch, in a try: each its own" "function f(k) { let x = 'out'; if (k) var y = x; switch (k) { case 1: let x = 'in'; y = x } try { let x = 'try'; throw x } catch (e) { y = y + e } finally { y = y + x } return y } f(1)"
+            "intryout";
+          check "a catch with no name" "function f() { try { throw 1 } catch { return 'caught' } } f()" "caught";
+          check "numbers written as text: integers, and the rest" "function f() { var o = {}; o[3] = 'k'; return [String(12), String(-7), String(1e21), String(0.1), String(-0), Object.keys(o)[0], 2 ** 53 + ''] } f()"
+            "[\"12\", \"-7\", \"1e+21\", \"0.1\", \"0\", \"3\", \"9007199254740992\"]";
           Alcotest.(check string) "a loop that never ends is stopped, compiled too" "line 1: RangeError: the script ran too long (a loop that never ends?)" (run true "function f() { while (true) {} } f()"));
       Testo.create "classes, generators, async: scopes kept alive" (fun () ->
           check "a class's methods see its scope" "var k = 2; class A { constructor(x) { this.x = x } twice() { return this.x * k } } class B extends A { twice() { return super.twice() + 1 } } new B(4).twice()"

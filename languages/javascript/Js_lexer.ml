@@ -33,6 +33,13 @@ let keywords =
     "throw"; "try"; "catch"; "finally"; "new"; "typeof"; "true"; "false"; "null"; "this"; "class"; "delete";
     "do"; "switch"; "case"; "default"; "void"; "instanceof" ]
 
+(* opti: the same in a table: a word of a script of 500 KB is asked
+ * 200,000 times whether it is one (List.mem: 4% of its load) *)
+let keyword : (string, unit) Hashtbl.t =
+  let h = Hashtbl.create 64 in
+  List.iter (fun w -> Hashtbl.replace h w ()) keywords;
+  h
+
 (* the operators, the longest first: the longest match *)
 let puncts3 = [ ">>>="; "==="; "!=="; "..."; "**="; ">>>"; "<<="; ">>="; "&&="; "||="; "??=" ]
 
@@ -125,7 +132,7 @@ let tokenize (s : string) : token list =
           if !j + 1 < n && s.[!j] = '\\' && s.[!j + 1] = 'u' then go (escaped_name i)
           else (
             let w = sub i !j in
-            emit (if List.mem w keywords then Keyword w else Name (shared w)) !line;
+            emit (if Hashtbl.mem keyword w then Keyword w else Name (shared w)) !line;
             go !j)
       (* a name with a letter written as its number, \uFB01: a
        * minifier's way with letters beyond ASCII *)

@@ -217,6 +217,11 @@ val assign : t -> Js_value.scope -> Js_value.value -> Js_ast.expr -> Js_value.va
 val closure : Js_value.scope -> Js_value.value -> Js_ast.func -> Js_value.value
 val describe : Js_ast.expr -> string
 
+(* the built-in prototypes (an array's methods are Array.prototype's);
+ * a instanceof f *)
+val protos : t -> Js_builtins.protos
+val instance_of : t -> Js_value.value -> Js_value.value -> bool
+
 (* who compiles a function's body: set by Js_compile, read at a
  * function's first call when Mini_opti.compiled *)
 val compiler : (t -> Js_ast.func -> Js_value.scope -> Js_value.value -> Js_value.value) option ref

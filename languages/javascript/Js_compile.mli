@@ -46,21 +46,28 @@
    file runs.
 
    What it bought, 2026-10-04 (scripts/perf/Js_bench.exe; compile=off
-   is the evaluator, with Js_scope's places and the rest):
+   is the evaluator, with Js_scope's places and the rest; the last
+   column is Node's interpreter, its compiler off: node --jitless):
 
-                                   compile=off   compiled
-     a loop, 3M turns                1,040 ms      640 ms
-     calls, 1M                         610         450
-     properties, 1M                    430         320
-     arrays, 1M                        390         240
-     the Playground's menu, a frame    190         167
+                                   compile=off   compiled   Node's
+     a loop, 3M turns                1,040 ms      515 ms   108 ms
+     calls, 1M                         610         350       61
+     properties, 1M                    430         280       59
+     arrays, 1M                        390         175       47
+     closures, 300,000                 215         137       53
+     the Playground's menu, a frame    190         130
 
-   A quarter on a real program, not the several times hoped for: what
-   a call costs now is the frame it makes, the list of its arguments,
-   each number a new value, each name some scopes up -- the things a
-   tree and its closures share. The next step is not here: variables in
-   registers and not in scopes, which is a compiler with its own idea
-   of a function (others, below).
+   In two rounds. The first was the compiling itself: a quarter on a
+   real program, not the several times hoped for. The second came from
+   counting what a frame of that program asks (a million names read,
+   300,000 operators, 125,000 calls, 116,000 scopes made for blocks
+   that declare nothing, 34,000 typeof and 16,000 instanceof left to
+   the evaluator, a regexp read again 6,500 times), and answering each
+   where it is asked: the comments below starting "opti:" or giving a
+   count are those. What is left is what a tree and its closures
+   share -- a frame a call, the arguments as a list, a number a new
+   value -- and Node's column says how far a machine of bytecodes
+   written in C++ is from there: three to five times.
 
    cs-history:
    SICP's fourth chapter does it to its Scheme evaluator in a section

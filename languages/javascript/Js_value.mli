@@ -127,6 +127,9 @@ val host_object : host -> value
 val target : obj -> obj
 
 (* an own property, if the object has it *)
+(* a property's cell in a list of properties, by its key *)
+val property : string -> (string * value ref) list -> value ref option
+
 val get_own : obj -> string -> value option
 
 (* set, or add at the end of the keys *)

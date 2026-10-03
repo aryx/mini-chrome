@@ -17,7 +17,7 @@ let index_of_key (k : string) : int option =
   if k = "" || k.[0] < '0' || k.[0] > '9' then None
   else match int_of_string_opt k with Some i when i >= 0 && string_of_int i = k -> Some i | _ -> None
 
-let key_of (v : value) : string = match v with Symbol k -> k | Number f when Float.is_integer f && f >= 0. -> Printf.sprintf "%.0f" f | v -> to_string v
+let key_of (v : value) : string = match v with Symbol k -> k | Number f when Float.is_integer f && f >= 0. -> Js_ast.number_to_string f | v -> to_string v
 
 (* an object's prototype: its own, else its kind's (an array's
  * Array.prototype...), Object.prototype last, and nothing after it *)

@@ -147,6 +147,9 @@ let number_to_string (f : float) : string =
   if Float.is_nan f then "NaN"
   else if f = Float.infinity then "Infinity"
   else if f = Float.neg_infinity then "-Infinity"
+  (* an integer a float holds exactly: written as one (no printf: a
+   * program that draws writes ten thousand a frame) *)
+  else if Float.is_integer f && Float.abs f < 9007199254740992. then string_of_int (Float.to_int f)
   else if Float.is_integer f && Float.abs f < 1e21 then Printf.sprintf "%.0f" f
   else
     let shortest = List.find (fun p -> float_of_string (Printf.sprintf "%.*g" p f) = f) [ 15; 16; 17 ] in

@@ -126,14 +126,14 @@ let find_opti (s : scope) (x : string) (p : Js_ast.place) : binding option =
 
 (* find_opti with no option made: [nothing] when there is none (the
  * compiled code's: Js_compile) *)
+let learned (s : scope) (x : string) (p : Js_ast.place) : binding = match learn s x p 0 with Some b -> b | None -> nothing
+
 let at (s : scope) (x : string) (p : Js_ast.place) : binding =
-  let rec up (s : scope) (hops : int) : scope = if hops = 0 then s else match s.parent with Some parent -> up parent (hops - 1) | None -> s in
-  let learned () = match learn s x p 0 with Some b -> b | None -> nothing in
-  if p.hops < 0 then learned ()
+  if p.hops < 0 then learned s x p
   else
-    match (up s p.hops).vars with
+    match (if p.hops = 0 then s else up s p.hops).vars with
     | Slots sl when p.slot < sl.used && (let n = Array.unsafe_get sl.names p.slot in n == x || String.equal n x) -> Array.unsafe_get sl.cells p.slot
-    | _ -> learned ()
+    | _ -> learned s x p
 
 (*****************************************************************************)
 (* Scopes *)

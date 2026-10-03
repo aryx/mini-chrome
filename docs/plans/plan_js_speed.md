@@ -133,6 +133,64 @@ objects few. **To measure before deciding** (step 0), and likely not
 worth it for this program; a site made of objects (a framework's
 virtual DOM) would say otherwise.
 
+## What was done (2026-10-04)
+
+Step 0, then what its counts pointed at; all in `Js_compile`, with
+two lines in `Js_scope`, `Js_frame` and the lexer. `Js_eval` has
+three more names in its interface and no line changed.
+
+| | before | now | Node, `--jitless` |
+|---|---|---|---|
+| a menu frame | 172 ms | 130 ms | |
+| the same, in instructions (callgrind) | 773 M | 553 M | |
+| the menu started | 1.69 s | 1.31 s | |
+| a loop, 3M turns | 640 ms | 515 | 108 |
+| calls, 1M | 450 | 350 | 61 |
+| properties, 1M | 320 | 280 | 59 |
+| arrays, 1M | 240 | 175 | 47 |
+
+**What a frame of the menu asks** (counters put in `Js_compile` for a
+day, then taken out): 1,000,000 names read (553,000 the function's
+own, 222,000 one scope up, the rest two to five), 307,000 operators,
+144,000 items of arrays, 125,000 calls of closures (one or two
+arguments, frames of under eight names), 62,000 of the host's (an
+array's `pop` and `push`, a string's `charCodeAt`, `Array.isArray`, a
+regexp's `test`), 116,000 scopes made for blocks, 28,000 arrays made,
+and, left to the evaluator: 34,000 `typeof x`, 16,000 `instanceof`,
+6,500 regexps read from their text again.
+
+**What was taken**, by what the counts said:
+
+- the names: the function's own and the one around's read where they
+  are asked, by the slot, with no call (step 2's subject, taken
+  another way);
+- no scope for a body that declares nothing (an `if` without braces,
+  a `switch`, a `try`): step 2;
+- `typeof x`, `instanceof`, a regexp's text read once: no longer the
+  evaluator's;
+- the operators a program is made of, each its own closure; `true`
+  and `false` made once (step 4, the part that paid: a table of small
+  numbers would cost more to look into than a number costs to make);
+- an array's item, an array's and a string's `length`, read at once;
+  a built-in method (`push`, `charCodeAt`) found once at the place
+  that calls it (step 3; an object's own properties were 1,100 reads
+  a frame: no subject, and so no step 7);
+- a call's small frame written out with no call to the runtime, and
+  its own name looked for once (step 1's cheap half);
+- an integer written as text without `printf` (step 6); the lexer's
+  keywords in a table (the start).
+
+**Not taken**: the arguments evaluated straight into the callee's
+frame (step 1's other half). It needs the evaluator's call written a
+second time in `Js_compile` (the depth, `this`, strict mode, the
+line), for some 5%: the one step whose price is a second copy of
+rules that must stay the same. And step 5 beyond the operators.
+
+**Where it leaves us**: a frame at 130 ms, eight a second. Node's
+interpreter is three to five times faster on the loops; the menu
+would be near 30 ms a frame there. The rest of the way is the
+decision of the last section.
+
 ## Step 0: what to count first
 
 A day of measure before any of the above, kept in
