@@ -1,6 +1,6 @@
 # -*- org -*-
 
-* 0.1 (Q4 2026) (fork of elm-playground's TinyChrome, its own networking)
+* 0.1 (Q4 2026) (fork of elm-playground's TinyChrome; its own networking, JavaScript today's, its own decoders of pictures, video and sound, a PDF viewer)
 # unless mentioned otherwise, everything below was done by Claude Code
 # (with direction from me)
 
@@ -117,18 +117,6 @@
   step 4a)
 - scripts/perf: Page_bench.exe (a page's stages timed) and
   load_timeline.sh (the real program's load in time)
-
-** Internals
-- src/dom is src/webapi (MDN's name for what a browser gives a
-  script beyond the language; libs/dom is the tree itself), one
-  library in four folders: dom/ (the document a script sees), net/
-  (fetch, XMLHttpRequest, WebSocket, Cors), window/ (window's
-  globals, LocalStorage), run/ (the tasks, Event_loop, the modules)
-- famous names given modules of their own, each with its story in its
-  interface: Omnibox (src/chrome), Cors (the same-origin policy and
-  the header that opens it; its origin now leaves out a scheme's own
-  port), LocalStorage, Event_loop (the timers, and the order tasks and
-  microtasks run in), Bfcache (the page kept with its history entry)
 
 ** Features
 - the omnibox is a module of its own (src/chrome/Omnibox: its keys,
@@ -563,6 +551,16 @@
   5.5.1), make build-docker
 
 ** internals
+- src/dom is src/webapi (MDN's name for what a browser gives a
+  script beyond the language; libs/dom is the tree itself), one
+  library in four folders: dom/ (the document a script sees), net/
+  (fetch, XMLHttpRequest, WebSocket, Cors), window/ (window's
+  globals, LocalStorage), run/ (the tasks, Event_loop, the modules)
+- famous names given modules of their own, each with its story in its
+  interface: Omnibox (src/chrome), Cors (the same-origin policy and
+  the header that opens it; its origin now leaves out a scheme's own
+  port), LocalStorage, Event_loop (the timers, and the order tasks and
+  microtasks run in), Bfcache (the page kept with its history entry)
 - data/ holds what is embedded and is not OCaml: the two preludes
   (data/prelude), the browser's style sheet (data/css/ua.css, from
   languages/css), the built-in site; data/README.md says each

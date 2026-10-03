@@ -1,34 +1,78 @@
 # mini-chrome
 
 A small web browser written from scratch in OCaml, after Google Chrome
-(2008): HTML, CSS (the cascade, the box model, flexbox, grid), a JavaScript
-engine, SVG, pictures, `<video>` and `<audio>`, tabs, an omnibox and
-developer tools.
+(2008). It reads the three languages a page is written in -- HTML,
+CSS and JavaScript, which are most of it -- and, since a browser is
+also everything a page may point to, it has its own network stack,
+its own decoders of pictures, video and sound, and a PDF viewer.
 
-From scratch all the way down: its own networking too (HTTP/1.1 over
-its own TLS 1.3 client), and its pictures, sound and video decoders,
-its cryptography and even its drawing, by a software rasterizer instead
-of Cairo if you like, are elm-playground's, written from scratch as
-well. Of C it needs only SDL, for the window.
+What is in it:
 
-It started as [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
-TinyChrome, a toy held to 5,000 lines of its own code; here it grows,
-towards the web as it is (Wikipedia first, YouTube one day).
+- **A page.** HTML read as browsers read it (tags left open, tables,
+  forms); CSS: the cascade, the box model, floats, tables, flexbox and
+  grid; a JavaScript engine (classes, closures, promises and async
+  functions, modules, regular expressions) with the web APIs a script
+  expects: the DOM and its events, `fetch` and `XMLHttpRequest` under
+  the same-origin policy and CORS, `WebSocket`, timers and the event
+  loop, `localStorage`.
+- **The network.** HTTP/1.1 over its own TLS 1.3 client (X.509
+  certificates checked), cookies, WebSocket; bodies in gzip, Brotli
+  and Zstandard.
+- **Pictures.** PNG, WebP (lossy and lossless) and SVG, written or
+  kept here as the web's own formats; GIF and JPEG.
+- **Video and sound.** `<video>` and `<audio>`: WebM with VP8, and
+  its sound in Vorbis or Opus; also MPEG-1, MP3, WAV, MIDI and a few
+  older ones. `about:tube` plays one of each.
+- **Documents.** A PDF file opens in a tab, drawn with the fonts it
+  carries (TrueType, CFF, Type 1), its pictures and gradients
+  (`about:pdf`).
+- **The browser around the page.** Tabs, the omnibox (an address or a
+  search), Back and Forward with the pages kept as they were, zoom by
+  site, a profile and its cookies, a right click's menu, and developer
+  tools: the page's tree and styles, the requests it made.
+- **Small programs beside it**, made of the same libraries:
+  `mini-node` (the JavaScript engine in a terminal), `mini-curl`,
+  `mini-httpd`, `mini-lynx` (a page as text), and three older
+  browsers, `mini-mosaic`, `mini-netscape` and `mini-firefox`, over
+  the first layout engine.
+
+From scratch all the way down. What the web itself brought is written
+or told here -- the languages, the network and TLS, WebP, PNG, SVG,
+WebM and VP8, Vorbis, Opus, Brotli, PDF and its fonts. The rest is
+[elm-playground](https://github.com/aryx/ocaml-elm-playground)'s,
+written from scratch as well: the window and the drawing (by Cairo,
+or by its own software rasterizer if you like), the cryptography,
+JPEG, GIF, MP3 and MPEG-1, the letters (one stroke font).
+[docs/dependencies.md](docs/dependencies.md) says exactly what comes
+from where. Of C it needs only SDL, for the window.
+
+Small enough to read: about 33,000 lines of OCaml for the browser
+itself, kept under a budget of 40,000 (`make loc`), not counting what
+each module's interface says about itself.
+
+It started as elm-playground's TinyChrome, a toy held to 5,000 lines
+of its own code; here it grows, towards the web as it is.
+[docs/sites.md](docs/sites.md) says where it stands on real sites,
+part by part: Hacker News and Wikipedia read well, GitHub and the
+BBC are readable but not right, and a site that is all scripts
+(YouTube) does not work yet.
 
 All of the code was written by an AI, Claude Code, under the author's
 direction (see the [AI disclaimer](#ai-disclaimer)), but it was written
 for people to read, and checked by tests: each module's interface opens
 with what it is, where it came from and what to read, the web's history
-told module by module. Judge it by what it explains, as you would a
-textbook's.
+told module by module -- the omnibox, the cascade, CORS, the event
+loop, Vorbis, the range coder of Opus, a PDF's fonts. Judge it by what
+it explains, as you would a textbook's.
 
 ## Building
 
-It stands on elm-playground's packages, 0.3.1 or later: the Playground
-for its window and drawing, on one of its two native platforms (SDL
-for the window either way, and Cairo, `elm_playground_native`, or the
-Playground's own rasterizer, `elm_playground_software`), and
-`tiny_libs` for the pictures, sound and video decoders.
+It stands on elm-playground's packages: the Playground for its window
+and drawing, on one of its two native platforms (SDL for the window
+either way, and Cairo, `elm_playground_native`, or the Playground's
+own rasterizer, `elm_playground_software`), and `tiny_libs` for the
+cryptography, the compressions and the decoders that are not the
+web's own.
 
 ```bash
 ./configure    # the opam dependencies, and checks for SDL2 and Cairo
@@ -58,12 +102,19 @@ else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 
 Flags: `url=` the first page (`about:chrome`), `css=off`,
 `panel=elements` or `panel=network`, `search=duckduckgo`,
-`profile=DIR` or `profile=off`, `scale=N`, `opti=off` (the simple code
-where an optimized one replaced it), `letters=segments` (a letter drawn
-as its pen's strokes). With `-v` the terminal shows each
+`scripts=off` (or the hosts whose scripts run), `profile=DIR` or
+`profile=off`, `scale=N`, `opti=off` (the simple code where an
+optimized one replaced it), `letters=segments` (a letter drawn as its
+pen's strokes), `pdf=strokes` (a PDF's text in our own letters;
+`pdf=plain` for its simplest rendering). With `-v` the terminal shows each
 file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
 (with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
 it is typed).
+
+The omnibox is a line of text as any other: a click selects the
+address, then a click puts the caret and a drag selects; Ctrl+A, C, X
+and V, with the desktop's clipboard. The pointer is a hand over a
+link.
 
 A page longer than the window has a scrollbar at its right: drag its
 thumb, or click above or below it for a page.
@@ -198,7 +249,7 @@ tools/                small programs beside the browser, made of its
                       typeset   lines broken by Knuth and Plass
                                 (mini-mosaic's wrap=pretty)
                       platform  the window the three are linked with
-tests/                tools, html, xml, css, js, layout, browser, images, video, compression, network, network_unix
+tests/                tools, html, xml, css, js, layout, browser, images, video, audio, pdf, compression, network, network_unix
 docs/                 architecture.md: the running program's shape (the
                       loop, the chrome's pieces, its one process and
                       threads next to Chrome's); dependencies.md: what
@@ -223,8 +274,8 @@ scripts/              perf/: a page's stages timed (Page_bench), a load
                       in time (load_timeline.sh)
 data/                 what is embedded and is not OCaml (data/README.md):
                       about/ the built-in site's pages, sheets, scripts,
-                      pictures; tube/ about:tube's three clips made
-                      elsewhere (ffmpeg, LAME); css/ua.css the
+                      pictures and a sample PDF; tube/ about:tube's files
+                      made elsewhere (ffmpeg, LAME); css/ua.css the
                       browser's own style sheet; prelude/ the library
                       and the small web APIs written in JavaScript
 ```
