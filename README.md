@@ -15,6 +15,13 @@ It started as [elm-playground](https://github.com/aryx/ocaml-elm-playground)'s
 TinyChrome, a toy held to 5,000 lines of its own code; here it grows,
 towards the web as it is (Wikipedia first, YouTube one day).
 
+All of the code was written by an AI, Claude Code, under the author's
+direction (see the [AI disclaimer](#ai-disclaimer)), but it was written
+for people to read, and checked by tests: each module's interface opens
+with what it is, where it came from and what to read, the web's history
+told module by module. Judge it by what it explains, as you would a
+textbook's.
+
 ## Building
 
 It stands on elm-playground's packages, 0.3.1 or later: the Playground
@@ -220,6 +227,20 @@ data/                 what is embedded and is not OCaml (data/README.md):
                       browser's own style sheet; prelude/ the library
                       and the small web APIs written in JavaScript
 ```
+
+## AI disclaimer
+
+mini-chrome was written by Claude Code: the code, the tests, the
+comments and the documents in `docs/`. I (Pad) chose what to build,
+directed it and reviewed it, but wrote almost none of the code myself.
+So was TinyChrome, the program of elm-playground it was forked from,
+and so are the libraries of elm-playground it stands on (`tiny_libs`:
+the decoders, the cryptography; that repository's README says what
+there is Evan Czaplicki's, mine and Claude's).
+
+It is a browser to read and to learn from, not one to trust with your
+passwords or your bank: its TLS, its cryptography and its JavaScript
+engine were written for teaching and have had no security review.
 
 ## License
 
