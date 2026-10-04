@@ -168,6 +168,10 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a progressive JPEG is drawn (most of the web's photographs: it was
+  a red slash, the picture that could not be read). The decoder is
+  the Playground's (Jpeg_progressive, elm-playground after 0.3.6):
+  JPEG is not the web's own
 - web components: shadow trees and custom elements. A host's shadow
   tree is drawn in its children's place, the children where its
   <slot>s are (libs/dom/Shadow_tree: distribute, and composed for a

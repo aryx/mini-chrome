@@ -240,9 +240,10 @@ root's place in the tree that is laid out).
 - *Shadow trees and custom elements* are in (`Shadow_tree.mli`, a
   card on `about:chrome`): what GitHub's elements and YouTube's are
   made with. Not tried on them yet.
-- *A progressive JPEG* is the red slash seen on some pages
-  (dave.recoil.org): the decoder is the Playground's and reads
-  baseline ones.
+- *A progressive JPEG* was the red slash seen on some pages
+  (dave.recoil.org): the decoder is the Playground's, which reads
+  them since 2026-10-04 (`Jpeg_progressive`, elm-playground after
+  0.3.6).
 
 ## Cost
 
