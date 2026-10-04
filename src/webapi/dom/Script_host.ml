@@ -289,6 +289,9 @@ let url_parts (href : string) : (string * string) list =
     else ("", rest)
   in
   let hostname = match String.index_opt host ':' with Some i -> String.sub host 0 i | None -> host in
+  (* a site's address with no path has the path /, in its href too
+   * (https://x.org is https://x.org/): what a router compares its base with *)
+  let href = if host <> "" then protocol ^ "//" ^ host ^ pathname ^ search ^ hash else href in
   [ ("href", href); ("protocol", protocol); ("host", host); ("hostname", hostname); ("pathname", pathname); ("search", search); ("hash", hash);
     ("origin", Cors.origin href) ]
 

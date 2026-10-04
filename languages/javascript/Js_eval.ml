@@ -40,6 +40,9 @@ type outcome = Normal | Return of value | Break of string option | Continue of s
 
 let max_depth = 2_000
 
+(* how many more calls to say, as an error leaves them (JS_STACK) *)
+let unwinding = ref 0
+
 (* generator.return(v): the body left from its yield, its finally
  * blocks run on the way *)
 exception Generator_return of value
@@ -91,9 +94,15 @@ let rec describe (e : A.expr) : string =
   | Name x | Local (x, _) -> x
   | This -> "this"
   | Member (o, x) -> describe o ^ "." ^ x
+  (* o[k] by a name or a constant says which: in a script made small
+   * (t[e] is not a function), the one thing to look for *)
+  | Index (o, (Name k | Local (k, _))) -> describe o ^ "[" ^ k ^ "]"
+  | Index (o, String k) -> Printf.sprintf "%s[%S]" (describe o) k
+  | Index (o, Number n) -> Printf.sprintf "%s[%s]" (describe o) (A.number_to_string n)
   | Index (o, _) -> describe o ^ "[...]"
   | Call (f, _) -> describe f ^ "(...)"
-  | _ -> "expression"
+  (* anything else as it was written, cut short: to be looked for in the script *)
+  | e -> let text = A.expr_to_string e in if String.length text > 70 then String.sub text 0 67 ^ "..." else text
 
 (*****************************************************************************)
 (* Expressions *)
@@ -295,7 +304,15 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
       let fn, self =
         match f with
         | Member (o, k) -> let o = eval_expr t s this o in (get t o k, o)
-        | Index (o, k) -> let o = eval_expr t s this o in (item t o (eval_expr t s this k), o)
+        | Index (o, k) ->
+            let o = eval_expr t s this o in
+            let key = eval_expr t s this k in
+            let fn = item t o key in
+            (* o[k]() with no function there: the key said, which the text does not *)
+            (match (fn, k) with
+            | Object { kind = Closure _ | Host_function _ | Proxy _; _ }, _ | _, (String _ | Number _) -> ()
+            | _ -> throw "TypeError" (Printf.sprintf "%s is not a function (the key: %s)" (describe f) (display key)));
+            (fn, o)
         (* o.m?.(): the method, if there is one, still on o *)
         | Opt (Member (o, k)) -> (
             let o = eval_expr t s this o in
@@ -341,9 +358,9 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
     | Some f, Some _ -> f
     | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
     | None, None ->
-        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None }
+        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None; own_name = false }
     | None, Some _ ->
-        { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false; frame = None }
+        { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false; frame = None; own_name = false }
   in
   (* opti: a constructor made here is quickened as the written ones were *)
   let ctor = if ctor.frame = None && Js_scope.slotted s then Js_quicken.func ctor else ctor in
@@ -627,7 +644,11 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
   | Object { kind = Proxy (tg, h); _ } -> (
       match trap t h "apply" with Some f -> call_value t f ~this:(Object h) [ Object tg; this; Object (new_array args) ] | None -> call_value t (Object tg) ~this args)
   | Object { kind = Closure c; _ } ->
-      if t.depth >= max_depth then throw "RangeError" "Maximum call stack size exceeded";
+      if t.depth >= max_depth then (
+        (* JS_STACK=1: which function, to find the one that calls itself *)
+        if Sys.getenv_opt "JS_STACK" <> None then prerr_endline (Printf.sprintf "the stack is full in %s, line %d" (Option.value c.func.name ~default:"(a function with no name)") t.line);
+        if Sys.getenv_opt "JS_STACK" <> None then unwinding := 40;
+        throw "RangeError" "Maximum call stack size exceeded");
       t.depth <- t.depth + 1;
       (* "use strict": its own, or that of the code it is written in (a
        * module and a class are strict always) *)
@@ -665,6 +686,10 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
           result
       | exception e ->
           t.depth <- t.depth - 1;
+          (* JS_STACK=1: the calls an error leaves by, the innermost first (forty at most) *)
+          if !unwinding > 0 then (
+            decr unwinding;
+            prerr_endline (Printf.sprintf "  left %s%s" (Option.value c.func.name ~default:"(no name)") (match c.func.body with st :: _ -> Printf.sprintf ", written at line %d" st.line | [] -> "")));
           raise e)
   | _ -> throw "TypeError" (display fn ^ " is not a function")
 

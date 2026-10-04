@@ -69,9 +69,10 @@ and func = {
   generator : bool;
   async : bool;
   frame : frame option;
+  own_name : bool;
 }
 
-and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place; arguments : bool; mutable code : code }
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : int; arguments : bool; mutable code : code }
 
 and property =
   | Prop of key * expr

@@ -306,7 +306,13 @@ A page that is a program is told of the window's keys and pointer
 script listens), and an inline `<svg>` made of what the Playground's
 web platform writes is drawn as shapes (`Svg_shapes`; else `Svg`, a
 picture): what the Playground's own menu and games need to run here
-(`docs/plans/plan_tinybox.md`). Their sound is `AudioContext`'s
+(`docs/plans/plan_tinybox.md`). Web components are in two places:
+the tree that is laid out is composed by `Shadow_tree` (`libs/dom`:
+a host's shadow tree with its children at the slots; `Browser_script`
+composes a script's when it freezes the tree, `Browser_page` a
+declared one), and the registry of custom elements is JavaScript
+(`data/prelude/web.js`), told by the browser of an element made
+(`__created`) and of one entering the page (`__connected`). Their sound is `AudioContext`'s
 (`src/webapi/window`: buffers of samples started at a time, the class
 itself in `data/prelude/web.js`), mixed with the players' by
 `Audio_queue` (`src/viewers`); an Ogg file's Vorbis or Opus is decoded

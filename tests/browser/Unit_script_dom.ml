@@ -73,7 +73,9 @@ let tests =
               i.type = "radio"; i.name = "n"; i.required = true;
               [i.getAttribute("type"), i.name, i.hasAttribute("required"), d.name, d.title, document.getElementById("lb").htmlFor, document.createElement("input").type]|}
             {|["radio", "n", true, undefined, "", "i", "text"]|};
-          check "no boxes for a script" ~html:list {|const r = document.getElementById("l").getBoundingClientRect(); [r.width, r.top, document.body.offsetWidth]|} "[0, 0, 0]");
+          check "no boxes for a script, but the page's own size, the window's" ~html:list
+            {|const r = document.getElementById("l").getBoundingClientRect(); [r.width, r.top, document.getElementById("l").offsetWidth, document.body.offsetWidth, document.documentElement.clientWidth === innerWidth]|}
+            "[0, 0, 0, 1000, true]");
       Testo.create "events of a script's own" (fun () ->
           check "the worked example: a CustomEvent, its detail, bubbling to the document" ~html:list
             {|const l = document.getElementById("l"), seen = [];

@@ -95,7 +95,6 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "history" (object_of [ ("length", Number 1.); ("state", Null); nothing "pushState"; nothing "replaceState"; nothing "back"; nothing "forward"; nothing "go" ]);
   define "screen" (object_of [ ("width", Number (fst viewport)); ("height", Number (snd viewport)); ("availWidth", Number (fst viewport)); ("availHeight", Number (snd viewport)) ]);
   define "getSelection" (fn "getSelection" (fun _ -> object_of [ ("rangeCount", Number 0.); nothing "removeAllRanges"; nothing "addRange"; ("toString", fn "toString" (fun _ -> String "")) ]));
-  define "customElements" (object_of [ nothing "define"; nothing "get"; nothing "upgrade"; ("whenDefined", fn "whenDefined" (fun _ -> Undefined)) ]);
   define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool false)); ("escape", fn "escape" (fun args -> arg args 0)) ]);
   (* new Image(): an <img> in no tree *)
   define "Image" (fn "Image" (fun _ -> wrap t (make "img")));

@@ -11,9 +11,10 @@
 
    A frame goes under the scope the function was written in (the
    closure's), not under the caller's. In it, in this order: arguments;
-   the function's own name, if it is a function expression's and the
-   name is nobody's outside (var f = function again(n) { ...
-   again(n - 1) }); every var of the body, wherever it is written,
+   the function's own name, if it is a function expression's (var f =
+   function again(n) { ... again(n - 1) }: again is the function in
+   its body, whatever again is outside; a declaration's name is its
+   scope's, and is not here); every var of the body, wherever it is written,
    undefined; then the parameters, each bound to what the call gave --
    which is the evaluator's part ([params]): a parameter can be a
    pattern and can have a default, an expression read in the frame.

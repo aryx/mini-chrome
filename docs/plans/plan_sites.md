@@ -223,6 +223,27 @@ that needs nothing of the engine's insides is written in JavaScript
 engine gets only the hooks (an element entering the tree, a shadow
 root's place in the tree that is laid out).
 
+**2026-10-04, later: 9fans.topicbox.com starts, and web components.**
+
+- *9fans.topicbox.com* is not made of custom elements (said wrongly
+  above): it is an application of one framework (Overture, FastMail's),
+  whose every error was a small thing of ours, each found without
+  the network -- its bundles and its server's answers saved once and
+  given back (`Page_scripts.exe` with `FILES=DIR`), so that nothing is
+  sent to its error tracker while it fails. Three were the language's
+  (a function expression's own name, forEach's second argument, `new
+  Number`), four the page's (`location.href`'s final `/`, an upload's
+  `removeEventListener`, a parsed document's lookups, the root's
+  `clientWidth`). It now draws its menu and its News Center, with its
+  desktop layout. Not right yet: the content is under the side bar
+  (its layout), and a group's topics were not tried.
+- *Shadow trees and custom elements* are in (`Shadow_tree.mli`, a
+  card on `about:chrome`): what GitHub's elements and YouTube's are
+  made with. Not tried on them yet.
+- *A progressive JPEG* is the red slash seen on some pages
+  (dave.recoil.org): the decoder is the Playground's and reads
+  baseline ones.
+
 ## Cost
 
 The budget has 5,545 lines left of 40,000. Step 1 is 300 to 600

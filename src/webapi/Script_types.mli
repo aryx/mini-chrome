@@ -24,6 +24,7 @@ type node = {
   mutable wrapper : value option; (* its host object, made once *)
   mutable listeners : (string * value) list; (* addEventListener's, in order *)
   mutable compiled : (string * value) list; (* its onclick="..." attributes, compiled once *)
+  mutable shadow : node option; (* its shadow tree's root, a fragment: drawn in its children's place (Shadow_tree) *)
 }
 
 (* a setTimeout's or a setInterval's *)

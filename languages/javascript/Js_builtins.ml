@@ -297,8 +297,10 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
                match result with Object r when r == copy -> this | r -> r)))
   in
   (* f(item, index, array) for each item, as the callbacks are called *)
-  let each (arr : obj) (f : value) (k : value -> int -> unit) : unit =
-    List.iteri (fun i v -> k (call f ~this:Undefined [ v; Number (float_of_int i); Object arr ]) i) (array_items arr)
+  (* f called on each item: f(item, index, array), its this the second
+   * argument of the method (xs.forEach(f, self)), undefined if none *)
+  let each ?(self = Undefined) (arr : obj) (f : value) (k : value -> int -> unit) : unit =
+    List.iteri (fun i v -> k (call f ~this:self [ v; Number (float_of_int i); Object arr ]) i) (array_items arr)
   in
   (* its iterators: of its items, its indices, its pairs *)
   let indices arr = List.mapi (fun i _ -> Number (float_of_int i)) (array_items arr) in
@@ -355,14 +357,14 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
       let defined, undefined = List.partition (fun v -> v <> Undefined) (array_items arr) in
       set_items items (List.stable_sort compare defined @ undefined);
       Object arr);
-  def "forEach" (fun arr _ args -> each arr (arg args 0) (fun _ _ -> ()); Undefined);
+  def "forEach" (fun arr _ args -> each ~self:(arg args 1) arr (arg args 0) (fun _ _ -> ()); Undefined);
   def "map" (fun arr _ args ->
       let out = ref [] in
-      each arr (arg args 0) (fun r _ -> out := r :: !out);
+      each ~self:(arg args 1) arr (arg args 0) (fun r _ -> out := r :: !out);
       array (List.rev !out));
   def "filter" (fun arr _ args ->
       let items = Array.of_list (array_items arr) and out = ref [] in
-      each arr (arg args 0) (fun r i -> if truthy r then out := items.(i) :: !out);
+      each ~self:(arg args 1) arr (arg args 0) (fun r i -> if truthy r then out := items.(i) :: !out);
       array (List.rev !out));
   def "reduce" (fun arr _ args ->
       let f = arg args 0 in
@@ -373,16 +375,17 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
         | _, xs -> (arg args 1, List.mapi (fun i v -> (i, v)) xs)
       in
       List.fold_left (fun acc (i, v) -> call f ~this:Undefined [ acc; v; Number (float_of_int i); Object arr ]) start rest);
-  let first arr f =
-    let rec go i l = match l with [] -> None | v :: r -> if truthy (call f ~this:Undefined [ v; Number (float_of_int i); Object arr ]) then Some (i, v) else go (i + 1) r in
+  let first ?(self = Undefined) arr f =
+    let rec go i l = match l with [] -> None | v :: r -> if truthy (call f ~this:self [ v; Number (float_of_int i); Object arr ]) then Some (i, v) else go (i + 1) r in
     go 0 (array_items arr)
   in
-  def "find" (fun arr _ args -> match first arr (arg args 0) with Some (_, v) -> v | None -> Undefined);
-  def "findIndex" (fun arr _ args -> match first arr (arg args 0) with Some (i, _) -> Number (float_of_int i) | None -> Number (-1.));
-  def "some" (fun arr _ args -> Bool (first arr (arg args 0) <> None));
+  def "find" (fun arr _ args -> match first ~self:(arg args 1) arr (arg args 0) with Some (_, v) -> v | None -> Undefined);
+  def "findIndex" (fun arr _ args -> match first ~self:(arg args 1) arr (arg args 0) with Some (i, _) -> Number (float_of_int i) | None -> Number (-1.));
+  def "some" (fun arr _ args -> Bool (first ~self:(arg args 1) arr (arg args 0) <> None));
   def "every" (fun arr _ args ->
       let f = arg args 0 in
-      Bool (first arr (host_function "not" (fun ~this:_ a -> Bool (not (truthy (call f ~this:Undefined a))))) = None));
+      let self = arg args 1 in
+      Bool (first arr (host_function "not" (fun ~this:_ a -> Bool (not (truthy (call f ~this:self a))))) = None));
   o
 
 (*****************************************************************************)
@@ -568,9 +571,13 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
     | _ -> ());
     define name c
   in
-  constructor "String" (fun ~this:_ args -> String (match args with [] -> "" | v :: _ -> to_string v)) strings
+  (* new Number(5), new String("a"): an object that holds the value
+   * (kept under a key no script writes; its prototype's valueOf gives
+   * it back: data/prelude/library.js). Number(5) alone is the value *)
+  let boxed (this : value) (v : value) : value = (match this with Object ({ kind = Plain; _ } as o) -> set_own o "@@primitive" v | _ -> ()); v in
+  constructor "String" (fun ~this args -> boxed this (String (match args with [] -> "" | v :: _ -> to_string v))) strings
     [ ("fromCharCode", fn "fromCharCode" (fun ~this:_ args -> String (String.concat "" (List.map (fun v -> String.make 1 (Char.chr (int_of_float (to_number v) land 255))) args)))) ];
-  constructor "Number" (fun ~this:_ args -> Number (match args with [] -> 0. | v :: _ -> to_number v)) numbers [];
+  constructor "Number" (fun ~this args -> boxed this (Number (match args with [] -> 0. | v :: _ -> to_number v))) numbers [];
   (* new Function("a", "b", "return a + b"): its last argument
    * the body, those before its parameters; a function of the global
    * scope. Before: an EvalError *)

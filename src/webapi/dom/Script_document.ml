@@ -32,6 +32,11 @@ let document (t : t) : value =
     set_own o "querySelector" (method_ "querySelector" (fun args -> match select t (str (arg args 0)) ~within:html with e :: _ -> wrap t e | [] -> Null));
     set_own o "querySelectorAll" (method_ "querySelectorAll" (fun args -> nodes_array t (select t (str (arg args 0)) ~within:html)));
     set_own o "createElement" (method_ "createElement" (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 0))))));
+    (* the lookups its root has (getElementsByTagName("svg"): an icon read from its text), its head *)
+    (match wrap t html with
+    | Object { kind = Host_object h; _ } -> List.iter (fun k -> set_own o k (h.get k)) [ "getElementsByTagName"; "getElementsByClassName"; "getElementById"; "firstChild" ]
+    | _ -> ());
+    set_own o "head" Null;
     Object o
   in
   let d =
@@ -80,7 +85,16 @@ let document (t : t) : value =
                   match List.find_opt (fun e -> attribute e "id" = Some id) (elements root) with Some e -> wrap t e | None -> Null)
           | "querySelector" -> method_ k (fun args -> match select t (str (arg args 0)) ~within:root with e :: _ -> wrap t e | [] -> Null)
           | "querySelectorAll" -> method_ k (fun args -> nodes_array t (select t (str (arg args 0)) ~within:root))
-          | "createElement" -> method_ k (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 0)))))
+          | "createElement" ->
+              method_ k (fun args ->
+                  let name = String.lowercase_ascii (str (arg args 0)) in
+                  let el = wrap t (make name) in
+                  (* a custom element (a name with a dash) is upgraded at once
+                   * if its class is defined: the registry's (data/prelude/web.js) *)
+                  (match Js_eval.global t.engine "__created" with
+                  | Some (Object _ as f) when String.contains name '-' -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ el ])
+                  | _ -> ());
+                  el)
           | "getElementsByClassName" | "getElementsByTagName" -> ( match wrap t root with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
           | "location" -> location t
           | "URL" -> String t.base

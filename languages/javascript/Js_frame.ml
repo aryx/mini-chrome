@@ -55,9 +55,8 @@ let simple ~(params : params) (c : closure) (fn : value) (this : value) (args : 
   let frame = if strict then Js_scope.strict c.scope else Js_scope.nested c.scope in
   if not c.func.arrow then Js_scope.declare frame "arguments" ~constant:false (Object (new_array args));
   (* a function expression's own name, in its body (var f =
-   * function again(n) { ... again(n - 1) }), unless the name is
-   * already somebody's *)
-  (match c.func.name with Some n when Js_scope.lookup c.scope n = None -> Js_scope.declare frame n ~constant:false fn | _ -> ());
+   * function again(n) { ... again(n - 1) }) *)
+  (match c.func.name with Some n when c.func.own_name -> Js_scope.declare frame n ~constant:false fn | _ -> ());
   hoist frame c.func.body;
   params frame this c.func.params c.func.rest args;
   frame
@@ -78,10 +77,13 @@ let layout ?(arguments = true) (f : A.func) : A.frame =
         i
   in
   if not f.arrow then ignore (slot "arguments");
+  (* its own name, before the var's and the parameters: one of them of
+   * that name is the one meant *)
+  let own = match f.name with Some n when f.own_name -> slot n | _ -> -1 in
   List.iter (fun x -> ignore (slot x)) (hoisted f.body);
   let params = if plain then List.map (fun ((pt : A.pattern), _) -> match pt with Bind x -> slot x | _ -> -1) f.params else [] in
   let names = Array.of_list (List.rev !names) in
-  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own = A.place (); arguments; code = A.No_code }
+  { names; index = (if Array.length names > 16 then Some slots else None); slots = Array.of_list params; plain; own; arguments; code = A.No_code }
 
 (* opti: a call's frame made at once from the function's layout, an
  * array of bindings beside the function's array of names (shared by
@@ -110,16 +112,7 @@ let opti ~(params : params) (l : A.frame) (c : closure) (fn : value) (this : val
   let frame = Js_scope.frame c.scope ~names:l.names ~index:l.index ~cells ~strict in
   (* the array of what was given: only for a function that says arguments *)
   if l.arguments && not f.arrow then cells.(0).value <- Object (new_array args);
-  (* its own name: looked for outside at the first call, and the
-   * answer kept in the place's count of scopes: -2, nowhere, and it is
-   * the function's own for good; -3, somebody's outside *)
-  (match f.name with
-  | Some n when l.own.hops <> -3 ->
-      if l.own.hops = -2 || Js_scope.find c.scope n l.own = None then (
-        l.own.hops <- -2;
-        Js_scope.declare frame n ~constant:false fn)
-      else l.own.hops <- -3
-  | _ -> ());
+  if l.own >= 0 then cells.(l.own).value <- fn;
   if l.plain then (
     (* each by its slot; those the call did not give, undefined *)
     let rec set (i : int) (args : value list) : value list =

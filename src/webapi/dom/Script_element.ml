@@ -77,6 +77,16 @@ let get (t : t) (n : node) (k : string) : value option =
   | "localName" -> Some (String n.name)
   | "namespaceURI" -> Some (String "http://www.w3.org/1999/xhtml")
   | "cloneNode" -> m (fun args -> wrap t (clone ~deep:(truthy (arg args 0)) n))
+  (* its shadow tree (Shadow_tree.mli): attached, empty, and then filled
+   * as any node is; the root's host and mode are said by the prelude *)
+  | "attachShadow" ->
+      m (fun _ ->
+          attach_shadow n [];
+          let root = Option.get n.shadow in
+          root.expando <- [ ("host", wrap t n); ("mode", String "open") ];
+          touch t;
+          wrap t root)
+  | "shadowRoot" -> Some (match n.shadow with Some root -> wrap t root | None -> Null)
   (* where nodes go: in it, or beside it in its parent *)
   | "append" -> m (fun args -> List.iter (fun c -> ignore (insert t n c ~before:None)) (nodes args); Undefined)
   | "prepend" ->
@@ -159,6 +169,10 @@ let get (t : t) (n : node) (k : string) : value option =
   (* no boxes here: the layout is the browser's, after the script *)
   | "getBoundingClientRect" -> m (fun _ -> rect ())
   | "getClientRects" -> m (fun _ -> Object (new_array []))
+  (* but the page's own: the window's (document.documentElement.clientWidth
+   * < 768 is how a site decides it is on a phone) *)
+  | ("clientWidth" | "offsetWidth" | "scrollWidth") when n.name = "html" || n.name = "body" -> Some (Option.value (Js_eval.global t.engine "innerWidth") ~default:(Number 0.))
+  | ("clientHeight" | "offsetHeight") when n.name = "html" || n.name = "body" -> Some (Option.value (Js_eval.global t.engine "innerHeight") ~default:(Number 0.))
   | "offsetWidth" | "offsetHeight" | "offsetTop" | "offsetLeft" | "clientWidth" | "clientHeight" | "clientTop" | "clientLeft" | "scrollTop" | "scrollLeft" | "scrollWidth" | "scrollHeight" ->
       Some (Number 0.)
   | "offsetParent" -> Some Null

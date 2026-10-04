@@ -210,6 +210,12 @@ let rec run_modules (t : t) : unit =
  * each once *)
 let inserted (t : t) (n : node) : unit =
   let connected (n : node) = let rec up (n : node) = n == t.root || (match n.parent with Some p -> up p | None -> false) in up n in
+  (* custom elements (data/prelude/web.js): an element entering the
+   * page, said to the registry, which upgrades it or calls its
+   * connectedCallback, and its descendants' *)
+  (match Js_eval.global t.engine "__connected" with
+  | Some (Object _ as f) when is_element n && connected n -> ignore (run_handler t f ~this:Undefined (wrap t n))
+  | _ -> ());
   let ran (s : node) = List.mem_assoc "%ran" s.expando in
   let event (s : node) (typ : string) = ignore (t.dispatch (Some s) (Script_events.make ~bubbles:false typ [])) in
   let run (s : node) (text : string) : unit =
@@ -291,11 +297,13 @@ let tree (t : t) : Dom.element =
     in
     (* a comment is not the page's; nor what is in a <noscript>, written
      * for a browser that runs no script, which this page's does *)
-    let children =
+    let frozen (nodes : node list) : Dom.node list =
       List.filter_map
         (fun c -> if is_text c then Some (Dom.Text c.text) else if is_element c && c.name <> "noscript" then Some (Dom.Element (go c)) else None)
-        n.children
+        nodes
     in
+    (* a host: its shadow tree drawn, its children where the slots are *)
+    let children = match n.shadow with Some root -> Shadow_tree.distribute ~shadow:(frozen root.children) ~light:(frozen n.children) | None -> frozen n.children in
     let e : Dom.element = { name = n.name; attributes; extensions; origin; children } in
     pairs := (e, n) :: !pairs;
     e

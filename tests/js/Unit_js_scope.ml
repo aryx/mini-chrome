@@ -108,6 +108,16 @@ let tests =
           check "numbers written as text: integers, and the rest" "function f() { var o = {}; o[3] = 'k'; return [String(12), String(-7), String(1e21), String(0.1), String(-0), Object.keys(o)[0], 2 ** 53 + ''] } f()"
             "[\"12\", \"-7\", \"1e+21\", \"0.1\", \"0\", \"3\", \"9007199254740992\"]";
           Alcotest.(check string) "a loop that never ends is stopped, compiled too" "line 1: RangeError: the script ran too long (a loop that never ends?)" (run true "function f() { while (true) {} } f()"));
+      Testo.create "what 9fans.topicbox.com asked of the language" (fun () ->
+          check "a function expression's name is its own, whatever it is outside; a method's key is not a name"
+            "var e = 'outer'; var o = { go: function e(n) { return n < 1 ? typeof e : e(n - 1) }, m() { return typeof m } }; [o.go(3), o.m()]"
+            "[\"function\", \"undefined\"]";
+          check "and a parameter or a var of that name is the one meant" "[(function f(f) { return f })(7), (function g() { var g = 2; return g })()]" "[7, 2]";
+          check "the second argument of forEach, map, filter, some, every, find: the function's this"
+            "var o = {}; var seen = []; [1].forEach(function () { seen.push(this === o) }, o); seen.concat([[1].map(function () { return this === o }, o)[0], [1].filter(function () { return this === o }, o).length, [1].some(function () { return this === o }, o), [1].every(function () { return this === o }, o), [1].find(function () { return this === o }, o), [1].findIndex(function () { return this === o }, o)])"
+            "[true, true, 1, true, true, 1, 0]";
+          check "new Number and new String: objects that hold a value" "[new Number(5) + 1, String(new Number(5)), new Number(5).toString(), new String('a') + 'b', typeof new Number(5), (255).toString(16)]"
+            "[6, \"5\", \"5\", \"ab\", \"object\", \"ff\"]");
       Testo.create "classes, generators, async: scopes kept alive" (fun () ->
           check "a class's methods see its scope" "var k = 2; class A { constructor(x) { this.x = x } twice() { return this.x * k } } class B extends A { twice() { return super.twice() + 1 } } new B(4).twice()"
             "9";

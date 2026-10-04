@@ -120,12 +120,26 @@
   def(Number, "parseFloat", parseFloat);
   def(Number, "parseInt", parseInt);
 
+  // new Number(5) and new String("a") are objects holding a value
+  // (Js_builtins' boxed): valueOf gives it, and so does what converts
+  // an object (new Number(5) + 1 is 6)
+  [Number, String].forEach(function (C) {
+    var own = C.prototype.valueOf;
+    C.prototype.valueOf = function () {
+      if (typeof this === "object" && this !== null && "@@primitive" in this) return this["@@primitive"];
+      return own ? own.call(this) : this;
+    };
+  });
+  var text = String.prototype.toString;
+  String.prototype.toString = function () { return typeof this === "object" && this !== null && "@@primitive" in this ? this["@@primitive"] : text ? text.call(this) : String(this); };
+
   // a number written in another base, (255).toString(16): the
   // engine's own toString is base 10
   var N = Number.prototype, decimal = N.toString, digits = "0123456789abcdefghijklmnopqrstuvwxyz";
   N.toString = function (radix) {
-    var n = Number(this);
-    if (radix === undefined || radix === 10 || n !== n || n === Infinity || n === -Infinity) return decimal.call(this);
+    var n = typeof this === "object" && this !== null ? this.valueOf() : this;
+    if (typeof n !== "number") throw new TypeError("Number.prototype.toString requires that 'this' be a Number");
+    if (radix === undefined || radix === 10 || n !== n || n === Infinity || n === -Infinity) return decimal.call(n);
     var whole = Math.floor(Math.abs(n)), fraction = Math.abs(n) - whole, s = "";
     do { s = digits[whole % radix] + s; whole = Math.floor(whole / radix); } while (whole > 0);
     if (fraction > 0) {

@@ -335,6 +335,83 @@
     });
     global("webkitAudioContext", g.AudioContext);
   }
+  // an SVG element's attribute that can be animated (its href, its
+  // class): asked by instanceof, never made here
+  global("SVGAnimatedString", function SVGAnimatedString() {});
+  // what a tree walker is told to show, and what its filter answers
+  global("NodeFilter", { SHOW_ALL: -1, SHOW_ELEMENT: 1, SHOW_TEXT: 4, SHOW_COMMENT: 128, FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3 });
+  // a <template>'s content: its children, in a fragment of their own
+  // (what cloneNode and importNode copy into the page)
+  getter(E, "content", function () {
+    if (this.localName !== "template") return undefined;
+    if (!this.__content) {
+      var f = document.createDocumentFragment();
+      while (this.firstChild) f.appendChild(this.firstChild);
+      this.__content = f;
+    }
+    return this.__content;
+  });
+
+  // Custom elements: a name with a dash given a class
+  // (customElements.define("user-card", class extends HTMLElement {})).
+  // An element of that name is *upgraded*: the class's prototype made
+  // its own, the class's constructor run on it, then its callbacks --
+  // attributeChangedCallback for the attributes the class observes,
+  // connectedCallback when it is in the page. It is there that a
+  // component attaches its shadow tree (libs/dom/Shadow_tree.mli). The
+  // browser says when an element enters the page (__connected).
+  // Not done: new UserCard() (an element is made by its name), the
+  // callbacks of an attribute changed later and of an element removed.
+  (function () {
+    var classes = {}, waiting = {};
+    function upgrade(el) {
+      var C = classes[el.localName];
+      if (!C || el.__upgraded) return;
+      el.__upgraded = true;
+      Object.setPrototypeOf(el, C.prototype);
+      try {
+        C.call(el);
+        if (el.attributeChangedCallback) (C.observedAttributes || []).forEach(function (a) {
+          if (el.hasAttribute(a)) el.attributeChangedCallback(a, null, el.getAttribute(a));
+        });
+        if (el.isConnected && el.connectedCallback) el.connectedCallback();
+      } catch (e) { console.error(e); }
+    }
+    function under(node) {
+      var all = node.querySelectorAll ? Array.from(node.querySelectorAll("*")) : [];
+      if (node.nodeType === 1) all.unshift(node);
+      // and in the shadow trees of those
+      all.slice().forEach(function (el) { if (el.shadowRoot) all = all.concat(under(el.shadowRoot)); });
+      return all;
+    }
+    g.customElements = {
+      define: function (name, C) {
+        if (classes[name]) throw new DOMException("the name \"" + name + "\" has already been used with this registry", "NotSupportedError");
+        classes[name] = C;
+        under(document.documentElement).forEach(function (el) { if (el.localName === name) upgrade(el); });
+        (waiting[name] || []).forEach(function (resolve) { resolve(C); });
+        delete waiting[name];
+      },
+      get: function (name) { return classes[name]; },
+      getName: function (C) { for (var name in classes) if (classes[name] === C) return name; return null; },
+      whenDefined: function (name) {
+        if (classes[name]) return Promise.resolve(classes[name]);
+        return new Promise(function (resolve) { (waiting[name] = waiting[name] || []).push(resolve); });
+      },
+      upgrade: function (root) { under(root).forEach(upgrade); }
+    };
+    g.__connected = function (node) {
+      under(node).forEach(function (el) {
+        if (!classes[el.localName]) return;
+        if (!el.__upgraded) upgrade(el);
+        else if (el.connectedCallback) try { el.connectedCallback(); } catch (e) { console.error(e); }
+      });
+    };
+    // an element made by a script is upgraded at once: its methods are
+    // there before it is put in the page (document.createElement tells)
+    g.__created = upgrade;
+  })();
+  global("DOMException", class DOMException extends Error { constructor(message, name) { super(message); this.name = name || "Error"; } });
   method(E, "scrollTo", nothing);
   method(E, "scrollBy", nothing);
   reflects(E, "role", "role");
@@ -347,7 +424,6 @@
   getter(E, "inert", function () { return this.hasAttribute("inert"); }, function (v) { this.toggleAttribute("inert", !!v); });
   getter(E, "contentEditable", function () { return this.getAttribute("contenteditable") || "inherit"; }, function (v) { this.setAttribute("contenteditable", v); });
   getter(E, "isContentEditable", function () { return this.getAttribute("contenteditable") === "true"; });
-  getter(E, "shadowRoot", function () { return null; });
   getter(E, "assignedSlot", function () { return null; });
 
   if (typeof navigator === "object") {

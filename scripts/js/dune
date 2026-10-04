@@ -9,4 +9,4 @@
 (executables
  (names Js_survey Page_scripts)
  (flags (:standard -open Network))
- (libraries unix lang_html javascript browser_www browser_webapi network elm_playground elm_playground_software))
+ (libraries unix str mini_opti lang_html javascript browser_www browser_webapi network elm_playground elm_playground_software))

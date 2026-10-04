@@ -77,6 +77,7 @@ let make (t : t) (o : obj) : unit =
   set "timeout" (Number 0.);
   (let upload = new_object () in
    set_own upload "addEventListener" (fn "addEventListener" (fun _ -> Undefined));
+   set_own upload "removeEventListener" (fn "removeEventListener" (fun _ -> Undefined));
    set "upload" (Object upload));
   set "abort" (fn "abort" (fun _ -> Option.iter (Script_fetch.forget t) !sent; state 0; Undefined));
   set "getResponseHeader" (fn "getResponseHeader" (fun args ->

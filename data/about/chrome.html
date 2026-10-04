@@ -21,6 +21,24 @@
 </header>
 <main>
   <div class="card">
+    <h2>The sites to bring up <span class="badge">plan</span></h2>
+    <p>The web people use, each a click away, to see where the browser
+    stands on it today (what stops each, and the order they are taken in:
+    <code>docs/plans/plan_sites.md</code>). The ones that are applications
+    need their scripts: <code>scripts=host</code> on the command line.</p>
+    <p><a class="button" href="https://github.com/ocaml/ocaml">GitHub</a>
+    <a class="button" href="https://discuss.ocaml.org/">discuss.ocaml.org</a>
+    <a class="button" href="https://9fans.topicbox.com/">9fans</a>
+    <a class="button" href="https://www.amazon.com/">Amazon</a>
+    <a class="button" href="https://www.chess.com/">chess.com</a>
+    <a class="button" href="https://www.youtube.com/">YouTube</a>
+    <a class="button" href="https://mail.google.com/">Gmail</a>
+    <a class="button" href="https://chatgpt.com/">ChatGPT</a></p>
+    <p class="muted">And what already runs: <a href="https://aryx.github.io/ocaml-elm-playground/tinybox.html">tinybox</a>,
+    the Playground's games compiled to JavaScript; <a href="https://news.ycombinator.com/">Hacker News</a>;
+    <a href="https://en.wikipedia.org/wiki/OCaml">Wikipedia</a>.</p>
+  </div>
+  <div class="card">
     <h2>The box model <span class="badge">CSS 2.1</span></h2>
     <figure><img src="picture.png" width="96" height="96" alt="a picture"><figcaption>float: left</figcaption></figure>
     <p>Every box on this page is a content box inside its padding, its
@@ -100,6 +118,20 @@
   </div>
 
   <div class="card">
+    <h2>Web components <span class="badge">2016</span></h2>
+    <p>An element of the page's own making. <code>&lt;name-tag&gt;</code>
+    below is given a class by <code>customElements.define</code>; the class
+    attaches a <i>shadow tree</i> to each one, which is what is drawn, and
+    the element's children show through its <code>&lt;slot&gt;</code>s. The
+    third has its shadow tree written in the page, in a
+    <code>&lt;template shadowrootmode&gt;</code>: no script made it.</p>
+    <div class="tiles">
+      <name-tag class="tile"><span slot="name">Ada</span>wrote the first program</name-tag>
+      <name-tag class="tile">no name given</name-tag>
+      <div class="tile"><template shadowrootmode="open"><b>declared: </b><slot></slot></template>with no script</div>
+    </div>
+  </div>
+  <div class="card">
     <h2>SVG</h2>
     <p>Logos and icons are drawings now, not pixels: an SVG inline in the
     page (Chrome's logo, three arcs and two circles), a picture whose
@@ -175,6 +207,12 @@
 </main>
 <footer>MiniChrome -- after Google Chrome (2008) -- github.com/aryx/mini-chrome</footer>
 <script>
+// the web components card's element: its shadow tree, with two slots
+customElements.define("name-tag", class extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({ mode: "open" }).innerHTML = '<b><slot name="name">somebody</slot></b>: <slot></slot>';
+  }
+});
 // the JavaScript card's program
 document.getElementById("js-hello").textContent = "this sentence was written by the script, " + (6 * 7) + " being 6 * 7.";
 const tiles = document.getElementById("js-tiles");

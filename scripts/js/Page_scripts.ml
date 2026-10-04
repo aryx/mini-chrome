@@ -13,6 +13,8 @@ let () =
   match List.tl (Array.to_list Sys.argv) with
   | file :: rest ->
       let base = match rest with b :: _ -> b | [] -> "http://page.test/" in
+      (* WALK=1: the evaluator, whose errors say more (Js_compile's are shorter) *)
+      if Sys.getenv_opt "WALK" <> None then Mini_opti.compiled := false;
       let html = In_channel.with_open_bin file In_channel.input_all in
       (* its cookies kept here, each one set said *)
       let jar = ref [] in
@@ -23,11 +25,32 @@ let () =
             jar := List.hd (String.split_on_char ';' c) :: !jar )
       in
       let t = Browser_script.create ~log:(fun l -> print_endline ("console: " ^ l)) ~base ~cookies (Html_tree.of_string html) in
+      (* FILES=DIR: a request whose path is a file under DIR is answered
+       * with it (a site's bundles saved beside its page: no network,
+       * and nothing said to the site while its errors are looked for) *)
+      let saved ?(post = "") (url : string) : string option =
+        match Sys.getenv_opt "FILES" with
+        | None -> None
+        (* a POST: by the request and what it sent (DIR/_post/<md5 of
+         * the address, a newline, the body>), as recorded there *)
+        | Some dir when post <> "" ->
+            let file = Filename.concat (Filename.concat dir "_post") (Digest.to_hex (Digest.string (url ^ "\n" ^ post))) in
+            if Sys.file_exists file then Some (In_channel.with_open_bin file In_channel.input_all) else None
+        | Some dir ->
+            let path = match Str.bounded_split (Str.regexp "://[^/]*/") url 2 with [ _; p ] -> List.hd (String.split_on_char '?' p) | _ -> "" in
+            let file = Filename.concat dir path in
+            if path <> "" && Sys.file_exists file && not (Sys.is_directory file) then Some (In_channel.with_open_bin file In_channel.input_all) else None
+      in
       let requests () =
         List.iter
           (fun (r : Script_types.request) ->
-            Printf.printf "request: %s %s\n" r.meth r.url;
-            Browser_script.answer t r.rid (Error "no network here"))
+            match saved ?post:(Option.map snd r.post) r.url with
+            | Some body ->
+                Printf.printf "request: %s %s (saved, %d bytes)\n" r.meth r.url (String.length body);
+                Browser_script.answer t r.rid (Ok { status = 200; headers = []; body; final = r.url })
+            | None ->
+                Printf.printf "request: %s %s%s\n" r.meth r.url (match r.post with Some (_, body) when Sys.getenv_opt "BODIES" <> None -> "\n  " ^ body | _ -> "");
+                Browser_script.answer t r.rid (Error "no network here"))
           (Browser_script.take_requests t)
       in
       Browser_script.run_scripts t;

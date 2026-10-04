@@ -85,6 +85,35 @@ let tests =
           check "running, and the clock is the sound's" "[\"running\", 1.5, 3]" t "[ctx.state, ctx.currentTime, b.length]";
           Alcotest.(check bool) "two channels at their time; one channel in both ears, now" true
             (List.rev !played = [ (1.75, 44100, [ 0.; 0.25; 0.5 ], [ 0.; -0.25; -0.5 ]); (0., 22050, [ 0.; 1. ], [ 0.; 1. ]) ]));
+      Testo.create "custom elements and shadow trees" (fun () ->
+          let t =
+            page
+              {|<user-card id=a><span slot="name">Ada</span>born in 1815</user-card><static-card id=s><template shadowrootmode="open"><b><slot></slot></b></template>declared</static-card>
+<script>var log = [];
+class UserCard extends HTMLElement {
+  static get observedAttributes() { return ["id"] }
+  constructor() { super(); this.made = true }
+  attributeChangedCallback(name, was, now) { log.push(name + "=" + now) }
+  connectedCallback() { log.push("connected " + this.localName); this.attachShadow({ mode: "open" }).innerHTML = '<div class="card"><i><slot name="name">?</slot></i><p><slot></slot></p></div>' }
+  hello() { return "hello" }
+}
+customElements.define("user-card", UserCard);
+var a = document.getElementById("a"), later = document.createElement("user-card"), before = typeof later.hello;
+document.body.appendChild(later);
+var tpl = document.createElement("template"); tpl.innerHTML = "<em>cloned</em>"; later.appendChild(tpl.content.cloneNode(true))</script>|}
+          in
+          check "upgraded: the constructor, the attribute observed, connected; one made by a script has its methods at once"
+            "[true, \"hello\", \"function\", \"id=a\", \"connected user-card\", \"connected user-card\"]" t "[a.made, a.hello(), before].concat(log)";
+          check "the shadow tree is the component's: found from its root, not from the page"
+            "[true, true, true, 1, true]" t
+            "[a.shadowRoot.host === a, a.shadowRoot.querySelector('.card') !== null, document.querySelector('.card') === null, a.children.length, document.getElementById('s').shadowRoot !== null]";
+          (* what is laid out: the shadow trees, the children at the slots *)
+          let lines = List.concat_map Dom.to_lines (List.concat_map (fun name -> Dom.find_all name (Dom.without_blank_text (Browser_script.tree t))) [ "user-card"; "static-card" ]) in
+          Alcotest.(check (list string)) "composed"
+            [ {|user-card id="a"|}; {|  div class="card"|}; "    i"; {|      span slot="name"|}; {|        "Ada"|}; "    p"; {|      "born in 1815"|};
+              "user-card"; {|  div class="card"|}; "    i"; {|      "?"|}; "    p"; "      em"; {|        "cloned"|};
+              {|static-card id="s"|}; "  b"; {|    "declared"|} ]
+            lines);
       Testo.create "Svg_shapes: the Playground's shapes read back" (fun () ->
           let shapes inside = Svg_shapes.shapes ~picture_of:(fun _ -> None) (svg inside) ~width:400. ~height:200. in
           let open Playground in

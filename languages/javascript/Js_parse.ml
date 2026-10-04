@@ -230,7 +230,7 @@ and property_name (p : t) : string =
 and prefix (p : t) : expr =
   let word_async = (peek p).kind = Name "async" in
   (* async function ..., async x => ..., async (a, b) => ...; else async is a name *)
-  if word_async && (peek_at p 1).kind = Keyword "function" then (p.pos <- p.pos + 2; Function (func p ~arrow:false ~async:true))
+  if word_async && (peek_at p 1).kind = Keyword "function" then (p.pos <- p.pos + 2; Function (named (func p ~arrow:false ~async:true)))
   else if word_async && (p.pos <- p.pos + 1; arrow_ahead p || (p.pos <- p.pos - 1; false)) then arrow p ~async:true
   else if arrow_ahead p then arrow p ~async:false
   else
@@ -269,7 +269,7 @@ and prefix (p : t) : expr =
     | Keyword "null" -> Null
     | Keyword "this" -> This
     | Keyword (("typeof" | "void" | "delete") as op) -> Unary (op, expression p prefix_power)
-    | Keyword "function" -> Function (func p ~arrow:false ~async:false)
+    | Keyword "function" -> Function (named (func p ~arrow:false ~async:false))
     | Punct (("-" | "+" | "!" | "~") as op) -> Unary (op, expression p prefix_power)
     | Punct (("++" | "--") as op) -> Update (op, true, target p (expression p prefix_power))
     | Punct "(" ->
@@ -344,7 +344,7 @@ and key (p : t) : key =
  * its key *)
 and method_ (p : t) (k : key) ~(async : bool) ~(generator : bool) : func =
   let ps, rest = params p in
-  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async; frame = None }
+  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async; frame = None; own_name = false }
 
 (* one property of an object literal *)
 and property (p : t) : property =
@@ -360,7 +360,7 @@ and property (p : t) : property =
       ignore (advance p);
       let k = key p in
       let ps, rest = params p in
-      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None } in
+      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None; own_name = false } in
       if which = "get" then Getter (k, f) else Setter (k, f)
   (* async m() { } *)
   | Name "async" when accessor ->
@@ -468,15 +468,18 @@ and arrow (p : t) ~(async : bool) : expr =
   let body =
     body_in p ~async ~generator:false (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
   in
-  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async; frame = None }
+  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async; frame = None; own_name = false }
 
 (* function name? (params) { body }: what is after the keyword *)
+(* a function expression's name is its own, in its body *)
+and named (f : func) : func = { f with own_name = f.name <> None }
+
 and func (p : t) ~(arrow : bool) ~(async : bool) : func =
   (* function* f: a generator *)
   let generator = is_punct p "*" && (ignore (advance p); true) in
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
   let ps, rest = params p in
-  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async; frame = None }
+  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async; frame = None; own_name = false }
 
 (* class Name extends Parent { members }: what is after the keyword. A
  * member: [static] then a method m() { }, an accessor get k() { } or

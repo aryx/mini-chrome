@@ -234,6 +234,9 @@ let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascad
  * give one *)
 let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element) :
     Html_layout.box * Browser_draw.drawn * Looks.color option * string list =
+  (* a tree as the parser left it: its declared shadow trees in their
+   * hosts' place (Shadow_tree; a script's are composed already) *)
+  let tree = Shadow_tree.composed tree in
   let picture src = s.picture (Browser_url.resolve base src) in
   let visited href = s.visited (fst (Browser_url.split_fragment (Browser_url.resolve base href))) in
   let picture_size src = Option.bind (picture src) Browser_picture.size in

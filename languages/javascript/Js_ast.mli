@@ -145,17 +145,22 @@ and func = {
   generator : bool; (* ES2015: function* f() { }, *m() { }: its call gives an iterator over what it yields *)
   async : bool; (* ES2017: async function f() { }, async x => ..., async m() { }: it gives a promise *)
   frame : frame option; (* opti: what its calls have in common: Js_quicken's; None from the parser *)
+  (* a function expression with a name (var f = function again(n) { ...
+   * again(n - 1) }): the name is the function, in its body, whatever
+   * the name means outside. Not a declaration's (its name is the
+   * scope's), nor a method's (its key is not a name) *)
+  own_name : bool;
 }
 
 (* opti: a function's frame, known from its text: the names every call
  * of it declares, in the order of their slots (arguments, the var's,
  * the parameters), and their index when they are many; each
  * parameter's slot; whether the parameters are
- * plain names (no default, no pattern); where the function's own
- * name was found outside it; whether its text says arguments (a call
+ * plain names (no default, no pattern); the slot of the function's own
+ * name, if it has one in its body (-1: none); whether its text says arguments (a call
  * makes that array only then); and its body compiled, once it has
  * been called (Js_frame, Js_compile) *)
-and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : place; arguments : bool; mutable code : code }
+and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : int; arguments : bool; mutable code : code }
 
 (* a property of an object literal: its key and its value ("k" alone is
  * k: k; m() { } is m: function () { }), a getter or a setter (a

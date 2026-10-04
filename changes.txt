@@ -168,6 +168,26 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- web components: shadow trees and custom elements. A host's shadow
+  tree is drawn in its children's place, the children where its
+  <slot>s are (libs/dom/Shadow_tree: distribute, and composed for a
+  <template shadowrootmode> written in the page, with no script);
+  attachShadow and shadowRoot for scripts, whose querySelector does
+  not go into a shadow tree; customElements.define, an element
+  upgraded when its class is defined, when a script makes it and when
+  it enters the page, its constructor, attributeChangedCallback and
+  connectedCallback (data/prelude/web.js, the browser telling it of
+  an element made and of one entering the page); a <template>'s
+  content. Not done: a shadow tree's style kept to it, :host, events
+  retargeted, new MyElement(). A card on about:chrome
+- 9fans.topicbox.com's application starts and draws its menu and its
+  news (docs/plans/plan_sites.md): location.href of a site with no
+  path ends with /; an XMLHttpRequest's upload has
+  removeEventListener; a document made by DOMParser has
+  getElementsByTagName; SVGAnimatedString and NodeFilter are names;
+  the page's root has the window's size (clientWidth: how a site
+  decides it is on a phone)
+- about:chrome opens with the sites the plan is about, each a link
 - CSS: logical properties (margin-block-start, padding-inline,
   border-inline-end, inset-block, inline-size, border-start-end-radius
   and the others): the physical ones they are in a text left to right
@@ -607,6 +627,15 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- JavaScript, found on 9fans.topicbox.com: a function expression's
+  name is the function in its body whatever it is outside (it was not
+  when a name of the outside was the same: e, in a script made
+  small); the second argument of forEach, map, filter, some, every,
+  find and findIndex is the function's this; new Number(5) and new
+  String("a") hold their value (new Number(5) + 1 called itself
+  without end). An error says more: o[k] is not a function names the
+  key, an expression is shown as written; JS_STACK=1 says the calls an
+  overflow leaves by
 - GitHub's repository page drawn as Chrome draws it with scripts off
   (docs/plans/plan_sites.md, step 1; docs/screenshots/github.png), by
   what was wrong one at a time, each on a page of ten lines first:
