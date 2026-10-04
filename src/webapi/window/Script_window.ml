@@ -92,7 +92,28 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "matchMedia"
     (fn "matchMedia" (fun args ->
          object_of [ ("matches", Bool false); ("media", arg args 0); nothing "addListener"; nothing "removeListener"; nothing "addEventListener"; nothing "removeEventListener" ]));
-  define "history" (object_of [ ("length", Number 1.); ("state", Null); nothing "pushState"; nothing "replaceState"; nothing "back"; nothing "forward"; nothing "go" ]);
+  (* history.pushState(state, title, url) (HTML5; an application's
+   * router): the page's address changed with no page loaded -- what
+   * location says from then on, and what the browser shows *)
+  let history = object_of [ ("length", Number 1.); ("state", Null); nothing "back"; nothing "forward"; nothing "go" ] in
+  let state ~(replace : bool) (name : string) =
+    match history with
+    | Object h ->
+        set_own h name
+          (fn name (fun args ->
+               set_own h "state" (arg args 0);
+               (match arg args 2 with
+               | Undefined | Null -> ()
+               | url ->
+                   t.base <- Browser_url.resolve t.base (to_string url);
+                   (* replaced after being pushed, the browser not told yet: pushed *)
+                   t.address <- Some (t.base, replace && match t.address with Some (_, false) -> false | _ -> true));
+               Undefined))
+    | _ -> ()
+  in
+  state ~replace:false "pushState";
+  state ~replace:true "replaceState";
+  define "history" history;
   define "screen" (object_of [ ("width", Number (fst viewport)); ("height", Number (snd viewport)); ("availWidth", Number (fst viewport)); ("availHeight", Number (snd viewport)) ]);
   define "getSelection" (fn "getSelection" (fun _ -> object_of [ ("rangeCount", Number 0.); nothing "removeAllRanges"; nothing "addRange"; ("toString", fn "toString" (fun _ -> String "")) ]));
   define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool false)); ("escape", fn "escape" (fun args -> arg args 0)) ]);

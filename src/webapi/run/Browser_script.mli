@@ -212,6 +212,11 @@ val advance : t -> float -> unit
  * the page's place in the history instead of being after it *)
 val take_navigation : t -> (string * bool) option
 
+(* the address the page gave itself since last asked
+ * (history.pushState; true: replaceState), no page being loaded: the
+ * browser shows it, and Back comes back to the one before *)
+val take_address : t -> (string * bool) option
+
 (* what the page's WebSockets asked since the last call, the oldest
  * first (WebSocket.mli): for the browser to do *)
 val take_socket_asks : t -> Script_types.socket_ask list

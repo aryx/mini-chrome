@@ -44,6 +44,10 @@ type t = {
   position : position;
   float : side;
   clear : side;
+  (* transform: its translation (translate, translateX, translateY,
+   * translate3d), the percents of the box's own size; the rest of a
+   * transform (a rotation, a scale) is not applied *)
+  translate : (Css_values.length * Css_values.length) option;
   top : size;
   right : size;
   bottom : size;
@@ -104,6 +108,7 @@ let initial : t =
     position = Static;
     float = Side_none;
     clear = Side_none;
+    translate = None;
     top = Auto;
     right = Auto;
     bottom = Auto;
@@ -429,6 +434,26 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
       (match word "position" with Some "relative" -> Relative | Some "absolute" -> Absolute | Some "fixed" -> Fixed | Some "sticky" -> Sticky | _ -> Static);
     float = (match word "float" with Some "left" -> Side_left | Some "right" -> Side_right | _ -> Side_none);
     clear = (match word "clear" with Some "left" -> Side_left | Some "right" -> Side_right | Some "both" -> Side_both | _ -> Side_none);
+    translate =
+      prop "transform" ~inh:parent.translate ~init:None (fun v ->
+          (* the functions' moves added up; the others passed *)
+          let zero = Css_values.zero in
+          let sum (a : Css_values.length) (b : Css_values.length) : Css_values.length = { px = a.px +. b.px; pct = a.pct +. b.pct } in
+          let add (x, y) (dx, dy) = Some (sum x dx, sum y dy) in
+          List.fold_left
+            (fun acc c ->
+              match c with
+              | Css_syntax.Func (f, args) -> (
+                  let lens = List.map (fun a -> match V.parts a with [ c ] -> Option.value (V.length ctx c) ~default:zero | _ -> zero) (Css_syntax.split_on Comma args) in
+                  let at = Option.value acc ~default:(zero, zero) in
+                  match (String.lowercase_ascii f, lens) with
+                  | ("translate" | "translate3d"), x :: y :: _ -> add at (x, y)
+                  | "translate", [ x ] | "translatex", [ x ] -> add at (x, zero)
+                  | "translatey", [ y ] -> add at (zero, y)
+                  | _ -> acc)
+              | _ -> acc)
+            None v
+          |> Option.some);
     top = size "top" ~inh:parent.top ~init:Auto;
     right = size "right" ~inh:parent.right ~init:Auto;
     bottom = size "bottom" ~inh:parent.bottom ~init:Auto;

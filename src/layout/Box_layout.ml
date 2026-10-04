@@ -14,6 +14,16 @@ open Box_tree (* a box read *)
 open Box_inline (* words on lines *)
 open Box_flow (* a block being laid out *)
 
+(* a height known before the content is: a length, or percents of a
+ * height itself known (CSS 2.1 section 10.5: else it is auto); the
+ * content's, the padding and borders [chrome] taken off a border box *)
+let definite (env : env) (s : Computed.t) ~(chrome : float) : float option =
+  let content h = if s.border_box then Float.max 0. (h -. chrome) else h in
+  match (s.height, env.known_height) with
+  | Len l, _ when l.pct = 0. -> Some (content l.px)
+  | Len l, Some h when not env.measuring -> Some (content (Css_values.resolve l h))
+  | _ -> None
+
 let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s : Computed.t) ~(cb_x : float) ~(cb_width : float)
     ~(y : float) ~(marker : Html_layout.marker option) ?content () : box * float =
   (* measuring an intrinsic size: a percentage width is auto (it would
@@ -25,8 +35,11 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let own = own_context s in
   let floats = if own then ref [] else floats in
   let x = cb_x +. ml in
+  let given = definite env s ~chrome:(pt +. pb +. bt +. bb) in
   let env =
-    match s.position with Static -> env | _ -> { env with containing = (x +. bl, y +. bt, pl +. cw +. pr) }
+    match s.position with
+    | Static -> { env with known_height = given }
+    | _ -> { env with known_height = given; containing = (x +. bl, y +. bt, pl +. cw +. pr, Option.map (fun h -> pt +. h +. pb) given) }
   in
   let centring =
     e.name = "center"
@@ -73,10 +86,14 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let content_bottom = if through then ctx.cursor else ctx.cursor +. ctx.pending in
   let content_bottom = if own then List.fold_left (fun m p -> Float.max m p.pbottom) content_bottom !floats else content_bottom in
   let auto_height = content_bottom -. content_top in
+  (* a height in percents is at least the content's: what goes past
+   * a box is not scrolled here, and a page whose <html> is 100% of the
+   * window would end at the window's *)
   let ch =
-    match s.height with
-    | Len l when l.pct = 0. -> if s.border_box then Float.max 0. (l.px -. pt -. pb -. bt -. bb) else l.px
-    | _ -> auto_height
+    match (given, s.height) with
+    | Some h, Len l when l.pct <> 0. -> Float.max h auto_height
+    | Some h, _ -> h
+    | None, _ -> auto_height
   in
   (* min-height and max-height, of the border box with box-sizing:
    * border-box (Google's buttons) *)
@@ -190,13 +207,7 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
           let cross = Array.fold_left (fun m (b, _, mt, mb) -> Float.max m (mt +. b.height +. mb)) 0. laid in
           (* a single line is as tall as its container, if its height is
            * given (section 9.4) *)
-          let cross =
-            match s.height with
-            | Len l when l.pct = 0. && (not s.flex_wrap) && not measuring ->
-                let pt, _, pb, _ = four (fun l -> Css_values.resolve l width) s.padding and bt, _, bb, _ = s.border_width in
-                Float.max cross (if s.border_box then l.px -. pt -. pb -. bt -. bb else l.px)
-            | _ -> cross
-          in
+          let cross = match env.known_height with Some h when (not s.flex_wrap) && not measuring -> Float.max cross h | _ -> cross in
           Array.iter
             (fun ((b : box), cs, mt, mb) ->
               let offset, outer = Flex_layout.cross ~align:(align_of cs) ~line:cross ~size:(mt +. b.height +. mb) in
@@ -232,19 +243,31 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
               | Stretch, None -> Some (Float.max 0. (width -. ml' -. mr' -. hchrome))
               | _, None -> Some (shrink env c cs ~available:(width -. ml' -. mr' -. hchrome))
             in
-            let b, _ = layout_block env (ref []) c { cs with margin = no_margins } ~cb_x:0. ~cb_width:width ~y:0. ~marker:None ?content () in
+            (* the positioned boxes inside it are kept apart: they move
+             * with it when it is placed *)
+            let lay cs =
+              let env = { env with positioned = ref [] } in
+              let b = fst (layout_block env (ref []) c { cs with Computed.margin = no_margins } ~cb_x:0. ~cb_width:width ~y:0. ~marker:None ?content ()) in
+              (b, !(env.positioned))
+            in
+            let b, inside = lay cs in
+            (* laid out again at the height the container gives it, if
+             * it holds positioned boxes: they are placed in its height
+             * (an application's frame: a column, its one item filling
+             * the window, everything in it absolute) *)
+            let again = if inside = [] then None else Some (fun (h : float) -> lay { cs with height = Len { Css_values.zero with px = h }; border_box = true }) in
             let x_offset =
               match align_of cs with
               | End -> width -. b.width -. mr'
               | Center -> (width -. b.width) /. 2.
               | _ -> ml'
             in
-            (c, cs, b, x_offset))
+            (c, cs, (b, inside), x_offset, again))
           items
       in
       let fitems =
         Array.map
-          (fun (_, (cs : Computed.t), (b : box), _) ->
+          (fun (_, (cs : Computed.t), ((b : box), _), _, _) ->
             let (mt, mb), _, (ab, aa) = chrome cs in
             let base = match (cs.flex_basis, size cs.height 0.) with Len l, _ when l.pct = 0. -> l.px | _, Some h -> h | _ -> b.height in
             { Flex_layout.base = mt +. base +. mb; grow = cs.flex_grow; shrink = cs.flex_shrink;
@@ -255,10 +278,8 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
       (* the room along: the container's height if it has one, else the
        * items' own *)
       let room =
-        match s.height with
-        | Len l when l.pct = 0. && not measuring ->
-            let pt, _, pb, _ = four (fun l -> Css_values.resolve l width) s.padding and bt, _, bb, _ = s.border_width in
-            if s.border_box then l.px -. pt -. pb -. bt -. bb else l.px
+        match env.known_height with
+        | Some h when not measuring -> h
         | _ -> Array.fold_left (fun t (it : Flex_layout.item) -> t +. it.base) 0. fitems +. (gap_main *. float_of_int (max 0 (Array.length fitems - 1)))
       in
       let sizes = Flex_layout.resolve ~room ~gap:gap_main fitems in
@@ -266,9 +287,16 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
       ctx.cursor <- content_top +. (if Array.length sizes = 0 then 0. else room);
       Array.to_list
         (Array.mapi
-           (fun k (_, cs, (b : box), x_offset) ->
+           (fun k (_, cs, ((b : box), inside), x_offset, again) ->
              let (mt, mb), _, _ = chrome cs in
-             relative ctx cs (moved (ctx.x +. x_offset -. b.x) (content_top +. starts.(k) +. mt -. b.y) { b with height = sizes.(k) -. mt -. mb }))
+             let b, inside =
+               match again with
+               | Some lay when (not measuring) && Float.abs (sizes.(k) -. mt -. mb -. b.height) > 0.5 -> lay (sizes.(k) -. mt -. mb)
+               | _ -> (b, inside)
+             in
+             let dx = ctx.x +. x_offset -. b.x and dy = content_top +. starts.(k) +. mt -. b.y in
+             env.positioned := List.map (moved dx dy) inside @ !(env.positioned);
+             relative ctx cs (moved dx dy { b with height = sizes.(k) -. mt -. mb }))
            laid))
   in
   ctx.children <- List.rev boxes;
@@ -287,7 +315,7 @@ and grid_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
 (* shrink-to-fit (CSS 2.1 section 10.3.5): the content's widest line,
  * at most [available], at least its widest word *)
 and shrink (env : env) (e : Dom.element) (s : Computed.t) ~(available : float) : float =
-  let env = { env with positioned = ref []; measuring = true } in
+  let env = { env with positioned = ref []; measuring = true; known_height = None } in
   let s' = { s with width = Auto; min_width = Css_values.zero; max_width = Auto; margin = (Len Css_values.zero, Len Css_values.zero, Len Css_values.zero, Len Css_values.zero) } in
   let _, _, _, pl = four (fun l -> Css_values.resolve l 0.) s.padding and _, _, _, bl = s.border_width in
   (* before the memo (a Wikipedia article: 89,903 blocks laid out, 88,200
@@ -357,8 +385,18 @@ and add_block (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     ctx.pending <- collapse mb through;
     ctx.absorbed <- false)
 
-(* position: relative, the box moved by its offsets *)
+(* transform: translate(...), the box moved once laid out, its percents
+ * of its own size (a list whose rows are all at the top, each moved
+ * down to its place: how an application draws thousands of them) *)
+and translated (s : Computed.t) (b : box) : box =
+  match s.translate with
+  | None -> b
+  | Some (x, y) -> moved (Css_values.resolve x b.width) (Css_values.resolve y b.height) b
+
+(* position: relative, the box moved by its offsets; and a transform's
+ * move *)
 and relative (ctx : ctx) (s : Computed.t) (b : box) : box =
+  let b = translated s b in
   if s.position <> Relative then b
   else
     let dx = match (size s.left ctx.width, size s.right ctx.width) with Some l, _ -> l | None, Some r -> -.r | None, None -> 0. in
@@ -368,7 +406,7 @@ and relative (ctx : ctx) (s : Computed.t) (b : box) : box =
 (* position: absolute or fixed, out of the flow *)
 and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
   let env = ctx.env in
-  let cx, cy, cw = match s.position with Fixed -> (0., 0., fst env.viewport) | _ -> env.containing in
+  let cx, cy, cw, ch = match s.position with Fixed -> (0., 0., fst env.viewport, Some (snd env.viewport)) | _ -> env.containing in
   let static_x = ctx.x and static_y = ctx.cursor +. ctx.pending in
   let left = size s.left cw and right = size s.right cw in
   let _, _, _, ml = s.margin in
@@ -381,7 +419,19 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     | Auto, _, _ -> Some (shrink env e s ~available:cw)
     | _ -> None
   in
-  let s_in = { s with margin = (let t, r, b, _ = s.margin in (t, r, b, Len Css_values.zero)) } in
+  (* down: top and bottom are of the containing block's height, when
+   * it is known; both said and no height, the box fills between them *)
+  let top = size s.top (Option.value ch ~default:0.) and bottom = Option.bind ch (fun h -> size s.bottom h) in
+  let height =
+    match (s.height, top, bottom, ch) with
+    | Computed.Auto, Some t, Some b, Some h -> Computed.Len { Css_values.zero with px = Float.max 0. (h -. t -. b) }
+    | _ -> s.height
+  in
+  let filling = height != s.height in
+  let s_in = { s with height; border_box = s.border_box || filling; margin = (let t, r, b, _ = s.margin in (t, r, b, Len Css_values.zero)) } in
+  (* the positioned boxes inside it: moved with it, drawn after it *)
+  let outer = env.positioned in
+  let env = { env with known_height = ch; positioned = ref [] } in
   (* a positioned <svg> is a picture still, a box of one line: its
    * percents of the window if it is fixed (a Playground program's
    * page is one svg, 100% by 100%) *)
@@ -390,8 +440,18 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     else fst (layout_block env (ref []) e s_in ~cb_x:0. ~cb_width:cw ~y:0. ~marker:None ?content ())
   in
   let x = match (left, right) with Some l, _ -> cx +. l +. ml | None, Some r -> cx +. cw -. r -. box.width | None, None -> static_x +. ml in
-  let y = match size s.top 0. with Some t -> cy +. t | None -> static_y in
-  env.positioned := moved (x -. box.x) (y -. box.y) box :: !(env.positioned)
+  let y =
+    match (top, bottom, ch) with
+    | Some t, _, _ -> cy +. t
+    | None, Some b, Some h -> cy +. h -. b -. box.height
+    | _ -> static_y
+  in
+  let dx, dy =
+    match s.translate with
+    | None -> (x -. box.x, y -. box.y)
+    | Some (tx, ty) -> (x -. box.x +. Css_values.resolve tx box.width, y -. box.y +. Css_values.resolve ty box.height)
+  in
+  outer := List.map (fun (b : box) -> if b.style.position = Fixed then b else moved dx dy b) !(env.positioned) @ (moved dx dy box :: !outer)
 
 (* a float, laid out shrink-to-fit where it is, placed with the lines *)
 and float_item (ctx : ctx) (e : Dom.element) (s : Computed.t) : item =
@@ -696,7 +756,7 @@ and layout_table (env : env) (table : Dom.element) (s : Computed.t) ~(cb_x : flo
 let layout (metrics : Html_layout.metrics) ?(picture_size = fun _ -> None) ~(viewport : float * float) (style : Dom.element -> Computed.t)
     (root : Dom.element) : box =
   let positioned = ref [] in
-  let env = { metrics; picture_size; style; viewport; positioned; measuring = false; centring = false; containing = (0., 0., fst viewport);
+  let env = { metrics; picture_size; style; viewport; positioned; measuring = false; centring = false; containing = (0., 0., fst viewport, Some (snd viewport)); known_height = Some (snd viewport);
       measured = Hashtbl.create 1024 } in
   let s = style root in
   (* the root is its own formatting context: its floats inside it *)

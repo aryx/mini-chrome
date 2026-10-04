@@ -235,8 +235,23 @@ root's place in the tree that is laid out).
   Number`), four the page's (`location.href`'s final `/`, an upload's
   `removeEventListener`, a parsed document's lookups, the root's
   `clientWidth`). It now draws its menu and its News Center, with its
-  desktop layout. Not right yet: the content is under the side bar
-  (its layout), and a group's topics were not tried.
+  desktop layout.
+- *Then its pages as they are* (`docs/screenshots/9fans.png`; its
+  scripts run by default now). Five things, none of them its own:
+  heights known before the content (percents down from the window's,
+  an absolute box's `height: 100%`, `top` with `bottom`, `bottom`
+  alone, a column's item laid out again at the height it is given);
+  an absolute box inside another moved with it; `transform:
+  translate`, by which the list's rows are placed; a page's `Date`
+  starting at the real time, not 1970; and `split` by a pattern with
+  groups, without which every element lost its first class. A topic
+  opens. And it answers to the mouse (it hung the browser at first:
+  its listener is an object with `handleEvent` on its class, which we
+  tried to call, and the error's message printed the application
+  whole): `history.pushState`, the hit test taking the box on top. Not right yet: a topic's first message is shown in part and
+  the next ones stay "Loading..."; the list of 31,145 topics has its
+  first screens only (it asks for more as it is scrolled, by a
+  scroll event of its own pane, which we do not have).
 - *Shadow trees and custom elements* are in (`Shadow_tree.mli`, a
   card on `about:chrome`): what GitHub's elements and YouTube's are
   made with. Not tried on them yet.

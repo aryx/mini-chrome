@@ -31,7 +31,9 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
 
 (* the sites whose scripts are small and old enough for our engine
  * (plan_tiny_chrome.md, "Famous sites with simple scripts") *)
-let default_allowed = [ "news.ycombinator.com"; "aryx.github.io" (* the Playground's programs: docs/plans/plan_tinybox.md *) ]
+let default_allowed =
+  [ "news.ycombinator.com"; "aryx.github.io" (* the Playground's programs: docs/plans/plan_tinybox.md *);
+    "9fans.topicbox.com" (* an application whole in scripts: docs/plans/plan_sites.md *) ]
 
 let config (m : model) (id : int) : msg Browser_tab.config =
   {
@@ -55,6 +57,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     scripts = (fun url -> Browser_url.starts_with "about:" url || List.mem (host_of url) m.allowed);
     cookies = Fetch.jar m.fetches;
     seed = 1;
+    epoch = Float.round (Unix.gettimeofday () *. 1000.);
   }
 
 (* a tab's requests given times: a new one its start, an answered one

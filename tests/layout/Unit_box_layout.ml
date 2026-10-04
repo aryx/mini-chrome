@@ -129,6 +129,38 @@ let tests =
           Alcotest.check near "relative: moved down 5" 5. (box "r" p).y;
           let a = box "a" p in
           Alcotest.(check (list near)) "absolute: in its positioned parent" [ 13.; 7.; 20. ] [ a.x; a.y; a.width ]);
+      (* an application's frame: everything absolute, in heights known
+       * before the content is (the window's 600, here) *)
+      Testo.create "absolute boxes in a height that is known" (fun () ->
+          let p =
+            page
+              ~css:"html, body { height: 100%; margin: 0 } body { display: flex; flex-direction: column } #app { flex: 1 1 auto; position: relative }"
+              {|<div id=app><div id=side style="position: absolute; top: 0; left: 0; width: 50px; height: 100%">s</div><div id=main style="position: absolute; top: 10px; bottom: 20px; left: 50px; right: 0"><div id=corner style="position: absolute; bottom: 5px; right: 5px; width: 10px; height: 10px"></div></div></div>|}
+          in
+          let side = box "side" p and main = box "main" p and corner = box "corner" p in
+          Alcotest.(check (list near)) "height: 100% of the column's item, itself the window's" [ 600.; 600. ] [ (box "app" p).height; side.height ];
+          Alcotest.(check (list near)) "top and bottom: the box fills between them" [ 50.; 10.; 150.; 570. ] [ main.x; main.y; main.width; main.height ];
+          Alcotest.(check (list near)) "bottom and right, in a box itself absolute: moved with it" [ 185.; 565. ] [ corner.x; corner.y ]);
+      Testo.create "a click finds the box drawn on top" (fun () ->
+          (* the frame fills the window, its side bar is drawn over it:
+           * the link there is what is under the pointer *)
+          let p =
+            page ~css:"html, body { height: 100%; margin: 0 } #app { position: relative; height: 100% }"
+              {|<div id=app><div style="position: absolute; top: 0; left: 0; width: 80px; height: 100%"><a id=l href=x>side</a></div></div>|}
+          in
+          let h = Box_tree.as_html_layout p in
+          Alcotest.(check (option string)) "the link" (Some "a") (Option.map (fun (e : Dom.element) -> e.name) (Hit.element_at h ~x:10. ~y:5.));
+          Alcotest.(check (option string)) "its address" (Some "x") (Hit.link_at h ~x:10. ~y:5.);
+          Alcotest.(check (option string)) "beside the side bar: the frame" (Some "app")
+            (Option.bind (Hit.element_at h ~x:150. ~y:300.) (Dom.attribute "id")));
+      Testo.create "transform: translate moves a box" (fun () ->
+          let p =
+            page
+              {|<body style="margin: 0"><div style="position: relative; height: 100px"><div id=a style="position: absolute; top: 0; left: 0; width: 20px; height: 10px; transform: translate3d(0,90px,0)"></div></div><div id=b style="width: 40px; height: 10px; transform: translateX(50%) translateY(3px)"></div>|}
+          in
+          let a = box "a" p and b = box "b" p in
+          Alcotest.(check (list near)) "a list's row, moved down to its place" [ 0.; 90. ] [ a.x; a.y ];
+          Alcotest.(check (list near)) "percents of the box's own size" [ 20.; 103. ] [ b.x; b.y ]);
       Testo.create "a list's markers" (fun () ->
           let p = page "<ol><li id=a>x<li id=b>y</ol><ul><li id=c>z</ul>" in
           Alcotest.(check (list bool))

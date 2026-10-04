@@ -50,6 +50,8 @@ let tests =
             "[\"Smith, John\", \"a+b+c\"]";
           check "split, exec, groups, alternation, classes" "var m = /(\\w+)@(x|y)\\.org$/.exec('mail: me@y.org');\n[m[1], m[2], 'a, b ,c'.split(/\\s*,\\s*/), /^[^0-9]+$/.test('abc')]"
             "[\"me\", \"y\", [\"a\", \"b\", \"c\"], true]";
+          (* a framework's "h3.title.wide" cut into a tag and its classes *)
+          check "split: the pattern's groups are pieces too" "'h3.a#b'.split(/([#.])/)" "[\"h3\", \".\", \"a\", \"#\", \"b\"]";
           check "a / dividing is not one" "var x = 10, y = 2; [x / y, (x) / 5]" "[5, 2]";
           check "lazy, bounds, a word's edge" "['<a><b>'.match(/<.+?>/)[0], /^a{2,3}$/.test('aaaa'), 'cat category'.replace(/\\bcat\\b/g, 'dog')]"
             "[\"<a>\", false, \"dog category\"]");

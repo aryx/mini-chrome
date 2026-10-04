@@ -127,6 +127,7 @@ type 'msg config = {
   scripts : string -> bool; (* whether a page's <script>s run (Browser_script), by its URL *)
   cookies : Cookie_jar.t; (* the browser's cookies: what a page's document.cookie reads and sets *)
   seed : int; (* Math.random's *)
+  epoch : float; (* the time when asked, in ms since 1970: where a page's Date starts *)
 }
 
 (* nothing shown yet; pictures loaded or not *)

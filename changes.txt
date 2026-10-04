@@ -168,6 +168,24 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- 9fans.topicbox.com's pages are drawn as they are: the side bar, the
+  groups, a group's topics with their authors, dates and counts.
+  What it took: heights known before the content (a height in
+  percents down from the window's; an absolute box's height: 100%,
+  its top and bottom together, its bottom alone; a column's item
+  holding absolute boxes laid out again at the height it is given);
+  an absolute box inside another moved with it and drawn after it;
+  transform: translate (translateX, translateY, translate3d), a
+  list's rows being placed so; a page's Date starting at the real
+  time (it was 1970: "active 56 years from now"); and split by a
+  pattern with groups keeping them ("a.title" cut by /([#.])/: the
+  framework's elements had lost their first class)
+- and it answers: a click on its side bar or on a topic goes there,
+  inside the application. history.pushState and replaceState change
+  the page's address (location follows, the omnibox shows it, Back
+  comes back); a listener that is an object is called by its
+  handleEvent, its class's too; a click finds the box drawn on top
+  where two are at a point (a positioned side bar over the frame)
 - a progressive JPEG is drawn (most of the web's photographs: it was
   a red slash, the picture that could not be read). The decoder is
   the Playground's (Jpeg_progressive, elm-playground after 0.3.6):
@@ -631,6 +649,10 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- the browser no longer hangs on a page whose listener is not a
+  function: the error's message showed the value whole, an
+  application's every object many times over. A value is shown five
+  objects deep, no further
 - JavaScript, found on 9fans.topicbox.com: a function expression's
   name is the function in its body whatever it is outside (it was not
   when a name of the outside was the same: e, in a script made

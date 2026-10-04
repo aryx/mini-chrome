@@ -162,6 +162,7 @@ let config (m : model) : msg Browser_tab.config =
     line_height;
     scripts = (fun _ -> true);
     seed = m.seed;
+    epoch = 0.;
   }
 
 (* alert()'s messages: the dialogs to show once the task is done *)

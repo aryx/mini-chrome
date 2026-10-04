@@ -314,7 +314,6 @@ let url_object (href : string) : value =
  * page left is kept in the history), replace(url) (it is not),
  * reload(). The browser goes there once the script has returned *)
 let location (t : t) : value =
-  let parts = url_parts t.base in
   let go ~(replace : bool) (url : string) = t.navigation <- Some (Browser_url.resolve t.base url, replace) in
   let searchParams = match url_object t.base with Object o -> Option.value (get_own o "searchParams") ~default:Undefined | _ -> Undefined in
   host_object
@@ -322,7 +321,8 @@ let location (t : t) : value =
       class_name = "Location";
       get =
         (fun k ->
-          match (k, List.assoc_opt k parts) with
+          (* of the address as it is now: history.pushState changes it *)
+          match (k, List.assoc_opt k (url_parts t.base)) with
           | _, Some v -> String v
           | "assign", _ -> method_ k (fun args -> go ~replace:false (str (arg args 0)); Undefined)
           | "replace", _ -> method_ k (fun args -> go ~replace:true (str (arg args 0)); Undefined)

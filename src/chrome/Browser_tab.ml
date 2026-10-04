@@ -56,6 +56,7 @@ type 'msg config = {
   scripts : string -> bool;
   cookies : Cookie_jar.t;
   seed : int;
+  epoch : float;
 }
 
 let empty ~(images : bool) : t =
@@ -206,7 +207,7 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
     (* with -v, what the page's scripts say on their console
      * (their errors too) is said on the terminal *)
     let log line = Logs.info (fun m -> m "console: %s" line) in
-    let s = Browser_script.create ~log ~seed:cfg.seed ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
+    let s = Browser_script.create ~log ~seed:cfg.seed ~epoch:cfg.epoch ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in
@@ -370,6 +371,15 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
   match tab.script with
   | Some s -> (
       let navigation = Browser_script.take_navigation s in
+      (* the address the page gave itself (history.pushState): shown,
+       * the one before kept for Back, to be loaded again *)
+      let tab =
+        match (Browser_script.take_address s, tab.state) with
+        | Some (url, replace), Shown p when url <> p.url ->
+            let history = if replace then tab.history else Browser_history.visit { at = p.url; kept = None } tab.history in
+            { tab with state = Shown { p with url }; history }
+        | _ -> tab
+      in
       let tab, cmd =
       match Browser_script.take_requests s with
       | [] -> (tab, cmd)

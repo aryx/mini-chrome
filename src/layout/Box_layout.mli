@@ -104,7 +104,17 @@
    box (its place in the flow where they are auto), laid out
    shrink-to-fit, and drawn after the rest (the boxes of the page's
    root, last); fixed is absolute in the window's first screen (it
-   scrolls with the page here: an exercise).
+   scrolls with the page here: an exercise). Down, the offsets need a
+   height: the ancestor's when it is known before its content is (a
+   length; percents of a height itself known, the window's at the
+   root; what a column gives its item) -- then top and bottom together
+   make the box's height, bottom alone places it, and its own height
+   in percents is of that. An application's frame is made so: a side
+   bar and a pane, each absolute and 100% high, in a body as high as
+   the window. A box inside an absolute one moves with it, and is
+   drawn after it. transform: translate(...) moves a box the same way
+   relative does, its percents of the box's own size: a long list's
+   rows, all at the top and each moved down to its place.
 
    **Tables** (display: table) are laid out as Mosaic_layout's: the grid and the
    columns' widths from Table_layout, each cell asked its minimum and

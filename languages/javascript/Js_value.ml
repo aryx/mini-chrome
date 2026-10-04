@@ -218,6 +218,9 @@ let display (v : value) : string =
     | String s -> if top then s else quoted s
     | Object { kind = Proxy (t, _); _ } -> go ~top seen (Object t)
     | Object o when List.memq o seen -> "[Circular]"
+    (* five deep and no further: an application's one object holds
+     * all the others, each many times *)
+    | Object { kind = Array _ | Plain; _ } when List.length seen >= 5 -> "..."
     | Object ({ kind = Array _; _ } as o) -> "[" ^ String.concat ", " (List.map (go ~top:false (o :: seen)) (array_items o)) ^ "]"
     | Object ({ kind = Plain; _ } as o) ->
         (* not a symbol's key ("@@...": a Map's iterator, a promise's state) *)

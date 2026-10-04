@@ -38,8 +38,9 @@
    of looks (tools/mosaic's Mosaic_looks.mli) written in the language
    the pages use.
 
-   Not computed: the properties layout does not use yet (transforms,
-   shadows, animations, grid's), and ::before and ::after's content. *)
+   Not computed: the properties layout does not use yet (shadows,
+   animations, a transform but for its translation: a rotation, a
+   scale), and ::before and ::after's content. *)
 
 type display =
   | Inline
@@ -76,6 +77,10 @@ type t = {
   position : position;
   float : side; (* Side_left, Side_right or Side_none *)
   clear : side;
+  (* transform: its translation (translate, translateX, translateY,
+   * translate3d), the percents of the box's own size; the rest of a
+   * transform (a rotation, a scale) is not applied *)
+  translate : (Css_values.length * Css_values.length) option;
   top : size;
   right : size;
   bottom : size;

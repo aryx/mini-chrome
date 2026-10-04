@@ -11,7 +11,7 @@ each cell a colour and, when it is not green, what is missing.
 | 🔴 | broken or missing: the page cannot be used for what it is for |
 | ⚪ | the site asks nothing of that part |
 
-**Checked on 2026-10-02** (tinybox: 2026-10-03), each site loaded once in a window 1000 by
+**Checked on 2026-10-02** (tinybox: 2026-10-03; 9fans: 2026-10-04), each site loaded once in a window 1000 by
 700, its scripts not run unless said (they run on the built-in pages
 and on Hacker News only: `scripts=`), and its dump looked at: the top
 of the page, what a person sees first. A colour is a judgment of that
@@ -25,9 +25,9 @@ then look at the pictures and correct the rows.
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 9 of 17 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia, GitHub |
-| 🟡 | 5 of 17 | DuckDuckGo, Lobsters, Berkshire Hathaway, BBC News: readable, not right; tinybox: it runs, slowly |
-| 🔴 | 3 of 17 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
+| 🟢 | 9 of 18 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia, GitHub |
+| 🟡 | 6 of 18 | DuckDuckGo, Lobsters, Berkshire Hathaway, BBC News: readable, not right; tinybox: it runs, slowly; 9fans on Topicbox: its lists right, a topic's messages in part |
+| 🔴 | 3 of 18 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -64,6 +64,7 @@ Oldest web first, then by how much they ask.
 | **GitHub** (a repository) | 🟢 | 🟢 the files, the About pane beside them, the tabs and the README can be read and followed | 🟢 34 requests | 🟢 | 🟢 as Chrome draws it with scripts off (2026-10-04): the dark top bar, the tabs and buttons with their icons, the branch's bar, the files with theirs, the README in its box. Not there: rounded corners, each file's last commit (its scripts') | 🟢 | 🟡 with `scripts=github.com` its modules load through the page's import map and run (107 files); three then stop on what is not here (custom elements with a shadow tree, a `DataView` over a typed array), and each file's last commit, which they fetch, does not come |
 | **BBC News** | 🟡 | 🟢 the front page reads as one: the lead, the rows of stories, the side column, each a link | 🟢 23 requests | 🟢 | 🟡 its grid of twelve columns is right (`grid-column: 1 / span 4`), the menu folded (`<details>`); the "LIVE" badge is over its headline, the page not centred | 🟢 | 🟡 with `scripts=www.bbc.com,static.files.bbci.co.uk` its fifty files all parse and load (6 s of CPU), and React then fails to take the page over (styled-components wants a style sheet's object): nothing lost, the page came whole. Its pictures are WebP, and show (`libs/images`) |
 | **tinybox** (the Playground's menu and games: OCaml compiled to JavaScript by js_of_ocaml, a page that is one `<svg>` redrawn each frame) | 🟡 | 🟡 the menu answers to the keys and the mouse, a game opens and is played; five frames a second where a browser gives sixty, so a key tapped between two can be missed, and the games' sound has gaps | 🟢 | 🟢 | 🟢 a fixed svg, 100% of the window | 🟢 the Playground's own letters | 🟡 931 KB of script run with no error, slowly (170 ms a frame); no canvas (the code map's panel, bitmaps), no bytes from a request |
+| **9fans.topicbox.com** (a mailing list's archive as an application: a page of 3 KB, 600 KB of scripts of one framework, FastMail's Overture, that ask the server by JMAP and draw everything) | 🟡 | 🟡 the side bar, the groups, a group's topics with their authors, dates and counts, as they are; a topic opens, its first message in part, the next ones not loaded | 🟢 | 🟢 | 🟢 a frame of absolute boxes in the window's height, a list's rows placed by `transform` | 🟢 | 🟡 runs with no error; the list does not ask for more as it is scrolled |
 
 `?` in a cell: could not be told, the page did not get that far.
 

@@ -54,6 +54,27 @@ let tests =
           Alcotest.(check bool) "changed after" true (Browser_script.changed t);
           check_body "the text" t [ "p id=\"x\""; "  \"b\"" ];
           Alcotest.(check bool) "frozen: not changed any more" false (Browser_script.changed t));
+      Testo.create "a listener that is an object: its handleEvent" (fun () ->
+          (* a framework's one object hearing every event, the method its class's *)
+          let t =
+            page
+              "<p id=p>x</p><script>function L() { this.heard = [] }\nL.prototype.handleEvent = function (e) { this.heard.push(e.type + ' ' + e.target.id) };\nvar l = new L(); document.addEventListener('click', l, false);</script>"
+          in
+          ignore (Browser_script.click t (element t "p"));
+          Alcotest.(check string) "called, the object for this" "[\"click p\"]" (value t "l.heard"));
+      Testo.create "history.pushState: the page's address, no page loaded" (fun () ->
+          let t = Browser_script.create ~base:"http://site.test/groups/a" (Html_tree.of_string "<p>x</p>") in
+          Browser_script.run_scripts t;
+          Alcotest.(check string) "before" "/groups/a" (value t "location.pathname");
+          ignore (value t "history.pushState({ n: 1 }, '', '/latest?x=1')");
+          Alcotest.(check string) "location follows" "http://site.test/latest?x=1 /latest 1" (value t "location.href + ' ' + location.pathname + ' ' + history.state.n");
+          Alcotest.(check (option (pair string bool))) "the browser told, once" (Some ("http://site.test/latest?x=1", false)) (Browser_script.take_address t);
+          Alcotest.(check (option (pair string bool))) "then nothing" None (Browser_script.take_address t);
+          ignore (value t "history.replaceState(null, '', '/b')");
+          Alcotest.(check (option (pair string bool))) "replaced" (Some ("http://site.test/b", true)) (Browser_script.take_address t));
+      Testo.create "a value shown: five deep, no further" (fun () ->
+          let t = page "<script>var o = { a: { b: { c: { d: { e: { f: 1 } } } } } }</script>" in
+          Alcotest.(check string) "cut" "{a: {b: {c: {d: {e: ...}}}}}" (value t "o"));
       Testo.create "the worked example: a hundred items, one task" (fun () ->
           let t =
             page

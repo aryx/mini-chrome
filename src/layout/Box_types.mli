@@ -87,7 +87,13 @@ type env = {
   (* inside a <center> or an align=center: blocks centred (HTML's
    * "align descendants", -webkit-center) *)
   centring : bool;
-  containing : float * float * float; (* the nearest positioned ancestor's padding box: x, y, width *)
+  (* the nearest positioned ancestor's padding box: x, y, width, and
+   * its height when it is known before its content is (a height said,
+   * the window's) *)
+  containing : float * float * float * float option;
+  (* the height of the block whose children are being laid out, when
+   * it is known before they are: what a child's height in percents is of *)
+  known_height : float option;
   (* shrink-to-fit's measures, this layout's: an element's content at an
    * unlimited width and at 0, by the element (==), its display, the width *)
   measured : (int, Dom.element * Computed.display * float * float) Hashtbl.t;

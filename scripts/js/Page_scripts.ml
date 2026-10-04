@@ -60,7 +60,17 @@ let () =
         requests ()
       done;
       (* a third argument: an expression to ask the page afterwards *)
+      let say ask = Printf.printf "%s = %s\n" ask (match Browser_script.eval t ask with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message) in
+      (* a fourth: another, asked after three more seconds of the page
+       * (what the first one started, a click, has then happened) *)
       (match rest with
+      | _ :: first :: second :: _ ->
+          say first;
+          for _ = 1 to 30 do
+            Browser_script.advance t 100.;
+            requests ()
+          done;
+          say second
       | _ :: ask :: _ -> Printf.printf "%s = %s\n" ask (match Browser_script.eval t ask with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message)
       | _ -> ());
       Printf.printf "the page %s by its scripts\n" (if Browser_script.changed t then "was changed" else "was not changed")

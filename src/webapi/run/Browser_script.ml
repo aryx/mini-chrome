@@ -46,6 +46,14 @@ let report (t : t) (e : Js_eval.error) : unit =
  * business; whether it returned false (DOM level 0's way to cancel,
  * onclick="...; return false") *)
 let run_handler ?(nested = false) (t : t) (f : value) ~(this : value) (event : value) : bool =
+  (* a listener that is an object: its handleEvent, the object for this
+   * (DOM level 2's EventListener, which a framework gives so that one
+   * object hears every event) *)
+  let f, this =
+    match f with
+    | Object { kind = Plain; _ } -> ( match Js_eval.get t.engine f "handleEvent" with Object _ as h -> (h, f) | _ -> (f, this))
+    | _ -> (f, this)
+  in
   let result =
     if nested then try Ok (Js_eval.call_in_run t.engine f ~this [ event ]) with Throw v -> Error (Js_eval.error_of t.engine v)
     else Js_eval.call t.engine f ~this [ event ]
@@ -92,8 +100,6 @@ let dispatch_event ?(nested = false) (t : t) (target : node option) (event : val
           if List.exists (fun (ty', g) -> ty' = typ && g == f) t.once then (
             t.once <- List.filter (fun (ty', g) -> not (ty' = typ && g == f)) t.once;
             remove f);
-          (* a listener is a function, or an object with handleEvent *)
-          let f, this = match f with Object ({ kind = Plain; _ } as o) -> ( match get_own o "handleEvent" with Some h -> (h, f) | None -> (f, this)) | _ -> (f, this) in
           if run_handler ~nested t f ~this event then prevent ()))
       listeners;
     Option.iter (fun f -> if (not (flag "@@immediate")) && run_handler ~nested t f ~this event then prevent ()) extra
@@ -130,7 +136,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; address = None; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
       more = (fun _ _ -> None); dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -386,6 +392,11 @@ let take_requests (t : t) : request list =
   let r = List.rev t.requests in
   t.requests <- [];
   r
+
+let take_address (t : t) : (string * bool) option =
+  let a = t.address in
+  t.address <- None;
+  a
 
 let take_navigation (t : t) : (string * bool) option =
   let n = t.navigation in

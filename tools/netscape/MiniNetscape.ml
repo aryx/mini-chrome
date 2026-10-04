@@ -146,6 +146,7 @@ let config (m : model) : msg Browser_tab.config =
     line_height;
     scripts = (fun _ -> false);
     seed = 1;
+    epoch = 0.;
   }
 
 let with_tab (m : model) ((tab, cmd) : Browser_tab.t * msg Cmd.t) : model * msg Cmd.t = ({ m with tab }, cmd)

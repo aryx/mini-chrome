@@ -241,7 +241,13 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
              let s = this_string this in
              let pieces, last =
                List.fold_left
-                 (fun (acc, from) spans -> match spans.(0) with Some (a, b) when b > a -> (String (String.sub s from (a - from)) :: acc, b) | _ -> (acc, from))
+                 (fun (acc, from) (spans : (int * int) option array) ->
+                   match spans.(0) with
+                   | Some (a, b) when b > a ->
+                       (* the pattern's groups are pieces too, between the two they cut ("a.b" by /([.])/: a, ".", b) *)
+                       let groups = List.init (Array.length spans - 1) (fun i -> match spans.(i + 1) with Some (x, y) -> String (String.sub s x (y - x)) | None -> Undefined) in
+                       (List.rev_append groups (String (String.sub s from (a - from)) :: acc), b)
+                   | _ -> (acc, from))
                  ([], 0) (all_matches re s)
              in
              array (List.rev (String (String.sub s last (String.length s - last)) :: pieces))

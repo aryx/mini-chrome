@@ -23,6 +23,10 @@ let rec on_line (fragments : Html_layout.fragment list) (x : float) : string opt
             f.look.link
         | _ -> on_line rest x)
 
+(* a box's children, the last drawn first: where two are at a point
+ * (a positioned box over the flow, drawn after it), the one seen *)
+let on_top (b : Html_layout.box) : Html_layout.box list = List.rev b.children
+
 let rec link_at (b : Html_layout.box) ~(x : float) ~(y : float) : string option =
   if y < b.y || y > b.y +. b.height then None
   else
@@ -31,7 +35,7 @@ let rec link_at (b : Html_layout.box) ~(x : float) ~(y : float) : string option 
         (fun (l : Html_layout.line) -> if y >= l.top && y <= l.top +. l.height then on_line l.fragments x else None)
         b.lines
     in
-    match in_lines with Some _ -> in_lines | None -> List.find_map (fun c -> link_at c ~x ~y) b.children
+    match in_lines with Some _ -> in_lines | None -> List.find_map (fun c -> link_at c ~x ~y) (on_top b)
 
 let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layout.fragment option =
   if y < b.y || y > b.y +. b.height then None
@@ -52,7 +56,7 @@ let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layou
     let room (f : Html_layout.fragment) = f.text = "" && f.picture = None && f.control = None in
     match in_lines with
     | Some f when not (room f) -> in_lines
-    | _ -> ( match List.find_map (fun c -> fragment_at c ~x ~y) b.children with Some f -> Some f | None -> in_lines)
+    | _ -> ( match List.find_map (fun c -> fragment_at c ~x ~y) (on_top b) with Some f -> Some f | None -> in_lines)
 
 (* the element at a point: the fragment's there (a word, a picture, a
  * control, a float), else the innermost block around the point (a
@@ -71,7 +75,7 @@ let rec element_at (b : Html_layout.box) ~(x : float) ~(y : float) : Dom.element
         match fragment_at b ~x ~y with
         | Some f when List.memq f (List.concat_map (fun (l : Html_layout.line) -> l.fragments) b.lines) -> Some f.element
         | _ -> (
-            match List.find_map (fun c -> element_at c ~x ~y) b.children with
+            match List.find_map (fun c -> element_at c ~x ~y) (on_top b) with
             | Some e -> Some e
             | None -> ( match b.kind with Block e when inside b -> Some e | _ -> None)))
 
