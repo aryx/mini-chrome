@@ -168,6 +168,11 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- CSS: logical properties (margin-block-start, padding-inline,
+  border-inline-end, inset-block, inline-size, border-start-end-radius
+  and the others): the physical ones they are in a text left to right
+  and top to bottom, translated before the cascade (Css_logical).
+  GitHub's sheets have 1,600 such declarations
 - a key tapped, or the button clicked, between two frames of a page
   that is a program is not lost: the page is told at once that it
   went down, and that it went up only after it has run a frame since

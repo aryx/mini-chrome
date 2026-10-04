@@ -196,7 +196,14 @@ let url_of (c : component) : string option =
   | Func (f, args) when String.lowercase_ascii f = "url" -> ( match Css_syntax.trim args with [ Token (String u) ] -> Some u | _ -> None)
   | _ -> None
 
-let expand ((name, value) : string * component list) : (string * component list) list =
+let rec expand ((name, value) : string * component list) : (string * component list) list =
+  match Css_logical.physical (name, value) with
+  (* a side named by the text's direction: the physical one, which may
+   * be a shorthand too (border-inline-start: 1px solid) *)
+  | Some physical -> List.concat_map expand physical
+  | None -> expand_physical (name, value)
+
+and expand_physical ((name, value) : string * component list) : (string * component list) list =
   let per_side prefix suffix =
     match four value with
     | Some vs -> List.map2 (fun s v -> (prefix ^ s ^ suffix, v)) sides vs

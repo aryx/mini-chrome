@@ -8,4 +8,4 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () = Testo.interpret_argv ~project_name:"css" (fun _env -> Unit_css.tests @ Unit_css_syntax.tests @ Unit_selectors.tests @ Unit_cascade.tests)
+let () = Testo.interpret_argv ~project_name:"css" (fun _env -> Unit_css.tests @ Unit_css_syntax.tests @ Unit_selectors.tests @ Unit_cascade.tests @ Unit_css_logical.tests)
