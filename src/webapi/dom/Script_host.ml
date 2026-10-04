@@ -203,6 +203,9 @@ and class_list (t : t) (n : node) : value =
         (fun k ->
           match k with
           | "length" -> Number (float_of_int (List.length (words ())))
+          (* gone through: for (const c of el.classList), [...el.classList] *)
+          | "@@iterator" | "values" -> method_ k (fun _ -> Js_builtins.iterator (List.map (fun c -> String c) (words ())))
+          | k when int_of_string_opt k <> None -> ( match List.nth_opt (words ()) (int_of_string k) with Some c -> String c | None -> Undefined)
           | "contains" -> method_ k (fun args -> Bool (List.mem (str (arg args 0)) (words ())))
           | "add" -> method_ k (fun args -> write (words () @ List.filter (fun c -> not (List.mem c (words ()))) (List.map str args)); Undefined)
           | "remove" -> method_ k (fun args -> write (List.filter (fun c -> not (List.mem (String c) args || List.exists (fun a -> str a = c) args)) (words ())); Undefined)

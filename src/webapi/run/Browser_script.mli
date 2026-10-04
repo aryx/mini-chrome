@@ -217,10 +217,15 @@ val set_measure : t -> (Dom.element -> Dom.element -> (float * float * float * f
 
 val take_navigation : t -> (string * bool) option
 
-(* the address the page gave itself since last asked
+(* [popstate t url]: the browser went back or forward to [url], a
+ * state of this same document: location is that address, and the
+ * window's popstate listeners are told *)
+val popstate : t -> string -> unit
+
+(* the addresses the page gave itself since last asked, in order
  * (history.pushState; true: replaceState), no page being loaded: the
- * browser shows it, and Back comes back to the one before *)
-val take_address : t -> (string * bool) option
+ * browser shows the last, and Back comes back through the others *)
+val take_address : t -> (string * bool) list
 
 (* what the page's WebSockets asked since the last call, the oldest
  * first (WebSocket.mli): for the browser to do *)

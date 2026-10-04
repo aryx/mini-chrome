@@ -55,7 +55,8 @@ several: a tab each). Program flags are `key=value` words
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`;
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
-`scripts=off|host1,host2`, `threads=off`, `profile=DIR|off`, `scale=N`,
+`scripts=off|host1,host2`, `threads=off` (no thread: fetches wait, and a
+script's long run freezes the window), `profile=DIR|off`, `scale=N`,
 `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
 compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
 picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
@@ -341,7 +342,11 @@ window's chrome, the omnibox, the panels, and a list of tabs. It is
 | `Window_view` | `view`: the shapes |
 
 `src/main/MiniChrome.ml` is only the main: the flags, the profile read,
-the capabilities handed down, `run_app`. No module should pass about
+the capabilities handed down, `run_app` -- and the one thing between
+the Playground and `Window_update.update`: each message's work is a
+run that may be cut in slices (`Js_slice`: a script's long run lets the
+window be drawn, `busy` in the model saying so, the messages that come
+meanwhile kept for its end). Tests call `Window_update.update` itself. No module should pass about
 700 lines: when one nears it, look for a split along a concern as
 this one, and leave it whole if there is none.
 

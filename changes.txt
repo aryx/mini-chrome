@@ -85,6 +85,13 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- array.push and pop work at the array's end (each made the whole
+  array again: a list built by pushes cost its length squared)
+- matches, closest and querySelector freeze what a selector reads --
+  the element, its ancestors and their children, or the element
+  searched -- not the document; a selector's text is read once
+  (Script_dom.select_opti, matches_opti; opti=off: the whole tree).
+  A click on a Discourse topic: 38 s of script to about 10
 - Discourse's start, the scripts alone: 56 s to 17 (docs/dev/
   notes_debugging_techniques.txt, session 5). None of it the
   interpreter's own speed: Map, Set and WeakMap hashed; an element's
@@ -189,6 +196,22 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the window stays alive while a page's script runs long: a message's
+  work is made on a thread that takes turns with the window's
+  (Js_slice: a quarter of a second each, never both at once), the
+  status line says "Running the page's scripts... 7 s", and what comes
+  meanwhile (a key, an answer) waits for the run's end. threads=off:
+  as before
+- history: Back and Forward through the addresses a page gave itself
+  (history.pushState) tell the page (popstate) and load nothing; every
+  address pushed is an entry. Leaving 9fans by Back works: it went
+  back to 9fans itself, loaded again
+- a click on a link an application takes for its own stays in the
+  application (Discourse's topics: the JSON asked, the topic drawn,
+  the address changed): the click says its button and keys held, and
+  finds the link under a row's empty box
+- JavaScript: #x in o; el.classList gone through (for-of, spread, an
+  index); :scope in a script's selector; NodeList, HTMLCollection
 - a script can ask where things are: offsetHeight, offsetTop,
   getBoundingClientRect and their kin answer from a layout of the page
   as it is at that moment (they answered 0), made once between two

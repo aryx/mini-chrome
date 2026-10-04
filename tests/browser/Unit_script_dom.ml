@@ -130,6 +130,22 @@ let tests =
               history.pushState({}, "", "/x");
               [localStorage.getItem("k"), localStorage.getItem("nope"), localStorage.length, sessionStorage.length, matchMedia("(min-width: 1px)").matches, matchMedia("(max-width: 500px)").matches, typeof performance.now(), typeof requestAnimationFrame]|}
             {|["1", null, 2, 0, true, false, "number", "function"]|});
+      Testo.create "selectors: the fast way and the simple one agree" (fun () ->
+          let html = {|<div id=a class="x y"><ul><li class=first>1</li><li>2<span id=s>in</span></li><li>3</li></ul></div><p class=x>p</p>|} in
+          let asks =
+            {|var a = document.getElementById("a"), s = document.getElementById("s");
+              JSON.stringify([document.querySelectorAll("li").length, a.querySelectorAll(":scope > ul > li").length, a.querySelectorAll("li:first-child")[0].textContent,
+                a.querySelectorAll("li:last-child")[0].textContent, a.querySelector(".x") === null, document.querySelectorAll(".x").length,
+                s.matches("div.x li span"), s.matches("ul > span"), s.closest("li").textContent, s.closest(".y").id, s.matches("li:nth-child(2) > span"),
+                a.querySelectorAll("li + li").length, document.querySelectorAll("div p, body > p").length])|}
+          in
+          let ask opti =
+            let before = !Mini_opti.enabled in
+            Mini_opti.enabled := opti;
+            Fun.protect ~finally:(fun () -> Mini_opti.enabled := before) (fun () -> run ~html asks)
+          in
+          Alcotest.(check string) "what they find" {|[3,3,"1","3",true,2,true,false,"2in","a",true,2,1]|} (ask true);
+          Alcotest.(check string) "the same, the simple way" (ask true) (ask false));
       Testo.create "Event_loop, the worked example: a task, its microtasks, then the next task" (fun () ->
           let t = Browser_script.create ~base:"http://site.test/" (Html_tree.of_string "<body></body>") in
           let seen () = match Browser_script.eval t "seen.join(' ')" with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in

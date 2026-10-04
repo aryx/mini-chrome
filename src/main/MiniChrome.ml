@@ -176,17 +176,40 @@ let save_cookies (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string opt
       (match Browser_cookies.save caps ~dir (Cookie_jar.cookies jar) with Ok () -> () | Error why -> Logs.warn (fun m -> m "the cookies are not saved: %s" why))
   | _ -> ()
 
+(* a long run's result when it ends, and the messages kept until then *)
+let result : (Window_model.model * Window_model.msg Cmd.t) option ref = ref None
+let queued : Window_model.msg list ref = ref []
+
 let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(desktop : float) ~(window : int * int) =
   {
     Playground.init = Window_update.init caps ~jar profile ~desktop ~window;
     update =
       (fun msg m ->
-        let m, cmd = Window_update.update caps msg m in
-        (* the cursor follows what is under the pointer, after anything that may have changed it:
-         * the pointer moved, the page scrolled or came (asking for the one shown costs nothing) *)
-        (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
-        unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
-        (m, cmd));
+        let done_ (msg : Window_model.msg) ((m : Window_model.model), cmd) =
+          (* the cursor follows what is under the pointer, after anything that may have changed it:
+           * the pointer moved, the page scrolled or came (asking for the one shown costs nothing) *)
+          (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
+          unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
+          (m, cmd)
+        in
+        (* a message's work is a run that may be long, a page's script
+         * in it (Js_slice): when a slice of it is over the window is
+         * drawn, saying so, and the run goes on at the next tick. What
+         * comes meanwhile -- a key, an answer -- waits for its end *)
+        match (m.busy, msg) with
+        | None, _ ->
+            if Js_slice.run (fun () -> result := Some (Window_update.update caps msg m)) then done_ msg (Option.get !result)
+            else ({ m with busy = Some m.time }, Cmd.none)
+        | Some _, Tick time ->
+            if Js_slice.continue () then (
+              let m, cmd = Option.get !result in
+              let waiting = List.rev !queued in
+              queued := [];
+              done_ msg ({ m with busy = None }, Cmd.batch (cmd :: List.map (fun q -> Cmd.Msg q) waiting)))
+            else ({ m with time }, Cmd.none)
+        | Some _, other ->
+            queued := other :: !queued;
+            (m, Cmd.none));
     view = Window_view.view;
     subscriptions =
       (fun _ ->
@@ -209,6 +232,8 @@ let main = Program.main __MODULE__ (fun () ->
       Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
+      (* threads=off: a script's long run is not cut in slices either (Js_slice) *)
+      if List.assoc_opt "threads" flags = Some "off" then Js_slice.enabled := false;
       (* opti=off: the simple code, where an optimized one
        * replaced it (Mini_opti.mli) *)
       if List.assoc_opt "opti" flags = Some "off" then begin

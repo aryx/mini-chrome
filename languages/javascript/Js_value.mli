@@ -147,6 +147,9 @@ val error : string -> string -> value
 (* raise one: [throw "RangeError" "..."] *)
 val throw : string -> string -> 'a
 
+(* whether a text has another in it *)
+val contains : string -> string -> bool
+
 (* JS_STACK's count of calls still to say (Js_eval says them) *)
 val unwinding : int ref
 

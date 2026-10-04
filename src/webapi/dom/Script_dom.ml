@@ -151,10 +151,101 @@ let matching (selector : string) (n : node) ~(keep : node -> bool) : node list =
       go [] (tree_of n);
       List.rev !found
 
+(* opti: what a selector can look at, and no more. The simple way above
+ * freezes the whole tree at each question; an application asks matches,
+ * closest and querySelector by the thousand as it draws (a Discourse
+ * topic: 38 s of them). A selector reads the element, its ancestors
+ * and their children (a sibling's place and names), so those alone are
+ * frozen: the ancestors with their children bare; and a search goes
+ * through the element asked, not the document. Each selector's text is
+ * read once. *)
+let read : (string, Css.rule list) Hashtbl.t = Hashtbl.create 64
+
+let rules_of (selector : string) : Css.rule list =
+  match Hashtbl.find_opt read selector with
+  | Some rules -> rules
+  | None -> (
+      match Css.parse (selector ^ " {}") with
+      | [] -> throw "SyntaxError" (Printf.sprintf "'%s' is not a valid selector" selector)
+      | rules ->
+          if Hashtbl.length read > 2048 then Hashtbl.reset read;
+          Hashtbl.replace read selector rules;
+          rules)
+
+(* [n] frozen with these children in place of its own *)
+let frozen_with (n : node) (children : Dom.node list) : Dom.element =
+  let origin = Dtd.element_origin n.name in
+  let attributes, extensions =
+    match origin with Netscape -> (n.attributes, []) | Core -> List.partition (fun a -> Dtd.attribute_origin n.name a = Dtd.Core) n.attributes
+  in
+  { name = n.name; attributes; extensions; origin; children }
+
+(* a node's children frozen bare: themselves, nothing in them *)
+let bare ?(but : (node * Dom.element) option) (n : node) : Dom.node list =
+  List.filter_map
+    (fun c ->
+      match but with
+      | Some (kept, e) when c == kept -> Some (Dom.Element e)
+      | _ -> if is_text c then Some (Dom.Text c.text) else if is_element c then Some (Dom.Element (frozen_with c [])) else None)
+    n.children
+
+(* the ancestors of [n], frozen [e], the nearest first, up to the tree's
+ * root (a shadow root ends it) *)
+let rec above (n : node) (e : Dom.element) : Dom.element list =
+  match n.parent with
+  | Some p when is_element p ->
+      let pe = frozen_with p (bare ~but:(n, e) p) in
+      pe :: above p pe
+  | _ -> []
+
+let matches_opti (selector : string) (n : node) : bool =
+  let rules = rules_of selector in
+  let e = frozen_with n (bare n) in
+  let ancestors = above n e in
+  List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules
+
+let select_opti (selector : string) ~(within : node) : node list =
+  let rules = rules_of selector in
+  let found = ref [] in
+  let rec beside ~(own : bool) (ancestors : Dom.element list) (n : node) (e : Dom.element) =
+    if own && List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules then found := n :: !found;
+    let frozen = List.filter_map (fun (c : Dom.node) -> match c with Element c -> Some c | Text _ -> None) e.children in
+    try List.iter2 (beside ~own:true (e :: ancestors)) (List.filter is_element n.children) frozen with Invalid_argument _ -> ()
+  in
+  let rec from (n : node) =
+    if is_element n then (
+      let e = freeze n in
+      (* the element asked is not among its own answers *)
+      beside ~own:(n != within) (above n e) n e)
+    else List.iter from n.children
+  in
+  from within;
+  List.rev !found
+
 (* those under [within] *)
 let select (_ : t) (selector : string) ~(within : node) : node list =
-  let inside = elements within in
-  matching selector within ~keep:(fun n -> n != within && List.memq n inside)
+  let inside = lazy (elements within) in
+  let find selector =
+    if !Mini_opti.enabled then select_opti selector ~within
+    else matching selector within ~keep:(fun n -> n != within && List.memq n (Lazy.force inside))
+  in
+  (* :scope is the element asked (el.querySelectorAll(":scope > li")):
+   * it is marked for the search, and looked for by its mark *)
+  if not (Js_value.contains selector ":scope") then find selector
+  else (
+    let had = within.attributes in
+    within.attributes <- ("data-scope-of-query", "") :: had;
+    Fun.protect ~finally:(fun () -> within.attributes <- had)
+      (fun () ->
+        let b = Buffer.create (String.length selector + 32) and n = String.length selector in
+        let rec go i =
+          if i < n then
+            if i + 6 <= n && String.sub selector i 6 = ":scope" then (Buffer.add_string b "[data-scope-of-query]"; go (i + 6))
+            else (Buffer.add_char b selector.[i]; go (i + 1))
+        in
+        go 0;
+        find (Buffer.contents b)))
 
 (* whether [n] itself matches *)
-let matches (selector : string) (n : node) : bool = matching selector n ~keep:(fun c -> c == n) <> []
+let matches (selector : string) (n : node) : bool =
+  if !Mini_opti.enabled then matches_opti selector n else matching selector n ~keep:(fun c -> c == n) <> []

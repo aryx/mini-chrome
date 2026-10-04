@@ -328,13 +328,27 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
   def "values" (fun arr _ _ -> iterator (array_items arr));
   def "keys" (fun arr _ _ -> iterator (indices arr));
   def "entries" (fun arr _ _ -> iterator (List.map2 (fun i v -> array [ i; v ]) (indices arr) (array_items arr)));
-  def "push" (fun arr items args ->
-      set_items items (array_items arr @ args);
+  (* opti: push and pop at the array's end, in place. Simply:
+   *   push: set_items items (array_items arr @ args)
+   *   pop:  match List.rev (array_items arr) with last :: rest -> set_items items (List.rev rest); last
+   * each the whole array made again: a list built by pushes was its
+   * length squared (a Discourse topic drawn: 40 s to 12) *)
+  def "push" (fun _ items args ->
+      let k = List.length args in
+      if items.length + k > Array.length items.elements then (
+        let bigger = Array.make (max (items.length + k) (2 * Array.length items.elements)) Undefined in
+        Array.blit items.elements 0 bigger 0 items.length;
+        items.elements <- bigger);
+      List.iteri (fun i v -> items.elements.(items.length + i) <- v) args;
+      items.length <- items.length + k;
       Number (float_of_int items.length));
-  def "pop" (fun arr items _ ->
-      match List.rev (array_items arr) with
-      | [] -> Undefined
-      | last :: rest -> set_items items (List.rev rest); last);
+  def "pop" (fun _ items _ ->
+      if items.length = 0 then Undefined
+      else (
+        let last = items.elements.(items.length - 1) in
+        items.elements.(items.length - 1) <- Undefined;
+        items.length <- items.length - 1;
+        last));
   def "shift" (fun arr items _ -> match array_items arr with [] -> Undefined | first :: rest -> set_items items rest; first);
   def "unshift" (fun arr items args ->
       set_items items (args @ array_items arr);

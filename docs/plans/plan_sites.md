@@ -305,6 +305,15 @@ root's place in the tree that is laid out).
   each is; a script now gets real sizes and positions
   (`Browser_script.set_measure`). The messages' text wraps
   (`pre-wrap`).
+- *Discourse, lived in* (the evening): a click on a topic reloaded
+  the whole application (the click did not find its node after a
+  layout made for a script; then it fell on a row's border box), and
+  the window was still for the twelve seconds of the start. Now the
+  click is the application's (the topic's JSON, its posts drawn: 10 s
+  of script where it was 38), the window is drawn four times a second
+  while a script runs and says so (`Js_slice.mli`), and Back steps
+  through the application's own addresses (`popstate`). Still slow:
+  a topic takes its ten seconds, the start its twelve.
 - *The others, their scripts on, the same day*: GitHub stops on bytes
   and a `distance` of undefined in bundles to be run offline as
   Discourse was (145 requests); chess.com on bytes too, behind

@@ -31,7 +31,7 @@ let first_pages (engine : string) (flags : flags) : string list =
 let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
-    { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.;
+    { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.; busy = None;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
       allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);

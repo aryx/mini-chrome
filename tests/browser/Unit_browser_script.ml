@@ -68,10 +68,14 @@ let tests =
           Alcotest.(check string) "before" "/groups/a" (value t "location.pathname");
           ignore (value t "history.pushState({ n: 1 }, '', '/latest?x=1')");
           Alcotest.(check string) "location follows" "http://site.test/latest?x=1 /latest 1" (value t "location.href + ' ' + location.pathname + ' ' + history.state.n");
-          Alcotest.(check (option (pair string bool))) "the browser told, once" (Some ("http://site.test/latest?x=1", false)) (Browser_script.take_address t);
-          Alcotest.(check (option (pair string bool))) "then nothing" None (Browser_script.take_address t);
-          ignore (value t "history.replaceState(null, '', '/b')");
-          Alcotest.(check (option (pair string bool))) "replaced" (Some ("http://site.test/b", true)) (Browser_script.take_address t));
+          Alcotest.(check (list (pair string bool))) "the browser told, once" [ ("http://site.test/latest?x=1", false) ] (Browser_script.take_address t);
+          Alcotest.(check (list (pair string bool))) "then nothing" [] (Browser_script.take_address t);
+          ignore (value t "history.replaceState(null, '', '/b'); history.pushState(null, '', '/c')");
+          Alcotest.(check (list (pair string bool))) "each one, in order" [ ("http://site.test/b", true); ("http://site.test/c", false) ] (Browser_script.take_address t);
+          (* Back to a state of the same document: the address, and popstate *)
+          ignore (value t "var popped = []; window.addEventListener('popstate', function () { popped.push(location.pathname) })");
+          Browser_script.popstate t "http://site.test/b";
+          Alcotest.(check string) "the script told" "[\"/b\"]" (value t "popped"));
       Testo.create "where an element is: asked of the browser, once between two changes" (fun () ->
           let t = page "<div id=a>x</div><div id=b>y</div>" in
           let asked = ref 0 in

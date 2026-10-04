@@ -57,7 +57,7 @@ type t = {
   mutable base : string; (* the page's address: an a's href resolved, location, new URL; changed by history.pushState *)
   (* an address the page gave itself (history.pushState, replaceState:
    * whether it replaces the entry), for the browser to show *)
-  mutable address : (string * bool) option;
+  mutable address : (string * bool) list; (* the last first *)
   mutable requests : request list; (* XMLHttpRequest's and fetch's, for the browser to send; the newest first *)
   (* those sent and not answered yet: what to do with each one's answer, or with why there is none *)
   mutable waiting : (int * ((answer, string) result -> unit)) list;

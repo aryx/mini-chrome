@@ -33,6 +33,8 @@ let bubble (m : model) : shape list =
   let text =
     match (tab.state, hovered m) with
     | _, _ when m.inspecting -> Some "Inspect: click an element of the page"
+    (* a script's long run (Js_slice): said, with the seconds it has taken *)
+    | _, _ when m.busy <> None -> Some (Printf.sprintf "Running the page's scripts... %.0f s" (m.time -. Option.get m.busy))
     | Shown p, Some href -> Some (resolve p.url href)
     | Loading url, _ -> Some ("Waiting for " ^ url ^ "...")
     | Shown _, None when List.exists (fun u -> List.mem u tab.sheet_urls) tab.in_flight -> Some "Loading style sheets..."
@@ -153,10 +155,10 @@ let animated (m : model) : bool =
  * was (==), but the time. Every field is named, so that a new one is a
  * warning here until it is said whether the view reads it *)
 let same_but_time
-    ({ tabs; current; next_id; omnibox; mouse; time = _; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
+    ({ tabs; current; next_id; omnibox; mouse; time = _; busy; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
        profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _; pressed = _; fresh = _; late = _ } :
       model) (m : model) : bool =
-  tabs == m.tabs && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
+  tabs == m.tabs && busy = m.busy && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
   && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
   && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && dots == m.dots && shift == m.shift

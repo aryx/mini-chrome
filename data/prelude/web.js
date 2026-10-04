@@ -6,6 +6,11 @@
   var g = globalThis;
   function global(name, v) { if (typeof g[name] === "undefined") g[name] = v; }
 
+  // the kinds of lists the DOM gives, as names a page tests against
+  // (NodeList.prototype.isPrototypeOf(x)); the lists themselves are arrays
+  global("NodeList", function NodeList() {});
+  global("HTMLCollection", function HTMLCollection() {});
+
   // MessageChannel (HTML5's channel messaging): two ports, what is
   // posted on one given to the other's onmessage in a task of its own.
   // Frameworks use it as a timer that is not held back (a scheduler's

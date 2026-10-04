@@ -583,3 +583,20 @@ every node of every freeze: a third of the run), the lexer's
 String.sub. callgrind_annotate --tree=caller, read by a few lines of
 Python (the callers of one function, sorted by cost), says who to
 blame; "caml_c_call" among the callers means a polymorphic compare.
+
+15. A loaded machine: least of several, or instructions
+--------------------------------------------------------
+With other builds running (uptime: load average 30) the same run took
+15 s, then 37: /usr/bin/time's "user" is no better than the clock
+when the cores are shared. Two ways out: the least of three or four
+runs of each variant, taken in turns (what the machine can do when
+left alone); or callgrind's instructions, which do not depend on the
+load, in the background.
+
+16. Which task is long
+-----------------------
+Page_scripts.exe with TIMES=1 says what each task took (the first run,
+each turn of timers, each batch of answers), when it is over 0.2 s:
+Discourse's start was one task of twelve seconds, a single promise
+job of ten in it -- so no cut between tasks or jobs could show
+progress, and the run itself had to give way (Js_slice).

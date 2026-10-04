@@ -22,6 +22,7 @@ type model = {
   omnibox : Gui_field.t option; (* its text, while it is typed into (libs/gui); None, it shows the page's address *)
   mouse : float * float;
   time : float;
+  busy : float option; (* a page's script is in a long run, since then (the main's: Js_slice) *)
   css : bool; (* the page's style sheets honoured *)
   panel : panel;
   inspecting : bool; (* the next click on the page picks an element *)

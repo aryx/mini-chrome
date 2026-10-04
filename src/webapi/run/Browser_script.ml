@@ -138,7 +138,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; address = None; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
       more = (fun _ _ -> None); where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -331,10 +331,13 @@ let where (t : t) (n : node) : (float * float * float * float) option =
   | Some f, _ -> f n
   | None, None -> None
   | None, Some measure ->
-      let changed = t.changed in
+      (* the tree frozen for the measure alone: the page shown is still
+       * the one frozen before, and a click on it must find its nodes *)
+      let changed = t.changed and shown = t.frozen in
       let at = measure (tree t) in
-      t.changed <- changed;
       let pairs = t.frozen in
+      t.changed <- changed;
+      t.frozen <- shown;
       let f (n : node) = Option.bind (List.find_map (fun (e, n') -> if n' == n then Some e else None) pairs) at in
       t.geometry <- Some f;
       f n
@@ -346,7 +349,10 @@ let set_measure (t : t) (measure : Dom.element -> Dom.element -> (float * float 
   t.geometry <- None
 
 let click (t : t) (e : Dom.element) : bool =
-  match node_of_element t e with Some n -> dispatch t n "click" [] | None -> false
+  (* the left button, no key held: what a page's handler checks before
+   * it takes a link's click for its own (event.button === 0) *)
+  let held = [ ("button", Number 0.); ("detail", Number 1.); ("ctrlKey", Bool false); ("shiftKey", Bool false); ("metaKey", Bool false); ("altKey", Bool false) ] in
+  match node_of_element t e with Some n -> dispatch t n "click" held | None -> false
 
 let key (t : t) (k : string) : bool =
   let body = match List.find_opt (fun n -> n.name = "body") (elements t.root) with Some b -> b | None -> t.root in
@@ -372,6 +378,13 @@ let web_key (k : string) : string =
 
 let window_event (t : t) (typ : string) (fields : (string * value) list) : bool =
   listens t typ && dispatch_event t None (Script_events.make ~bubbles:true typ (List.map (fun (k, v) -> if k = "key" then (k, (match v with String s -> String (web_key s) | v -> v)) else (k, v)) fields))
+
+(* Back or Forward to another state of this document (one the page
+ * made by history.pushState): its address is that one's, and the
+ * window is told (popstate), for the page to draw that state *)
+let popstate (t : t) (url : string) : unit =
+  t.base <- url;
+  ignore (window_event t "popstate" [ ("state", Null) ])
 
 let input (t : t) (e : Dom.element) (text : string) : unit =
   match node_of_element t e with
@@ -420,9 +433,9 @@ let take_requests (t : t) : request list =
   t.requests <- [];
   r
 
-let take_address (t : t) : (string * bool) option =
-  let a = t.address in
-  t.address <- None;
+let take_address (t : t) : (string * bool) list =
+  let a = List.rev t.address in
+  t.address <- [];
   a
 
 let take_navigation (t : t) : (string * bool) option =

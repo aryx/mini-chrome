@@ -12,7 +12,10 @@
 
 type state = Loading of string | Shown of Browser_page.t
 type view = Page | Source
-type entry = { at : string; kept : Bfcache.t option }
+(* [within]: the script of the document this entry is a state of, when
+ * the page made it itself (history.pushState): going back to it is no
+ * page loaded, the script told (popstate) *)
+type entry = { at : string; kept : Bfcache.t option; within : Browser_script.t option }
 
 type kind = Document | Sheet | Script | Picture | Media | Fetch
 type request = { url : string; kind : kind; status : int option; bytes : int }
@@ -372,8 +375,8 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
 
 let entry_of (tab : t) : entry =
   match tab.state with
-  | Shown p -> { at = p.url; kept = Some { page = p; script = tab.script; document = tab.pdf; scroll = tab.scroll } }
-  | Loading url -> { at = url; kept = None }
+  | Shown p -> { at = p.url; kept = Some { page = p; script = tab.script; document = tab.pdf; scroll = tab.scroll }; within = None }
+  | Loading url -> { at = url; kept = None; within = None }
 
 let visit ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
   let target, fragment = Browser_url.split_fragment url in
@@ -401,11 +404,14 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       (* the address the page gave itself (history.pushState): shown,
        * the one before kept for Back, to be loaded again *)
       let tab =
-        match (Browser_script.take_address s, tab.state) with
-        | Some (url, replace), Shown p when url <> p.url ->
-            let history = if replace then tab.history else Browser_history.visit { at = p.url; kept = None } tab.history in
-            { tab with state = Shown { p with url }; history }
-        | _ -> tab
+        List.fold_left
+          (fun (tab : t) (url, replace) ->
+            match tab.state with
+            | Shown p when url <> p.url ->
+                let history = if replace then tab.history else Browser_history.visit { at = p.url; kept = None; within = Some s } tab.history in
+                { tab with state = Shown { p with url }; history }
+            | _ -> tab)
+          tab (Browser_script.take_address s)
       in
       let tab, cmd =
       match Browser_script.take_requests s with
@@ -429,6 +435,17 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
   | None -> (tab, cmd)
 
 let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (tab : t) : t * 'msg Cmd.t =
+  (* an entry of the document shown (the page's own pushState, or the
+   * state it was left in): the address changed and the script told,
+   * which draws that state again; no page is loaded *)
+  let script_of (e : entry) = match (e.within, e.kept) with Some s, _ -> Some s | None, Some k -> k.script | None, None -> None in
+  match (script_of e, tab.script, tab.state) with
+  | Some s, Some current, Shown p when s == current && e.at <> p.url ->
+      Browser_script.popstate s e.at;
+      let p = { p with url = e.at } in
+      let p = if Browser_script.changed s then Browser_page.with_tree (cfg.settings tab) p (Browser_script.tree s) else p in
+      send_requests cfg network (with_pictures cfg network ({ tab with state = Shown p }, Cmd.none))
+  | _ ->
   match e.kept with
   (* kept whole: shown at once, as it was *)
   | Some k -> with_pictures cfg network (scrolled cfg 0 { (relaid cfg { tab with state = Shown k.page; script = k.script; pdf = k.document }) with scroll = k.scroll }, Cmd.none)

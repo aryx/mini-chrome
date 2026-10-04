@@ -77,7 +77,10 @@ type view = Page | Source
 
 (* a page in the history: where, and itself if it was shown, kept
  * whole to come back to (Bfcache) *)
-type entry = { at : string; kept : Bfcache.t option }
+(* [within]: the script of the document this entry is a state of, when
+ * the page made it (history.pushState): going back to it loads no
+ * page, the script is told (popstate) *)
+type entry = { at : string; kept : Bfcache.t option; within : Browser_script.t option }
 
 type t = {
   state : state;

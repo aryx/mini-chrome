@@ -27,6 +27,10 @@ let rec on_line (fragments : Html_layout.fragment list) (x : float) : string opt
  * (a positioned box over the flow, drawn after it), the one seen *)
 let on_top (b : Html_layout.box) : Html_layout.box list = List.rev b.children
 
+(* a box that holds nothing (a table row's own, there for its borders;
+ * an empty block): what is under it is what the pointer is on *)
+let hollow (b : Html_layout.box) : bool = b.children = [] && b.lines = [] && b.floats = []
+
 let rec link_at (b : Html_layout.box) ~(x : float) ~(y : float) : string option =
   if y < b.y || y > b.y +. b.height then None
   else
@@ -75,7 +79,8 @@ let rec element_at (b : Html_layout.box) ~(x : float) ~(y : float) : Dom.element
         match fragment_at b ~x ~y with
         | Some f when List.memq f (List.concat_map (fun (l : Html_layout.line) -> l.fragments) b.lines) -> Some f.element
         | _ -> (
-            match List.find_map (fun c -> element_at c ~x ~y) (on_top b) with
+            let full, empty = List.partition (fun c -> not (hollow c)) (on_top b) in
+            match List.find_map (fun c -> element_at c ~x ~y) (full @ empty) with
             | Some e -> Some e
             | None -> ( match b.kind with Block e when inside b -> Some e | _ -> None)))
 

@@ -108,8 +108,7 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
                | Undefined | Null -> ()
                | url ->
                    t.base <- Browser_url.resolve t.base (to_string url);
-                   (* replaced after being pushed, the browser not told yet: pushed *)
-                   t.address <- Some (t.base, replace && match t.address with Some (_, false) -> false | _ -> true));
+                   t.address <- (t.base, replace) :: t.address);
                Undefined))
     | _ -> ()
   in

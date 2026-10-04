@@ -58,11 +58,20 @@ let () =
           (Browser_script.take_requests t)
       in
       (* a <script src> is a saved file too *)
-      Browser_script.run_scripts ~source:(fun u -> saved (Browser_url.resolve base u)) t;
-      requests ();
-      for _ = 1 to 50 do
-        Browser_script.advance t 100.;
-        requests ()
+      (* TIMES=1: what each task took, when it is long (where a page's
+       * start goes: its scripts' first run, then each turn of its timers
+       * and each answer) *)
+      let timed (what : string) (f : unit -> unit) =
+        let t0 = Unix.gettimeofday () in
+        f ();
+        let dt = Unix.gettimeofday () -. t0 in
+        if Sys.getenv_opt "TIMES" <> None && dt > 0.2 then Printf.printf "took %.1f s: %s\n" dt what
+      in
+      timed "the scripts' first run" (fun () -> Browser_script.run_scripts ~source:(fun u -> saved (Browser_url.resolve base u)) t);
+      timed "the first answers" requests;
+      for i = 1 to 50 do
+        timed (Printf.sprintf "timers, turn %d" i) (fun () -> Browser_script.advance t 100.);
+        timed (Printf.sprintf "answers, turn %d" i) requests
       done;
       (* a third argument: an expression to ask the page afterwards *)
       let say ask = Printf.printf "%s = %s\n" ask (match Browser_script.eval t ask with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message) in

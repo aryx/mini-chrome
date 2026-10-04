@@ -692,6 +692,8 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
         if Sys.getenv_opt "JS_STACK" <> None then unwinding := 40;
         throw "RangeError" "Maximum call stack size exceeded");
       t.depth <- t.depth + 1;
+      (* a long run lets the window draw (Js_slice) *)
+      Js_slice.breath ();
       if !watched <> None then watch_check ("entering " ^ Option.value c.func.name ~default:"(no name)" ^ " of " ^ Filename.basename (module_url c.scope) ^ Printf.sprintf ", line %d" t.line);
       (* "use strict": its own, or that of the code it is written in (a
        * module and a class are strict always) *)

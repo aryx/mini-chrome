@@ -284,6 +284,8 @@ and prefix (p : t) : expr =
     | Name "import" when is_punct p "." && (peek_at p 1).kind = Name "meta" ->
         p.pos <- p.pos + 2;
         Import_meta
+    (* #x in o (ES2022): whether o has the private #x -- its key, as a string *)
+    | Name x when String.length x > 1 && x.[0] = '#' && is_keyword p "in" -> String x
     | Name x -> Name x
     | Keyword "true" -> Bool true
     | Keyword "false" -> Bool false
@@ -580,6 +582,8 @@ and declarations (p : t) : (pattern * expr option) list =
   go []
 
 and statement (p : t) : stmt =
+  (* a bundle of megabytes is seconds to read: the window drawn meanwhile (Js_slice) *)
+  Js_slice.breath ();
   let t = peek p in
   let line = t.line in
   let s stmt = { line; stmt } in
