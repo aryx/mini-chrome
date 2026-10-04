@@ -11,11 +11,12 @@
 (* See Browser_boxes.mli *)
 open Playground
 
-let color (c : Css_values.color) : color option =
-  if c.a <= 0. then None
-  else
-    let mix v = int_of_float ((float_of_int v *. c.a) +. (255. *. (1. -. c.a))) in
-    Some (rgb (mix c.r) (mix c.g) (mix c.b))
+let color (c : Css_values.color) : color option = if c.a <= 0. then None else Some (rgb c.r c.g c.b)
+
+(* a colour's shapes at its opacity: what is under shows through
+ * (#ffffff1f, a twelfth of white, lightens a dark bar; mixed with
+ * white, as it was, it was a white box on it) *)
+let faded (c : Css_values.color) (shapes : shape list) : shape list = if c.a >= 1. then shapes else List.map (fade c.a) shapes
 
 (* the rectangle what is drawn must stay in (left, top, right,
  * bottom): a box with overflow other than visible clips what it holds
@@ -123,7 +124,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
                   [ bitmap w h tinted |> move (b.x +. (b.width /. 2.)) (-.(b.y +. (b.height /. 2.))) ]
                 else []
             | _ -> [])
-        | _, Some c -> fill c b.x b.y b.width b.height
+        | _, Some c -> faded s.background (fill c b.x b.y b.width b.height)
         | _, None -> []
       in
       (* its picture, once it has come: at its own size at the top left,
@@ -142,7 +143,7 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
         | _ -> []
       in
       let bt, br, bb, bl = b.border and ct, cr, cb, cl = s.border_color in
-      let side width c shape = if width > 0. then match color c with Some c -> shape c | None -> [] else [] in
+      let side width c shape = if width > 0. then match color c with Some rgb -> faded c (shape rgb) | None -> [] else [] in
       let borders =
         side bt ct (fun c -> fill c b.x b.y b.width bt)
         @ side bb cb (fun c -> fill c b.x (b.y +. b.height -. bb) b.width bb)

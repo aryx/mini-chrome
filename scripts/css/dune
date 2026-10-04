@@ -1,0 +1,7 @@
+; what a real page's style sheets ask that the CSS engine does not do
+; (Css_census.mli; docs/plans/plan_sites.md). Not a test, run by hand:
+;   dune build scripts/css/Css_census.exe
+;   ./_build/default/scripts/css/Css_census.exe page.html a.css b.css
+(executable
+ (name Css_census)
+ (libraries str mini_dom lang_html lang_css))

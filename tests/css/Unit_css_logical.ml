@@ -37,6 +37,14 @@ let tests =
           check "a pair's shorthand: the same on both" "border-inline" "1px solid red" (Some [ "border-left: 1px solid red"; "border-right: 1px solid red" ]);
           check "a side's width" "border-inline-start-width" "2px" (Some [ "border-left-width: 2px" ]);
           check "a pair's colour" "border-block-color" "red blue" (Some [ "border-top-color: red"; "border-bottom-color: blue" ]));
+      Testo.create "a custom property's name is as written; any other, in lower case" (fun () ->
+          let names text = List.map (fun (d : Css_syntax.declaration) -> d.name) (Css_syntax.parse_declarations text) in
+          Alcotest.(check (list string)) "--bgColor is not --bgcolor" [ "--bgColor-default"; "--bgcolor-default"; "color"; "margin-top" ]
+            (names "--bgColor-default: #fff; --bgcolor-default: #000; COLOR: red; Margin-Top: 0");
+          (* and var(--bgColor-default) finds the first: GitHub's top bar is black, not what follows it *)
+          let style text = Computed.compute { width = 800.; height = 600. } ~root_font_size:16. ~parent:Computed.initial (List.map (fun (d : Css_syntax.declaration) -> (d.name, d.value)) (Css_syntax.parse_declarations text)) in
+          let c = (style "--bgColor-default: #000; --bgcolor-default: #fff; background-color: var(--bgColor-default)").background in
+          Alcotest.(check (list int)) "black" [ 0; 0; 0 ] [ c.r; c.g; c.b ]);
       Testo.create "what is not logical is left" (fun () ->
           check "a physical side" "margin-top" "1px" None;
           check "all the corners" "border-radius" "6px" None;

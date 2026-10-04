@@ -17,6 +17,13 @@ use it; the techniques behind them are in
   - `screenshots.sh`: the README's pictures (`docs/screenshots/`)
     taken again: Hacker News, Wikipedia, GitHub and three built-in
     pages, each window dumped once its page has settled
+- `css/`: what real style sheets ask of the CSS engine
+  - `Css_census.exe`: a saved page and its sheets read by the engine's
+    own parser and cascade: the at-rules it skips, the selectors it
+    does not read, the properties that change nothing for any element
+    of the page; and, with `at=SELECTOR`, one element's winning rules
+    and what its style and its ancestors' come to -- a Styles pane in
+    a terminal (`Css_census.mli`; `docs/plans/plan_sites.md`)
 - `js/`: what real scripts ask of the JavaScript engine
   - `Js_survey.exe`: each script given parsed, then run in an empty
     page; its first mistake, and the mistakes counted; a library then

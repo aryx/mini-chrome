@@ -160,6 +160,69 @@ what a site sends for it (`Browser_agent`'s table and its reasons).
 
 Not planned: ChatGPT, Gmail, YouTube's video, chess.com's board.
 
+## Progress
+
+**2026-10-04, step 1: GitHub's repository page is drawn right**,
+scripts off (`docs/screenshots/github.png`). The census tool is
+`scripts/css/Css_census.exe`; its second mode (`at=SELECTOR`: an
+element's winning rules, and what its style and its ancestors' come
+to) is what found each fault. None was a missing property:
+
+- a custom property's name was put in lower case (`--bgColor-default`
+  never found by `var(--bgColor-default)`): the top bar, the borders,
+  the links' colour, the table;
+- six faults of layout, each shown first on a page of ten lines
+  (`changes.txt`): a float's fit to the last bit, a percent
+  `max-width` asked of the item itself, percents inside what is being
+  measured (a button, a field), an svg as a flex item, a colour's
+  opacity, a flex item's minimum over its maximum.
+
+The census's own list (`order`, `:has()`, `clip-path`,
+`text-overflow`, `@container`, `color-mix()`) was not needed for this
+page: to do when a page shows the lack. A saved copy of the page with
+its sheets beside it, served by `mini-httpd`, is the bench: the real
+site's sheets are refused to a page of another origin.
+
+**2026-10-04, YouTube and Gmail, a first look with their scripts.**
+Asked for as the aim, however far: two sites used by everybody are
+the best bench a browser has. What was learned in an evening:
+
+- *YouTube's page can be run without a window*: its nine scripts put
+  in the page (12 MB, the main one 10.8 MB) are read and run by
+  `scripts/js/Page_scripts.exe` in 5.4 s. The engine's speed is not
+  what stops it first.
+- *What stops it* is the first of a long chain, each found only once
+  the one before is passed: `NodeFilter`, `CSSStyleSheet` and its
+  `replaceSync`, then the polyfill of web components patching
+  prototypes we do not have (`HTMLSlotElement`), then Polymer itself.
+  Of the names its bundles use, 49 are not defined here; the ones
+  that matter: `CustomElementRegistry`, `Request`, `Response`,
+  `ReadableStream`, `MessageChannel`, `Worker`, `MediaSource`,
+  `IntersectionObserverEntry`, `DOMException`, `History`.
+- *The page is its custom elements*: `<ytd-app>` and hundreds under
+  it, each a class given to `customElements.define`, with a shadow
+  tree or Polymer's emulation of one. Without them nothing is drawn
+  but the skeleton the server sends. So the road is, in order:
+  **custom elements** (the registry, an element upgraded when its
+  name is defined, its callbacks when it enters the page), **shadow
+  trees** (`attachShadow`, slots, the tree the layout sees made of
+  both), **templates** (`<template>`'s content, cloned), **observers
+  that observe**. GitHub's own elements and 9fans.topicbox need the
+  first three too: it is the same work, and the next one to do.
+- *Then the video*, which is another matter (Media Source Extensions
+  and a decoder of VP9 or AV1): the application drawn with its
+  thumbnails and titles is the mark to aim at; the player is not.
+- *Gmail*: Google's sign-in page is drawn with its scripts (the
+  address's field, Next). What comes after an address is typed was
+  not tried: it needs an account, and is where Google decides
+  whether it knows the browser.
+
+A way to work that does not cost the budget: what a web API is
+that needs nothing of the engine's insides is written in JavaScript
+(`data/prelude/web.js`, as `AudioContext`'s class is), and the
+engine gets only the hooks (an element entering the tree, a shadow
+root's place in the tree that is laid out).
+
 ## Cost
 
 The budget has 5,545 lines left of 40,000. Step 1 is 300 to 600

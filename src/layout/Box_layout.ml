@@ -47,10 +47,22 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   | _ when e.name = "input" || e.name = "select" || e.name = "textarea" -> (
       match Html_layout.control_size env.metrics (look_of s ~link:None) e with
       | Some (w, h) when s.visible ->
-          let w = if s.width <> Auto || content <> None then cw else Float.min w cw in
+          (* measuring: its own width, not the unlimited room's it is
+           * measured in (a search field in a row of buttons took the row) *)
+          let w = if (s.width <> Auto || content <> None) && not env.measuring then cw else Float.min w cw in
           add_word ctx (word_style s ~link:None) ~glue:false "" w ~owner:e ~boxed:(Ctl { element = e; control_height = h });
           flush_inline ctx
       | _ -> ())
+  (* a picture laid out as a block (an item of a flex container or of
+   * a grid: an icon in a button): a line of its own with it *)
+  | _ when e.name = "svg" ->
+      let w, h = svg_size ctx e s in
+      add_word ctx (word_style s ~link:None) ~glue:false "" w ~owner:e ~boxed:(Pic { src = ""; height = h; middle = false });
+      flush_inline ctx
+  | _ when e.name = "img" && picture_size ctx e s <> None ->
+      let w, h = Option.get (picture_size ctx e s) in
+      add_word ctx (word_style s ~link:None) ~glue:false "" w ~owner:e ~boxed:(Pic { src = Option.value (picture_src e) ~default:""; height = h; middle = false });
+      flush_inline ctx
   | Flex | Inline_flex -> flex_children ctx e s
   | Grid -> grid_children ctx e s
   | _ ->
@@ -113,11 +125,15 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
           (fun (c, (cs : Computed.t)) ->
             let (ml, mr), ch, _ = chrome cs in
             let given w = if cs.border_box then Float.max 0. (w -. ch) else w in
+            (* measuring: a size in percents is of a room not known yet,
+             * and so the content's (a button's label, width: 100%,
+             * made its row as wide as the page) *)
+            let percent (v : Computed.size) = measuring && match v with Len l -> l.pct <> 0. | Auto -> false in
             let base =
               match (cs.flex_basis, size cs.width width) with
-              | Len l, _ -> given (Css_values.resolve l width)
-              | Auto, Some w -> given w
-              | Auto, None -> shrink env c cs ~available:infinity
+              | Len l, _ when not (percent cs.flex_basis) -> given (Css_values.resolve l width)
+              | Auto, Some w when not (percent cs.width) -> given w
+              | _ -> shrink env c cs ~available:infinity
             in
             ml +. base +. ch +. mr)
           items
@@ -137,8 +153,13 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
         in
         (* measuring: no growing, and no shrinking either -- a row that
          * does not wrap is as wide as its items, even at its narrowest *)
+        let max_size = match size cs.max_width width with Some m -> outer m | None -> infinity in
+        (* the least it shrinks to is its content's, but not more than
+         * the most it may be (css-flexbox 4.5): GitHub's README, max-width:
+         * 100%, whose widest line of code would else widen the page *)
+        let min_size = Float.min min_size max_size in
         { Flex_layout.base = bases.(i); grow = (if measuring then 0. else cs.flex_grow); shrink = (if measuring then 0. else cs.flex_shrink); min_size;
-          max_size = (match size cs.max_width width with Some m -> outer m | None -> infinity);
+          max_size;
           auto_before = ab && not measuring; auto_after = aa && not measuring }
       in
       let fitems = Array.init (Array.length items) fitem in
@@ -155,7 +176,10 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
                 let (ml, mr), ch, _ = chrome cs in
                 let mt, _, mb, _ = cs.margin in
                 let mt = Option.value (size mt width) ~default:0. and mb = Option.value (size mb width) ~default:0. in
-                let cs_in = { cs with margin = no_margins } in
+                (* its size is decided (Flex_layout, with its min and max): a
+                 * max-width in percents is not asked again, of the item's own
+                 * width (GitHub's buttons, max-width: 70%, made 70% of themselves) *)
+                let cs_in = { cs with margin = no_margins; max_width = Auto; min_width = Css_values.zero } in
                 let b, _ =
                   layout_block env (ref []) c cs_in ~cb_x:(ctx.x +. starts.(k) +. ml) ~cb_width:(main -. ml -. mr) ~y:(!top +. mt) ~marker:None
                     ~content:(Float.max 0. (main -. ml -. mr -. ch)) ()

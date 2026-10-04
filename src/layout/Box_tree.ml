@@ -49,6 +49,12 @@ let rec inner_right (b : box) : float =
   List.fold_left (fun m c -> Float.max m (right_edge c)) lines b.children
 
 and right_edge (b : box) : float =
+  (* a float's margin is room it takes on its line: three floats that
+   * fit by their boxes alone do not fit with it (GitHub's Notifications,
+   * Fork and Star, the last one pushed under the others) *)
+  let margin = match (b.style.float, b.style.margin) with Side_none, _ -> 0. | _, (_, Len mr, _, _) -> Css_values.resolve mr 0. | _ -> 0. in
+  margin
+  +.
   match b.element with
   | Some _ when b.style.width <> Auto || b.style.display = Table -> b.x +. b.width
   | Some _ ->

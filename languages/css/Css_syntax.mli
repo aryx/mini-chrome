@@ -64,7 +64,7 @@ type token =
  * and its arguments *)
 type component = Token of token | Block of char * component list | Func of string * component list
 
-type declaration = { name : string; (* lowercased *) value : component list; important : bool }
+type declaration = { name : string; (* lowercased, but a custom property's (--bgColor), which is as written *) value : component list; important : bool }
 
 type rule =
   | Style_rule of { prelude : component list; declarations : declaration list }

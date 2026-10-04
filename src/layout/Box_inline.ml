@@ -184,7 +184,9 @@ let place (floats : placed list ref) ~(x : float) ~(width : float) ~(top : float
       let rec find top =
         let l, rw = room !floats ~x ~width ~top ~height:(Float.max h 1.) in
         let below = List.fold_left (fun m p -> if p.pbottom > top && p.ptop <= top then Float.min m p.pbottom else m) infinity !floats in
-        if rw >= w || below = infinity then (l, rw, top) else find below
+        (* to a hundredth of a point: a box made as wide as its floats
+         * (shrink-to-fit) must hold them, whatever the sums' last bits *)
+        if rw +. 0.01 >= w || below = infinity then (l, rw, top) else find below
       in
       let l, rw, top = find top in
       let fx = match f.fside with On_left -> l | On_right -> l +. rw -. w in

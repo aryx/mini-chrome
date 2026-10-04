@@ -223,6 +223,11 @@ let split_on (sep : token) (cs : component list) : component list list =
   in
   go [] [] cs
 
+(* a property's name: any case is the same one (COLOR is color), but a
+ * custom property's is as written: --bgColor and --bgcolor are two,
+ * and var(--bgColor) asks for the first *)
+let property (name : string) : string = if String.length name >= 2 && name.[0] = '-' && name.[1] = '-' then name else String.lowercase_ascii name
+
 let declarations_of_block (cs : component list) : declaration list =
   split_on Semicolon cs
   |> List.filter_map (fun d ->
@@ -235,9 +240,9 @@ let declarations_of_block (cs : component list) : declaration list =
                  match List.rev value with
                  | Token (Ident imp) :: rest when String.lowercase_ascii imp = "important" -> (
                      match trim rest with
-                     | Token (Delim '!') :: v -> Some { name = String.lowercase_ascii name; value = trim (List.rev v); important = true }
-                     | _ -> Some { name = String.lowercase_ascii name; value; important = false })
-                 | _ -> if value = [] then None else Some { name = String.lowercase_ascii name; value; important = false })
+                     | Token (Delim '!') :: v -> Some { name = property name; value = trim (List.rev v); important = true }
+                     | _ -> Some { name = property name; value; important = false })
+                 | _ -> if value = [] then None else Some { name = property name; value; important = false })
              | _ -> None)
          | _ -> None)
 

@@ -47,6 +47,31 @@ let tests =
           let p = page {|<body style="margin: 8px"><div id=d style="width: 100px; margin: 0 auto; padding: 5px; border: 2px solid">ab</div>|} in
           Alcotest.(check (list near)) "the div: x, y, width, height" [ 43.; 8.; 114.; 26. ] (geometry (box "d" p));
           Alcotest.(check (list word)) "its word, inside padding and border" [ ("ab", 50.) ] (words p));
+      Testo.create "what GitHub's page asked: floats, percents and pictures in flex items" (fun () ->
+          (* a font of 10: a letter is 10 wide *)
+          let floats = {|<body style="margin:0"><div id=row style="display:flex"><div id=grow style="flex:1 1 auto">a</div><div id=fit style="flex-shrink:0;max-width:70%"><span id=f1 style="float:left;margin-right:3px">aaa</span><span id=f2 style="float:left;margin-right:3px">bb</span><span id=f3 style="float:left">c</span></div></div>|} in
+          let p = page ~width:300. floats in
+          Alcotest.(check near) "as wide as its three floats and their margins; max-width: 70% is of the row, not of itself" 66. (box "fit" p).width;
+          Alcotest.(check (list near)) "the three on one line" [ 0.; 0.; 0. ] (List.map (fun id -> (box id p).y) [ "f1"; "f2"; "f3" ]);
+          (* a width in percents inside what is being measured is the content's *)
+          let p =
+            page ~width:300.
+              {|<body style="margin:0"><div style="display:flex"><div id=item><div id=btn style="display:flex;width:100%"><span id=label style="flex:1 0 auto;width:100%">main</span></div></div><div id=next>x</div></div>|}
+          in
+          Alcotest.(check near) "a button of width 100% in a flex item: its label's width" 40. (box "item" p).width;
+          Alcotest.(check near) "and what follows is beside it" 40. (box "next" p).x;
+          (* a control measured is its own width, not the room's *)
+          let p = page ~width:300. {|<body style="margin:0"><div style="display:flex"><div id=item><span style="display:flex"><input id=field style="width:100%"></span></div><div id=next>x</div></div>|} in
+          Alcotest.(check bool) "a field of width 100% in a flex item: a field's width, not the row's" true ((box "item" p).width < 250. && (box "next" p).x < 250.);
+          (* an svg that is a flex item is a picture *)
+          let p = page ~width:300. {|<body style="margin:0"><a id=a style="display:inline-flex"><svg id=icon width="16" height="16" viewBox="0 0 16 16"></svg><span>go</span></a>|} in
+          Alcotest.(check (list near)) "the icon's box: 16 by 16" [ 16.; 16. ] [ (box "icon" p).width; (box "icon" p).height ];
+          (* the least a flex item shrinks to is not more than its max-width *)
+          let p =
+            page ~width:100.
+              {|<body style="margin:0"><div style="display:flex"><div id=readme style="flex-grow:1;max-width:100%"><div style="overflow:auto"><pre>a-line-of-code-far-too-long-for-the-page</pre></div></div></div>|}
+          in
+          Alcotest.(check near) "a README with a long line of code: as wide as the page, no more" 100. (box "readme" p).width);
       Testo.create "notes_css_engine.md's centring" (fun () ->
           let p = page ~width:976. {|<body style="margin: 0"><div id=d style="width: 400px; padding: 10px; border: 1px solid; margin: 0 auto">x</div>|} in
           let d = box "d" p in

@@ -607,6 +607,26 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- GitHub's repository page drawn as Chrome draws it with scripts off
+  (docs/plans/plan_sites.md, step 1; docs/screenshots/github.png), by
+  what was wrong one at a time, each on a page of ten lines first:
+  a float that fits its line to the last bit of a sum was put under it
+  (Notifications, Fork, Star); a flex item's max-width in percents was
+  asked twice, the second time of itself; a width in percents inside
+  what is being measured took the whole room (the branch's button, a
+  bar across the page), and so did a form's control (the search
+  field); an svg or an img that is a flex or grid item was an empty
+  box (every icon in a button); a colour's opacity was mixed with
+  white (#ffffff1f on the black bar: white boxes); a flex item's
+  content minimum was not kept under its max-width (the README, as
+  wide as its longest line of code)
+- CSS: a custom property's name is as written (--bgColor-default was
+  kept as --bgcolor-default, and var(--bgColor-default) then found
+  nothing): GitHub's design system names its every colour so, and its
+  top bar, its borders, its links' blue and its table of files were
+  not drawn. Found with scripts/css/Css_census.exe, which says what a
+  page's sheets ask that the engine does not do, and (at=SELECTOR) an
+  element's winning rules and what its style comes to
 - the wheel scrolled the wrong way
 - a q typed anywhere (the omnibox, a page's field) quit the browser:
   the Playground's key, on every native program. Fixed in
