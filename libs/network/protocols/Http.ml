@@ -32,15 +32,15 @@ type request = { meth : string; target : string; headers : header list }
 
 let default_agent = "elm_playground"
 
-let get ?cookie ?(agent = default_agent) ~(host : string) (target : string) : request =
+let get ?cookie ?(agent = default_agent) ?(keep = false) ~(host : string) (target : string) : request =
   { meth = "GET"; target;
     headers =
       [ ("Host", host); ("User-Agent", agent); ("Accept-Encoding", "gzip, br, zstd") ]
       @ (match cookie with Some c -> [ ("Cookie", c) ] | None -> [])
-      @ [ ("Connection", "close") ] }
+      @ [ ("Connection", if keep then "keep-alive" else "close") ] }
 
-let post ?cookie ?agent ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
-  let r = get ?cookie ?agent ~host target in
+let post ?cookie ?agent ?keep ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
+  let r = get ?cookie ?agent ?keep ~host target in
   { r with meth = "POST"; headers = r.headers @ [ ("Content-Type", content_type); ("Content-Length", string_of_int (String.length body)) ] }
 
 let request_to_string ?(body = "") (r : request) : string =
@@ -187,6 +187,38 @@ let parse_response (s : string) : (response, string) result =
   let* body = body ~status headers (String.sub s pos (String.length s - pos)) in
   let* body = decoded headers body in
   Ok { version; status; reason; headers; body }
+
+(* where a response ends, read in its head: what a connection that
+ * stays open needs, the server no longer closing it to say so *)
+type extent = Bytes of int | Chunks of int | To_the_end
+
+let extent (s : string) : (extent * bool) option =
+  match line_at s 0 with
+  | None -> None
+  | Some (line, pos) -> (
+      match (parse_status_line line, parse_headers s pos) with
+      | Ok (version, status, _), Ok (headers, body) ->
+          let said = Option.map String.lowercase_ascii (header "Connection" headers) in
+          let keep = if version = "HTTP/1.0" then said = Some "keep-alive" else said <> Some "close" in
+          let extent =
+            if status = 204 || status = 304 || (status >= 100 && status < 200) then Bytes body
+            else
+              match (Option.map String.lowercase_ascii (header "Transfer-Encoding" headers), Option.bind (header "Content-Length" headers) int_of_string_opt) with
+              | Some "chunked", _ -> Chunks body
+              | _, Some n when n >= 0 -> Bytes (body + n)
+              | _ -> To_the_end
+          in
+          Some (extent, keep)
+      (* the head not whole yet, or not a head: read on *)
+      | _ -> None)
+
+let whole (s : string) (e : extent) : bool =
+  match e with
+  | Bytes n -> String.length s >= n
+  | Chunks body ->
+      (* looked at only when it may be: the last chunk is "0", an empty line after it *)
+      String.ends_with ~suffix:"0\r\n\r\n" s && Result.is_ok (dechunk (String.sub s body (String.length s - body)))
+  | To_the_end -> false
 
 let is_redirect (status : int) : bool = List.mem status [ 301; 302; 303; 307; 308 ]
 

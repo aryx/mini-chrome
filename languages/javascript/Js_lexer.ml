@@ -54,7 +54,8 @@ let is_digit c = c >= '0' && c <= '9'
  * name may be written in any (what is not a letter up there, a no-break
  * space, is set apart before) *)
 let is_name_start c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '$' || c = '#' || c >= '\128'
-let is_name_char c = is_name_start c || is_digit c
+(* '#' starts a name and is not inside one: async#n(e) is async, #n *)
+let is_name_char c = (is_name_start c && c <> '#') || is_digit c
 
 (* a code point as UTF-8's bytes: a string's \u escape *)
 let utf_8 (cp : int) : string =
@@ -77,6 +78,29 @@ let tokenize (s : string) : token list =
     newline := false
   in
   let error msg = raise (Error (!line, msg)) in
+  (* what each "(" and "{" still open is -- an if's or a loop's head, a
+   * block -- and whether the last one closed was: after those a
+   * statement starts, and a / there is a regular expression's
+   * (if (x) /re/.test(y); a block's } and /^a/.test(z)) *)
+  let opened : bool list ref = ref [] and after_statement = ref false in
+  let bracket (c : char) : unit =
+    let before = match !tokens with t :: _ -> Some t.kind | [] -> None in
+    match c with
+    | '(' -> opened := (match before with Some (Keyword ("if" | "while" | "for" | "with")) -> true | _ -> false) :: !opened
+    | '{' ->
+        opened :=
+          (match before with
+          | None | Some (Punct (")" | ";" | "{" | "}" | "=>") | Keyword ("else" | "try" | "finally" | "do") | Name _) -> true
+          | _ -> false)
+          :: !opened
+    | ')' | '}' -> (
+        match !opened with
+        | v :: rest ->
+            after_statement := v;
+            opened := rest
+        | [] -> after_statement := false)
+    | _ -> ()
+  in
   let sub i j = String.sub s i (j - i) in
   (* opti: a name written many times is one string, so that two of
    * them are told equal by their address (Js_scope.find) *)
@@ -127,7 +151,7 @@ let tokenize (s : string) : token list =
       | '/' when regex_allowed () -> go (regex i)
       | c when is_digit c || (c = '.' && i + 1 < n && is_digit s.[i + 1]) -> go (number i)
       | c when is_name_start c ->
-          let j = ref i in
+          let j = ref (i + 1) in
           while !j < n && is_name_char s.[!j] do incr j done;
           if !j + 1 < n && s.[!j] = '\\' && s.[!j + 1] = 'u' then go (escaped_name i)
           else (
@@ -150,6 +174,7 @@ let tokenize (s : string) : token list =
           | None ->
               if String.contains puncts1 s.[i] then (
                 if s.[i] = '{' then brace 1 else if s.[i] = '}' then brace (-1);
+                bracket s.[i];
                 emit (Punct (String.make 1 s.[i])) !line;
                 go (i + 1))
               else error (Printf.sprintf "unexpected character %C" s.[i]))
@@ -160,7 +185,8 @@ let tokenize (s : string) : token list =
         match t.kind with
         | Number _ | String _ | Name _ | Regex _ | Template _ -> false
         | Keyword ("this" | "true" | "false" | "null") -> false
-        | Punct (")" | "]" | "}") -> false
+        | Punct (")" | "}") -> !after_statement
+        | Punct "]" -> false
         | Keyword _ | Punct _ | Eof -> true)
   (* /pattern/flags: to the / not escaped nor in a [set] *)
   and regex i =

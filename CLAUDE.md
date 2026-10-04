@@ -360,8 +360,11 @@ browser's own name, but for the sites of its table, each with its
 reason -- empty: Google was in it for a day, and why it is not is
 told there);
 `https://` is the blocking `Http_client` over our TLS, on `Worker`'s
-pool of four threads. A page is shown at once, then laid out again as
-each style sheet, script and picture arrives.
+pool of six threads, its connections kept for the next request to the
+same host (`Keep_alive`: a pool of connections at rest; `opti=off`
+closes each). A page is shown at once, then laid out again when its
+style sheets have all come (once, not at each: `Browser_tab.with_sheet`)
+and as each script and picture arrives.
 
 Every function that opens a socket takes a `Cap.network` capability,
 threaded from `Cap.main` in MiniChrome.ml through `Browser_tab` and

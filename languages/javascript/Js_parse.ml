@@ -44,7 +44,16 @@ let describe (k : Js_lexer.kind) : string =
   | Template _ -> "a template"
   | Eof -> "the end"
 
-let fail (p : t) (message : string) = raise (Error { line = (peek p).line; message })
+(* JS_SYNTAX=1: the tokens before the one refused said too -- a bundle
+ * is one line of a megabyte, and its number says nothing *)
+let fail (p : t) (message : string) =
+  let message =
+    if Sys.getenv_opt "JS_SYNTAX" = None then message
+    else
+      let from = max 0 (p.pos - 12) in
+      message ^ ", after: " ^ String.concat " " (List.init (p.pos - from) (fun i -> describe p.tokens.(from + i).kind))
+  in
+  raise (Error { line = (peek p).line; message })
 let unexpected (p : t) (what : string) = fail p (Printf.sprintf "expected %s, not %s" what (describe (peek p).kind))
 let is_punct (p : t) (s : string) : bool = (peek p).kind = Punct s
 let is_keyword (p : t) (s : string) : bool = (peek p).kind = Keyword s
@@ -363,10 +372,12 @@ and property (p : t) : property =
       let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None; own_name = false } in
       if which = "get" then Getter (k, f) else Setter (k, f)
   (* async m() { } *)
-  | Name "async" when accessor ->
+  | Name "async" when accessor || next = Punct "*" ->
       ignore (advance p);
+      (* async *m() { }: an async generator *)
+      let generator = is_punct p "*" && (ignore (advance p); true) in
       let k = key p in
-      Prop (k, Function (method_ p k ~async:true ~generator:false))
+      Prop (k, Function (method_ p k ~async:true ~generator))
   (* *m() { }: a generator *)
   | Punct "*" ->
       ignore (advance p);

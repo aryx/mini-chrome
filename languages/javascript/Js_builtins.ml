@@ -90,9 +90,16 @@ let compile (source : string) (flags : string) : Js_regexp.t =
 
 (* a match as exec gives it: the matched text, each group's (undefined
  * if it took no part), its index and input *)
-let match_array (s : string) (spans : (int * int) option array) : value =
+let match_array ?re (s : string) (spans : (int * int) option array) : value =
   let texts = Array.to_list (Array.map (function Some (a, b) -> String (String.sub s a (b - a)) | None -> Undefined) spans) in
   let a = new_array texts in
+  (* the groups that have a name, (?<year>\d+): m.groups.year (ES2018) *)
+  (match Option.map Js_regexp.names re with
+  | Some ((_ :: _) as names) ->
+      let groups = new_object () in
+      List.iter (fun (name, i) -> set_own groups name (List.nth texts i)) names;
+      set_own a "groups" (Object groups)
+  | _ -> set_own a "groups" Undefined);
   set_own a "index" (Number (float_of_int (match spans.(0) with Some (i, _) -> i | None -> 0)));
   set_own a "input" (String s);
   Object a
@@ -111,7 +118,7 @@ let all_matches (re : Js_regexp.t) (s : string) : (int * int) option array list 
   go 0 []
 
 (* a replacement's text: $& the match, $1..$9 its groups, $$ a dollar *)
-let expand (template : string) (s : string) (spans : (int * int) option array) : string =
+let expand ?re (template : string) (s : string) (spans : (int * int) option array) : string =
   let b = Buffer.create (String.length template) in
   let n = String.length template in
   let group g = match if g < Array.length spans then spans.(g) else None with Some (x, y) -> String.sub s x (y - x) | None -> "" in
@@ -122,6 +129,13 @@ let expand (template : string) (s : string) (spans : (int * int) option array) :
         | '$' -> Buffer.add_char b '$'; go (i + 2)
         | '&' -> Buffer.add_string b (group 0); go (i + 2)
         | '1' .. '9' as c -> Buffer.add_string b (group (Char.code c - 48)); go (i + 2)
+        (* $<name>: a named group's text *)
+        | '<' when (match (re, String.index_from_opt template i '>') with Some _, Some _ -> true | _ -> false) ->
+            let close = String.index_from template i '>' in
+            (match List.assoc_opt (String.sub template (i + 2) (close - i - 2)) (Js_regexp.names (Option.get re)) with
+            | Some g -> Buffer.add_string b (group g)
+            | None -> ());
+            go (close + 1)
         | _ -> Buffer.add_char b '$'; go (i + 1))
       else (Buffer.add_char b template.[i]; go (i + 1))
   in
@@ -208,7 +222,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
         match all_matches re s with
         | [] -> Null
         | ms -> array (List.map (fun spans -> match spans.(0) with Some (a, b) -> String (String.sub s a (b - a)) | None -> Undefined) ms)
-      else match Js_regexp.exec re s 0 with Some spans -> match_array s spans | None -> Null);
+      else match Js_regexp.exec re s 0 with Some spans -> match_array ~re s spans | None -> Null);
   def "search" (fun s args ->
       match Js_regexp.exec (pattern (arg args 0)) s 0 with Some spans -> ( match spans.(0) with Some (a, _) -> Number (float_of_int a) | None -> Number (-1.)) | None -> Number (-1.));
   def "replace" (fun s args ->
@@ -225,7 +239,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
                 | Object { kind = Closure _ | Host_function _; _ } as f ->
                     let groups = List.tl (Array.to_list (Array.map (function Some (x, y) -> String (String.sub s x (y - x)) | None -> Undefined) spans)) in
                     Buffer.add_string b (to_string (call f ~this:Undefined ((String (String.sub s a (e - a)) :: groups) @ [ Number (float_of_int a); String s ])))
-                | v -> Buffer.add_string b (expand (to_string v) s spans));
+                | v -> Buffer.add_string b (expand ~re (to_string v) s spans));
                 e
             | None -> from)
           0 ms
@@ -560,7 +574,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
         set_own o "lastIndex" (Number 0.);
         None
   in
-  method_ regexps "exec" (fun ~this args -> let s = to_string (arg args 0) in match exec this s with Some spans -> match_array s spans | None -> Null);
+  method_ regexps "exec" (fun ~this args -> let s = to_string (arg args 0) in match exec this s with Some spans -> match_array ?re:(match this with Object { kind = Regexp re; _ } -> Some re | _ -> None) s spans | None -> Null);
   method_ regexps "test" (fun ~this args -> Bool (exec this (to_string (arg args 0)) <> None));
   method_ regexps "toString" (fun ~this _ -> to_primitive this);
   method_ numbers "toFixed" (fun ~this args -> String (Printf.sprintf "%.*f" (int_arg args 0 ~default:0) (to_number this)));

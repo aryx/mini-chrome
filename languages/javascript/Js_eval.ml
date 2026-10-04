@@ -41,7 +41,7 @@ type outcome = Normal | Return of value | Break of string option | Continue of s
 let max_depth = 2_000
 
 (* how many more calls to say, as an error leaves them (JS_STACK) *)
-let unwinding = ref 0
+let unwinding = Js_value.unwinding
 
 (* generator.return(v): the body left from its yield, its finally
  * blocks run on the way *)
@@ -370,16 +370,30 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
   set_own proto "constructor" made;
   (match parent with Some (Object pc) -> f.proto <- Some pc | _ -> ());
   Option.iter (fun name -> declare cs name ~constant:true made) c.class_name;
+  (* a static member's home is the class itself: its super.m is the
+   * parent class's m, not the parent prototype's *)
+  let statics = Js_scope.nested cs in
+  declare statics "%home" ~constant:true made;
+  (* the methods and accessors first, all of them; then the static
+   * fields and blocks, in the order written (ES2022): a block that
+   * decorates an accessor, written between its getter and its setter,
+   * finds both *)
   List.iter
     (fun (m : A.member) ->
       let target = if m.static then f else proto in
+      let cs = if m.static then statics else cs in
       match m.what with
       | Method fn -> set_own target (key m.key) (closure cs this fn)
       | Get fn -> define_accessor target (key m.key) ~getter:(Some (closure cs this fn)) ~setter:None
       | Set fn -> define_accessor target (key m.key) ~getter:None ~setter:(Some (closure cs this fn))
-      | Field e when m.static -> set_own f (key m.key) (match e with Some e -> eval_expr t cs made e | None -> Undefined)
-      | Field _ -> ()
-      | Static_block body -> ignore (exec_block t (new_scope cs) made body))
+      | Field _ | Static_block _ -> ())
+    c.members;
+  List.iter
+    (fun (m : A.member) ->
+      match m.what with
+      | Field e when m.static -> set_own f (key m.key) (match e with Some e -> eval_expr t statics made e | None -> Undefined)
+      | Static_block body -> ignore (exec_block t (new_scope statics) made body)
+      | _ -> ())
     c.members;
   made
 
@@ -399,6 +413,13 @@ and eval_list (t : t) (s : scope) (this : value) (es : A.expr list) : value list
 and iterate (t : t) (v : value) (f : value -> bool) : unit =
   let rec each (l : value list) = match l with x :: rest -> if f x then each rest | [] -> () in
   match v with
+  (* a proxy of an array that answers for it (a get trap): its length
+   * and items asked of the proxy, not read in the array behind (a
+   * template's arguments: a proxy over an empty array) *)
+  | Object { kind = Proxy (tg, h); _ } when (match (Js_value.target tg).kind with Array _ -> true | _ -> false) && trap t h "get" <> None ->
+      let n = match get t v "length" with Number n when n > 0. -> int_of_float n | _ -> 0 in
+      let rec from i = if i < n && f (get t v (string_of_int i)) then from (i + 1) in
+      from 0
   | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> each (array_items o)
   | String str -> each (List.init (String.length str) (fun i -> String (String.make 1 str.[i])))
   | Object _ -> (
@@ -689,7 +710,12 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
           (* JS_STACK=1: the calls an error leaves by, the innermost first (forty at most) *)
           if !unwinding > 0 then (
             decr unwinding;
-            prerr_endline (Printf.sprintf "  left %s%s" (Option.value c.func.name ~default:"(no name)") (match c.func.body with st :: _ -> Printf.sprintf ", written at line %d" st.line | [] -> "")));
+            prerr_endline
+              (Printf.sprintf "  left %s%s%s" (Option.value c.func.name ~default:"(no name)")
+                 (match c.func.body with st :: _ -> Printf.sprintf ", written at line %d" st.line | [] -> "")
+                 (* of which module, and its parameters: what to grep for *)
+                 (match module_url c.scope with "" -> "" | u -> " of " ^ Filename.basename u)
+               ^ Printf.sprintf " (%s)" (String.concat ", " (List.map (fun (p, _) -> match p with A.Bind x -> x | _ -> "{..}") c.func.params))));
           raise e)
   | _ -> throw "TypeError" (display fn ^ " is not a function")
 

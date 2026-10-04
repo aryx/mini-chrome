@@ -354,3 +354,145 @@ Lessons
   read the console before the events.
 - When a big program gives a wrong answer, make a small one with the
   same compiler and compare with another engine.
+
+Session 5 (2026-10-04): "an application whole in JavaScript: 9fans, then Discourse"
+------------------------------------------------------------------------------------
+Two sites that are a page of a few kilobytes and megabytes of scripts
+(9fans.topicbox.com: one framework, 600 KB; discuss.ocaml.org: Ember,
+4 MB of modules). Each stops on its first error, and the error is in
+one line of a megabyte. What follows is how each was found without the
+window, and without the site.
+
+1. The site saved once, then run with no network
+-------------------------------------------------
+scripts/js/Page_scripts.exe runs a saved page's scripts with no
+window. With FILES=DIR, a request whose path is a file under DIR is
+answered with it (a <script src> too, and with
+Access-Control-Allow-Origin: * as a CDN says); a POST by the md5 of
+its address and body, under DIR/_post/. A loop of ten lines of Python
+fills DIR: run, read the "request: GET ..." lines with no "(saved",
+fetch those with curl, run again, until none is missing
+(/tmp/.../disc/fetch.py; record.py did the POSTs for 9fans).
+
+  curl -A "<a browser's User-Agent>" -o page.html https://discuss.ocaml.org/
+  FILES=$PWD Page_scripts.exe page.html https://discuss.ocaml.org/
+
+Why: a run is then the same each time, takes seconds, and nothing is
+said to the site while it fails (9fans reports its errors to a
+tracker: a browser being debugged should not fill it). And the saved
+bundle can be edited (below).
+
+A third argument is an expression asked at the end; a fourth, another
+asked three seconds of the page later: a click, then what it made --
+
+  Page_scripts.exe local.html URL \
+    "document.getElementById('sidebar:latest').querySelector('a').click()" \
+    "location.href + ' | ' + document.querySelectorAll('.v-GroupItem').length"
+
+To see the page it built: ask document.documentElement.outerHTML, take
+the scripts out, put the sheets in <style>, serve it with mini-httpd
+and dump it. The layout is then looked at with no script running.
+
+2. A syntax error in a line of a megabyte
+------------------------------------------
+"expected ';' or a new line, not 'yt' (line 48)" says nothing when
+line 48 is 62 KB. JS_SYNTAX=1 adds the twelve tokens before the one
+refused:
+
+  ..., after: '(' 'e' ')' '{' 'let' '{' 'default' ':' 'n' '}' '=' 'await'
+
+then grep -o '.\{120\}(e){let{default:n}=await yt' in the bundle shows
+the source: "async#n(e){" -- a private method right after a word,
+which the lexer read as one name. Three of Discourse's stops were
+found so (a regular expression after an if's ")", async#n, async *m in
+an object).
+
+3. An error with no place: the calls it leaves by
+--------------------------------------------------
+"Cannot read properties of undefined (reading 'call')" in 4 MB. With
+JS_STACK set to words of the message, the engine prints the functions
+the error leaves by, the innermost first (forty at most; WALK=1, the
+evaluator, whose calls are the ones counted):
+
+  WALK=1 JS_STACK="reading 'call'" FILES=$PWD Page_scripts.exe page.html URL
+  thrown: Cannot read properties of undefined (reading 'call')
+    left _set, written at line 4
+    left set, written at line 4
+    left xo, written at line 4
+    left create, written at line 4 ...
+
+(JS_STACK=1 alone is the older use: the stack when it overflows.) The
+names are then grepped in the bundles.
+
+4. A line of console.log put in the saved bundle
+-------------------------------------------------
+The stack said where, not which property. The bundle being a file of
+ours, a line is added to it (a copy kept beside):
+
+  s.replace("_set(e,t,n,r){let i=", "_set(e,t,n,r){if(!this._setter)console.log('NOSETTER',t,...);let i=")
+
+"NOSETTER isReadOnly" -- and grep isReadOnly showed a getter, a static
+block decorating it, then its setter: our classes ran the block before
+the setter was defined. What a debugger's breakpoint would have said,
+with sed.
+
+5. The small program, again
+----------------------------
+Each time the cause was guessed, ten lines of plain JavaScript were
+written to show it, run by mini-node and by node, the outputs
+compared: super in a static method, getPrototypeOf of a Proxy, an
+accessor's descriptor, "a".toString(). The framework is then out of
+the picture, the fix has its test, and what else is wrong in the same
+corner shows in the same run (true.toString() beside "a".toString()).
+
+6. A browser that hangs: its stack, from outside
+-------------------------------------------------
+The window froze once the pointer was on 9fans' page. Reproduced with
+no hand: -script "at(90;255):400-460,click:420" moves the pointer and
+clicks at given frames. timeout(1) did not end it (use timeout -s
+KILL). The stack, by gdb started with the program and interrupted:
+
+  (gdb -q -batch -ex run -ex "bt 45" --args ./_build/default/src/main/MiniChrome.exe ... > gdb.txt 2>&1 &)
+  sleep 70; pkill -INT -f "MiniChrome.exe -size"
+
+(gdb -p on a running process is not allowed here: ptrace.) "bt 45" is
+the innermost frames, "bt -60" the outermost: the first said
+Js_value's display in a recursion of hundreds of frames, the second
+who asked -- Js_eval.ml:694, the message of "x is not a function",
+printing an application's every object. Two bugs: the listener was an
+object with handleEvent on its class, and a value was shown without
+bound.
+
+Careful with pkill -f: a pattern that is also in the command line of
+the shell running it kills that shell.
+
+7. A click that does nothing: say what was hit
+-----------------------------------------------
+One Logs.info for a day in Window_update.click_page: the element
+under the pointer, and whether the page prevented the default. "click
+at 90, 169: <div id=v13 class=v-App>" -- not the link: the hit test
+took the first box at the point, the one underneath. Taken out after.
+
+8. Where a load's seconds go
+-----------------------------
+discuss.ocaml.org took 29 s. scripts/perf/load_timeline.sh: the
+sheets' answers spread over 12 s, then the pictures' over 15, and
+"CPU 26 s" of 43 -- computing, not waiting. Page_bench.exe on the
+same page: Computed.styles 690 ms (1.2 MB of CSS), a layout with the
+styles kept 16 ms. So 31 sheets, each laid out as it came: 12 s; and
+the pictures were not layout: mini-curl on one, 0.2 s of user time --
+a TLS handshake each, 120 of them, one thread at a time. Laid out
+once when the sheets are all there, connections kept (Keep_alive), six
+threads: 7.5 s.
+
+Lessons
+-------
+- Save the site and run it offline: the same run each time, in
+  seconds, and nothing sent to the site's error tracker.
+- Make the error say more before reading the bundle: the tokens
+  before a syntax error, the calls an error leaves by.
+- The saved bundle is a file: put a console.log in it.
+- Each cause guessed becomes ten lines run by node and by mini-node.
+- A hang has a stack: gdb from the start, interrupted; the innermost
+  frames say what loops, the outermost who asked.
+- An error message must not print a value whole.

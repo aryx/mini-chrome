@@ -116,7 +116,11 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "history" history;
   define "screen" (object_of [ ("width", Number (fst viewport)); ("height", Number (snd viewport)); ("availWidth", Number (fst viewport)); ("availHeight", Number (snd viewport)) ]);
   define "getSelection" (fn "getSelection" (fun _ -> object_of [ ("rangeCount", Number 0.); nothing "removeAllRanges"; nothing "addRange"; ("toString", fn "toString" (fun _ -> String "")) ]));
-  define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool false)); ("escape", fn "escape" (fun args -> arg args 0)) ]);
+  (* CSS.supports says yes: an application asks it to tell an old
+   * browser from one of its year (aspect-ratio, subgrid, relative
+   * colours: Discourse's check), and stops if not; what we do not
+   * draw of those is then missing from its page, as it is from any *)
+  define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool true)); ("escape", fn "escape" (fun args -> arg args 0)) ]);
   (* new Image(): an <img> in no tree *)
   define "Image" (fn "Image" (fun _ -> wrap t (make "img")));
   let global k = Option.value (Js_eval.global t.engine k) ~default:Undefined in

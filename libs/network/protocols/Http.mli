@@ -101,9 +101,10 @@
    Any other coding (deflate, br, zstd: not asked for) is refused.
 
    modern:
-   Not done: keep-alive (several requests on one connection, the reason
-   for 1.1's body framings: each message must end without the
-   connection ending); caching;
+   Keep-alive (several requests on one connection, the reason for
+   1.1's body framings: each message must end without the connection
+   ending) is Keep_alive's, over [extent] and [whole] here. Not done:
+   caching;
    HTTP/2 (2015: the same messages as binary frames, many requests at
    once on one connection) and HTTP/3 (2022: the same over QUIC, over
    UDP) --
@@ -146,11 +147,11 @@ type request = {
 (* what a request says it comes from when nothing else is given *)
 val default_agent : string
 
-val get : ?cookie:string -> ?agent:string -> host:string -> string -> request
+val get : ?cookie:string -> ?agent:string -> ?keep:bool -> host:string -> string -> request
 
 (* a POST of [body] to [target]: get's headers, and the body's
  * Content-Type and Content-Length (a form's fields, Urlencoded) *)
-val post : ?cookie:string -> ?agent:string -> host:string -> content_type:string -> body:string -> string -> request
+val post : ?cookie:string -> ?agent:string -> ?keep:bool -> host:string -> content_type:string -> body:string -> string -> request
 
 (* the bytes to send: the request line, the headers, the empty line,
  * and the body if there is one (a POST's) *)
@@ -184,6 +185,19 @@ val body : status:int -> header list -> string -> (string, string) result
 val parse_response : string -> (response, string) result
 
 (* 301, 302, 303, 307, 308: the answer is elsewhere, in "Location:" *)
+(* where a response ends, as its head says: a count of bytes (the
+ * whole message's: Content-Length, or no body at all), chunks (from
+ * where the body starts), or the connection's end *)
+type extent = Bytes of int | Chunks of int | To_the_end
+
+(* [extent s]: of the response starting [s], once its head is whole;
+ * and whether the server keeps the connection after it (HTTP/1.1
+ * unless it says Connection: close) *)
+val extent : string -> (extent * bool) option
+
+(* whether [s] has the response whole *)
+val whole : string -> extent -> bool
+
 val is_redirect : int -> bool
 
 (*****************************************************************************)

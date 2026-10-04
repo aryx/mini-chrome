@@ -51,6 +51,9 @@ val receive : t -> string
 
 val close : t -> unit
 
+(* [wait t s]: until bytes come, [s] seconds at most *)
+val wait : t -> float -> unit
+
 (* whether the other side is gone: the connection closed, by it or by
  * [close] (a lasting connection asks; [exchange] reads until then) *)
 val ended : t -> bool

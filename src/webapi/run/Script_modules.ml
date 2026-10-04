@@ -61,7 +61,11 @@ let load (t : t) (url : string) (k : (unit, string) result -> unit) : unit =
     if List.mem url !seen then k (Ok ())
     else (
       seen := url :: !seen;
-      match source t url with
+      (* a data: URL has its text in it (an import map's stand-in for a
+       * module that is not there) *)
+      let known = match source t url with Some text -> Some text | None -> Browser_url.data_url url in
+      Option.iter (fun text -> if source t url = None then t.module_sources <- (url, text) :: t.module_sources) known;
+      match known with
       | Some text -> deps url text k
       | None -> (
           (* asked for once, whoever wants it: those who come while it

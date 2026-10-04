@@ -85,6 +85,14 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- discuss.ocaml.org's front page: 29.5 s to its last picture, now 7.5
+  (docs/dev/notes_debugging_techniques.txt, session 5). Three things:
+  a page is laid out once when the last of its style sheets has come,
+  not at each (31 sheets, a second each: the cascade over 1.2 MB of
+  CSS); an https:// connection is kept for the next request to its
+  host (Keep_alive: 150 requests were 150 TLS handshakes, 0.2 s of
+  arithmetic each; opti=off closes each as before); six threads fetch,
+  a browser's six connections a host, where four did
 - JavaScript, the compiled bodies again (docs/plans/plan_js_speed.md):
   what a frame of the Playground's menu asks was counted, and each
   answered where it is asked, in Js_compile -- the function's own
@@ -168,6 +176,19 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- JavaScript, what a framework of the 2020s is written in -- found
+  bringing up Discourse (Ember 7, 4 MB of modules: discuss.ocaml.org
+  as Chrome gets it), which now starts and renders its first
+  templates: a regular expression after an if's head or a block's
+  end; async#name and async *name members; super in a static method;
+  a class's methods all defined before its static blocks run; named
+  groups (m.groups.year, $<year>); a proxied array iterated through
+  its traps; Object.getPrototypeOf and isPrototypeOf through a proxy;
+  defineProperty keeping what its descriptor does not say;
+  true.toString(); a module at a data: address
+- URL is a class (data/prelude/web.js): its parts can be written
+  (u.pathname = ..., u.searchParams.append(...)) and its href follows;
+  canParse, toJSON. CSS.supports says yes
 - 9fans.topicbox.com's pages are drawn as they are: the side bar, the
   groups, a group's topics with their authors, dates and counts.
   What it took: heights known before the content (a height in

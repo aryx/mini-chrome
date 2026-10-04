@@ -24,6 +24,7 @@
  (libraries
    unix
    threads.posix ; Worker's pool
+   mini_opti ; Keep_alive: opti=off closes each connection
    caps ; Cap.network, which every function opening a socket takes
    logs ; -v: the roots' file read
    tiny_libs.crypto ; the hashes, ciphers and signatures of TLS

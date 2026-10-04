@@ -233,14 +233,23 @@ let with_arrived (cfg : 'msg config) (tab : t) (url : string) (pic : Browser_pic
 (* a style sheet had (or not: then empty): the page laid out again with
  * it -- its colours, its boxes, as a picture moves the text *)
 let with_sheet (cfg : 'msg config) (tab : t) (url : string) (text : string) : t =
-  let tab = relaid cfg { tab with sheets = (url, text) :: List.remove_assoc url tab.sheets } in
+  let tab = { tab with sheets = (url, text) :: List.remove_assoc url tab.sheets } in
+  let fresh tab u = not (List.mem u tab.queue || List.mem u tab.in_flight || List.mem_assoc u tab.pictures) in
+  let wanted = match tab.state with Shown p -> List.filter (fresh tab) (Browser_page.sheets_wanted (cfg.settings tab) p) | Loading _ -> [] in
+  (* laid out when the last of the sheets asked for has come, not at
+   * each: a page of thirty sheets was laid out thirty times, a second
+   * each (discuss.ocaml.org: 12 s of its load; a browser shows nothing
+   * at all until the sheets are there) *)
+  let awaited u = u <> url && List.mem u tab.sheet_urls && (List.mem u tab.queue || List.mem u tab.in_flight) in
+  let last = wanted = [] && not (List.exists awaited (tab.queue @ tab.in_flight)) in
+  let tab = if last then relaid cfg tab else tab in
   (* its @imports, first in the queue; the backgrounds' pictures it
    * gave the boxes, last *)
   match tab.state with
   | Shown p ->
-      let fresh u = not (List.mem u tab.queue || List.mem u tab.in_flight || List.mem_assoc u tab.pictures) in
-      let more = List.filter fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
-      let pictures = if tab.images then List.filter fresh p.backgrounds else [] in
+      let fresh = fresh tab in
+      let more = wanted in
+      let pictures = if tab.images && last then List.filter fresh p.backgrounds else [] in
       { tab with queue = more @ tab.queue @ pictures; sheet_urls = more @ tab.sheet_urls; total = tab.total + List.length more + List.length pictures }
   | Loading _ -> tab
 

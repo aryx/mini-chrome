@@ -260,6 +260,29 @@ root's place in the tree that is laid out).
   them since 2026-10-04 (`Jpeg_progressive`, elm-playground after
   0.3.6).
 
+**2026-10-04, evening: discuss.ocaml.org.** Two different things.
+
+- *It was slow*: 29.5 s to the last picture, now 7.5 (the page laid
+  out once for its 31 sheets, connections kept, six threads:
+  `changes.txt`, `Keep_alive.mli`).
+- *It does not look as in Chrome* because it is not the same page:
+  Discourse gives a plain list of topics to what it takes for a
+  crawler (our User-Agent), and to a browser an application -- Ember
+  7 and Discourse's own code, 4 MB of modules in 29 files, an import
+  map. That one was run with no window from its saved files
+  (`Page_scripts.exe`, `FILES=`), a stop at a time: four of syntax
+  (a regular expression after `)` and `}`, `async#n`, `async *m`),
+  then `CSS.supports`, modules at `data:` addresses, `super` in a
+  static method, a class's members' order, `getPrototypeOf` of a
+  proxy, a URL that can be written, named groups, a proxied array's
+  iteration. Ember now starts, Discourse's initializers run, and its
+  first templates are rendered by Glimmer's machine. **Where it
+  stops**: a reference read from a dynamic scope is undefined
+  (opcode 111, `-get-dynamic-var`: `outletState`) -- the next thing
+  to find. The browser still asks as itself and shows the crawler's
+  page: to ask as a browser (`Browser_agent`) is for when the
+  application draws.
+
 ## Cost
 
 The budget has 5,545 lines left of 40,000. Step 1 is 300 to 600

@@ -131,7 +131,11 @@
     };
   });
   var text = String.prototype.toString;
-  String.prototype.toString = function () { return typeof this === "object" && this !== null && "@@primitive" in this ? this["@@primitive"] : text ? text.call(this) : String(this); };
+  String.prototype.toString = function () {
+    if (typeof this === "string") return "" + this;
+    return typeof this === "object" && this !== null && "@@primitive" in this ? this["@@primitive"] : text ? text.call(this) : String(this);
+  };
+
 
   // a number written in another base, (255).toString(16): the
   // engine's own toString is base 10

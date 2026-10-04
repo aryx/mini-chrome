@@ -132,6 +132,7 @@ let receive (t : t) : string =
   data
 
 let ended (t : t) : bool = t.eof || t.closed
+let wait (t : t) (seconds : float) : unit = if not t.closed then ignore (Unix.select [ t.fd ] [] [] seconds)
 
 let close (t : t) : unit =
   if not t.closed then begin

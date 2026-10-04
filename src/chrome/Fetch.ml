@@ -49,10 +49,10 @@ type 'msg t = {
   sockets : 'msg Web_sockets.t;
 }
 
-(* four threads, Netscape's four connections: at most four names
+(* six threads, a browser's six connections a host (Netscape had four): at most six names
  * resolved or https:// fetches waiting at once, the others queued *)
 let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent () : 'msg t =
-  let pool = if threads then Some (Worker.create 4) else None in
+  let pool = if threads then Some (Worker.create 6) else None in
   { in_flight = []; pool; jar; agent; sockets = Web_sockets.create ?pool () }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar

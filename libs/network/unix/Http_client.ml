@@ -12,6 +12,11 @@
 
 let ( let* ) = Result.bind
 
+(* opti: an https:// connection is kept for the next request to its
+ * host (Keep_alive.mli, with the numbers): the request then says
+ * "Connection: keep-alive", not "close" *)
+let kept (url : Url.t) : bool = !Mini_opti.enabled && url.scheme = Some "https"
+
 let prepare ?post ?jar ?agent (url : Url.t) : (string * int * string, string) result =
   match (url.scheme, url.authority, Url.port url) with
   | Some ("http" | "https"), Some (a : Url.authority), Some port ->
@@ -28,8 +33,8 @@ let prepare ?post ?jar ?agent (url : Url.t) : (string * int * string, string) re
       let agent = Option.map (fun f -> f a.host) agent in
       let bytes =
         match post with
-        | None -> Http.request_to_string (Http.get ?cookie ?agent ~host:host_header target)
-        | Some (content_type, body) -> Http.request_to_string ~body (Http.post ?cookie ?agent ~host:host_header ~content_type ~body target)
+        | None -> Http.request_to_string (Http.get ?cookie ?agent ~keep:(kept url) ~host:host_header target)
+        | Some (content_type, body) -> Http.request_to_string ~body (Http.post ?cookie ?agent ~keep:(kept url) ~host:host_header ~content_type ~body target)
       in
       Ok (host, port, bytes)
   | Some ("http" | "https"), _, _ -> Error (Printf.sprintf "%s: no host" (Url.to_string url))
@@ -41,7 +46,7 @@ let get_once ?post ?jar ?agent ?timeout (caps : < Cap.network ; .. >) (url : Url
   let* host, port, request = prepare ?post ?jar ?agent url in
   let* (response : Http.response) =
     if url.scheme = Some "https" then
-      let* answer = Tls_client.exchange ?timeout caps ~host ~port request in
+      let* answer = if kept url then Keep_alive.exchange ?timeout caps ~host ~port request else Tls_client.exchange ?timeout caps ~host ~port request in
       Http.parse_response answer
     else
       match Tcp.exchange ?timeout caps ~host ~port request with

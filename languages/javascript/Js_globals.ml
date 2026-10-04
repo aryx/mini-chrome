@@ -47,8 +47,13 @@ let object_statics : (string * value) list =
     match descriptor with
     | Object d -> (
         match (get_own d "get", get_own d "set") with
-        | None, None -> set_own o k (Option.value (get_own d "value") ~default:Undefined)
-        | g, s -> set_own o k (Object { (new_object ()) with kind = Accessor (Option.value g ~default:Undefined, Option.value s ~default:Undefined) }))
+        (* what the descriptor does not say stays as it was: a
+         * property made not enumerable keeps its value, an accessor
+         * given a getter keeps its setter *)
+        | None, None -> ( match (get_own d "value", get_own o k) with None, Some _ -> () | v, _ -> set_own o k (Option.value v ~default:Undefined))
+        | g, s ->
+            let g0, s0 = match get_own o k with Some (Object { kind = Accessor (g0, s0); _ }) -> (g0, s0) | _ -> (Undefined, Undefined) in
+            set_own o k (Object { (new_object ()) with kind = Accessor (Option.value g ~default:g0, Option.value s ~default:s0) }))
     | _ -> throw "TypeError" "Property description must be an object"
   in
   let pairs v = List.map (fun k -> array [ String k; own v k ]) (own_keys v) in
@@ -246,9 +251,26 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
       | Some (Object proto) ->
           let def m f = set_own proto m (fn m f) in
           def "propertyIsEnumerable" (fun ~this args -> Bool (List.mem (to_string (arg args 0)) (own_keys this)));
+          (* a proxy's prototype is what its handler's getPrototypeOf
+           * says, else its target's (a framework's tracked array: a
+           * proxy that says it is of the framework's class) *)
+          let plain = Option.get (get_own c "getPrototypeOf") in
+          let rec prototype_of (v : value) : value =
+            match v with
+            | Object { kind = Proxy (tg, h); _ } -> (
+                match get (Object h) "getPrototypeOf" with
+                | Object _ as trap -> call trap ~this:(Object h) [ Object tg ]
+                | _ -> prototype_of (Object tg))
+            | v -> call plain ~this:Undefined [ v ]
+          in
+          set_own c "getPrototypeOf" (fn "getPrototypeOf" (fun ~this:_ args -> prototype_of (arg args 0)));
           def "isPrototypeOf" (fun ~this args ->
               let rec up (o : obj) = match o.proto with Some p -> Object p == this || (match this with Object t -> t == p | _ -> false) || up p | None -> false in
-              Bool (match arg args 0 with Object o -> up o | _ -> false));
+              Bool
+                (match arg args 0 with
+                | Object { kind = Proxy _; _ } as v -> ( match prototype_of v with Object p -> (match this with Object t -> t == p | _ -> false) || up p | _ -> false)
+                | Object o -> up o
+                | _ -> false));
           def "valueOf" (fun ~this _ -> this);
           def "toLocaleString" (fun ~this _ -> to_primitive this)
       | _ -> ())

@@ -159,8 +159,9 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
      set_own o "userAgent" (String "Mozilla/5.0 (TinyChrome; elm_playground)");
      set_own o "language" (String "en-US");
      Object o);
-  (* new URL(href, base) *)
-  define "URL" (fun args ->
+  (* a URL's parts, for the URL class (data/prelude/web.js): href
+   * resolved against a base, the page's if none is given *)
+  define "__url" (fun args ->
       let base = match arg args 1 with Undefined -> t.base | v -> str v in
       url_object (Browser_url.resolve base (str (arg args 0))));
   (* a script asking the network: its requests queued for the browser

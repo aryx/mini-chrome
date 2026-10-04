@@ -31,6 +31,23 @@ let tests =
             (Http.request_to_string (Http.get ~host:"elm-lang.org" "/images/turtle.gif"));
           Alcotest.(check (option string)) "another name said, when one is given" (Some "Lynx/2.8")
             (Http.header "User-Agent" (Http.get ~agent:"Lynx/2.8" ~host:"a" "/").headers));
+      Testo.create "where a response ends: what a kept connection needs" (fun () ->
+          Alcotest.(check string) "asked to stay" "keep-alive" (Option.get (Http.header "Connection" (Http.get ~keep:true ~host:"a" "/").headers));
+          let head = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n" in
+          Alcotest.(check bool) "the head not whole: not known" true (Http.extent "HTTP/1.1 200 OK\r\nContent-Le" = None);
+          (match Http.extent (head ^ "he") with
+          | Some ((Bytes n as e), keep) ->
+              Alcotest.(check (pair int bool)) "its bytes counted, kept" (String.length head + 5, true) (n, keep);
+              Alcotest.(check (pair bool bool)) "whole when they are all there" (false, true) (Http.whole (head ^ "he") e, Http.whole (head ^ "hello") e)
+          | _ -> Alcotest.fail "a Content-Length");
+          (match Http.extent "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n" with
+          | Some ((Chunks _ as e), keep) ->
+              Alcotest.(check bool) "the server closes" false keep;
+              let so_far = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nhello\r\n" in
+              Alcotest.(check (pair bool bool)) "chunks: whole at the last, of size 0" (false, true) (Http.whole so_far e, Http.whole (so_far ^ "0\r\n\r\n") e)
+          | _ -> Alcotest.fail "chunks");
+          Alcotest.(check bool) "neither: to the connection's end" true
+            (match Http.extent "HTTP/1.1 200 OK\r\n\r\nabc" with Some (To_the_end, _) -> true | _ -> false));
       Testo.create "the status line" (fun () ->
           Alcotest.(check (triple string int string)) "200" ("HTTP/1.1", 200, "OK") (ok (Http.parse_status_line "HTTP/1.1 200 OK"));
           Alcotest.(check (triple string int string))

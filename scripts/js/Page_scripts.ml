@@ -47,13 +47,15 @@ let () =
             match saved ?post:(Option.map snd r.post) r.url with
             | Some body ->
                 Printf.printf "request: %s %s (saved, %d bytes)\n" r.meth r.url (String.length body);
-                Browser_script.answer t r.rid (Ok { status = 200; headers = []; body; final = r.url })
+                (* as a CDN answers: any origin may read it *)
+                Browser_script.answer t r.rid (Ok { status = 200; headers = [ ("Access-Control-Allow-Origin", "*") ]; body; final = r.url })
             | None ->
                 Printf.printf "request: %s %s%s\n" r.meth r.url (match r.post with Some (_, body) when Sys.getenv_opt "BODIES" <> None -> "\n  " ^ body | _ -> "");
                 Browser_script.answer t r.rid (Error "no network here"))
           (Browser_script.take_requests t)
       in
-      Browser_script.run_scripts t;
+      (* a <script src> is a saved file too *)
+      Browser_script.run_scripts ~source:(fun u -> saved (Browser_url.resolve base u)) t;
       requests ();
       for _ = 1 to 50 do
         Browser_script.advance t 100.;

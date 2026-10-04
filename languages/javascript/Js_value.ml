@@ -82,7 +82,23 @@ let error (name : string) (message : string) : value =
   set_own o "message" (String message);
   Object o
 
-let throw (name : string) (message : string) : 'a = raise (Throw (error name message))
+(* how many more calls to say, as an error leaves them: forty, from an
+ * error whose message has JS_STACK's words in it (JS_STACK="reading
+ * 'call'": where, in a bundle of megabytes, an undefined was read) *)
+let unwinding = ref 0
+
+let contains (s : string) (sub : string) : bool =
+  let n = String.length sub in
+  let rec at i = i + n <= String.length s && (String.sub s i n = sub || at (i + 1)) in
+  at 0
+
+let throw (name : string) (message : string) : 'a =
+  (match Sys.getenv_opt "JS_STACK" with
+  | Some words when words <> "" && words <> "1" && contains message words ->
+      prerr_endline ("thrown: " ^ message);
+      unwinding := 40
+  | _ -> ());
+  raise (Throw (error name message))
 
 (*****************************************************************************)
 (* Conversions *)
