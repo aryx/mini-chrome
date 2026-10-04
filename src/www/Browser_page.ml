@@ -216,14 +216,14 @@ let page_sheets s media base tree : Cascade.sheet list * string list =
  * its tree (==), its sheets' rules (==, Browser_page.parsed's), quirks,
  * the window -- the same when a relayout is for a picture that came,
  * the cascade then not run again (notes_opti_ocaml.md section 11) *)
-let last_styles : (Dom.element * Cascade.sheet list * bool * Cascade.media * (Dom.element -> Computed.t)) option ref = ref None
+let last_styles : (Dom.element * Cascade.sheet list * bool * Cascade.media * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) option ref = ref None
 
-let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascade.sheet list) (tree : Dom.element) : Dom.element -> Computed.t =
+let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascade.sheet list) (tree : Dom.element) : (Dom.element -> Computed.t) * (Dom.element -> Dom.node list) =
   let same_sheets a b = List.length a = List.length b && List.for_all2 (fun (x : Cascade.sheet) (y : Cascade.sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
   match !last_styles with
   | Some (t, sh, q, m, styles) when t == tree && q = quirks && m = media && same_sheets sh sheets -> styles
   | _ ->
-      let styles = Computed.styles ~visited ~quirks media sheets tree in
+      let styles = Computed.styles_all ~visited ~quirks media sheets tree in
       last_styles := Some (tree, sheets, quirks, media, styles);
       styles
 
@@ -249,8 +249,8 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
     let sheets = if s.css then fst (page_sheets s media base tree) else [] in
     (* before: the cascade and the computed styles again at each relayout
      *   let styles = Computed.styles ~visited ~quirks media sheets tree in *)
-    let styles = styles_of ~visited ~quirks media sheets tree in
-    let boxes = Box_layout.layout Browser_text.metrics ~picture_size ~viewport:(s.width, s.height) styles tree in
+    let styles, kids = styles_of ~visited ~quirks media sheets tree in
+    let boxes = Box_layout.layout Browser_text.metrics ~picture_size ~kids ~viewport:(s.width, s.height) styles tree in
     let canvas =
       List.find_map
         (fun e -> match (styles e).background with c when c.a > 0. -> Some (c.r, c.g, c.b) | _ -> None)
@@ -353,3 +353,22 @@ let value_of (p : t) (e : Dom.element) : Forms.value =
 
 let with_value (p : t) (e : Dom.element) (v : Forms.value) : t =
   { p with values = (e, v) :: List.filter (fun (e', _) -> e' != e) p.values }
+
+let where (p : t) : Dom.element -> (float * float * float * float) option =
+  let table : (int, Dom.element * (float * float * float * float)) Hashtbl.t = Hashtbl.create 256 in
+  let add (e : Dom.element) (x, y, w, h) =
+    let k = Hashtbl.hash e in
+    match List.find_opt (fun (e', _) -> e' == e) (Hashtbl.find_all table k) with
+    (* an inline element's words on several lines: the box around them all *)
+    | Some (_, (x0, y0, w0, h0)) ->
+        let l = Float.min x x0 and t = Float.min y y0 in
+        Hashtbl.replace table k (e, (l, t, Float.max (x +. w) (x0 +. w0) -. l, Float.max (y +. h) (y0 +. h0) -. t))
+    | None -> Hashtbl.add table k (e, (x, y, w, h))
+  in
+  let rec go (b : Html_layout.box) =
+    (match b.kind with Block e | Rule e -> add e (b.x, b.y, b.width, b.height) | Anonymous -> ());
+    List.iter (fun (l : Html_layout.line) -> List.iter (fun (f : Html_layout.fragment) -> add f.element (f.x, l.top, f.width, l.height)) l.fragments) b.lines;
+    List.iter go b.children
+  in
+  go p.layout;
+  fun e -> Option.map snd (List.find_opt (fun (e', _) -> e' == e) (Hashtbl.find_all table (Hashtbl.hash e)))

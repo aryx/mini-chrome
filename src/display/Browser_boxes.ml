@@ -38,13 +38,42 @@ let inside ((l, t, r, b) : clip) (x : float) (y : float) (w : float) (h : float)
  * hundreds) *)
 let rendered : (int, Dom.element * (int * int * int) * int * int * Rgba_image.t) Hashtbl.t = Hashtbl.create 64
 
+(* the page's <symbol>s by their id, for <use href="#id">: an icon
+ * drawn once in a sprite the page hides, and used by name wherever it
+ * shows (<svg><use href="#lock"></use></svg>: SVG 1.1's use, how a
+ * site of the 2020s carries its icons). Those of the tree last drawn. *)
+let symbols : (Dom.element * (string, Dom.element) Hashtbl.t) option ref = ref None
+
+let symbols_of (root : Dom.element) : (string, Dom.element) Hashtbl.t =
+  match !symbols with
+  | Some (r, t) when r == root -> t
+  | _ ->
+      let t = Hashtbl.create 64 in
+      List.iter (fun (sym : Dom.element) -> Option.iter (fun id -> Hashtbl.replace t id sym) (Dom.attribute "id" sym)) (Dom.find_all "symbol" root);
+      symbols := Some (root, t);
+      t
+
+(* an <svg> that is a <use> of a symbol: the symbol's shapes in its
+ * place, and its viewBox if the svg has none *)
+let used (e : Dom.element) : Dom.element =
+  let uses = List.filter_map (fun (n : Dom.node) -> match n with Element ({ name = "use"; _ } as u) -> Some u | _ -> None) e.children in
+  match (uses, !symbols) with
+  | u :: _, Some (_, table) -> (
+      let href = match Dom.attribute "href" u with Some h -> Some h | None -> Dom.attribute ~extensions:true "xlink:href" u in
+      match Option.bind href (fun h -> if String.length h > 1 && h.[0] = '#' then Hashtbl.find_opt table (String.sub h 1 (String.length h - 1)) else None) with
+      | Some sym ->
+          let view = List.filter (fun (k, _) -> String.lowercase_ascii k = "viewbox") (sym.attributes @ sym.extensions) in
+          { e with attributes = (if List.exists (fun (k, _) -> String.lowercase_ascii k = "viewbox") (e.attributes @ e.extensions) then e.attributes else e.attributes @ view); children = sym.children }
+      | None -> e)
+  | _ -> e
+
 let svg_picture (e : Dom.element) (color : int * int * int) (w : int) (h : int) : Rgba_image.t =
   let key = Hashtbl.hash (w, h, color, e.name, e.attributes) in
   match List.find_opt (fun (e', c, w', h', _) -> e' == e && c = color && w' = w && h' = h) (Hashtbl.find_all rendered key) with
   | Some (_, _, _, _, img) -> img
   | None ->
       if Hashtbl.length rendered > 4096 then Hashtbl.reset rendered;
-      let img = Svg.render ~color e ~width:w ~height:h in
+      let img = Svg.render ~color (used e) ~width:w ~height:h in
       Hashtbl.add rendered key (e, color, w, h, img);
       img
 
@@ -201,4 +230,6 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
   @ lines @ marker
   @ List.concat_map (draw_in inner ~visited ~picture_of) b.children
 
-let draw ~visited ~picture_of (b : Box_types.box) : Browser_draw.drawn = draw_in everywhere ~visited ~picture_of b
+let draw ~visited ~picture_of (b : Box_types.box) : Browser_draw.drawn =
+  Option.iter (fun root -> ignore (symbols_of root)) b.element;
+  draw_in everywhere ~visited ~picture_of b

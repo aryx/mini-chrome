@@ -25,6 +25,8 @@ let rec moved (dx : float) (dy : float) (b : box) : box =
       y = b.y +. dy;
       children = List.map (moved dx dy) b.children;
       backdrops = List.map (moved dx dy) b.backdrops;
+      (* a fixed box is the window's: it stays *)
+      lifted = List.map (fun ((l : box), bottom) -> ((if l.style.position = Fixed then l else moved dx dy l), bottom)) b.lifted;
       lines =
         List.map
           (fun (l : Html_layout.line) ->

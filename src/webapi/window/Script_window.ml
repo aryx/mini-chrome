@@ -91,7 +91,9 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "performance" (object_of [ ("now", fn "now" (fun _ -> Number t.now)); nothing "mark"; nothing "measure"; ("timeOrigin", Number 0.) ]);
   define "matchMedia"
     (fn "matchMedia" (fun args ->
-         object_of [ ("matches", Bool false); ("media", arg args 0); nothing "addListener"; nothing "removeListener"; nothing "addEventListener"; nothing "removeEventListener" ]));
+         (* asked of the cascade's own reader of @media, for the window's size *)
+         let matches = Cascade.media_matches { width = fst viewport; height = snd viewport } (Css_syntax.components_of (to_string (arg args 0))) in
+         object_of [ ("matches", Bool matches); ("media", arg args 0); nothing "addListener"; nothing "removeListener"; nothing "addEventListener"; nothing "removeEventListener" ]));
   (* history.pushState(state, title, url) (HTML5; an application's
    * router): the page's address changed with no page loaded -- what
    * location says from then on, and what the browser shows *)

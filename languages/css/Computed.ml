@@ -12,6 +12,8 @@
 open Css_syntax
 module V = Css_values
 
+module Custom = Map.Make (String)
+
 type display =
   | Inline
   | Block
@@ -96,7 +98,7 @@ type t = {
   grid_areas : string list list;
   grid_area : Css_grid.placement;
   align_content : align option;
-  custom : (string * Css_syntax.component list) list;
+  custom : Css_syntax.component list Custom.t;
 }
 
 let zero = V.zero
@@ -157,7 +159,7 @@ let initial : t =
     grid_areas = [];
     grid_area = Auto_placed;
     align_content = None;
-    custom = [];
+    custom = Custom.empty;
   }
 
 (*****************************************************************************)
@@ -180,7 +182,9 @@ let border_styles = [ "none"; "hidden"; "dotted"; "dashed"; "solid"; "double"; "
 
 let is_width (c : component) =
   match c with
-  | Token (Dimension _) | Token (Number 0.) | Func _ -> true
+  | Token (Dimension _) | Token (Number 0.) -> true
+  (* calc(...) and its kin: a length; rgb(...), hsl(...): a colour *)
+  | Func (f, _) -> List.mem (String.lowercase_ascii f) [ "calc"; "min"; "max"; "clamp"; "var"; "env" ]
   | Token (Ident s) -> List.mem (String.lowercase_ascii s) [ "thin"; "medium"; "thick" ]
   | _ -> false
 
@@ -343,10 +347,10 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
   (* the custom properties first: inherited, overridden by this element's *)
   let custom =
     List.fold_left
-      (fun acc (n, v) -> if String.length n > 2 && String.sub n 0 2 = "--" then (n, v) :: List.remove_assoc n acc else acc)
+      (fun acc (n, v) -> if String.length n > 2 && String.sub n 0 2 = "--" then Custom.add n v acc else acc)
       parent.custom declared
   in
-  let lookup n = List.assoc_opt n custom in
+  let lookup n = Custom.find_opt n custom in
   let decls =
     declared
     |> List.filter (fun (n, _) -> not (String.length n > 2 && String.sub n 0 2 = "--"))
@@ -605,9 +609,9 @@ let quirks_sheet : Cascade.sheet =
 (* the browser's sheets, before the page's *)
 let browser_sheets ~(quirks : bool) : Cascade.sheet list = if quirks then [ user_agent_sheet; quirks_sheet ] else [ user_agent_sheet ]
 
-let styles ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.sheet list) (root : Dom.element) : Dom.element -> t =
+let styles_all ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.sheet list) (root : Dom.element) : (Dom.element -> t) * (Dom.element -> Dom.node list) =
   let ua = browser_sheets ~quirks in
-  let declared = Cascade.cascade ?visited m (ua @ sheets) root in
+  let declared, kids = Cascade.cascade_all ?visited m (ua @ sheets) root in
   let table : (int, Dom.element * t) Hashtbl.t = Hashtbl.create 1024 in
   let root_style = compute m ~root_font_size:16. ~parent:initial (declared root) in
   (* each element's from its parent's, down the tree *)
@@ -618,7 +622,10 @@ let styles ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.shee
         match n with
         | Element c -> go c (compute m ~root_font_size:root_style.font_size ~parent:style (declared c))
         | Text _ -> ())
-      e.children
+      (kids e)
   in
   go root root_style;
-  fun e -> match Cascade.find_element table e with Some s -> s | None -> initial
+  ((fun e -> match Cascade.find_element table e with Some s -> s | None -> initial), kids)
+
+let styles ?visited ?quirks (m : Cascade.media) (sheets : Cascade.sheet list) (root : Dom.element) : Dom.element -> t =
+  fst (styles_all ?visited ?quirks m sheets root)

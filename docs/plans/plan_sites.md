@@ -277,11 +277,40 @@ root's place in the tree that is laid out).
   proxy, a URL that can be written, named groups, a proxied array's
   iteration. Ember now starts, Discourse's initializers run, and its
   first templates are rendered by Glimmer's machine. **Where it
-  stops**: a reference read from a dynamic scope is undefined
-  (opcode 111, `-get-dynamic-var`: `outletState`) -- the next thing
-  to find. The browser still asks as itself and shows the crawler's
-  page: to ask as a browser (`Browser_agent`) is for when the
-  application draws.
+  stopped** was said wrongly here at first (a dynamic variable): it
+  was `Object.assign` copying a proxy's keys without asking it their
+  values -- a curried component's arguments, found by going back from
+  the undefined value, an opcode at a time
+  (`notes_debugging_techniques.txt`, session 5).
+- *It draws* (the same evening): the application as Chrome shows it.
+  The browser asks for it by a browser's name (`Browser_agent`'s one
+  line) and runs its scripts by default. **What it costs**: 53 s to
+  the last picture where the crawler's page took 7.5, 25 of them the
+  application's start in one task, the window still. What was taken
+  already: `Map`/`Set`/`WeakMap` hashed (56 s of script to 34), the
+  styles three times faster. What is left is the engine's own speed
+  (`plan_js_speed.md`): Chrome starts the same code in a second.
+- *Later the same day*: the scripts' start 56 s to 17, each second
+  found by a profile and none in the interpreter's core (lists where
+  tables were wanted: `changes.txt`); the page to its last picture in
+  38 s, 12 of them the window still. And the page drawn closer to
+  Chrome's, compared with a headless Chrome's screenshot
+  (`google-chrome --headless=new --screenshot`): its icons (`<use>`
+  of a sprite's `<symbol>`), the lines between rows, the categories'
+  squares (`::before`), the selected tab's line (`::after`, placed by
+  `bottom`). Not yet: round avatars (`border-radius` on a picture),
+  the page's own fonts.
+- *9fans, the topics' messages*: they stayed "Loading..." because the
+  application loads the messages in view, and asks the browser where
+  each is; a script now gets real sizes and positions
+  (`Browser_script.set_measure`). The messages' text wraps
+  (`pre-wrap`).
+- *The others, their scripts on, the same day*: GitHub stops on bytes
+  and a `distance` of undefined in bundles to be run offline as
+  Discourse was (145 requests); chess.com on bytes too, behind
+  Cloudflare's Turnstile; YouTube on `CSSStyleSheet`; Amazon gives
+  its robot check (3 requests). `new.target`, `Reflect.construct`,
+  typed arrays' buffers and `:target` were theirs.
 
 ## Cost
 

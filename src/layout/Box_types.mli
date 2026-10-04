@@ -24,6 +24,12 @@ type box = {
   lines : Html_layout.line list; (* an anonymous box's *)
   backdrops : box list; (* an anonymous box's: its inline elements' boxes, a piece per line, drawn under its words *)
   marker : Html_layout.marker option; (* a list item's *)
+  (* the positioned boxes (absolute, fixed) written in it: out of its
+   * flow, but moved with it wherever it is put (Box_tree.moved), and
+   * drawn after the page's flow (Box_layout.layout gathers them). Each
+   * with the bottom it waits to be placed by, if it is placed so in a
+   * block whose height was not known yet *)
+  lifted : (box * float option) list;
 }
 
 (* {1 A line's content} *)
@@ -79,8 +85,10 @@ type env = {
   metrics : Html_layout.metrics;
   picture_size : string -> (float * float) option;
   style : Dom.element -> Computed.t;
+  kids : Dom.element -> Dom.node list; (* its children, its ::before and ::after among them (Computed.styles_all) *)
   viewport : float * float;
-  positioned : box list ref; (* absolute and fixed boxes, drawn last *)
+  positioned : (box * float option) list ref; (* the positioned boxes of the block being laid out: its [lifted], when done *)
+  late : int ref; (* how many wait to be placed by their bottom *)
   (* shrink-to-fit's measure: lines on the left (a centred line at an
    * unlimited width would be far to the right) *)
   measuring : bool;

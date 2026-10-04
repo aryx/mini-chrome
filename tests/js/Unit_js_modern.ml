@@ -40,6 +40,18 @@ let tests =
       Testo.create "small things: a boolean's text, a descriptor's silence" (fun () ->
           check "toString" "[true.toString(), 'a'.toString(), ('1|2' || '').toString().split('|').length]" "[\"true\", \"a\", 2]";
           check "defineProperty keeps what it is not told" "var o = { a: 1 }; Object.defineProperty(o, 'a', { enumerable: false }); var g = {}; Object.defineProperty(g, 'q', { get: function () { return 5 }, set: function (v) { this.w = v } }); Object.defineProperty(g, 'q', { get: function () { return 6 } }); g.q = 7; [o.a, g.q, g.w]" "[1, 6, 7]");
+      Testo.create "what frameworks lean on: assign and keys through getters and proxies, Map's order, bytes" (fun () ->
+          check "Object.assign and spread read a getter and a proxy"
+            "var s = { get a() { return 5 } }; var real = { x: 1 }; var p = new Proxy({ x: 0 }, { get: function (t, k) { return real[k] } }); var q = new Proxy({}, { ownKeys: function () { return ['k'] }, get: function () { return 9 } }); [Object.assign({}, s).a, { ...s }.a, Object.assign({}, p).x, Object.keys(q), Object.values(q), { ...q }.k]"
+            "[5, 5, 1, [\"k\"], [9], 9]";
+          check "a Map: any key, the order they were put in, one replaced in place"
+            "var o = {}, m = new Map([[1, 'a'], ['1', 'b']]); m.set(o, 'o').set(NaN, 'n'); m.set(1, 'A'); m.delete('1'); [m.size, m.get(1), m.get(o), m.get(NaN), m.has('1'), Array.from(m.values())]"
+            "[3, \"A\", \"o\", \"n\", false, [\"A\", \"o\", \"n\"]]";
+          check "a typed array: of its kind, its bytes a buffer other views share"
+            "var u = new Uint8Array(3); u[1] = 7; var v = new Uint8Array(u.buffer); v[2] = 9; [u instanceof Uint8Array, Array.isArray(u), u.buffer.byteLength, new Uint16Array(2).byteLength, new DataView(u.buffer).getUint8(1), u[2], ArrayBuffer.isView(u)]"
+            "[true, true, 3, 4, 7, 9, true]";
+          check "Reflect.construct and new.target" "function P(a) { this.a = a } class Q { hi() { return 'q' } } class E2 extends Error { constructor(m) { super(m); Object.setPrototypeOf(this, new.target.prototype) } } class E3 extends E2 {} var o = Reflect.construct(P, [5], Q); [o.a, o.hi(), new E3('x') instanceof E3]"
+            "[5, \"q\", true]");
       Testo.create "template literals" (fun () ->
           check "values among the text" "var n = 3, who = 'you'; [`${n} for ${who}, ${n * 2} in all`]" "[\"3 for you, 6 in all\"]";
           check "no value; nothing at all" "[`plain`, ``]" "[\"plain\", \"\"]";

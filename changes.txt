@@ -85,6 +85,19 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- Discourse's start, the scripts alone: 56 s to 17 (docs/dev/
+  notes_debugging_techniques.txt, session 5). None of it the
+  interpreter's own speed: Map, Set and WeakMap hashed; an element's
+  and an attribute's origin (Dtd) asked once, not at each freeze of
+  the tree; querySelector freezing the tree once, not each element
+  with all it holds; the lexer comparing a punctuation in place, by
+  its first character; the parser's operators' table. The page in the
+  browser: 53 s to 38 to its last picture
+- a page with hundreds of custom properties (--x) and megabytes of
+  sheets is styled three times faster (Discourse's: 571 ms to 195): a
+  name's last declaration found without a list gone through for each
+  (Cascade), the custom properties in a map (Computed.Custom), the
+  index of the rules kept between two runs with the same sheets
 - discuss.ocaml.org's front page: 29.5 s to its last picture, now 7.5
   (docs/dev/notes_debugging_techniques.txt, session 5). Three things:
   a page is laid out once when the last of its style sheets has come,
@@ -176,6 +189,44 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a script can ask where things are: offsetHeight, offsetTop,
+  getBoundingClientRect and their kin answer from a layout of the page
+  as it is at that moment (they answered 0), made once between two
+  changes of the tree -- a browser's "forced layout"
+  (Browser_script.set_measure, Browser_page.where). 9fans' topics show
+  all their messages: it loads those in view, and asked which were
+- ::before and ::after (CSS 2.1's generated content): a box of their
+  own with the text of content: (strings, attr(x)), made by the
+  cascade and laid out as children (Cascade.cascade_all,
+  Computed.styles_all; a card on about:chrome). A category's coloured
+  square, a tab's line, quotation marks, a list's separators
+- layout: an absolute box written in an inline-block, a float, a flex
+  item or a table's cell is where that box ends up (each box keeps
+  the positioned boxes written in it, and they move with it: it was
+  placed before its parent was); white-space: pre-wrap wraps (a
+  mail's text); a box placed by its bottom in a block whose height
+  its content gives; a table row's
+  own borders (the lines of a list); rgb(...) in a border shorthand is
+  its colour (it was taken for a width, and the border black)
+- an <svg> that is a <use> of a <symbol> of the page's sprite is drawn
+  (Discourse's icons, and most sites' of the 2020s)
+- while a page's scripts are fetched, it is shown without its
+  <noscript> parts, whose pictures were fetched for nothing
+- JavaScript: new.target; Reflect.construct; a typed array is of its
+  kind (instanceof Uint8Array), has a buffer other views share and a
+  byteLength; :target and other states known to a selector
+- discuss.ocaml.org is Discourse's application, as in Chrome: the
+  logo, Sign Up and Log In, Latest / Hot / Categories, the topics with
+  their avatars, counts and ages -- Ember 7 and Discourse's 4 MB of
+  modules run by our engine (half a minute of it, the window still
+  meanwhile: docs/plans/plan_sites.md). It is asked for by a browser's
+  name (Browser_agent: Discourse sends any other the page it keeps for
+  crawlers), its scripts run by default, and a script's request to
+  another site says its Origin, without which the CDN's answer may not
+  be read. On the way: Object.assign, keys, values, entries and
+  {...spread} through a proxy and through getters; MessageChannel;
+  matchMedia answering for the window's size; Map, Set and WeakMap
+  hashed (they were lists)
 - JavaScript, what a framework of the 2020s is written in -- found
   bringing up Discourse (Ember 7, 4 MB of modules: discuss.ocaml.org
   as Chrome gets it), which now starts and renders its first

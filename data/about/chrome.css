@@ -46,3 +46,15 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 24px 
         background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 16' width='32' height='32'%3E%3Cpath d='m2 27 14-29 14 29z' fill='%23999'/%3E%3C/svg%3E") no-repeat }
 .bell { display: inline-block; width: 40px; height: 40px; background-color: var(--accent);
         mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 2a5 5 0 0 1 5 5v4l2 3H3l2-3V7a5 5 0 0 1 5-5zm-2 14h4a2 2 0 0 1-4 0z'/%3E%3C/svg%3E") }
+
+/* generated content: ::before and ::after */
+.gen-quote::before { content: "\201C"; color: #c33; }
+.gen-quote::after { content: "\201D"; color: #c33; }
+.gen-badge { display: inline-flex; align-items: baseline; gap: 5px; }
+.gen-badge::before { content: ""; background: #3ab54a; width: 10px; height: 10px; flex: 0 0 auto; }
+.gen-link::after { content: " (" attr(href) ")"; color: #777; }
+.gen-tabs { list-style: none; display: flex; gap: 18px; padding: 0; margin: 8px 0 0; }
+.gen-tabs li:not(:last-child)::after { content: ""; }
+.gen-tabs a { position: relative; display: block; padding: 6px 2px; color: #333; text-decoration: none; }
+.gen-tabs a.active { color: #08c; }
+.gen-tabs a.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #08c; }

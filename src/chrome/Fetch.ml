@@ -22,13 +22,13 @@ let error_to_string (e : error) : string =
 type answer = (response, error) result
 
 (* the capability closed: it is stored *)
-type 'msg request = { caps : Cap.network; url : string; post : (string * string) option; k : answer -> 'msg }
+type 'msg request = { caps : Cap.network; url : string; post : (string * string) option; origin : string option; k : answer -> 'msg }
 
-let get (caps : < Cap.network ; .. >) (url : string) (k : answer -> 'msg) : 'msg request =
-  { caps = (caps :> Cap.network); url; post = None; k }
+let get ?origin (caps : < Cap.network ; .. >) (url : string) (k : answer -> 'msg) : 'msg request =
+  { caps = (caps :> Cap.network); url; post = None; origin; k }
 
-let post (caps : < Cap.network ; .. >) (url : string) ~(content_type : string) ~(body : string) (k : answer -> 'msg) : 'msg request =
-  { caps = (caps :> Cap.network); url; post = Some (content_type, body); k }
+let post ?origin (caps : < Cap.network ; .. >) (url : string) ~(content_type : string) ~(body : string) (k : answer -> 'msg) : 'msg request =
+  { caps = (caps :> Cap.network); url; post = Some (content_type, body); origin; k }
 
 type 'msg in_flight =
   | Now of 'msg
@@ -64,16 +64,16 @@ let sockets (t : 'msg t) : 'msg Web_sockets.t = t.sockets
  * the redirections, the status, the headers, the body's bytes. *)
 let is_https (url : string) : bool = String.length url >= 8 && String.lowercase_ascii (String.sub url 0 8) = "https://"
 
-let https_get ?post ?agent (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
-  match Http_client.fetch ?post ~jar ?agent caps url with
+let https_get ?post ?agent ?origin (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
+  match Http_client.fetch ?post ~jar ?agent ?origin caps url with
   | Ok (url, response) -> Ok { url; status = response.status; headers = response.headers; body = response.body }
   | Error why -> Error (Network_error why)
 
 (* the blocking fetch: at once, the frame waiting, or on a thread *)
-let blocking ?post (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
+let blocking ?post ?origin (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
   match t.pool with
-  | None -> Now (k (https_get ?post ?agent:t.agent t.jar caps url))
-  | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post ?agent:t.agent t.jar caps url), k)
+  | None -> Now (k (https_get ?post ?origin ?agent:t.agent t.jar caps url))
+  | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post ?origin ?agent:t.agent t.jar caps url), k)
 
 (* what -v shows: each request as it starts, and its answer
  * (said when it is handed back, in step: not on a thread of the pool) *)
@@ -87,7 +87,7 @@ let perform (t : 'msg t) (r : 'msg request) : unit =
   Logs.info (fun m -> m "%s %s" (if r.post = None then "GET" else "POST") r.url);
   let k (a : answer) = said r.url a; r.k a in
   let f =
-    if is_https r.url then blocking ?post:r.post t r.caps r.url k
+    if is_https r.url then blocking ?post:r.post ?origin:r.origin t r.caps r.url k
     else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool ~jar:t.jar ?agent:t.agent r.caps r.url, k)
   in
   t.in_flight <- t.in_flight @ [ f ]

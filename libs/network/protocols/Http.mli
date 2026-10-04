@@ -147,11 +147,11 @@ type request = {
 (* what a request says it comes from when nothing else is given *)
 val default_agent : string
 
-val get : ?cookie:string -> ?agent:string -> ?keep:bool -> host:string -> string -> request
+val get : ?cookie:string -> ?agent:string -> ?keep:bool -> ?origin:string -> host:string -> string -> request
 
 (* a POST of [body] to [target]: get's headers, and the body's
  * Content-Type and Content-Length (a form's fields, Urlencoded) *)
-val post : ?cookie:string -> ?agent:string -> ?keep:bool -> host:string -> content_type:string -> body:string -> string -> request
+val post : ?cookie:string -> ?agent:string -> ?keep:bool -> ?origin:string -> host:string -> content_type:string -> body:string -> string -> request
 
 (* the bytes to send: the request line, the headers, the empty line,
  * and the body if there is one (a POST's) *)

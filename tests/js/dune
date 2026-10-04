@@ -3,6 +3,7 @@
 ; literals read by its lexer (languages/json)
 (test
  (name Test)
+ (locks js_tests) ; with the two runs below
  (libraries alcotest testo mini_opti javascript lang_json) ; Json, over Js_lexer
 )
 
@@ -11,6 +12,9 @@
 ; way): what the optimized paths give, the simple ones must
 (rule
  (alias runtest)
+ ; one at a time with the two other runs: each makes its _build/testo
+ ; here, and two starting together fall over each other's mkdir
+ (locks js_tests)
  (action
   (setenv MINI_OPTI off (run %{exe:Test.exe}))))
 
@@ -18,5 +22,6 @@
 ; not compiled (Js_compile): the first run is the compiled one
 (rule
  (alias runtest)
+ (locks js_tests)
  (action
   (setenv MINI_OPTI walk (run %{exe:Test.exe}))))

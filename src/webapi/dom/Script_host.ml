@@ -14,7 +14,9 @@ open Script_types
 open Script_dom (* the copy: its nodes read and changed *)
 
 (* a script has changed the tree: the page to be laid out again *)
-let touch (t : t) : unit = t.changed <- true
+let touch (t : t) : unit =
+  t.changed <- true;
+  t.geometry <- None
 let str (v : value) : string = to_string v
 let arg (args : value list) (i : int) : value = Option.value (List.nth_opt args i) ~default:Undefined
 

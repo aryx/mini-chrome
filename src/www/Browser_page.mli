@@ -73,6 +73,10 @@ val laid_out : settings -> t -> t
  * (Browser_script.tree) *)
 val with_tree : settings -> t -> Dom.element -> t
 
+(* where each element of a laid out page is: its block's box, or the
+ * box around its words (x, y, width, height, from the page's top) *)
+val where : t -> Dom.element -> (float * float * float * float) option
+
 (* by the box model, with its style sheets: the addresses of the
  * sheets the page asks for and does not have yet ([settings.sheet]) --
  * its <link rel=stylesheet>s whose media= holds, and the @imports of

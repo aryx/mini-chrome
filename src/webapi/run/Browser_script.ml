@@ -45,6 +45,8 @@ let report (t : t) (e : Js_eval.error) : unit =
  * way its error is said in the console, not the next handler's
  * business; whether it returned false (DOM level 0's way to cancel,
  * onclick="...; return false") *)
+let where_later : (t -> node -> (float * float * float * float) option) ref = ref (fun _ _ -> None)
+
 let run_handler ?(nested = false) (t : t) (f : value) ~(this : value) (event : value) : bool =
   (* a listener that is an object: its handleEvent, the object for this
    * (DOM level 2's EventListener, which a framework gives so that one
@@ -137,9 +139,10 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
       now = 0.; timers = []; next_timer = 0; alerts = []; base; address = None; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
-      more = (fun _ _ -> None); dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
+      more = (fun _ _ -> None); where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
+  t.where <- (fun n -> !where_later t n);
   t.dispatch <- dispatch_event ~nested:true t;
   t.inserted <- (fun n -> !inserted_later t n);
   (* Date's clock: the page's, from [epoch] *)
@@ -318,6 +321,29 @@ let tree (t : t) : Dom.element =
   let root = go t.root in
   t.frozen <- !pairs;
   root
+
+(* where a node is: the tree frozen and laid out by the browser
+ * ([measure]) the first time a script asks since it changed -- what a
+ * browser calls a forced layout: a script that writes then reads a
+ * size makes the page be laid out in the middle of its run *)
+let where (t : t) (n : node) : (float * float * float * float) option =
+  match (t.geometry, t.measure) with
+  | Some f, _ -> f n
+  | None, None -> None
+  | None, Some measure ->
+      let changed = t.changed in
+      let at = measure (tree t) in
+      t.changed <- changed;
+      let pairs = t.frozen in
+      let f (n : node) = Option.bind (List.find_map (fun (e, n') -> if n' == n then Some e else None) pairs) at in
+      t.geometry <- Some f;
+      f n
+
+let () = where_later := where
+
+let set_measure (t : t) (measure : Dom.element -> Dom.element -> (float * float * float * float) option) : unit =
+  t.measure <- Some measure;
+  t.geometry <- None
 
 let click (t : t) (e : Dom.element) : bool =
   match node_of_element t e with Some n -> dispatch t n "click" [] | None -> false

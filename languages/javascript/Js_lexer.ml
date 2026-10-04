@@ -48,6 +48,15 @@ let puncts2 =
 
 let puncts1 = "{}()[];,.<>+-*/%=!?:&|^~"
 
+let puncts32 = puncts3 @ puncts2
+
+(* opti: those of three and two characters by their first: the few to
+ * try where a punctuation starts, not all forty *)
+let puncts_by_first : string list array =
+  let a = Array.make 256 [] in
+  List.iter (fun p -> a.(Char.code p.[0]) <- a.(Char.code p.[0]) @ [ p ]) puncts32;
+  a
+
 let is_digit c = c >= '0' && c <= '9'
 (* '#': a class's private name, #x (ES2022), read as a name like any *)
 (* a byte above ASCII is of a letter of another alphabet, in UTF-8: a
@@ -164,10 +173,16 @@ let tokenize (s : string) : token list =
       | ('"' | '\'') as q -> go (string i q)
       | '`' -> go (template i)
       | _ -> (
-          let starts p = i + String.length p <= n && sub i (i + String.length p) = p in
+          (* opti: compared in place (it was a substring made for each
+           * of the forty candidates, at each punctuation: a fifth of
+           * the reading of a bundle of megabytes) *)
+          let starts p =
+            let l = String.length p in
+            i + l <= n && (let rec same k = k = l || (String.unsafe_get s (i + k) = String.unsafe_get p k && same (k + 1)) in same 0)
+          in
           (* "?." before a digit is "?" and ".5": c ?.5 : 1 *)
           let starts p = starts p && not (p = "?." && i + 2 < n && is_digit s.[i + 2]) in
-          match List.find_opt starts (puncts3 @ puncts2) with
+          match List.find_opt starts puncts_by_first.(Char.code s.[i]) with
           | Some p ->
               emit (Punct p) !line;
               go (i + String.length p)

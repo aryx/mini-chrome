@@ -120,6 +120,16 @@
   def(Number, "parseFloat", parseFloat);
   def(Number, "parseInt", parseInt);
 
+  // Reflect.construct(F, args, NewTarget): new F(...args), the object
+  // then of NewTarget's kind (how a class compiled for old browsers
+  // extends a built-in: Reflect.construct(HTMLElement, [], new.target))
+  def(Reflect, "construct", function (F, args, NewTarget) {
+    var made = new F(...(args || []));
+    if (NewTarget !== undefined && NewTarget !== F && made !== null && typeof made === "object") Object.setPrototypeOf(made, NewTarget.prototype);
+    return made;
+  });
+  def(Reflect, "ownKeys", Reflect.ownKeys || function (o) { return Object.keys(o); });
+
   // new Number(5) and new String("a") are objects holding a value
   // (Js_builtins' boxed): valueOf gives it, and so does what converts
   // an object (new Number(5) + 1 is 6)
@@ -193,6 +203,23 @@
     return r;
   });
 
+  // a typed array's buffer: an ArrayBuffer whose bytes are the array
+  // itself (right for the arrays of bytes, the ones buffers are asked
+  // of; a Float64Array's would be its numbers), kept on it
+  ["Uint8Array", "Int8Array", "Uint8ClampedArray", "Uint16Array", "Int16Array", "Uint32Array", "Int32Array", "Float32Array", "Float64Array"].forEach(function (name) {
+    var C = globalThis[name], size = /8/.test(name) ? 1 : /16/.test(name) ? 2 : /64/.test(name) ? 8 : 4;
+    C.BYTES_PER_ELEMENT = size;
+    Object.defineProperty(C.prototype, "BYTES_PER_ELEMENT", { value: size, configurable: true });
+    Object.defineProperty(C.prototype, "byteLength", { get: function () { return this.length * size; }, configurable: true });
+    Object.defineProperty(C.prototype, "byteOffset", { get: function () { return 0; }, configurable: true });
+    Object.defineProperty(C.prototype, "buffer", { get: function () {
+      if (!this._buffer) { var b = new ArrayBuffer(0); b._bytes = this; b.byteLength = this.length * size; Object.defineProperty(this, "_buffer", { value: b, enumerable: false, configurable: true }); }
+      return this._buffer;
+    }, configurable: true });
+    C.from = function (items, f) { return new C(Array.from(items, f)); };
+    C.of = function () { return new C(Array.prototype.slice.call(arguments)); };
+  });
+
   // bytes as a thing of their own, and a view that reads numbers of
   // any size in them: the buffer here is an array of bytes, shared by
   // the views made with new DataView(buffer) (a typed array made from
@@ -201,7 +228,7 @@
     globalThis.ArrayBuffer = class ArrayBuffer {
       constructor(n) { this.byteLength = n || 0; this._bytes = new Array(this.byteLength).fill(0); }
       slice(a, b) { var out = new ArrayBuffer(0); out._bytes = this._bytes.slice(a, b); out.byteLength = out._bytes.length; return out; }
-      static isView(v) { return v instanceof DataView; }
+      static isView(v) { return v instanceof DataView || (Array.isArray(v) && "BYTES_PER_ELEMENT" in v); }
     };
     globalThis.DataView = class DataView {
       constructor(buffer, offset, length) {

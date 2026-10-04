@@ -15,6 +15,9 @@ let () =
       let base = match rest with b :: _ -> b | [] -> "http://page.test/" in
       (* WALK=1: the evaluator, whose errors say more (Js_compile's are shorter) *)
       if Sys.getenv_opt "WALK" <> None then Mini_opti.compiled := false;
+      (* SIMPLE=1: the simple scopes too (opti=off): a wrong answer that
+       * goes away so is the fast paths' *)
+      if Sys.getenv_opt "SIMPLE" <> None then (Mini_opti.enabled := false; Mini_opti.compiled := false);
       let html = In_channel.with_open_bin file In_channel.input_all in
       (* its cookies kept here, each one set said *)
       let jar = ref [] in

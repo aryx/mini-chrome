@@ -38,9 +38,19 @@
    of looks (tools/mosaic's Mosaic_looks.mli) written in the language
    the pages use.
 
+   ::before and ::after are elements the cascade makes (Cascade's
+   cascade_all: content's text in an element named "::before"), styled
+   here as children of theirs: [styles_all] gives each element's
+   children with them, for the layout to go through.
+
    Not computed: the properties layout does not use yet (shadows,
    animations, a transform but for its translation: a rotation, a
-   scale), and ::before and ::after's content. *)
+   scale); content's counters and quotes. *)
+
+(* the custom properties (--x) an element has, its own and its
+ * ancestors', by name: a sheet of the 2020s declares hundreds on the
+ * root, and each var(--x) looks one up *)
+module Custom : Map.S with type key = string
 
 type display =
   | Inline
@@ -132,7 +142,7 @@ type t = {
   grid_areas : string list list;
   grid_area : Css_grid.placement;
   align_content : align option;
-  custom : (string * Css_syntax.component list) list; (* the custom properties, inherited *)
+  custom : Css_syntax.component list Custom.t; (* the custom properties, inherited *)
 }
 
 (* the root's parent: what the root inherits (the initial values, a
@@ -154,4 +164,9 @@ val browser_sheets : quirks:bool -> Cascade.sheet list
  * browser's sheet first, then [sheets] (the page's); with [quirks]
  * (false), quirks mode's rules for a page without a DOCTYPE: a table's
  * fonts and alignment not inherited *)
+(* the same, and each element's children with its ::before and ::after
+ * (Cascade.cascade_all): what a layout goes through *)
+val styles_all :
+  ?visited:(string -> bool) -> ?quirks:bool -> Cascade.media -> Cascade.sheet list -> Dom.element -> (Dom.element -> t) * (Dom.element -> Dom.node list)
+
 val styles : ?visited:(string -> bool) -> ?quirks:bool -> Cascade.media -> Cascade.sheet list -> Dom.element -> Dom.element -> t

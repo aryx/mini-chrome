@@ -166,8 +166,20 @@ let to_fragment (cfg : 'msg config) (tab : t) : t =
 (* A page shown *)
 (*****************************************************************************)
 
+(* the tab's script told how to measure: a script that asks where an
+ * element is (offsetHeight, getBoundingClientRect) has the page laid
+ * out as it is then, with what the tab has now (its sheets, its
+ * pictures, the window's size) -- said again each time those change *)
+let measuring (cfg : 'msg config) (tab : t) : t =
+  (match (tab.state, tab.script) with
+  | Shown p, Some s ->
+      let settings = cfg.settings tab in
+      Browser_script.set_measure s (fun tree -> Browser_page.where (Browser_page.with_tree settings p tree))
+  | _ -> ());
+  tab
+
 let relaid (cfg : 'msg config) (tab : t) : t =
-  match tab.state with Shown p -> { tab with state = Shown (Browser_page.laid_out (cfg.settings tab) p) } | Loading _ -> tab
+  measuring cfg (match tab.state with Shown p -> { tab with state = Shown (Browser_page.laid_out (cfg.settings tab) p) } | Loading _ -> tab)
 
 (* a page just read: its scripts run first, if the browser has them,
  * and the page laid out from the tree they leave *)
@@ -176,6 +188,7 @@ let relaid (cfg : 'msg config) (tab : t) : t =
 let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   match (tab.state, tab.script) with
   | Shown p, Some s ->
+      ignore (measuring cfg tab);
       Browser_script.run_scripts ~source:(fun u -> List.assoc_opt u tab.sources) s;
       { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p (Browser_script.tree s)) }
   | _ -> tab
@@ -211,6 +224,11 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in
+    (* what is shown meanwhile is the page a script sees: without its
+     * <noscript>s, written for a browser that runs none (their
+     * pictures were fetched, sixty avatars before the application
+     * that draws them itself) *)
+    let p = if missing = [] then p else Browser_page.with_tree (cfg.settings tab) p (Browser_script.tree s) in
     let tab = { tab with state = Shown p; script = Some s; pending_scripts = missing } in
     if missing = [] then run_page_scripts cfg tab else tab
 
@@ -396,7 +414,7 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
           let tab = List.fold_left (fun tab (r : Script_types.request) -> logged ~status:0 Fetch r.url tab) tab requests in
           let send (r : Script_types.request) =
             let k = cfg.got_answer r.rid r.url in
-            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post network r.url ~content_type ~body k | None -> Fetch.get network r.url k))
+            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post ?origin:r.origin network r.url ~content_type ~body k | None -> Fetch.get ?origin:r.origin network r.url k))
           in
           (tab, Cmd.batch (cmd :: List.map send requests))
       in
@@ -540,7 +558,7 @@ let after_task (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : 
     | Shown p, Some s when Browser_script.changed s ->
         let tree = Browser_script.tree s in
         let focus = Option.bind tab.focus (fun e -> Option.bind (path_to p.tree e) (at_path tree)) in
-        with_pictures cfg network ({ tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus }, Cmd.none)
+        with_pictures cfg network (measuring cfg { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus }, Cmd.none)
     | _ -> (tab, Cmd.none))
 
 (* the answer to a request a script made (XMLHttpRequest,

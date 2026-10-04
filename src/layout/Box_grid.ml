@@ -40,7 +40,7 @@ let items ~(absolute : Dom.element -> Computed.t -> unit) (env : env) (e : Dom.e
               absolute c cs;
               []
           | _ -> [ (c, blockify cs) ]))
-    e.children
+    (env.kids e)
 
 (* whether a track's size reads its content's narrowest, its widest.
  * An fr track reads neither in a room to share (it takes what is
@@ -170,7 +170,7 @@ let children ~lay_out ~measure ~absolute ~relative (ctx : ctx) (e : Dom.element)
   let edge =
     if measuring then
       [ { element = None; style = s; x = ctx.x +. grid_width; y = top; width = 0.; height = 0.; border = (0., 0., 0., 0.); children = []; lines = [];
-          backdrops = []; marker = None } ]
+          backdrops = []; marker = None; lifted = [] } ]
     else []
   in
   ctx.children <- List.rev (boxes @ edge);

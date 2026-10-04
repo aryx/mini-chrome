@@ -128,7 +128,7 @@ let tests =
           in
           Alcotest.check near "relative: moved down 5" 5. (box "r" p).y;
           let a = box "a" p in
-          Alcotest.(check (list near)) "absolute: in its positioned parent" [ 13.; 7.; 20. ] [ a.x; a.y; a.width ]);
+          Alcotest.(check (list near)) "absolute: in its positioned parent, moved with it" [ 13.; 12.; 20. ] [ a.x; a.y; a.width ]);
       (* an application's frame: everything absolute, in heights known
        * before the content is (the window's 600, here) *)
       Testo.create "absolute boxes in a height that is known" (fun () ->
@@ -153,6 +153,42 @@ let tests =
           Alcotest.(check (option string)) "its address" (Some "x") (Hit.link_at h ~x:10. ~y:5.);
           Alcotest.(check (option string)) "beside the side bar: the frame" (Some "app")
             (Option.bind (Hit.element_at h ~x:150. ~y:300.) (Dom.attribute "id")));
+      Testo.create "white-space: pre-wrap keeps the lines and the spaces, and wraps" (fun () ->
+          (* letters 10 wide, a box of 100: "aaa bbb ccc" is 110 *)
+          let p = page {|<body style="margin: 0"><pre id=p style="margin: 0; width: 100px; white-space: pre-wrap">aaa bbb ccc
+  x  y</pre>|} in
+          Alcotest.(check (list (pair string (float 0.01)))) "cut at a space; the next line's spaces kept"
+            [ ("  x", 0.); (" y", 40.); ("aaa", 0.); ("bbb", 40.); ("ccc", 0.) ] (List.sort compare (words p));
+          let q = page {|<body style="margin: 0"><pre style="margin: 0; width: 100px">aaa bbb ccc</pre>|} in
+          Alcotest.(check int) "pre alone: one line, past the edge" 1 (List.length (words q)));
+      Testo.create "::before and ::after: boxes of their own, with their content" (fun () ->
+          let root = Html_tree.of_string {|<body style="margin: 0"><p id=p>bc</p><span id=b class=badge><span>x</span></span>|} in
+          let media : Cascade.media = { width = 200.; height = 600. } in
+          let css = {|html { font-size: 10px } p { margin: 0 } p::before { content: "a" } p::after { content: attr(id) "!" }
+                     .badge { display: flex } .badge::before { content: ""; width: 7px; height: 5px }|} in
+          let sheet : Cascade.sheet = { origin = Author; rules = Css_syntax.parse_stylesheet css } in
+          let style, kids = Computed.styles_all media [ sheet ] root in
+          let p = Box_layout.layout metrics ~kids ~viewport:(200., 600.) style root in
+          Alcotest.(check (list string)) "the words, in order" [ "a"; "bc"; "p!" ] (List.map fst (words (box "p" p)));
+          let square = List.hd (box "b" p).children in
+          Alcotest.(check (list near)) "an empty content is still a box: a flex item of its size" [ 7.; 5. ] [ square.width; square.height ]);
+      Testo.create "bottom, in a block whose height its content gives" (fun () ->
+          let p =
+            page ~css:"#card { position: relative; width: 100px } #tag { position: absolute; left: 0; bottom: 2px; width: 10px; height: 4px }"
+              {|<body style="margin: 0"><div id=card>one<br>two<br>three<span id=tag></span></div>|}
+          in
+          let card = box "card" p and tag = box "tag" p in
+          Alcotest.check near "the card: three lines" 36. card.height;
+          Alcotest.check near "the tag: 2 above its bottom" (36. -. 2. -. 4.) tag.y);
+      Testo.create "a table row's own borders" (fun () ->
+          let p =
+            page ~css:"table { border-collapse: collapse; border-spacing: 0 } td { padding: 0 } tr { border-bottom: 3px solid rgb(50%, 50%, 50%) }"
+              {|<body style="margin: 0"><table><tr id=r><td>a</td></tr><tr><td>b</td></tr></table>|}
+          in
+          let r = box "r" p in
+          let _, _, wb, _ = r.style.border_width and _, _, cb, _ = r.style.border_color in
+          Alcotest.(check (pair near int)) "the row has a box, its border's width and colour read (rgb(...) is a colour, not a width)" (3., 127) (wb, cb.r);
+          Alcotest.(check bool) "the row's box is as high as its cell" true (r.height >= 12.));
       Testo.create "transform: translate moves a box" (fun () ->
           let p =
             page

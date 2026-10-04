@@ -72,6 +72,20 @@ let tests =
           Alcotest.(check (option (pair string bool))) "then nothing" None (Browser_script.take_address t);
           ignore (value t "history.replaceState(null, '', '/b')");
           Alcotest.(check (option (pair string bool))) "replaced" (Some ("http://site.test/b", true)) (Browser_script.take_address t));
+      Testo.create "where an element is: asked of the browser, once between two changes" (fun () ->
+          let t = page "<div id=a>x</div><div id=b>y</div>" in
+          let asked = ref 0 in
+          (* a browser that stacks the page's elements, each 10 high, 100 wide *)
+          Browser_script.set_measure t (fun tree ->
+              incr asked;
+              let divs = Dom.find_all "div" tree in
+              fun e -> List.find_map (fun (i, d) -> if d == e then Some (0., 10. *. float_of_int i, 100., 10.) else None) (List.mapi (fun i d -> (i, d)) divs));
+          Alcotest.(check string) "sizes and places" "[10, 100, 10, 20]"
+            (value t "var b = document.getElementById('b'), r = b.getBoundingClientRect(); [b.offsetHeight, b.offsetWidth, r.top, r.bottom]");
+          Alcotest.(check int) "one layout for the four" 1 !asked;
+          Alcotest.(check string) "after a change, again" "20"
+            (value t "var d = document.createElement('div'); document.body.insertBefore(d, document.getElementById('a')); document.getElementById('b').offsetTop");
+          Alcotest.(check int) "a second layout" 2 !asked);
       Testo.create "a value shown: five deep, no further" (fun () ->
           let t = page "<script>var o = { a: { b: { c: { d: { e: { f: 1 } } } } } }</script>" in
           Alcotest.(check string) "cut" "{a: {b: {c: {d: {e: ...}}}}}" (value t "o"));

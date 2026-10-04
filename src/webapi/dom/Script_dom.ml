@@ -134,12 +134,16 @@ let matching (selector : string) (n : node) ~(keep : node -> bool) : node list =
   | [] -> throw "SyntaxError" (Printf.sprintf "'%s' is not a valid selector" selector)
   | rules ->
       let found = ref [] in
+      (* a tree frozen once, then gone through beside its nodes (it was
+       * each element frozen with all it holds, at each element: the
+       * tree's size times its depth, for every querySelector) *)
+      let rec beside (ancestors : Dom.element list) (n : node) (e : Dom.element) =
+        if keep n && List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules then found := n :: !found;
+        let frozen = List.filter_map (fun (c : Dom.node) -> match c with Element c -> Some c | Text _ -> None) e.children in
+        (try List.iter2 (beside (e :: ancestors)) (List.filter is_element n.children) frozen with Invalid_argument _ -> ())
+      in
       let rec go (ancestors : Dom.element list) (n : node) =
-        if is_element n then (
-          let e = freeze n in
-          if keep n && List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules then found := n :: !found;
-          List.iter (go (e :: ancestors)) n.children)
-        else if n.name = fragment_name then List.iter (go ancestors) n.children
+        if is_element n then beside ancestors n (freeze n) else if n.name = fragment_name then List.iter (go ancestors) n.children
       in
       (* the tree [n] is in ends at a shadow root: what is in a shadow
        * tree is found from its root, not from the page (Shadow_tree.mli) *)

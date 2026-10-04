@@ -252,18 +252,58 @@ let hints (ancestors : Dom.element list) (e : Dom.element) : string =
      match lower "align" with Some ("left" | "right" | "center" | "justify" as v) -> add "text-align" v | _ -> ());
   Buffer.contents b
 
-let cascade ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root : Dom.element) : Dom.element -> (string * component list) list =
+(* the sheets' rules by the key of their selector's last part: where an
+ * element looks for the rules that may be its own *)
+let index_simple (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t =
   let index : (string, entry) Hashtbl.t = Hashtbl.create 1024 in
   List.iteri
     (fun order (origin, sel, declarations) ->
-      if Selectors.pseudo_element sel = None then
+      (* ::before's and ::after's rules too (told apart when an element
+       * is styled); the other pseudo-elements' are not read *)
+      if (match Selectors.pseudo_element sel with None | Some ("before" | "after") -> true | Some _ -> false) then
         (* the page's normal declarations above the browser's, its
          * !important ones above both, the browser's !important last *)
         let layer_normal, layer_important = match origin with User_agent -> (0, 3) | Author -> (1, 2) in
         Hashtbl.add index (key sel)
           { layer_normal; layer_important; specificity = Selectors.specificity sel; order; selector = sel; declarations; needs = needs sel })
     (rules m sheets);
+  index
+
+(* opti: the index of the last sheets asked, kept: a page whose scripts
+ * change its tree is styled again with the same sheets, and the index
+ * of 1.9 MB of them (Discourse's) was made again each time *)
+let last_index : (media * sheet list * (string, entry) Hashtbl.t) option ref = ref None
+
+let index_opti (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t =
+  let same a b = List.length a = List.length b && List.for_all2 (fun (x : sheet) (y : sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
+  match !last_index with
+  | Some (m', sh, index) when m' = m && same sh sheets -> index
+  | _ ->
+      let index = index_simple m sheets in
+      last_index := Some (m, sheets, index);
+      index
+
+(* what content: says, as text: its strings, an attr(x) of the element;
+ * none (no box) for none, normal, or nothing said *)
+let content_text (e : Dom.element) (v : component list) : string option =
+  let part (c : component) =
+    match c with
+    | Token (String s) -> Some s
+    | Func (f, [ Token (Ident a) ]) when String.lowercase_ascii f = "attr" -> Some (Option.value (Dom.attribute a e) ~default:"")
+    | Token (Ident ("none" | "normal")) -> None
+    | _ -> Some ""
+  in
+  match List.map part (List.filter (fun c -> c <> Token Whitespace) v) with
+  | [] -> None
+  | parts when List.mem None parts -> None
+  | parts -> Some (String.concat "" (List.filter_map Fun.id parts))
+
+let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root : Dom.element) :
+    (Dom.element -> (string * component list) list) * (Dom.element -> Dom.node list) =
+  let index = if !Mini_opti.enabled then index_opti m sheets else index_simple m sheets in
   let table : (int, Dom.element * (string * component list) list) Hashtbl.t = Hashtbl.create 1024 in
+  (* the elements that have a ::before or an ::after: their children with those *)
+  let kids : (int, Dom.element * Dom.node list) Hashtbl.t = Hashtbl.create 64 in
   (* the keys of the ancestors of the element being styled, counted *)
   let above : (string, int) Hashtbl.t = Hashtbl.create 256 in
   let rec go (ancestors : Dom.element list) (e : Dom.element) =
@@ -272,9 +312,29 @@ let cascade ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root 
     (* before the ancestor filter (0.95 s on a Wikipedia article, 0.54
      * after; notes_opti_ocaml.md section 10):
      *   List.filter (fun en -> Selectors.matches ~visited en.selector ancestors e) candidates *)
-    let matching =
+    let all_matching =
       List.filter (fun en -> List.for_all (Hashtbl.mem above) en.needs && Selectors.matches ~visited en.selector ancestors e) candidates
     in
+    let matching = List.filter (fun en -> Selectors.pseudo_element en.selector = None) all_matching in
+    (* its ::before and ::after: an element made for each whose rules
+     * give it a content, holding that text, styled by those rules *)
+    let pseudo (which : string) : Dom.node list =
+      match List.filter (fun en -> Selectors.pseudo_element en.selector = Some which) all_matching with
+      | [] -> []
+      | rules -> (
+          let keyed = List.concat_map (fun en -> List.map (fun (d : declaration) -> (((if d.important then en.layer_important else en.layer_normal), en.specificity, en.order), d)) en.declarations) rules in
+          let sorted = List.stable_sort (fun (a, _) (b, _) -> compare a b) keyed in
+          let winning = List.fold_left (fun acc (_, (d : declaration)) -> (d.name, d.value) :: List.remove_assoc d.name acc) [] sorted in
+          match Option.bind (List.assoc_opt "content" winning) (content_text e) with
+          | None -> []
+          | Some text ->
+              let made : Dom.element = { name = "::" ^ which; attributes = []; extensions = []; origin = Core; children = (if text = "" then [] else [ Text text ]) } in
+              Hashtbl.add table (Hashtbl.hash made) (made, List.rev (List.remove_assoc "content" winning));
+              [ Element made ])
+    in
+    (match (pseudo "before", pseudo "after") with
+    | [], [] -> ()
+    | before, after -> Hashtbl.add kids (Hashtbl.hash e) (e, before @ e.children @ after));
     (* each declaration with its sort key; style= an author's rule above
      * any selector *)
     let keyed =
@@ -292,14 +352,28 @@ let cascade ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root 
       | None -> []
     in
     let sorted = List.stable_sort (fun (a, _) (b, _) -> compare a b) keyed in
-    let winning = List.fold_left (fun acc (_, (d : declaration)) -> (d.name, d.value) :: List.remove_assoc d.name acc) [] sorted in
-    Hashtbl.add table (Hashtbl.hash e) (e, List.rev winning);
+    (* a name's last declaration wins, the names in the order of their
+     * last: simply
+     *   List.rev (List.fold_left (fun acc (_, d) -> (d.name, d.value) :: List.remove_assoc d.name acc) [] sorted)
+     * which goes through the list for each declaration (an element of
+     * a page with hundreds of custom properties: 14% of the styles'
+     * time); here from the end, a name kept the first time it is met *)
+    let seen = Hashtbl.create 32 in
+    let winning =
+      List.fold_left
+        (fun acc (_, (d : declaration)) -> if Hashtbl.mem seen d.name then acc else (Hashtbl.add seen d.name (); (d.name, d.value) :: acc))
+        [] (List.rev sorted)
+    in
+    Hashtbl.add table (Hashtbl.hash e) (e, winning);
     List.iter (fun k -> Hashtbl.replace above k (1 + Option.value (Hashtbl.find_opt above k) ~default:0)) keys;
     List.iter (fun (n : Dom.node) -> match n with Element c -> go (e :: ancestors) c | Text _ -> ()) e.children;
     List.iter (fun k -> match Hashtbl.find_opt above k with Some 1 -> Hashtbl.remove above k | Some n -> Hashtbl.replace above k (n - 1) | None -> ()) keys
   in
   go [] root;
-  fun e -> match find_element table e with Some ds -> ds | None -> []
+  ((fun e -> match find_element table e with Some ds -> ds | None -> []), fun e -> match find_element kids e with Some ns -> ns | None -> e.children)
+
+let cascade ?visited (m : media) (sheets : sheet list) (root : Dom.element) : Dom.element -> (string * component list) list =
+  fst (cascade_all ?visited m sheets root)
 
 (*****************************************************************************)
 (* Explaining *)

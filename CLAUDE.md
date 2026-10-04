@@ -198,7 +198,10 @@ bytes -Charset-> text -Html_lexer-> tokens -Html_tree-> Dom tree
 ```
 
 The browser has one layout engine, CSS 2.1's box model: `Cascade` +
-`Computed` + `Box_layout` + `Browser_boxes`. The one it replaced,
+`Computed` + `Box_layout` + `Browser_boxes`. An element's `::before`
+and `::after` are elements the cascade makes (`Cascade.cascade_all`);
+the layout reads an element's children through `env.kids`, which has
+them (`Computed.styles_all`), never `e.children` itself. The one it replaced,
 Mosaic's fixed looks, is in `tools/mosaic` (`Mosaic_looks`,
 `Mosaic_layout`, `Mosaic_draw`, and `Mosaic_page.engine`, which puts
 them together): `Browser_page`'s settings take an `engine` (`None` for
@@ -279,7 +282,11 @@ is then laid out again whole (`Browser_page.with_tree`). The
 JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
 Scripts run only on the built-in pages and on allow-listed hosts
-(`default_allowed` in `Window_tabs`).
+(`default_allowed` in `Window_tabs`). A script that asks where an
+element is (`offsetHeight`, `getBoundingClientRect`) has the page laid
+out as it is then: `Browser_script.set_measure`, given by the tab
+(`Browser_tab.measuring`) and asked at most once between two changes
+of the tree (`Script_host.touch` forgets the answers).
 
 The engine has two ways to find a name (`Js_scope`): the simple one, a
 table in each scope, and the fast one, scopes as arrays and each name

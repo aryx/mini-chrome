@@ -77,7 +77,7 @@ let relational = 10
 (* an infix operator's binding power, and whether it is right-associative *)
 let assignments = [ "="; "+="; "-="; "*="; "/="; "%="; "**="; "<<="; ">>="; ">>>="; "&="; "|="; "^=" ]
 
-let infix (op : string) : (int * bool) option =
+let infix_of (op : string) : (int * bool) option =
   match op with
   | "," -> Some (0, false)
   | op when List.mem op assignments -> Some (1, true)
@@ -97,6 +97,18 @@ let infix (op : string) : (int * bool) option =
   | "*" | "/" | "%" -> Some (13, false)
   | "**" -> Some (14, true)
   | _ -> None
+
+(* opti: each operator's answer kept (the match above is a row of
+ * string comparisons, asked at every token of an expression) *)
+let infix_memo : (string, (int * bool) option) Hashtbl.t = Hashtbl.create 64
+
+let infix (op : string) : (int * bool) option =
+  match Hashtbl.find_opt infix_memo op with
+  | Some r -> r
+  | None ->
+      let r = infix_of op in
+      Hashtbl.replace infix_memo op r;
+      r
 
 let prefix_power = 15
 let postfix_power = 16
@@ -311,6 +323,14 @@ and prefix (p : t) : expr =
     | Regex (r, f) -> Regex (r, f)
     | Template (strings, expressions) -> Template (strings, template_values p t expressions)
     (* new F(a), new F: F a name and its members, not a call *)
+    (* new.target: the constructor being instantiated -- read here as
+     * the new object's constructor, which it is whenever the function
+     * was called by new (a class's Object.setPrototypeOf(this,
+     * new.target.prototype)); not undefined in a plain call *)
+    | Keyword "new" when is_punct p "." && (peek_at p 1).kind = Name "target" ->
+        ignore (advance p);
+        ignore (advance p);
+        Member (This, "constructor")
     | Keyword "new" ->
         let rec members e =
           match (peek p).kind with

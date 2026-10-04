@@ -31,7 +31,7 @@ type node = {
 (* a request a script made (XMLHttpRequest, fetch), for the
  * browser to send: its number, by which its answer comes back; and an
  * answer, as the script is given it *)
-type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *) }
+type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *); origin : string option (* the page's, said to another site *) }
 type answer = { status : int; headers : (string * string) list; body : string; final : string (* the URL, after the redirections *) }
 
 (* what a script's WebSocket asks of the browser: a connection opened
@@ -90,6 +90,14 @@ type t = {
   (* a node a script put in the page: a <script> among what was
    * inserted is loaded and run (Browser_script's) *)
   mutable inserted : node -> unit;
+  (* where an element is, for a script that asks (offsetHeight,
+   * getBoundingClientRect): x, y, width, height in the page, by a
+   * layout of the tree as it is now -- [measure], the browser's, given
+   * the frozen tree; its answers kept ([geometry]) until the tree
+   * changes *)
+  mutable where : node -> (float * float * float * float) option;
+  mutable measure : (Dom.element -> Dom.element -> (float * float * float * float) option) option;
+  mutable geometry : (node -> (float * float * float * float) option) option;
   (* the requests answered without the check of who may read them: a
    * classic script's, from anywhere *)
   mutable exempt : int list;

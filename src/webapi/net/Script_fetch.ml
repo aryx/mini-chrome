@@ -27,7 +27,11 @@ let ask ?(cors = true) (t : t) ~(meth : string) ~(url : string) ~(post : (string
   (* what the browser's Fetch cannot send is answered at once, by a failure *)
   if meth <> "GET" && meth <> "POST" then k (Error (meth ^ " is not sent here: GET and POST only"))
   else (
-    t.requests <- { rid; meth; url = Browser_url.resolve t.base url; post = (if meth = "POST" then Some (Option.value post ~default:("text/plain;charset=UTF-8", "")) else None) } :: t.requests;
+    let url = Browser_url.resolve t.base url in
+    (* Origin: said to another site, and with any POST (the Fetch
+     * Standard's "serializing a request origin") *)
+    let origin = if meth = "POST" || Cors.origin url <> Cors.origin t.base then Some (Cors.origin t.base) else None in
+    t.requests <- { rid; meth; url; origin; post = (if meth = "POST" then Some (Option.value post ~default:("text/plain;charset=UTF-8", "")) else None) } :: t.requests;
     t.waiting <- (rid, k) :: t.waiting);
   rid
 

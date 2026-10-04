@@ -124,12 +124,12 @@ let tests =
             {|const s = getComputedStyle(document.getElementById("p"));
               [s.color, s.getPropertyValue("color"), s.display, getComputedStyle(document.getElementById("q")).display, s.marginTop]|}
             {|["red", "red", "none", "block", ""]|};
-          check "storage, observers, matchMedia, history: there, and quiet"
+          check "storage, observers, history: there, and quiet; matchMedia: the window's size (1000 wide)"
             {|localStorage.setItem("k", 1); localStorage.other = "o";
               const o = new MutationObserver(() => {}); o.observe(document.body, { childList: true }); o.disconnect();
               history.pushState({}, "", "/x");
-              [localStorage.getItem("k"), localStorage.getItem("nope"), localStorage.length, sessionStorage.length, matchMedia("(min-width: 1px)").matches, typeof performance.now(), typeof requestAnimationFrame]|}
-            {|["1", null, 2, 0, false, "number", "function"]|});
+              [localStorage.getItem("k"), localStorage.getItem("nope"), localStorage.length, sessionStorage.length, matchMedia("(min-width: 1px)").matches, matchMedia("(max-width: 500px)").matches, typeof performance.now(), typeof requestAnimationFrame]|}
+            {|["1", null, 2, 0, true, false, "number", "function"]|});
       Testo.create "Event_loop, the worked example: a task, its microtasks, then the next task" (fun () ->
           let t = Browser_script.create ~base:"http://site.test/" (Html_tree.of_string "<body></body>") in
           let seen () = match Browser_script.eval t "seen.join(' ')" with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in

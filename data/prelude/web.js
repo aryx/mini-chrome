@@ -6,6 +6,30 @@
   var g = globalThis;
   function global(name, v) { if (typeof g[name] === "undefined") g[name] = v; }
 
+  // MessageChannel (HTML5's channel messaging): two ports, what is
+  // posted on one given to the other's onmessage in a task of its own.
+  // Frameworks use it as a timer that is not held back (a scheduler's
+  // "as soon as the browser has drawn").
+  global("MessageChannel", function MessageChannel() {
+    function port() {
+      var p = { onmessage: null, _other: null, _listeners: [],
+        postMessage: function (data) {
+          var to = p._other;
+          setTimeout(function () {
+            var e = { data: data, target: to, ports: [] };
+            if (typeof to.onmessage === "function") to.onmessage(e);
+            to._listeners.forEach(function (f) { f(e); });
+          }, 0);
+        },
+        addEventListener: function (type, f) { if (type === "message") p._listeners.push(f); },
+        removeEventListener: function (type, f) { p._listeners = p._listeners.filter(function (g) { return g !== f; }); },
+        start: function () {}, close: function () {} };
+      return p;
+    }
+    this.port1 = port(); this.port2 = port();
+    this.port1._other = this.port2; this.port2._other = this.port1;
+  });
+
   // URL (WHATWG's URL Standard, 2012; the class in browsers from 2014):
   // an address in parts that can be written -- u.pathname = "/x",
   // u.searchParams.append("a", "1") -- its href made of them again.

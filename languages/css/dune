@@ -9,7 +9,9 @@
 (library
  (name lang_css)
  (wrapped false)
- (libraries mini_dom) ; Dom: what a selector matches on (nothing of HTML's parser)
+ (libraries
+  mini_dom ; Dom: what a selector matches on (nothing of HTML's parser)
+  mini_opti) ; Cascade keeps its index of rules (opti=off: made each time)
 )
 
 ; the browser's own style sheet (data/css/ua.css: data, kept in data/

@@ -19,8 +19,17 @@
 
    So the browser says its own name, [Http.default_agent], to
    everybody, and has a table, [table], of the sites it would give
-   another name to, each with the reason. The table is empty, and here
-   is the one that was in it:
+   another name to, each with the reason. One line is in it:
+
+     discuss.ocaml.org   Discourse sends a name it does not know the
+                  page it keeps for crawlers, a plain list of topics,
+                  and its application -- what a browser shows -- to a
+                  browser's name. The application runs here (Ember:
+                  docs/plans/plan_sites.md), so it is asked for, by a
+                  browser's name with ours at its end. Every forum of
+                  Discourse's is so; this is the one we read.
+
+   And here is the one that was in it for a day:
 
      google.com   a search, asked by a browser Google does not know, is
                   answered by a program to run (a challenge:

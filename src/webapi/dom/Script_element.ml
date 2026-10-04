@@ -39,9 +39,10 @@ let position (n : node) (other : node) : float =
     let rec first (l : node list) = match l with x :: _ when x == n -> 4. | x :: _ when x == other -> 2. | _ :: rest -> first rest | [] -> 1. in
     first (all (top n))
 
-let rect () : value =
+let rect (t : t) (n : node) : value =
+  let x, y, w, h = Option.value (t.where n) ~default:(0., 0., 0., 0.) in
   let o = new_object () in
-  List.iter (fun k -> set_own o k (Number 0.)) [ "x"; "y"; "top"; "left"; "right"; "bottom"; "width"; "height" ];
+  List.iter (fun (k, v) -> set_own o k (Number v)) [ ("x", x); ("y", y); ("top", y); ("left", x); ("right", x +. w); ("bottom", y +. h); ("width", w); ("height", h) ];
   Object o
 
 (* el.dataset: its data-* attributes, by their names in camelCase *)
@@ -166,15 +167,17 @@ let get (t : t) (n : node) (k : string) : value option =
       | None, "type", ("select" | "textarea") -> Some (String (if n.name = "select" then "select-one" else "textarea"))
       | None, _, _ -> None)
   | k when List.mem_assoc k reflected_flags -> Some (Bool (attribute n (List.assoc k reflected_flags) <> None))
-  (* no boxes here: the layout is the browser's, after the script *)
-  | "getBoundingClientRect" -> m (fun _ -> rect ())
+  (* its box, in a layout of the page as it is now (Script_types' where) *)
+  | "getBoundingClientRect" -> m (fun _ -> rect t n)
   | "getClientRects" -> m (fun _ -> Object (new_array []))
   (* but the page's own: the window's (document.documentElement.clientWidth
    * < 768 is how a site decides it is on a phone) *)
   | ("clientWidth" | "offsetWidth" | "scrollWidth") when n.name = "html" || n.name = "body" -> Some (Option.value (Js_eval.global t.engine "innerWidth") ~default:(Number 0.))
   | ("clientHeight" | "offsetHeight") when n.name = "html" || n.name = "body" -> Some (Option.value (Js_eval.global t.engine "innerHeight") ~default:(Number 0.))
-  | "offsetWidth" | "offsetHeight" | "offsetTop" | "offsetLeft" | "clientWidth" | "clientHeight" | "clientTop" | "clientLeft" | "scrollTop" | "scrollLeft" | "scrollWidth" | "scrollHeight" ->
-      Some (Number 0.)
+  | "offsetWidth" | "offsetHeight" | "offsetTop" | "offsetLeft" | "clientWidth" | "clientHeight" | "scrollWidth" | "scrollHeight" ->
+      let x, y, w, h = Option.value (t.where n) ~default:(0., 0., 0., 0.) in
+      Some (Number (match k with "offsetTop" -> y | "offsetLeft" -> x | "offsetWidth" | "clientWidth" | "scrollWidth" -> w | _ -> h))
+  | "clientTop" | "clientLeft" | "scrollTop" | "scrollLeft" -> Some (Number 0.)
   | "offsetParent" -> Some Null
   | "tabIndex" -> Some (Number (-1.))
   (* events of a script's own *)

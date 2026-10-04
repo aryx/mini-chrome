@@ -100,6 +100,14 @@ val cascade :
 
 (* [find_element table e]: [e]'s value in a table filed by
  * [Hashtbl.hash], found by identity (two equal paragraphs are two) *)
+(* the same, and each element's children with its ::before and ::after
+ * among them (CSS 2.1's generated content): an element named
+ * "::before" first, "::after" last, holding the text its rules'
+ * content: gives, and styled by those rules. An element with neither:
+ * its children as they are *)
+val cascade_all :
+  ?visited:(string -> bool) -> media -> sheet list -> Dom.element -> (Dom.element -> (string * Css_syntax.component list) list) * (Dom.element -> Dom.node list)
+
 val find_element : (int, Dom.element * 'a) Hashtbl.t -> Dom.element -> 'a option
 
 (* the style rules of the sheets that count for [media], their @media

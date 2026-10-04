@@ -496,3 +496,90 @@ Lessons
 - A hang has a stack: gdb from the start, interrupted; the innermost
   frames say what loops, the outermost who asked.
 - An error message must not print a value whole.
+
+Session 5, continued: an undefined value, followed back; then the time
+------------------------------------------------------------------------
+
+9. A watchpoint on a script's variable
+---------------------------------------
+"A closure's variable is an object when it is made, undefined when it
+runs": that looked like the engine losing a captured variable.
+__watch(() => 0, "t"), a line put in the saved bundle where the
+closure is made, watches the binding of t that closure sees; the
+engine says "watch: t changed to ..., seen entering f of chunk.js" at
+the first call entered or left after a change (Js_eval.watch_check).
+It said nothing: the variable never changed. The instance that failed
+was simply another one than the one logged -- an id given to each
+(globalThis.__n = (globalThis.__n || 0) + 1) showed it was undefined
+from the start. A suspected engine bug cleared in two runs; SIMPLE=1
+(Page_scripts: the simple scopes) had said the same.
+
+10. Following a wrong value back, an opcode at a time
+------------------------------------------------------
+The undefined came out of a stack machine (Glimmer's). A script of
+patches kept beside the bundles (inst.py: each a console.log put
+before one line, "inst.py off" to take them out) says, for every
+push of undefined, the opcode running (a global set in the
+dispatcher). Each run moved one step back: the opcode that read a
+variable, the one that bound it, the arguments it bound from, where
+those were merged, what was merged -- Object.assign({}, x), whose
+result had the keys and no value. Six runs, each a minute.
+
+To number every closure of a file without changing what it does:
+"()=>" replaced by "(__z=(globalThis.__w=N))=>" -- a default
+parameter is evaluated at each call, and works for both kinds of
+body.
+
+11. A profile by hand: gdb, interrupted every second
+-----------------------------------------------------
+callgrind makes a run fifty times longer: half an hour for one of
+thirty seconds. gdb's batch mode, a "bt 8" and a "continue" twenty
+times over, and a loop that sends SIGINT to the program each second:
+
+  (gdb -q -batch -x samp.gdb --args Page_scripts.exe ... > samp.txt 2>&1 &)
+  for i in $(seq 24); do kill -INT $(pgrep -x Page_scripts.ex); sleep 1.2; done
+  grep "^#[0-3] " samp.txt | ... | sort | uniq -c | sort -rn
+
+(pgrep -x takes the name's first fifteen letters; pgrep -f would find
+gdb itself.) Twelve samples were enough: nine in List's "@" and in
+List.exists under Js_globals' put -- a Map kept as a list. Hashed: 56
+s to 34. The same on the browser itself (thread 1's stack) said the
+cascade ran again at each change of the tree; callgrind on
+Page_bench.exe then said where in it: List.remove_assoc, 41%.
+
+12. A real browser's picture beside ours
+-----------------------------------------
+Chrome is on this machine, and draws a page to a file with no window:
+
+  google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+    --window-size=1400,814 --virtual-time-budget=15000 --screenshot=ref.png URL
+
+(814: our window of 900 less the 86 of its chrome, so the two pages
+have the same height.) The two pictures side by side said what was
+missing on Discourse in one look -- the icons, the lines between rows,
+the categories' squares, the tab's line -- where reading its 1.9 MB of
+CSS would not have.
+
+13. A page an application built, kept as a file
+------------------------------------------------
+Each look at the layout cost the forty seconds of the application's
+start. Page_scripts.exe page.html URL "document.documentElement.outerHTML"
+gives the document it built; the scripts and <noscript>s taken out, a
+<base href> put in, it is a static page (dstatic.html) that
+mini-httpd serves and the browser lays out in two seconds, its sheets
+fetched as usual. Six rounds of layout work were done on it; and
+scripts/css/Css_census.exe on the same file and the sheets saved
+beside it (at=tr.topic-list-item) said which rule gave a row its
+border, where a guess had been a variable not resolved (it was
+rgb(...) taken for a width).
+
+14. A profile after each fix, not one profile
+----------------------------------------------
+callgrind on the same run three times (thirty minutes each, in the
+background while other work went on): 127 G instructions, then 65 G.
+Each profile's top lines were plain wastes that hid the next ones --
+List.assoc_opt and List.mem under Dtd (an element's origin, asked for
+every node of every freeze: a third of the run), the lexer's
+String.sub. callgrind_annotate --tree=caller, read by a few lines of
+Python (the callers of one function, sorted by cost), says who to
+blame; "caml_c_call" among the callers means a polymorphic compare.

@@ -111,8 +111,13 @@
    make the box's height, bottom alone places it, and its own height
    in percents is of that. An application's frame is made so: a side
    bar and a pane, each absolute and 100% high, in a body as high as
-   the window. A box inside an absolute one moves with it, and is
-   drawn after it. transform: translate(...) moves a box the same way
+   the window. Where its height is not known (its content gives it),
+   a box placed by its bottom waits: it is put there when the block is
+   done (a tab's line under its label). A positioned box is kept by
+   the box it was written in ([lifted]) and moves with it -- an
+   inline-block set on its line, a flex item, a table's cell, each
+   laid out at the origin then put in its place -- and all are
+   gathered at the end, drawn after the flow. transform: translate(...) moves a box the same way
    relative does, its percents of the box's own size: a long list's
    rows, all at the top and each moved down to its place.
 
@@ -202,6 +207,7 @@
 val layout :
   Html_layout.metrics ->
   ?picture_size:(string -> (float * float) option) ->
+  ?kids:(Dom.element -> Dom.node list) ->
   viewport:float * float ->
   (Dom.element -> Computed.t) ->
   Dom.element ->

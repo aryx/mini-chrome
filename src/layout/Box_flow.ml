@@ -69,7 +69,25 @@ let add_text (ctx : ctx) (s : Computed.t) (ws : word_style) (text : string) : un
           if i > 0 then ctx.items <- Break :: ctx.items;
           if part <> "" then (
             ctx.space <- false;
-            word part))
+            if s.white_space = Pre then word part
+            else
+              (* pre-wrap: the line's spaces kept, and it is cut where it
+               * does not fit -- at a space, as words are; of several
+               * spaces the first is the words' own, the others stay
+               * with the word after them *)
+              let n = String.length part in
+              let rec pieces from ~first =
+                if from < n then (
+                  let j = ref from in
+                  while !j < n && part.[!j] = ' ' do incr j done;
+                  let spaces = !j - from in
+                  while !j < n && part.[!j] <> ' ' do incr j done;
+                  let kept = if first then spaces else max 0 (spaces - 1) in
+                  ctx.space <- (not first) && spaces > 0;
+                  word (String.make kept ' ' ^ String.sub part (from + spaces) (!j - from - spaces));
+                  pieces !j ~first:false)
+              in
+              pieces 0 ~first:true))
         (String.split_on_char '\n' text)
   | Normal | Nowrap | Pre_line ->
       let b = Buffer.create 16 in
@@ -103,13 +121,13 @@ let flush_inline (ctx : ctx) : unit =
     let floats_top = ctx.cursor +. ctx.pending in
     let strut = Box_inline.word_style ctx.block ~link:None in
     let align = if ctx.env.measuring then Looks.Left else (Box_inline.look_of ctx.block ~link:None).align in
-    let pre = match ctx.block.white_space with Pre | Pre_wrap -> true | _ -> false in
+    let pre = ctx.block.white_space = Pre in
     let lines, boxes, backdrops, bottom =
       Box_inline.set_lines ctx.floats strut align ~pre ~x:ctx.x ~width:ctx.width ~top:(if has_content then top else floats_top) items
     in
     ctx.children <-
       { element = None; style = ctx.block; x = ctx.x; y = top; width = ctx.width; height = (if has_content then bottom -. top else 0.);
-        border = (0., 0., 0., 0.); children = boxes; lines; backdrops; marker = None }
+        border = (0., 0., 0., 0.); children = boxes; lines; backdrops; marker = None; lifted = [] }
       :: ctx.children;
     if has_content then (
       ctx.cursor <- bottom;

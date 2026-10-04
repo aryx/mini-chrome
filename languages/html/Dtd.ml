@@ -76,9 +76,31 @@ let netscape_attributes =
 (* an attribute of HTML 2.0 given new values *)
 let netscape_values = [ (("img", "align"), [ "left"; "right"; "texttop"; "absmiddle"; "baseline"; "absbottom" ]) ]
 
-let element_origin (name : string) : origin = if List.mem name netscape_elements then Netscape else Core
+(* an element's origin, by the lists: asked for every element each time
+ * a script's tree is made the page's (Browser_script.tree), so the
+ * answers are kept *)
+let element_origins : (string, origin) Hashtbl.t = Hashtbl.create 64
+
+let element_origin (name : string) : origin =
+  match Hashtbl.find_opt element_origins name with
+  | Some o -> o
+  | None ->
+      let o = if List.mem name netscape_elements then Netscape else Core in
+      if Hashtbl.length element_origins < 1024 then Hashtbl.replace element_origins name o;
+      o
+
+(* the elements that have attributes of Netscape's at all: the others'
+ * are the standard's, whatever they are *)
+let with_netscape_attributes : (string, unit) Hashtbl.t Lazy.t =
+  lazy
+    (let t = Hashtbl.create 64 in
+     List.iter (fun (e, _) -> Hashtbl.replace t e ()) netscape_attributes;
+     List.iter (fun ((e, _), _) -> Hashtbl.replace t e ()) netscape_values;
+     t)
 
 let attribute_origin (element : string) ((name, value) : string * string) : origin =
+  if not (Hashtbl.mem (Lazy.force with_netscape_attributes) element) then Core
+  else
   let listed = match List.assoc_opt element netscape_attributes with Some names -> List.mem name names | None -> false in
   let value_listed =
     match List.assoc_opt (element, name) netscape_values with

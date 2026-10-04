@@ -32,15 +32,17 @@ type request = { meth : string; target : string; headers : header list }
 
 let default_agent = "elm_playground"
 
-let get ?cookie ?(agent = default_agent) ?(keep = false) ~(host : string) (target : string) : request =
+let get ?cookie ?(agent = default_agent) ?(keep = false) ?origin ~(host : string) (target : string) : request =
   { meth = "GET"; target;
     headers =
       [ ("Host", host); ("User-Agent", agent); ("Accept-Encoding", "gzip, br, zstd") ]
       @ (match cookie with Some c -> [ ("Cookie", c) ] | None -> [])
+      (* where the page asking is from: a script's request to another site (CORS) *)
+      @ (match origin with Some o -> [ ("Origin", o) ] | None -> [])
       @ [ ("Connection", if keep then "keep-alive" else "close") ] }
 
-let post ?cookie ?agent ?keep ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
-  let r = get ?cookie ?agent ?keep ~host target in
+let post ?cookie ?agent ?keep ?origin ~(host : string) ~(content_type : string) ~(body : string) (target : string) : request =
+  let r = get ?cookie ?agent ?keep ?origin ~host target in
   { r with meth = "POST"; headers = r.headers @ [ ("Content-Type", content_type); ("Content-Length", string_of_int (String.length body)) ] }
 
 let request_to_string ?(body = "") (r : request) : string =

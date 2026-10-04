@@ -210,6 +210,11 @@ val advance : t -> float -> unit
 (* where a script sent the page since the last time (location.href =
  * url, assign, replace, reload): the address, and whether it takes
  * the page's place in the history instead of being after it *)
+(* [set_measure t f]: f, given the tree as it is, says where each of
+ * its elements is laid out (x, y, width, height); asked when a script
+ * reads a size or a position, at most once between two changes *)
+val set_measure : t -> (Dom.element -> Dom.element -> (float * float * float * float) option) -> unit
+
 val take_navigation : t -> (string * bool) option
 
 (* the address the page gave itself since last asked

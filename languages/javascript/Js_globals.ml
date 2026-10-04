@@ -164,34 +164,95 @@ let symbol () : value =
 (* Map, Set *)
 (*****************************************************************************)
 
+(* a collection's entries: found by their key, put, removed, and all of
+ * them in the order they were put *)
+type store = {
+  find : value -> value option;
+  put : value -> value -> unit;
+  remove : value -> bool;
+  clear : unit -> unit;
+  all : unit -> (value * value) list;
+  count : unit -> int;
+}
+
+(* the simple way: a list, the first put first, gone through for each key *)
+let store_simple () : store =
+  let entries : (value * value) list ref = ref [] in
+  let has k = List.exists (fun (k', _) -> same_value k k') !entries in
+  { find = (fun k -> Option.map snd (List.find_opt (fun (k', _) -> same_value k k') !entries));
+    put = (fun k v -> if has k then entries := List.map (fun (k', v') -> if same_value k k' then (k', v) else (k', v')) !entries else entries := !entries @ [ (k, v) ]);
+    remove = (fun k -> let there = has k in entries := List.filter (fun (k', _) -> not (same_value k k')) !entries; there);
+    clear = (fun () -> entries := []);
+    all = (fun () -> !entries);
+    count = (fun () -> List.length !entries) }
+
+(* opti: a hash table of the keys -- an object by its number, a string
+ * by its text, a number by its value -- each entry with the turn it
+ * was put at, by which they are sorted when all are asked. A framework
+ * keeps what it knows of every object in WeakMaps of thousands of
+ * entries: Discourse's front page, drawn by its scripts, 56 s with the
+ * lists, 34 s so (2026-10-04) *)
+let store_opti () : store =
+  let table : (int, value * value ref * int) Hashtbl.t = Hashtbl.create 16 in
+  let turn = ref 0 in
+  let hash (k : value) : int =
+    match k with
+    | Object o -> o.id
+    | String str -> Hashtbl.hash str
+    | Number f -> if f = 0. then 0 else Hashtbl.hash f
+    | Bool b -> if b then 1 else 2
+    | _ -> 3
+  in
+  let cell k = List.find_opt (fun (k', _, _) -> same_value k k') (Hashtbl.find_all table (hash k)) in
+  { find = (fun k -> match cell k with Some (_, v, _) -> Some !v | None -> None);
+    put =
+      (fun k v ->
+        match cell k with
+        | Some (_, r, _) -> r := v
+        | None ->
+            incr turn;
+            Hashtbl.add table (hash k) (k, ref v, !turn));
+    remove =
+      (fun k ->
+        let h = hash k in
+        let there = Hashtbl.find_all table h in
+        if List.exists (fun (k', _, _) -> same_value k k') there then (
+          (* the bucket made again without it *)
+          List.iter (fun _ -> Hashtbl.remove table h) there;
+          List.iter (fun ((k', _, _) as e) -> if not (same_value k k') then Hashtbl.add table h e) (List.rev there);
+          true)
+        else false);
+    clear = (fun () -> Hashtbl.reset table);
+    all = (fun () -> Hashtbl.fold (fun _ (k, v, n) acc -> (n, (k, !v)) :: acc) table [] |> List.sort (fun (a, _) (b, _) -> compare a b) |> List.map snd);
+    count = (fun () -> Hashtbl.length table) }
+
+let store () : store = if !Mini_opti.enabled then store_opti () else store_simple ()
+
 (* a Map's or a Set's constructor: each object made keeps its entries
- * (a Set's: its values, each its own key) in a list, the first first *)
+ * (a Set's: its values, each its own key), the first put first *)
 let collection ~(call : value -> this:value -> value list -> value) ~(items : value -> value list) (name : string) ~(map : bool) : value =
   let proto = new_object () in
   let make ~this args =
     let o = match this with Object o -> o | _ -> throw "TypeError" (Printf.sprintf "Constructor %s requires 'new'" name) in
-    let entries : (value * value) list ref = ref [] in
-    let has k = List.exists (fun (k', _) -> same_value k k') !entries in
-    let put k v = if has k then entries := List.map (fun (k', v') -> if same_value k k' then (k', v) else (k', v')) !entries else entries := !entries @ [ (k, v) ] in
+    let st = store () in
+    let has k = st.find k <> None in
+    let put = st.put in
     let def m f = set_own o m (fn m (fun ~this:_ args -> f args)) in
     let pair (k, v) = array [ k; v ] in
     def "has" (fun args -> Bool (has (arg args 0)));
-    def "delete" (fun args ->
-        let there = has (arg args 0) in
-        entries := List.filter (fun (k, _) -> not (same_value k (arg args 0))) !entries;
-        Bool there);
-    def "clear" (fun _ -> entries := []; Undefined);
-    def "forEach" (fun args -> List.iter (fun (k, v) -> ignore (call (arg args 0) ~this:(arg args 1) [ v; k; this ])) !entries; Undefined);
-    def "keys" (fun _ -> Js_builtins.iterator (List.map fst !entries));
-    def "values" (fun _ -> Js_builtins.iterator (List.map snd !entries));
-    def "entries" (fun _ -> Js_builtins.iterator (List.map pair !entries));
+    def "delete" (fun args -> Bool (st.remove (arg args 0)));
+    def "clear" (fun _ -> st.clear (); Undefined);
+    def "forEach" (fun args -> List.iter (fun (k, v) -> ignore (call (arg args 0) ~this:(arg args 1) [ v; k; this ])) (st.all ()); Undefined);
+    def "keys" (fun _ -> Js_builtins.iterator (List.map fst (st.all ())));
+    def "values" (fun _ -> Js_builtins.iterator (List.map snd (st.all ())));
+    def "entries" (fun _ -> Js_builtins.iterator (List.map pair (st.all ())));
     if map then (
-      def "get" (fun args -> match List.find_opt (fun (k, _) -> same_value k (arg args 0)) !entries with Some (_, v) -> v | None -> Undefined);
+      def "get" (fun args -> Option.value (st.find (arg args 0)) ~default:Undefined);
       def "set" (fun args -> put (arg args 0) (arg args 1); this))
     else def "add" (fun args -> put (arg args 0) (arg args 0); this);
     (* what a for-of and a spread go through: a Map's pairs, a Set's values *)
-    set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Js_builtins.iterator (if map then List.map pair !entries else List.map fst !entries)));
-    set_own o "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this:_ _ -> Number (float_of_int (List.length !entries))), Undefined) });
+    set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Js_builtins.iterator (if map then List.map pair (st.all ()) else List.map fst (st.all ()))));
+    set_own o "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this:_ _ -> Number (float_of_int (st.count ()))), Undefined) });
     (* new Map([[k, v], ...]), new Set([v, ...]) *)
     (match arg args 0 with
     | Undefined | Null -> ()
@@ -264,6 +325,48 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
             | v -> call plain ~this:Undefined [ v ]
           in
           set_own c "getPrototypeOf" (fn "getPrototypeOf" (fun ~this:_ args -> prototype_of (arg args 0)));
+          (* Object.assign through the language's own reads and writes:
+           * a source that is a proxy is asked its keys and each value
+           * (a framework's arguments: a proxy whose get computes them),
+           * a getter is called, a target's setter too *)
+          (* Object.keys, values and entries of a proxy whose handler
+           * says its keys (ownKeys) *)
+          let plain_keys = Option.get (get_own c "keys") in
+          let trapped (v : value) : value list option =
+            match v with
+            | Object { kind = Proxy (tg, h); _ } -> (
+                match get (Object h) "ownKeys" with
+                | Object _ as f -> Some (List.filter (fun k -> match k with String _ -> true | _ -> false) (match call f ~this:(Object h) [ Object tg ] with Object a -> array_items a | _ -> []))
+                (* no such trap: the target's keys, the values still asked of the proxy *)
+                | _ -> Some (List.map (fun k -> String k) (own_keys (Object tg))))
+            | _ -> None
+          in
+          List.iter
+            (fun (name, item) ->
+              let plain = Option.get (get_own c name) in
+              set_own c name
+                (fn name (fun ~this args ->
+                     match trapped (arg args 0) with
+                     | Some ks -> array (List.map (fun k -> item (arg args 0) k) ks)
+                     | None -> call plain ~this args)))
+            [ ("keys", fun _ k -> k); ("values", fun v k -> get v (to_string k)); ("entries", fun v k -> array [ k; get v (to_string k) ]) ];
+          ignore plain_keys;
+          let keys_of = Option.get (get_own c "keys") in
+          set_own c "assign"
+            (fn "assign" (fun ~this:_ args ->
+                 match args with
+                 | (Object _ as target) :: sources ->
+                     List.iter
+                       (fun src ->
+                         match src with
+                         | Object _ | String _ ->
+                             let ks = match call keys_of ~this:Undefined [ src ] with Object a -> array_items a | _ -> [] in
+                             List.iter (fun k -> let k = to_string k in put target k (get src k)) ks
+                         | _ -> ())
+                       sources;
+                     target
+                 | v :: _ -> v
+                 | [] -> Undefined));
           def "isPrototypeOf" (fun ~this args ->
               let rec up (o : obj) = match o.proto with Some p -> Object p == this || (match this with Object t -> t == p | _ -> false) || up p | None -> false in
               Bool
@@ -287,14 +390,36 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
   set_own typed "prototype" (Object (new_object ()));
   List.iter
     (fun name ->
+      (* its own prototype, an array's behind it: x instanceof Uint8Array,
+       * and where the prelude puts buffer and byteLength *)
+      let proto = new_object () in
+      (match lookup "Array" with Some (Object a) -> ( match get_own a "prototype" with Some (Object p) -> proto.proto <- Some p | _ -> ()) | _ -> ());
+      let of_kind (v : value) = (match v with Object a -> a.proto <- Some proto | _ -> ()); v in
       let c =
         fn name (fun ~this:_ args ->
             match arg args 0 with
-            | Number n -> array (List.init (max 0 (int_of_float n)) (fun _ -> Number 0.))
-            | Object ({ kind = Array _; _ } as a) -> array (array_items a)
-            | _ -> array [])
+            | Number n -> of_kind (array (List.init (max 0 (int_of_float n)) (fun _ -> Number 0.)))
+            | Object ({ kind = Array _; _ } as a) -> of_kind (array (array_items a))
+            (* over a buffer (the prelude's ArrayBuffer: its bytes an
+             * array): the bytes themselves if all are asked for, a
+             * view as it should be; else a copy of the part *)
+            | Object b when get_own b "_bytes" <> None -> (
+                match (get_own b "_bytes", arg args 1, arg args 2) with
+                | Some (Object _ as bytes), (Undefined | Number 0.), Undefined -> of_kind bytes
+                | Some (Object bytes), from, len ->
+                    let all = Array.of_list (array_items bytes) in
+                    let from = match from with Number f -> int_of_float f | _ -> 0 in
+                    let len = match len with Number l -> int_of_float l | _ -> Array.length all - from in
+                    of_kind (array (Array.to_list (Array.sub all (max 0 from) (max 0 (min len (Array.length all - from))))))
+                | _ -> of_kind (array []))
+            | _ -> of_kind (array []))
       in
-      (match c with Object c -> c.proto <- Some typed | _ -> ());
+      (match c with
+      | Object c ->
+          c.proto <- Some typed;
+          set_own c "prototype" (Object proto);
+          set_own proto "constructor" (Object c)
+      | _ -> ());
       define name c)
     [ "Uint8Array"; "Int8Array"; "Uint8ClampedArray"; "Uint16Array"; "Int16Array"; "Uint32Array"; "Int32Array"; "Float32Array"; "Float64Array" ];
   define "Proxy" proxy;

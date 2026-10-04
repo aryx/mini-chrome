@@ -667,7 +667,9 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
        fn "assign" (fun ~this:_ args ->
            match args with
            | (Object target as t) :: sources ->
-               List.iter (fun v -> match v with Object o -> List.iter (fun k -> set_own target k (Option.get (get_own o k))) (keys o) | _ -> ()) sources;
+               (* a source's getter is called: its value is what is copied, not the accessor *)
+               let read (o : obj) (k : string) = match Option.get (get_own o k) with Object { kind = Accessor (g, _); _ } -> ( match g with Undefined -> Undefined | g -> call g ~this:(Object o) []) | v -> v in
+               List.iter (fun v -> match v with Object o -> List.iter (fun k -> set_own target k (read o k)) (keys o) | _ -> ()) sources;
                t
            | v :: _ -> v
            | [] -> Undefined));

@@ -113,6 +113,10 @@ and simple (cs : component list) : simple * component list =
         | "link" | "any-link" -> Link
         | "visited" -> Visited
         | "hover" -> Hover
+        (* states an element is never in here: known, so that the rule
+         * is read and a script's querySelector(":target") finds nothing
+         * instead of failing *)
+        | "target" | "target-within" | "placeholder-shown" | "indeterminate" | "invalid" | "user-invalid" | "autofill" | "popover-open" | "modal" | "fullscreen" -> Hover
         | "active" -> Active
         | "focus" | "focus-visible" | "focus-within" -> Focus
         | "root" -> Root

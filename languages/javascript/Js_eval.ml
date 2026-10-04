@@ -40,6 +40,19 @@ type outcome = Normal | Return of value | Break of string option | Continue of s
 
 let max_depth = 2_000
 
+(* a debugger's watchpoint, for a variable that changes and should not:
+ * __watch(() => 0, "t") in a script watches the t that closure sees;
+ * each call entered or left after it changed says so, once a change
+ * (the function then running is where to look) *)
+let watched : (string * binding * value) option ref = ref None
+
+let watch_check (where : string) : unit =
+  match !watched with
+  | Some (name, b, was) when b.value != was ->
+      prerr_endline (Printf.sprintf "watch: %s changed to %s, seen %s" name (display b.value) where);
+      watched := Some (name, b, b.value)
+  | _ -> ()
+
 (* how many more calls to say, as an error leaves them (JS_STACK) *)
 let unwinding = Js_value.unwinding
 
@@ -154,6 +167,14 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
               | Object ({ kind = Array a; _ } as src) ->
                   Array.iteri (fun i v -> if i < a.length then set_own o (string_of_int i) v) a.elements;
                   List.iter (fun k -> set_own o k (get t (Object src) k)) (keys src)
+              (* a proxy's: the keys its handler says (ownKeys), else its target's *)
+              | Object ({ kind = Proxy (tg, h); _ } as src) ->
+                  let ks =
+                    match trap t h "ownKeys" with
+                    | Some f -> List.filter_map (fun k -> match k with String k -> Some k | _ -> None) (items_of t (call_value t f ~this:(Object h) [ Object tg ]))
+                    | None -> keys (Js_value.target tg)
+                  in
+                  List.iter (fun k -> set_own o k (get t (Object src) k)) ks
               | Object src -> List.iter (fun k -> set_own o k (get t (Object src) k)) (keys src)
               | String str -> String.iteri (fun i c -> set_own o (string_of_int i) (String (String.make 1 c))) str
               | _ -> ()))
@@ -671,6 +692,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
         if Sys.getenv_opt "JS_STACK" <> None then unwinding := 40;
         throw "RangeError" "Maximum call stack size exceeded");
       t.depth <- t.depth + 1;
+      if !watched <> None then watch_check ("entering " ^ Option.value c.func.name ~default:"(no name)" ^ " of " ^ Filename.basename (module_url c.scope) ^ Printf.sprintf ", line %d" t.line);
       (* "use strict": its own, or that of the code it is written in (a
        * module and a class are strict always) *)
       let strict = c.scope.strict || match c.func.body with { stmt = Expr (String "use strict"); _ } :: _ -> true | _ -> false in
@@ -703,10 +725,12 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
       (match if c.func.generator then generator t body else if c.func.async then Js_promise.async (Option.get t.promises) body else body () with
       | result ->
           t.depth <- t.depth - 1;
+          if !watched <> None then watch_check ("leaving " ^ Option.value c.func.name ~default:"(no name)" ^ " of " ^ Filename.basename (module_url c.scope));
           t.line <- line;
           result
       | exception e ->
           t.depth <- t.depth - 1;
+          if !watched <> None then watch_check ("leaving " ^ Option.value c.func.name ~default:"(no name)" ^ " of " ^ Filename.basename (module_url c.scope));
           (* JS_STACK=1: the calls an error leaves by, the innermost first (forty at most) *)
           if !unwinding > 0 then (
             decr unwinding;
@@ -1005,6 +1029,13 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None; global_this = A.place () } in
   let call f ~this args = call_value t f ~this args in
   let define x v = declare globals x ~constant:false v in
+  define "__watch"
+    (host_function "__watch" (fun ~this:_ args ->
+         (match args with
+         | [ Object { kind = Closure c; _ }; String name ] -> (
+             match lookup c.scope name with Some b -> watched := Some (name, b, b.value) | None -> prerr_endline ("watch: no " ^ name))
+         | _ -> ());
+         Undefined));
   (* new Function(params, body); an async one's constructor makes async ones *)
   let compile ~async params body = eval_in_run t (Printf.sprintf "(%sfunction anonymous(%s\n) {\n%s\n})" (if async then "async " else "") params body) in
   t.protos <- Some (Js_builtins.install ~call ~get:(fun v k -> get t v k) ~put:(fun v k x -> put t v k x) ~items:(fun v -> items_of t v) ~compile ~log ~seed ?now define);

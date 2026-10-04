@@ -142,7 +142,7 @@ let set_line (strut : word_style) (align : Looks.align) ~(x : float) ~(width : f
         let size = d.ds.font_size in
         let y = baseline -. (0.8 *. size) -. pt -. bt in
         { element = Some d.de; style = d.ds; x = left; y; width = Float.max 0. (right -. left); height = size +. pt +. pb +. bt +. bb;
-          border = (bt, (if at_edge Trail then br else 0.), bb, (if at_edge Lead then bl else 0.)); children = []; lines = []; backdrops = []; marker = None })
+          border = (bt, (if at_edge Trail then br else 0.), bb, (if at_edge Lead then bl else 0.)); children = []; lines = []; backdrops = []; marker = None; lifted = [] })
       decorations
   in
   ( { top; height = up +. down; baseline; fragments = List.rev fragments; anchors = List.filter_map (fun i -> match i with Anchor a -> Some a | _ -> None) words },

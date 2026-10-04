@@ -36,6 +36,8 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let floats = if own then ref [] else floats in
   let x = cb_x +. ml in
   let given = definite env s ~chrome:(pt +. pb +. bt +. bb) in
+  (* its own list of the positioned boxes written in it *)
+  let env = { env with positioned = ref [] } in
   let env =
     match s.position with
     | Static -> { env with known_height = given }
@@ -79,7 +81,7 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   | Flex | Inline_flex -> flex_children ctx e s
   | Grid -> grid_children ctx e s
   | _ ->
-      List.iter (walk ctx s (word_style s ~link:ctx.link)) e.children;
+      List.iter (walk ctx s (word_style s ~link:ctx.link)) (env.kids e);
       flush_inline ctx);
   (* the last child's bottom margin goes through, if nothing holds it *)
   let through = (not own) && pb +. bb = 0. && s.height = Auto in
@@ -100,8 +102,22 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let vchrome = if s.border_box then pt +. pb +. bt +. bb else 0. in
   let ch = match s.max_height with Len l when l.pct = 0. -> Float.min ch (l.px -. vchrome) | _ -> ch in
   let ch = Float.max ch (Css_values.resolve s.min_height 0. -. vchrome) in
+  (* the boxes placed in it by their bottom, now that its height is
+   * known (a tab's line under its label: an ::after, bottom: 0): those
+   * written in it, at any depth, that still wait *)
+  let edge = y +. bt +. pt +. ch +. pb in
+  let rec settled ((l : box), bottom) =
+    match bottom with
+    | Some b -> decr env.late; (settle (moved 0. (edge -. b -. l.height -. l.y) l), None)
+    | None -> (settle l, None)
+  and settle (b : box) : box = { b with lifted = List.map settled b.lifted; children = List.map settle b.children } in
+  let waiting = s.position <> Static && !(env.late) > 0 in
+  let lifted = List.rev !(env.positioned) in
+  let lifted = if waiting then List.map settled lifted else lifted in
+  let children = List.rev ctx.children in
+  let children = if waiting then List.map settle children else children in
   ( { element = Some e; style = s; x; y; width = bl +. pl +. cw +. pr +. br; height = bt +. pt +. ch +. pb +. bb;
-      border = (bt, br, bb, bl); children = List.rev ctx.children; lines = []; backdrops = []; marker },
+      border = (bt, br, bb, bl); children; lines = []; backdrops = []; marker; lifted },
     if through then ctx.pending else 0. )
 
 (* a flex container's items laid out (Flex_layout's arithmetic): each
@@ -221,7 +237,7 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
              let edge = ctx.x +. starts.(last) +. sizes.(last) in
              boxes :=
                { element = None; style = s; x = edge; y = !top; width = 0.; height = 0.; border = (0., 0., 0., 0.); children = [];
-                 lines = []; backdrops = []; marker = None }
+                 lines = []; backdrops = []; marker = None; lifted = [] }
                :: !boxes);
           top := !top +. cross +. gap_cross)
         (Flex_layout.lines ~wrap:s.flex_wrap ~room:width ~gap:gap_main fitems);
@@ -243,31 +259,26 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
               | Stretch, None -> Some (Float.max 0. (width -. ml' -. mr' -. hchrome))
               | _, None -> Some (shrink env c cs ~available:(width -. ml' -. mr' -. hchrome))
             in
-            (* the positioned boxes inside it are kept apart: they move
-             * with it when it is placed *)
-            let lay cs =
-              let env = { env with positioned = ref [] } in
-              let b = fst (layout_block env (ref []) c { cs with Computed.margin = no_margins } ~cb_x:0. ~cb_width:width ~y:0. ~marker:None ?content ()) in
-              (b, !(env.positioned))
-            in
-            let b, inside = lay cs in
+            let lay cs = fst (layout_block env (ref []) c { cs with Computed.margin = no_margins } ~cb_x:0. ~cb_width:width ~y:0. ~marker:None ?content ()) in
+            let b = lay cs in
+            let rec holds (b : box) = b.lifted <> [] || List.exists holds b.children in
             (* laid out again at the height the container gives it, if
              * it holds positioned boxes: they are placed in its height
              * (an application's frame: a column, its one item filling
              * the window, everything in it absolute) *)
-            let again = if inside = [] then None else Some (fun (h : float) -> lay { cs with height = Len { Css_values.zero with px = h }; border_box = true }) in
+            let again = if holds b then Some (fun (h : float) -> lay { cs with height = Len { Css_values.zero with px = h }; border_box = true }) else None in
             let x_offset =
               match align_of cs with
               | End -> width -. b.width -. mr'
               | Center -> (width -. b.width) /. 2.
               | _ -> ml'
             in
-            (c, cs, (b, inside), x_offset, again))
+            (c, cs, b, x_offset, again))
           items
       in
       let fitems =
         Array.map
-          (fun (_, (cs : Computed.t), ((b : box), _), _, _) ->
+          (fun (_, (cs : Computed.t), (b : box), _, _) ->
             let (mt, mb), _, (ab, aa) = chrome cs in
             let base = match (cs.flex_basis, size cs.height 0.) with Len l, _ when l.pct = 0. -> l.px | _, Some h -> h | _ -> b.height in
             { Flex_layout.base = mt +. base +. mb; grow = cs.flex_grow; shrink = cs.flex_shrink;
@@ -287,16 +298,10 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
       ctx.cursor <- content_top +. (if Array.length sizes = 0 then 0. else room);
       Array.to_list
         (Array.mapi
-           (fun k (_, cs, ((b : box), inside), x_offset, again) ->
+           (fun k (_, cs, (b : box), x_offset, again) ->
              let (mt, mb), _, _ = chrome cs in
-             let b, inside =
-               match again with
-               | Some lay when (not measuring) && Float.abs (sizes.(k) -. mt -. mb -. b.height) > 0.5 -> lay (sizes.(k) -. mt -. mb)
-               | _ -> (b, inside)
-             in
-             let dx = ctx.x +. x_offset -. b.x and dy = content_top +. starts.(k) +. mt -. b.y in
-             env.positioned := List.map (moved dx dy) inside @ !(env.positioned);
-             relative ctx cs (moved dx dy { b with height = sizes.(k) -. mt -. mb }))
+             let b = match again with Some lay when (not measuring) && Float.abs (sizes.(k) -. mt -. mb -. b.height) > 0.5 -> lay (sizes.(k) -. mt -. mb) | _ -> b in
+             relative ctx cs (moved (ctx.x +. x_offset -. b.x) (content_top +. starts.(k) +. mt -. b.y) { b with height = sizes.(k) -. mt -. mb }))
            laid))
   in
   ctx.children <- List.rev boxes;
@@ -315,7 +320,7 @@ and grid_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
 (* shrink-to-fit (CSS 2.1 section 10.3.5): the content's widest line,
  * at most [available], at least its widest word *)
 and shrink (env : env) (e : Dom.element) (s : Computed.t) ~(available : float) : float =
-  let env = { env with positioned = ref []; measuring = true; known_height = None } in
+  let env = { env with measuring = true; known_height = None } in
   let s' = { s with width = Auto; min_width = Css_values.zero; max_width = Auto; margin = (Len Css_values.zero, Len Css_values.zero, Len Css_values.zero, Len Css_values.zero) } in
   let _, _, _, pl = four (fun l -> Css_values.resolve l 0.) s.padding and _, _, _, bl = s.border_width in
   (* before the memo (a Wikipedia article: 89,903 blocks laid out, 88,200
@@ -429,9 +434,7 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
   in
   let filling = height != s.height in
   let s_in = { s with height; border_box = s.border_box || filling; margin = (let t, r, b, _ = s.margin in (t, r, b, Len Css_values.zero)) } in
-  (* the positioned boxes inside it: moved with it, drawn after it *)
-  let outer = env.positioned in
-  let env = { env with known_height = ch; positioned = ref [] } in
+  let env = { env with known_height = ch } in
   (* a positioned <svg> is a picture still, a box of one line: its
    * percents of the window if it is fixed (a Playground program's
    * page is one svg, 100% by 100%) *)
@@ -446,12 +449,16 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     | None, Some b, Some h -> cy +. h -. b -. box.height
     | _ -> static_y
   in
+  (* by its bottom alone, in a height not known yet: left where it is,
+   * and said so (layout_block moves it when it knows) *)
+  let late = match (top, ch, size s.bottom 0.) with None, None, Some b -> Some b | _ -> None in
   let dx, dy =
     match s.translate with
     | None -> (x -. box.x, y -. box.y)
     | Some (tx, ty) -> (x -. box.x +. Css_values.resolve tx box.width, y -. box.y +. Css_values.resolve ty box.height)
   in
-  outer := List.map (fun (b : box) -> if b.style.position = Fixed then b else moved dx dy b) !(env.positioned) @ (moved dx dy box :: !outer)
+  if late <> None then incr env.late;
+  ctx.env.positioned := (moved dx dy box, late) :: !(ctx.env.positioned)
 
 (* a float, laid out shrink-to-fit where it is, placed with the lines *)
 and float_item (ctx : ctx) (e : Dom.element) (s : Computed.t) : item =
@@ -513,7 +520,7 @@ and picture_box (ctx : ctx) (e : Dom.element) (s : Computed.t) ~(src : string) (
     { text = ""; look = ws.look; x = 0.; width = w; baseline = h; picture = Some { src; height = h; middle = false }; control = None; element = e }
   in
   { element = Some e; style = s; x = 0.; y = 0.; width = w; height = h; border = (0., 0., 0., 0.); children = [];
-    lines = [ { top = 0.; height = h; baseline = h; fragments = [ frag ]; anchors = [] } ]; backdrops = []; marker = None }
+    lines = [ { top = 0.; height = h; baseline = h; fragments = [ frag ]; anchors = [] } ]; backdrops = []; marker = None; lifted = [] }
 
 (* a node inside a block: inline content gathered, a block placed *)
 and walk (ctx : ctx) (parent : Computed.t) (ws : word_style) (node : Dom.node) : unit =
@@ -532,7 +539,7 @@ and walk (ctx : ctx) (parent : Computed.t) (ws : word_style) (node : Dom.node) :
           | _ -> ())
       | _ when s.position = Absolute || s.position = Fixed -> add_absolute ctx e s
       | _ when s.float <> Side_none -> ctx.items <- float_item ctx e s :: ctx.items
-      | Contents -> List.iter (walk ctx s (word_style s ~link:ctx.link)) e.children
+      | Contents -> List.iter (walk ctx s (word_style s ~link:ctx.link)) (ctx.env.kids e)
       | _ when e.name = "video" || e.name = "audio" ->
           (* a player's box: a video's size its style's (its width= and
            * height=, one of them at 4:3), else 320 by 240; an audio's
@@ -596,7 +603,7 @@ and walk (ctx : ctx) (parent : Computed.t) (ws : word_style) (node : Dom.node) :
               let outer_decorations = ctx.decorations in
               if s.background.a > 0. || bt +. br +. bb +. bl > 0. then ctx.decorations <- ctx.decorations @ [ { de = e; ds = s; dml = ml; dmr = mr } ];
               if ml +. bl +. pl > 0. then add_word ctx ws ~edge:Lead ~glue:false "" (ml +. bl +. pl);
-              List.iter (walk ctx s ws) e.children;
+              List.iter (walk ctx s ws) (ctx.env.kids e);
               if mr +. br +. pr > 0. then (
                 let space = ctx.space in
                 ctx.space <- false;
@@ -748,19 +755,32 @@ and layout_table (env : env) (table : Dom.element) (s : Computed.t) ~(cb_x : flo
           in
           boxes := { b with y = !row_top; height = row_height; style } :: !boxes)
         laid;
+      (* the row's own box, for its borders top and bottom (a table
+       * whose borders collapse: a list's lines between its rows); its
+       * background is its cells' already *)
+      (if r < Array.length trs then
+         let ts = env.style trs.(r) in
+         let wt, _, wb, _ = ts.border_width in
+         if wt > 0. || wb > 0. then
+           boxes :=
+             { element = Some trs.(r); style = { ts with background = { ts.background with a = 0. }; border_width = (wt, 0., wb, 0.) };
+               x = x +. bl; y = !row_top; width = width -. bl -. br; height = row_height; border = (wt, 0., wb, 0.); children = []; lines = []; backdrops = []; marker = None; lifted = [] }
+             :: !boxes);
       row_top := !row_top +. row_height +. spacing
     done;
     { element = Some table; style = s; x; y; width; height = !row_top +. bb -. y; border = (bt, br, bb, bl);
-      children = Option.to_list caption @ List.rev !boxes; lines = []; backdrops = []; marker = None }
+      children = Option.to_list caption @ List.rev !boxes; lines = []; backdrops = []; marker = None; lifted = [] }
 
-let layout (metrics : Html_layout.metrics) ?(picture_size = fun _ -> None) ~(viewport : float * float) (style : Dom.element -> Computed.t)
+let layout (metrics : Html_layout.metrics) ?(picture_size = fun _ -> None) ?(kids = fun (e : Dom.element) -> e.children) ~(viewport : float * float) (style : Dom.element -> Computed.t)
     (root : Dom.element) : box =
-  let positioned = ref [] in
-  let env = { metrics; picture_size; style; viewport; positioned; measuring = false; centring = false; containing = (0., 0., fst viewport, Some (snd viewport)); known_height = Some (snd viewport);
+  let env = { metrics; picture_size; style; kids; viewport; positioned = ref []; late = ref 0; measuring = false; centring = false; containing = (0., 0., fst viewport, Some (snd viewport)); known_height = Some (snd viewport);
       measured = Hashtbl.create 1024 } in
   let s = style root in
   (* the root is its own formatting context: its floats inside it *)
   let s = { s with overflow_hidden = true } in
   let page, _ = layout_block env (ref []) root s ~cb_x:0. ~cb_width:(fst viewport) ~y:0. ~marker:None () in
-  let bottom = List.fold_left (fun m (b : box) -> Float.max m (b.y +. b.height)) page.height !positioned in
-  { page with height = bottom; children = page.children @ List.rev !positioned }
+  (* the positioned boxes, wherever they were written, after the flow *)
+  let rec gather (b : box) : box list = List.concat_map (fun (l, _) -> l :: gather l) b.lifted @ List.concat_map gather b.children in
+  let positioned = gather page in
+  let bottom = List.fold_left (fun m (b : box) -> Float.max m (b.y +. b.height)) page.height positioned in
+  { page with height = bottom; children = page.children @ positioned }
