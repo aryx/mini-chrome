@@ -24,11 +24,22 @@ and element = {
 let element ?(attributes = []) (name : string) (children : node list) : element =
   { name; attributes; extensions = []; origin = Core; children }
 
+(* opti: List.assoc_opt compares its keys with the comparison of any
+ * two values, a call into the runtime at each: 32 million of them to
+ * style GitHub's page. A string's own equality here *)
+let rec assoc (name : string) (l : (string * string) list) : string option =
+  match l with [] -> None | (k, v) :: rest -> if String.equal k name then Some v else assoc name rest
+
 let attribute ?(extensions = false) (name : string) (e : element) : string option =
-  match List.assoc_opt name e.attributes with
+  match assoc name e.attributes with
   | Some v -> Some v
-  | None when extensions -> List.assoc_opt name e.extensions
+  | None when extensions -> assoc name e.extensions
   | None -> None
+
+(* opti: its name, its attributes and how many children, not
+ * Hashtbl.hash of the element, which reads every string it holds: for
+ * one near the root, a script of 300 KB written in the page *)
+let hash (e : element) : int = Hashtbl.hash (e.name, e.attributes, List.length e.children)
 
 let rec find_all (name : string) (e : element) : element list =
   (if e.name = name then [ e ] else [])

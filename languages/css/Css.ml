@@ -63,7 +63,7 @@ let cascade (sheet : sheet) (root : Dom.element) : Dom.element -> (string * stri
       @ text_of (List.filter (fun (d : Css_syntax.declaration) -> d.important) inline)
     in
     let winning = List.fold_left (fun acc (p, v) -> (p, v) :: List.remove_assoc p acc) [] all in
-    if winning <> [] then Hashtbl.add table (Hashtbl.hash e) (e, List.rev winning);
+    if winning <> [] then Hashtbl.add table (Dom.hash e) (e, List.rev winning);
     List.iter (fun (n : Dom.node) -> match n with Element c -> go (e :: ancestors) c | Text _ -> ()) e.children
   in
   go [] root;

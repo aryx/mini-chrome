@@ -56,7 +56,8 @@ several: a tab each). Program flags are `key=value` words
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off` (no thread: fetches wait, and a
-script's long run freezes the window), `profile=DIR|off`, `scale=N`,
+script's long run freezes the window), `timings=on` (where the time
+went, by stage, said at the end: `Stopwatch`), `profile=DIR|off`, `scale=N`,
 `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
 compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
 picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
@@ -465,7 +466,10 @@ cost; after it, what it did.
 `docs/plans/plan_performance.md` says where a page's load goes and the steps
 to take. Measure before and after with `scripts/perf/` (`Page_bench.exe`:
 each stage timed on a real page; `load_timeline.sh`: the real program's
-load, a time on each line of `-v`).
+load, a time on each line of `-v`), and first of all with `timings=on`
+on the program itself: the stages are run in named spans
+(`Stopwatch.time "styles" f`, `libs/opti`), and a new stage gets its
+own.
 
 The simple code should still be there to read first, the optimized one
 later: a matter of judgment, not a hard rule, as in elm-playground's

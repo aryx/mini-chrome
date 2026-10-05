@@ -104,6 +104,21 @@ let tests =
           Alcotest.(check bool) "visible does not" false (style "#a { overflow: visible }" "<div id=a>" "a").overflow_hidden;
           Alcotest.(check bool) "opacity: 0 is not shown" false (style "#a { opacity: 0 }" "<input id=a>" "a").visible;
           Alcotest.(check bool) "opacity: 0.5 is" true (style "#a { opacity: 0.5 }" "<input id=a>" "a").visible);
+      Testo.create "opti: the fast paths and the simple ones agree" (fun () ->
+          let both f = let fast = f () in Mini_opti.enabled := false; let simple = Fun.protect f ~finally:(fun () -> Mini_opti.enabled := true) in (fast, simple) in
+          let words = [ ("a b  c", "b"); ("a b c", "c"); ("ab c", "a"); ("a\tb\nc", "b"); ("abc", "abc"); ("", "a"); ("a", ""); ("btn btn-x", "btn-x"); ("btn-x", "btn") ] in
+          let fast, simple = both (fun () -> List.map (fun (s, w) -> Selectors.has_word s w) words) in
+          Alcotest.(check (list bool)) "a word among a class's" [ true; true; false; true; true; false; false; true; false ] fast;
+          Alcotest.(check (list bool)) "has_word, simple" fast simple;
+          (* rules with no id, class or name in their last part: filed
+           * under an attribute's name, or what a :where() holds *)
+          let css = {|[data-x] { color: #010000 } :where(.w) { color: #020000 } :is(.i, .j) { color: #030000 } div :where(p[lang]) { color: #040000 } * { margin-left: 3px }
+                      [data-x="no"] { color: blue }|} in
+          let html = "<div><p id=a data-x=yes>a<p id=b class=w>b<p id=c class=j>c<p id=d lang=fr>d<p id=e>e</div>" in
+          let fast, simple = both (fun () -> List.map (fun id -> let s = style css html id in (rgb s.color, px (left s.margin))) [ "a"; "b"; "c"; "d"; "e" ]) in
+          Alcotest.(check (list (pair color near))) "each rule found by its key"
+            [ ((1, 0, 0), 3.); ((2, 0, 0), 3.); ((3, 0, 0), 3.); ((4, 0, 0), 3.); ((0, 0, 0), 3.) ] fast;
+          Alcotest.(check (list (pair color near))) "the cascade, simple" fast simple);
       Testo.create "explain: each winning declaration and where it came from" (fun () ->
           let root = Html_tree.of_string {|<p id=a class=x style="margin: 0">t</p>|} in
           let css = { Cascade.origin = Author; rules = Css_syntax.parse_stylesheet "p { color: red } .x { color: green }" } in

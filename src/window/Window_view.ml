@@ -178,4 +178,4 @@ let view_opti (m : model) : shape list =
       last := Some (m, shapes, animated m);
       shapes
 
-let view (m : model) : shape list = if !Mini_opti.enabled then view_opti m else view_simple m
+let view (m : model) : shape list = Stopwatch.time "view" (fun () -> if !Mini_opti.enabled then view_opti m else view_simple m)

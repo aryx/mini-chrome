@@ -8,4 +8,5 @@
  (libraries
    lang_html lang_css javascript browser_layout
    browser_url browser_display
+   mini_opti ; Stopwatch: a stage's time
    network)) ; Urlencoded, a form's query

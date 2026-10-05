@@ -315,6 +315,8 @@ let inherited =
   [ "color"; "font-size"; "font-weight"; "font-style"; "font-family"; "line-height"; "text-align"; "text-transform";
     "white-space"; "visibility"; "list-style-type"; "text-decoration" ]
 
+let is_inherited (name : string) : bool = List.exists (String.equal name) inherited
+
 let display_of (s : string) : display option =
   match s with
   | "inline" -> Some Inline
@@ -363,16 +365,23 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
   in
   (* a property's value: this element's, else (if inherited) its
    * parent's -- None, the caller's initial value *)
+  (* before: the declarations turned round and gone through for each
+   * of a hundred properties, with the comparison of any two values
+   *   match List.assoc_opt name (List.rev decls) with
+   * opti: a table of them, the last said winning. A style pass on
+   * GitHub's page, in instructions: 1.7 G -> 1.3 *)
+  let said : (string, component list) Hashtbl.t = Hashtbl.create 32 in
+  if !Mini_opti.enabled then List.iter (fun (n, v) -> Hashtbl.replace said n v) decls;
   let get (name : string) : component list option =
-    match List.assoc_opt name (List.rev decls) with
+    match if !Mini_opti.enabled then Hashtbl.find_opt said name else List.assoc_opt name (List.rev decls) with
     | Some v -> (
         match V.parts v with
         | [ Token (Ident k) ] when String.lowercase_ascii k = "inherit" -> Some [ Token (Ident "inherit") ]
         | [ Token (Ident k) ] when String.lowercase_ascii k = "initial" -> None
         | [ Token (Ident k) ] when List.mem (String.lowercase_ascii k) [ "unset"; "revert"; "revert-layer" ] ->
-            if List.mem name inherited then Some [ Token (Ident "inherit") ] else None
+            if is_inherited name then Some [ Token (Ident "inherit") ] else None
         | _ -> Some v)
-    | None -> if List.mem name inherited then Some [ Token (Ident "inherit") ] else None
+    | None -> if is_inherited name then Some [ Token (Ident "inherit") ] else None
   in
   let is_inherit v = match v with Some [ Token (Ident "inherit") ] -> true | _ -> false in
   let word name = match get name with Some v -> ( match V.parts v with [ c ] -> ident c | cs -> Some (String.lowercase_ascii (to_string cs))) | None -> None in
@@ -407,7 +416,7 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
   let prop name ~inh ~init f =
     match get name with
     | v when is_inherit v -> inh
-    | Some v -> ( match f v with Some x -> x | None -> if List.mem name inherited then inh else init)
+    | Some v -> ( match f v with Some x -> x | None -> if is_inherited name then inh else init)
     | None -> init
   in
   (* [inh] the parent's value: what inherit asks, even of a property
@@ -622,7 +631,7 @@ let styles_all ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.
   let root_style = compute m ~root_font_size:16. ~parent:initial (declared root) in
   (* each element's from its parent's, down the tree *)
   let rec go (e : Dom.element) (style : t) =
-    Hashtbl.add table (Hashtbl.hash e) (e, style);
+    Hashtbl.add table (Dom.hash e) (e, style);
     List.iter
       (fun (n : Dom.node) ->
         match n with

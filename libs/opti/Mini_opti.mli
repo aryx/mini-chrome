@@ -42,6 +42,13 @@
    - Mdct.dct4: a block's cosine transform by a Fourier transform
      (dct4_opti) rather than by its definition (dct4_simple): a second
      of Vorbis decoded in 0.06 s, not 1.2. In Mdct.mli.
+   - Selectors.has_word, Cascade.key, Computed's declarations: a class
+     found in the attribute's text rather than in a list of its words;
+     a rule with no id, class or name filed under an attribute's name
+     or what its :where() holds rather than tried on every element; an
+     element's declarations in a table rather than a list searched for
+     each property. A style pass of GitHub's page: 3.0 G instructions
+     to 1.3 (docs/plans/plan_performance.md, step 7).
    - Js_scope.global: a JavaScript engine's scopes as arrays, each name
      of the program remembering its place (find_opti; the places put in
      a copy of the tree by Js_quicken, which such an engine runs

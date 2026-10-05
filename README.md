@@ -2,14 +2,14 @@
 
 A small web browser written from scratch in OCaml, after Google Chrome
 (2008). It reads the three languages a page is written in -- HTML,
-CSS and JavaScript, which are most of it -- and, since a browser is
-also everything a page may point to, it has its own network stack,
-its own decoders of pictures, video and sound, and a PDF viewer.
+CSS and JavaScript -- and, since a browser is also everything a page
+may point to, it has its own network stack, its own decoders of
+pictures, video and sound, and a PDF viewer.
 
 | | | |
 |---|---|---|
 | <a href="docs/screenshots/hackernews.png"><img src="docs/screenshots/hackernews.png" width="260" alt="Hacker News"></a> | <a href="docs/screenshots/wikipedia.png"><img src="docs/screenshots/wikipedia.png" width="260" alt="Wikipedia's article on OCaml"></a> | <a href="docs/screenshots/github.png"><img src="docs/screenshots/github.png" width="260" alt="GitHub, the OCaml repository"></a> |
-| Hacker News | Wikipedia, an article | GitHub: readable, not yet right |
+| Hacker News | Wikipedia, an article | GitHub, a repository |
 | <a href="docs/screenshots/chrome.png"><img src="docs/screenshots/chrome.png" width="260" alt="about:chrome, the built-in demonstration"></a> | <a href="docs/screenshots/tube.png"><img src="docs/screenshots/tube.png" width="260" alt="about:tube, the built-in video site"></a> | <a href="docs/screenshots/pdf.png"><img src="docs/screenshots/pdf.png" width="260" alt="about:pdf, a PDF file in a tab"></a> |
 | `about:chrome`: what the engine does, a card each | `about:tube`: every kind of media it plays | `about:pdf`: a PDF file in a tab |
 | <a href="docs/screenshots/tinybox.png"><img src="docs/screenshots/tinybox.png" width="260" alt="tinybox, the Playground's menu, running in MiniChrome"></a> | <a href="docs/screenshots/invaders.png"><img src="docs/screenshots/invaders.png" width="260" alt="TinyInvaders, played in MiniChrome"></a> | |
@@ -60,12 +60,14 @@ JPEG, GIF, MP3 and MPEG-1, the letters (one stroke font).
 [docs/dependencies.md](docs/dependencies.md) says exactly what comes
 from where. Of C it needs only SDL, for the window.
 
-Small enough to read: about 33,000 lines of OCaml for the browser
+Small enough to read: about 36,000 lines of OCaml for the browser
 itself, kept under a budget of 40,000 (`make loc`), not counting what
 each module's interface says about itself.
 
-It started as elm-playground's TinyChrome, a toy held to 5,000 lines
-of its own code; here it grows, towards the web as it is.
+It started as elm-playground's TinyChrome. That repository holds a
+program to 5,000 lines of its own code, and TinyChrome was already
+well past that once its engine, kept in the libraries beside it, was
+counted; here it grows, towards the web as it is.
 [docs/sites.md](docs/sites.md) says where it stands on real sites,
 part by part: Hacker News and Wikipedia read well, GitHub and the
 BBC are readable but not right, and a site that is all scripts
@@ -114,17 +116,37 @@ not an address are searched): drawn by Cairo when its platform is installed,
 else by the Playground's own rasterizer. `./bin/mini-chrome-software`
 (`make run-software`) is always the latter, for comparison.
 
-Flags: `url=` the first page (`about:chrome`), `css=off`,
-`panel=elements` or `panel=network`, `search=duckduckgo`,
-`scripts=off` (or the hosts whose scripts run), `profile=DIR` or
-`profile=off`, `scale=N`, `opti=off` (the simple code where an
-optimized one replaced it), `js=walk` (a script's functions walked
-by the evaluator, not compiled), `letters=segments` (a letter drawn as its
-pen's strokes), `pdf=strokes` (a PDF's text in our own letters;
-`pdf=plain` for its simplest rendering). With `-v` the terminal shows each
-file and URL opened (`-debug` more, `-quiet` nothing). Ctrl+Q quits
-(with elm-playground after 0.3.1; with 0.3.1 a plain `q` does, wherever
-it is typed).
+## Flags
+
+A word of the command line that is not a flag is a page to open. The
+program's flags are `key=value` words:
+
+| Flag | What it does |
+|---|---|
+| `url=ADDRESS` | the first page (`about:chrome` without) |
+| `scripts=off`, `scripts=HOST1,HOST2` | no page's scripts run, or those of these hosts too (the built-in pages and a few sites by default) |
+| `css=off` | no style sheet but the browser's own |
+| `panel=elements`, `panel=network` | the developer tools, open |
+| `search=duckduckgo` | where the omnibox sends words |
+| `profile=DIR`, `profile=off` | another profile's directory, or none read or written |
+| `scale=N` | everything drawn N times bigger (the desktop's scale without) |
+| `threads=off` | no thread: a fetch waits, a script's long run freezes the window |
+| `timings=on` | where the time went, by stage, said when the program ends (`Stopwatch`) |
+| `opti=off` | the simple code, where an optimized one replaced it |
+| `js=walk` | a script's functions walked by the evaluator, not compiled |
+| `letters=segments` | a letter drawn as its pen's strokes |
+| `pdf=strokes`, `pdf=plain` | a PDF's text in our own letters; its simplest rendering |
+
+The Playground's own flags start with a dash: `-v` shows each file
+and URL opened and what a page's scripts say on their console
+(`-debug` more, `-quiet` nothing); `-size WxH`, `-dump-frame N
+FILE.png` and `-script` run it without a screen, to a picture
+(CLAUDE.md says how).
+
+## Using it
+
+Ctrl+Q quits (with elm-playground after 0.3.1; with 0.3.1 a plain `q`
+does, wherever it is typed).
 
 The omnibox is a line of text as any other: a click selects the
 address, then a click puts the caret and a drag selects; Ctrl+A, C, X

@@ -72,6 +72,11 @@ val element : ?attributes:(string * string) list -> string -> node list -> eleme
  * Netscape's too *)
 val attribute : ?extensions:bool -> string -> element -> string option
 
+(* a number to file an element under, in a table where it is then
+ * found by identity (==): the same for two elements that look alike,
+ * and cheap -- its text is not read *)
+val hash : element -> int
+
 (* the elements named so, in document order, [root] included *)
 val find_all : string -> element -> element list
 

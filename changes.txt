@@ -85,6 +85,19 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- timings=on: where the time went, by stage (html, sheets, styles,
+  boxes, shapes, scripts, pictures, view, update), each with how many
+  times and its own seconds, said when the program ends (Stopwatch:
+  named spans that nest, a span's own time its time less its
+  children's)
+- a page's styles, three times cheaper on a big sheet (GitHub's 1,823
+  elements and 25,273 rules: a pass 3.0 G instructions to 1.3; with
+  its scripts on, 39 passes, 25 s to 6): a class looked for in the
+  attribute's text and not in a list of its words; rules with no id,
+  class or name in their last part filed under an attribute's name or
+  what a :where() holds, not tried on every element; an element's
+  declarations in a table; an attribute found by a string's equality;
+  an element filed under its name and attributes, not all it holds
 - JavaScript, three cheap things the big engines do (plan_js_speed.md
   has the table of what they do and what of it is cheap here):
   an object of many properties has a table beside its list
@@ -208,7 +221,8 @@
 - GitHub with its scripts (scripts=github.com): React takes the page
   the server made and keeps it, and what the scripts ask for comes --
   each file's last commit and its date, the branch's latest commit,
-  the counts of branches and tags. 78 s of script: not on by default
+  the counts of branches and tags. 45 s to its last picture: not on
+  by default
 - a script's request headers are sent (fetch's headers, a Request's,
   XMLHttpRequest.setRequestHeader), but those that are the browser's
   to say (Host, Cookie, Origin, User-Agent...): GitHub's answers in

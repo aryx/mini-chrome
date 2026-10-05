@@ -29,6 +29,8 @@ let decode (bytes : string) : t =
     else Broken
   with _ -> Broken
 
+let decode bytes = Stopwatch.time "pictures" (fun () -> decode bytes)
+
 let broken_size = 24.
 
 let drawn (w : float) (h : float) (img : Rgba_image.t) : Playground.shape list =

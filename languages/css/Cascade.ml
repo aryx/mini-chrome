@@ -134,7 +134,7 @@ type entry = {
 
 (* the rule's key: its last compound's id, else its first class, else
  * its name, else "any" *)
-let key (sel : Selectors.complex) : string =
+let rec key_simple (sel : Selectors.complex) : string =
   match List.rev sel with
   | (compound, _) :: _ -> (
       match List.find_map (function Selectors.Id i -> Some ("#" ^ i) | _ -> None) compound with
@@ -145,13 +145,29 @@ let key (sel : Selectors.complex) : string =
           | None -> ( match List.find_map (function Selectors.Type n -> Some n | _ -> None) compound with Some k -> k | None -> "*")))
   | [] -> "*"
 
+(* opti: and before "any", the key of the one selector of an :is() or
+ * a :where() (":where(.label)": .label), then an attribute's name
+ * ("[data-kbd-chord]": [data-kbd-chord). 1,138 of the 25,273 rules of
+ * GitHub's sheets were "any", tried on each of its 1,823 elements: two
+ * rules tried of three. A style pass, in instructions: 3.0 G -> 1.7 *)
+and key_opti (sel : Selectors.complex) : string =
+  match (key_simple sel, List.rev sel) with
+  | "*", (compound, _) :: _ -> (
+      match List.find_map (function Selectors.Pseudo (Is ([ inner ], _)) -> ( match key_opti inner with "*" -> None | k -> Some k) | _ -> None) compound with
+      | Some k -> k
+      | None -> ( match List.find_map (function Selectors.Attr (name, _, _, _) -> Some ("[" ^ name) | _ -> None) compound with Some k -> k | None -> "*"))
+  | k, _ -> k
+
+let key (sel : Selectors.complex) : string = if !Mini_opti.enabled then key_opti sel else key_simple sel
+
 let words (s : string) : string list = List.filter (( <> ) "") (String.split_on_char ' ' s)
 
-(* an element's keys: its name, #id, .classes *)
+(* an element's keys: its name, #id, .classes, and [attributes *)
 let keys_of (e : Dom.element) : string list =
   e.name
   :: (match Dom.attribute "id" e with Some i -> [ "#" ^ i ] | None -> [])
   @ List.map (fun c -> "." ^ c) (match Dom.attribute "class" e with Some c -> words c | None -> [])
+  @ List.map (fun (a, _) -> "[" ^ a) (e.attributes @ e.extensions)
 
 (* the ancestor filter (WebKit's "selector filter", a Bloom filter
    there): what a selector asks of the element's ancestors -- the ids,
@@ -174,7 +190,7 @@ let needs (sel : Selectors.complex) : string list =
  * filed under their hash, found among the bucket's by (==) -- what a
  * Hashtbl.Make with (==) as its equality would do, without a functor *)
 let find_element (table : (int, Dom.element * 'a) Hashtbl.t) (e : Dom.element) : 'a option =
-  List.assq_opt e (Hashtbl.find_all table (Hashtbl.hash e))
+  List.assq_opt e (Hashtbl.find_all table (Dom.hash e))
 
 (*****************************************************************************)
 (* Presentational hints *)
@@ -329,12 +345,12 @@ let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (r
           | None -> []
           | Some text ->
               let made : Dom.element = { name = "::" ^ which; attributes = []; extensions = []; origin = Core; children = (if text = "" then [] else [ Text text ]) } in
-              Hashtbl.add table (Hashtbl.hash made) (made, List.rev (List.remove_assoc "content" winning));
+              Hashtbl.add table (Dom.hash made) (made, List.rev (List.remove_assoc "content" winning));
               [ Element made ])
     in
     (match (pseudo "before", pseudo "after") with
     | [], [] -> ()
-    | before, after -> Hashtbl.add kids (Hashtbl.hash e) (e, before @ e.children @ after));
+    | before, after -> Hashtbl.add kids (Dom.hash e) (e, before @ e.children @ after));
     (* each declaration with its sort key; style= an author's rule above
      * any selector *)
     let keyed =
@@ -364,7 +380,7 @@ let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (r
         (fun acc (_, (d : declaration)) -> if Hashtbl.mem seen d.name then acc else (Hashtbl.add seen d.name (); (d.name, d.value) :: acc))
         [] (List.rev sorted)
     in
-    Hashtbl.add table (Hashtbl.hash e) (e, winning);
+    Hashtbl.add table (Dom.hash e) (e, winning);
     List.iter (fun k -> Hashtbl.replace above k (1 + Option.value (Hashtbl.find_opt above k) ~default:0)) keys;
     List.iter (fun (n : Dom.node) -> match n with Element c -> go (e :: ancestors) c | Text _ -> ()) e.children;
     List.iter (fun k -> match Hashtbl.find_opt above k with Some 1 -> Hashtbl.remove above k | Some n -> Hashtbl.replace above k (n - 1) | None -> ()) keys

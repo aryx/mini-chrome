@@ -30,6 +30,7 @@
  (libraries
    lang_html lang_css javascript
    browser_url
+   mini_opti ; Stopwatch: the scripts' time
    network)) ; Urlencoded, a URL's query
 
 ; the small web APIs written in JavaScript (data/prelude/web.js: data,

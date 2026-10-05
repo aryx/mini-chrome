@@ -7,4 +7,5 @@
 ; the Playground, and two would not link.
 (library
  (name mini_opti)
- (wrapped false))
+ (wrapped false)
+ (libraries unix)) ; Stopwatch reads the clock

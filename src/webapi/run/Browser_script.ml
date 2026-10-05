@@ -67,6 +67,8 @@ let run_handler ?(nested = false) (t : t) (f : value) ~(this : value) (event : v
 
 (* onclick="..." compiled once into a function of event, as browsers
  * do: the attribute's text is the function's body *)
+let run_handler ?nested t f ~this event = Stopwatch.time "scripts" (fun () -> run_handler ?nested t f ~this event)
+
 let attribute_handler ?(nested = false) (t : t) (n : node) (typ : string) : value option =
   match attribute n ("on" ^ typ) with
   | None -> None
@@ -214,6 +216,8 @@ let rec run_modules (t : t) : unit =
         jobs;
       run_modules t
 
+let run_modules t = Stopwatch.time "scripts" (fun () -> run_modules t)
+
 (* a <script> a script put in the page (document.head.appendChild(s):
  * how a loader fetches the rest of a site's code): its text run at
  * once, or its src fetched then run, and its load event, or error --
@@ -295,6 +299,8 @@ let run_scripts ?(source = fun (_ : string) -> None) (t : t) : unit =
   | Some (Object _ as f) -> ignore (run_handler t f ~this:Undefined Undefined)
   | _ -> ()
 
+let run_scripts ?source t = Stopwatch.time "scripts" (fun () -> run_scripts ?source t)
+
 let tree (t : t) : Dom.element =
   t.changed <- false;
   let pairs = ref [] in
@@ -326,6 +332,8 @@ let tree (t : t) : Dom.element =
  * ([measure]) the first time a script asks since it changed -- what a
  * browser calls a forced layout: a script that writes then reads a
  * size makes the page be laid out in the middle of its run *)
+let tree t = Stopwatch.time "tree" (fun () -> tree t)
+
 let where (t : t) (n : node) : (float * float * float * float) option =
   match (t.geometry, t.measure) with
   | Some f, _ -> f n

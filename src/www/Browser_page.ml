@@ -246,11 +246,11 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
       (layout, drawn, background, [])
   | None ->
     let media : Cascade.media = { width = s.width; height = s.height } in
-    let sheets = if s.css then fst (page_sheets s media base tree) else [] in
+    let sheets = Stopwatch.time "sheets" (fun () -> if s.css then fst (page_sheets s media base tree) else []) in
     (* before: the cascade and the computed styles again at each relayout
      *   let styles = Computed.styles ~visited ~quirks media sheets tree in *)
-    let styles, kids = styles_of ~visited ~quirks media sheets tree in
-    let boxes = Box_layout.layout Browser_text.metrics ~picture_size ~kids ~viewport:(s.width, s.height) styles tree in
+    let styles, kids = Stopwatch.time "styles" (fun () -> styles_of ~visited ~quirks media sheets tree) in
+    let boxes = Stopwatch.time "boxes" (fun () -> Box_layout.layout Browser_text.metrics ~picture_size ~kids ~viewport:(s.width, s.height) styles tree) in
     let canvas =
       List.find_map
         (fun e -> match (styles e).background with c when c.a > 0. -> Some (c.r, c.g, c.b) | _ -> None)
@@ -263,7 +263,7 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
         [ b.style.background_image; b.style.mask_image ]
       @ List.concat_map backgrounds b.children @ List.concat_map backgrounds b.backdrops
     in
-    (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, canvas, List.sort_uniq compare (backgrounds boxes))
+    Stopwatch.time "shapes" (fun () -> (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, canvas, List.sort_uniq compare (backgrounds boxes)))
 
 let sheets_wanted (s : settings) (p : t) : string list =
   if s.engine = None && s.css then snd (page_sheets s { width = s.width; height = s.height } p.url p.tree) else []
@@ -295,8 +295,8 @@ let with_tree (s : settings) (p : t) (tree : Dom.element) : t =
 let read (s : settings) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
   let charset = Charset.detect ?content_type bytes in
   let text = Charset.to_utf_8 charset bytes in
-  let tokens = Html_lexer.tokenize (as_html url content_type text (String.length bytes)) in
-  let tree = Html_tree.parse tokens in
+  let tokens = Stopwatch.time "html" (fun () -> Html_lexer.tokenize (as_html url content_type text (String.length bytes))) in
+  let tree = Stopwatch.time "html" (fun () -> Html_tree.parse tokens) in
   let title = title_of tree in
   (* no DOCTYPE: the page written for the browsers of the 1990s *)
   let quirks = not (List.exists (fun (t : Html_lexer.token) -> match t with Doctype _ -> true | _ -> false) tokens) in
@@ -357,7 +357,7 @@ let with_value (p : t) (e : Dom.element) (v : Forms.value) : t =
 let where (p : t) : Dom.element -> (float * float * float * float) option =
   let table : (int, Dom.element * (float * float * float * float)) Hashtbl.t = Hashtbl.create 256 in
   let add (e : Dom.element) (x, y, w, h) =
-    let k = Hashtbl.hash e in
+    let k = Dom.hash e in
     match List.find_opt (fun (e', _) -> e' == e) (Hashtbl.find_all table k) with
     (* an inline element's words on several lines: the box around them all *)
     | Some (_, (x0, y0, w0, h0)) ->
@@ -371,4 +371,4 @@ let where (p : t) : Dom.element -> (float * float * float * float) option =
     List.iter go b.children
   in
   go p.layout;
-  fun e -> Option.map snd (List.find_opt (fun (e', _) -> e' == e) (Hashtbl.find_all table (Hashtbl.hash e)))
+  fun e -> Option.map snd (List.find_opt (fun (e', _) -> e' == e) (Hashtbl.find_all table (Dom.hash e)))

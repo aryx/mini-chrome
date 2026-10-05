@@ -330,7 +330,7 @@ and shrink (env : env) (e : Dom.element) (s : Computed.t) ~(available : float) :
    *     let b, _ = layout_block env (ref []) e s' ... ~content:w () in
    *     Float.max 0. (inner_right b -. b.x -. pl -. bl) *)
   let measure w =
-    let key = Hashtbl.hash (e, w) in
+    let key = Hashtbl.hash (Dom.hash e, w) in
     match List.find_opt (fun (e', d, w', _) -> e' == e && d = s.display && w' = w) (Hashtbl.find_all env.measured key) with
     | Some (_, _, _, r) -> r
     | None ->

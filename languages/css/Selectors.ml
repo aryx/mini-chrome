@@ -199,6 +199,23 @@ let pseudo_element (sel : complex) : string option =
 
 let words (s : string) : string list = List.filter (( <> ) "") (String.split_on_char ' ' (String.map (fun c -> if c = '\t' || c = '\n' then ' ' else c) s))
 
+(* is [w] one of the words of [s]? *)
+let has_word_simple (s : string) (w : string) : bool = List.mem w (words s)
+
+(* opti: [s] scanned for [w] between spaces, no list made. A class
+ * attribute was cut in words at each selector tried: 1.3 million times
+ * for GitHub's page (1,823 elements, 2.2 MB of sheets), 61 million
+ * words. scripts/perf/Page_bench.exe on that page, in instructions
+ * (callgrind; the machine's clock was too busy to read): 33.8 G -> 26.3 *)
+let has_word_opti (s : string) (w : string) : bool =
+  let n = String.length s and m = String.length w in
+  let space i = match String.unsafe_get s i with ' ' | '\t' | '\n' -> true | _ -> false in
+  let rec same i j = j = m || (String.unsafe_get s (i + j) = String.unsafe_get w j && same i (j + 1)) in
+  let rec at i = i + m <= n && (((i = 0 || space (i - 1)) && (i + m = n || space (i + m)) && same i 0) || at (i + 1)) in
+  m > 0 && at 0
+
+let has_word (s : string) (w : string) : bool = if !Mini_opti.enabled then has_word_opti s w else has_word_simple s w
+
 let element_children (e : Dom.element) : Dom.element list =
   List.filter_map (fun (n : Dom.node) -> match n with Element c -> Some c | Text _ -> None) e.children
 
@@ -219,7 +236,7 @@ let attr_matches (e : Dom.element) (name : string) (op : attr_op) (v : string) (
       match op with
       | Exists -> true
       | Equals -> a = v
-      | Includes -> List.mem v (words a)
+      | Includes -> has_word a v
       | Dash -> a = v || String.starts_with ~prefix:(v ^ "-") a
       | Prefix -> v <> "" && String.starts_with ~prefix:v a
       | Suffix -> v <> "" && String.ends_with ~suffix:v a
@@ -235,16 +252,17 @@ let rec matches_simple ~visited (ancestors : Dom.element list) (e : Dom.element)
   | Type n -> e.name = n
   | Universal | Pseudo_element _ -> true
   | Id i -> Dom.attribute "id" e = Some i
-  | Class c -> ( match Dom.attribute "class" e with Some cs -> List.mem c (words cs) | None -> false)
+  | Class c -> ( match Dom.attribute "class" e with Some cs -> has_word cs c | None -> false)
   | Attr (name, op, v, ci) -> attr_matches e name op v ci
   | Pseudo p -> (
-      let before, after = siblings ancestors e in
+      (* the siblings: found only by the four that ask *)
+      let before () = fst (siblings ancestors e) and after () = snd (siblings ancestors e) in
       match p with
-      | First_child -> ancestors <> [] && before = []
-      | Last_child -> ancestors <> [] && after = []
-      | Only_child -> ancestors <> [] && before = [] && after = []
+      | First_child -> ancestors <> [] && before () = []
+      | Last_child -> ancestors <> [] && after () = []
+      | Only_child -> ancestors <> [] && before () = [] && after () = []
       | Nth_child (a, b) ->
-          let i = List.length before + 1 in
+          let i = List.length (before ()) + 1 in
           if a = 0 then i = b else (i - b) mod a = 0 && (i - b) / a >= 0
       | Not l -> not (List.exists (fun sel -> matches_complex ~visited sel ancestors e) l)
       | Is (l, _) -> List.exists (fun sel -> matches_complex ~visited sel ancestors e) l
@@ -263,9 +281,13 @@ and matches_compound ~visited ancestors e (compound : simple list) : bool = List
 (* right to left: [rest] the compounds before, the nearest first, each
  * with the combinator that joins it to what follows *)
 and matches_complex ~visited (sel : complex) (ancestors : Dom.element list) (e : Dom.element) : bool =
-  match List.rev sel with
-  | [] -> false
-  | (last, _) :: before -> matches_compound ~visited ancestors e last && left ~visited before ancestors e
+  match sel with
+  (* one compound, most rules: nothing to turn round *)
+  | [ (only, _) ] -> matches_compound ~visited ancestors e only
+  | _ -> (
+      match List.rev sel with
+      | [] -> false
+      | (last, _) :: before -> matches_compound ~visited ancestors e last && left ~visited before ancestors e)
 
 and left ~visited (before : (simple list * combinator option) list) (ancestors : Dom.element list) (e : Dom.element) : bool =
   match before with

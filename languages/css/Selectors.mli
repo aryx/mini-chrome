@@ -111,3 +111,7 @@ val matches : ?visited:(string -> bool) -> complex -> Dom.element list -> Dom.el
 
 (* written back: "ul > li.item:not(.done)" *)
 val to_string : complex -> string
+
+(* is [w] one of the words of [s] (a class among an element's)? The
+ * string scanned, or (opti=off) cut in words: the two agree *)
+val has_word : string -> string -> bool

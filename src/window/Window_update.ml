@@ -20,7 +20,7 @@ let resolve = Browser_url.resolve
  * that are not a flag's name -- an address or words to search, as
  * typed in the omnibox (the Playground cuts a word at its first =: put
  * back, for an address with a query) *)
-let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js" ]
+let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js"; "timings" ]
 
 let first_pages (engine : string) (flags : flags) : string list =
   let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in

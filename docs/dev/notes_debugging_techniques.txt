@@ -617,6 +617,43 @@ Discourse's start was one task of twelve seconds, a single promise
 job of ten in it -- so no cut between tasks or jobs could show
 progress, and the run itself had to give way (Js_slice).
 
+18. Which stage: timings=on
+----------------------------
+Before any profiler, which part of the browser. The stages are run in
+named spans (Stopwatch, libs/opti) and the program says the table when
+it ends:
+
+  mini-chrome url=... scripts=github.com timings=on -dump-frame 1500 x.png
+
+  timings: 49.2 s of 85.9 measured
+    styles      39 times   25.1 s   (25.1 with what it calls)
+    scripts    259 times   13.5 s   (20.9 with what it calls)
+
+A span's own time is less its children's, so the column adds up; what
+is not measured is the window waiting and the Playground drawing. It
+said the styles, where the suspect was the scripts (which the same
+page run offline had already half cleared: 17 s of 58). A new stage
+gets its span: Stopwatch.time "name" (fun () -> ...).
+
+19. One function's cost alone, and who calls what is at the top
+----------------------------------------------------------------
+callgrind counts the whole run: the network, the parsing, three runs
+of each stage. --toggle-collect counts only under one function (its
+symbol, with the number OCaml gives it, which changes at each build):
+
+  sym=$(nm Page_bench.exe | grep -o "camlComputed__styles_[0-9]*$")
+  valgrind --tool=callgrind --toggle-collect=$sym --callgrind-out-file=cg.out Page_bench.exe URL
+  callgrind_annotate cg.out | head -30            # own costs
+  callgrind_annotate --tree=caller cg.out > tree  # then, for a line "* f": the "<" lines above it
+
+The inclusive costs (--inclusive=yes) are nonsense where functions
+recurse (700000% of the total): read the own costs, and for a
+function of the standard library or the runtime at the top
+(caml_compare, List.rev_append, caml_hash) its callers by how many
+times they call. caml_compare 32 million times was List.assoc_opt in
+Dom.attribute; caml_hash on strings was Hashtbl.hash of a Dom element;
+List.filter 61 million times was a class attribute cut in words.
+
 17. Trying an optimization: count, and put it back if it did not pay
 ---------------------------------------------------------------------
 A small script per question (props.js: method calls on a class of

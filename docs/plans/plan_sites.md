@@ -338,7 +338,7 @@ answered 406, for want of the `Accept: application/json` the script
 said and we did not send -- a script's headers are now sent. The
 files' table is `table-layout: fixed`, now done. 145 lines for all of
 it, and every one is the web's, not GitHub's: what the next
-application will ask too. What is left is speed (78 s to the last
+application will ask too. What is left is speed (78 s then, 45 since the styles: to the last
 picture, React's hydration in an interpreter) before github.com can be
 in the default list.
 

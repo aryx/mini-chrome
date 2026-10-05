@@ -198,7 +198,7 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
          * comes meanwhile -- a key, an answer -- waits for its end *)
         match (m.busy, msg) with
         | None, _ ->
-            if Js_slice.run (fun () -> result := Some (Window_update.update caps msg m)) then done_ msg (Option.get !result)
+            if Js_slice.run (fun () -> result := Some (Stopwatch.time "update" (fun () -> Window_update.update caps msg m))) then done_ msg (Option.get !result)
             else ({ m with busy = Some m.time }, Cmd.none)
         | Some _, Tick time ->
             if Js_slice.continue () then (
@@ -245,6 +245,12 @@ let main = Program.main __MODULE__ (fun () ->
       if List.assoc_opt "opti" flags = Some "off" then begin
         Mini_opti.enabled := false;
         Logs.info (fun m -> m "opti=off: the simple code paths")
+      end;
+      (* timings=on: where the time went, said at the end (Stopwatch.mli) *)
+      if List.assoc_opt "timings" flags = Some "on" then begin
+        Stopwatch.enabled := true;
+        let since = Unix.gettimeofday () in
+        at_exit (fun () -> List.iter prerr_endline (Stopwatch.report ~since))
       end;
       (* js=walk: a script's functions walked by the evaluator, not
        * compiled when first called (Js_compile) *)

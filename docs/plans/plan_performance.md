@@ -124,7 +124,9 @@ commit.
 
 `scripts/perf/Page_bench.exe` (the stages) and
 `scripts/perf/load_timeline.sh` (the real program's load in time, the
-clock against the CPU); `scripts/README.md`.
+clock against the CPU); `scripts/README.md`. And, since step 7, in
+the program itself: `timings=on` says when it ends where the time
+went, a line a stage (`Stopwatch`, `libs/opti`).
 
 ### 1. The switch (done)
 
@@ -388,6 +390,47 @@ that an element tries only those that can match; the rules of a sheet
 that has not changed kept while another arrives. `languages/css` reads
 the same `Mini_opti.enabled`.
 
+### 7. A page restyled by its scripts (done, 2026-10-05)
+
+GitHub's repository page with its scripts on took 58 s to its last
+picture, and the JavaScript engine was the suspect. The same scripts
+run offline (`Page_scripts.exe`) took 17 s: the rest was elsewhere.
+Throw-away clocks around the stages of `Browser_page.lay_out` said
+where -- and became the tool, `timings=on`:
+
+    timings: 49.2 s of 85.9 measured
+      styles      39 times   25.1 s
+      scripts    259 times   13.5 s   (20.9 with what it calls)
+      pictures    14 times    4.9 s
+      boxes       39 times    4.2 s
+
+The styles, computed again each time a script has changed the tree:
+0.64 s a pass, for 1,823 elements and 25,273 rules. `Page_bench.exe`
+on the page, under callgrind with `--toggle-collect` on
+`Computed.styles` (the machine was loaded: a clock gave 594 ms, then
+1067, for one binary), a pass in instructions:
+
+| | a pass |
+|---|---|
+| as it was | 3.0 G |
+| a class looked for in the attribute's text, not in a list of its words made each time (1.3 million lists, 61 million words) | |
+| an attribute found with `String.equal`, not `List.assoc_opt`'s comparison of any two values (32 million calls) | |
+| an element filed under its name and attributes, not `Hashtbl.hash` of all it holds (a script of 300 KB) | |
+| rules with no id, class or name in their last part (`[data-kbd-chord]`, `:where(.label)`: 1,138 of them, tried on every element, two rules tried of three) filed under the attribute's name or what the `:where()` holds | 1.7 G |
+| an element's declarations in a table, not a list turned round and searched for each of a hundred properties | 1.3 G |
+
+In the program: the styles' 25.1 s are 6.1, the last picture comes at
+45 s. Each was found the same way, the callers of the function at the
+top of the profile (`callgrind_annotate --tree=caller`), and none is
+GitHub's: Discourse and 9fans are styled by the same code.
+
+What is left, by the same table: the scripts themselves (10 s), the
+boxes (3.5 s for 39 layouts), the pictures (4.5 s for the README's
+fourteen screenshots, decoded on the window's thread), and how many
+passes there are -- a pass a change, where a real browser restyles
+what the change touched (its invalidation sets). That one is an
+algorithm, not a fix: the next step if a site needs it.
+
 ### 6. The tabs not shown
 
 A resize, a zoom and the panel lay out the shown tab; the others are
@@ -415,3 +458,4 @@ the optimized one does, before and after):
 | `Browser_draw.later` | a line's shapes built at each relayout | built when the line is first shown, kept | a relayout 450 ms | 28 ms |
 | `Window_view.view` | a new list of shapes and a frame drawn, sixty times a second | the list of the frame before for the same model: the platform draws nothing | a frame at rest 12-72 ms | 0.3 ms |
 | `Stroke_text.glyph` | a letter its pen's strokes, ten to twenty shapes | one picture made once (`Glyph_picture`) | a frame of about:chrome drawn 74 ms | 8 ms |
+| `Selectors.has_word`, `Cascade.key`, `Computed.compute` | a class's words listed at each selector tried; rules with no id, class or name tried on every element; declarations searched as a list | the attribute's text scanned; those rules under an attribute's name or a `:where()`'s class; a table | a style pass of GitHub's page 3.0 G instructions | 1.3 G |
