@@ -361,10 +361,17 @@
   (function () {
     function CSSStyleSheet() { this._text = ""; this._rules = []; this._style = null; this.cssRules = this._rules; this.disabled = false; }
     var P = CSSStyleSheet.prototype;
-    P._sync = function () { if (this._style) this._style.textContent = this._text + "\n" + this._rules.join("\n"); };
+    // a rule is an object with its text (cssRules[i].cssText)
+    P._sync = function () { if (this._style) this._style.textContent = this._text + "\n" + this._rules.map(function (r) { return r.cssText; }).join("\n"); };
     P.replaceSync = function (text) { this._text = String(text); this._rules.length = 0; this._sync(); };
     P.replace = function (text) { this.replaceSync(text); return Promise.resolve(this); };
-    P.insertRule = function (rule, index) { index = index === undefined ? 0 : index; this._rules.splice(index, 0, String(rule)); this._sync(); return index; };
+    P.insertRule = function (rule, index) {
+      index = index === undefined ? 0 : index;
+      rule = String(rule);
+      this._rules.splice(index, 0, { cssText: rule, selectorText: rule.split("{")[0].trim(), type: 1, parentStyleSheet: this });
+      this._sync();
+      return index;
+    };
     P.deleteRule = function (index) { this._rules.splice(index, 1); this._sync(); };
     g.CSSStyleSheet = CSSStyleSheet;
     var adopted = [];
@@ -540,6 +547,38 @@
   // class): asked by instanceof, never made here
   global("SVGAnimatedString", function SVGAnimatedString() {});
   // what a tree walker is told to show, and what its filter answers
+  // IntersectionObserver (Chrome 51, 2016): told when an element comes
+  // into view -- how a page puts a picture's address in only when it
+  // is about to be seen ("lazy loading"), where scripts once listened
+  // to every scroll. Here everything observed is said to be in view,
+  // once, a moment after it is observed: the pictures all come, and a
+  // list that grows when its end is seen grows once.
+  g.IntersectionObserver = class IntersectionObserver {
+    constructor(callback, options) {
+      this._callback = callback; this._observed = [];
+      this.root = (options && options.root) || null; this.rootMargin = (options && options.rootMargin) || "0px"; this.thresholds = [0];
+    }
+    observe(element) {
+      if (this._observed.indexOf(element) >= 0) return;
+      this._observed.push(element);
+      var self = this;
+      setTimeout(function () {
+        if (self._observed.indexOf(element) < 0) return;
+        var box = element.getBoundingClientRect();
+        self._callback([{ target: element, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: null, time: performance.now() }], self);
+      }, 0);
+    }
+    unobserve(element) { this._observed = this._observed.filter(function (e) { return e !== element; }); }
+    disconnect() { this._observed = []; }
+    takeRecords() { return []; }
+  };
+  // CSS: what a script asks of the style engine. supports() says no
+  // (a library then takes its older way); escape() makes a name safe
+  // in a selector
+  global("CSS", {
+    supports: function () { return false; },
+    escape: function (s) { return String(s).replace(/[^a-zA-Z0-9_\-\u00a0-\uffff]/g, function (c) { return "\\" + c; }); }
+  });
   global("NodeFilter", { SHOW_ALL: -1, SHOW_ELEMENT: 1, SHOW_TEXT: 4, SHOW_COMMENT: 128, FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3 });
   // a <template>'s content: its children, in a fragment of their own
   // (what cloneNode and importNode copy into the page)
@@ -621,6 +660,16 @@
   reflects(E, "ariaLabel", "aria-label");
   reflects(E, "ariaHidden", "aria-hidden");
   reflects(E, "ariaExpanded", "aria-expanded");
+  // a <style>'s sheet: the object a script adds rules through, one at
+  // a time (sheet.insertRule: how a CSS-in-JS library writes a
+  // component's style when it is first drawn -- styled-components,
+  // Emotion). Its rules are written after the element's own text.
+  getter(E, "sheet", function () {
+    if (this.tagName !== "STYLE") return null;
+    if (!this.__sheet) { var s = new CSSStyleSheet(); s._style = this; s._text = this.textContent; s.ownerNode = this; this.__sheet = s; }
+    return this.__sheet;
+  });
+  getter(D, "styleSheets", function () { return Array.prototype.map.call(this.querySelectorAll("style"), function (s) { return s.sheet; }); });
   getter(E, "draggable", function () { return this.getAttribute("draggable") === "true"; }, function (v) { this.setAttribute("draggable", String(!!v)); });
   getter(E, "inert", function () { return this.hasAttribute("inert"); }, function (v) { this.toggleAttribute("inert", !!v); });
   getter(E, "contentEditable", function () { return this.getAttribute("contenteditable") || "inherit"; }, function (v) { this.setAttribute("contenteditable", v); });

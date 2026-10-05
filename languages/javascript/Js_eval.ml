@@ -751,7 +751,14 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
                  (match c.func.body with st :: _ -> Printf.sprintf ", written at line %d" st.line | [] -> "")
                  (* of which module, and its parameters: what to grep for *)
                  (match module_url c.scope with "" -> "" | u -> " of " ^ Filename.basename u)
-               ^ Printf.sprintf " (%s)" (String.concat ", " (List.map (fun (p, _) -> match p with A.Bind x -> x | _ -> "{..}") c.func.params))));
+               (* and what each was given, cut short: which call it was *)
+               ^ Printf.sprintf " (%s)"
+                   (String.concat ", "
+                      (List.mapi
+                         (fun i (p, _) ->
+                           let given = match List.nth_opt args i with Some v -> (let d = display v in if String.length d > 40 then String.sub d 0 40 ^ "..." else d) | None -> "nothing" in
+                           (match p with A.Bind x -> x | _ -> "{..}") ^ " = " ^ given)
+                         c.func.params))));
           raise e)
   | _ -> throw "TypeError" (display fn ^ " is not a function")
 

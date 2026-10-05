@@ -224,6 +224,11 @@ val take_navigation : t -> (string * bool) option
  * window's popstate listeners are told *)
 val popstate : t -> string -> unit
 
+(* [picture t url size]: the picture of that address has come, of that
+ * size (None: it could not be had): the page's <img>s of it get their
+ * load event (or error), and say complete, naturalWidth, naturalHeight *)
+val picture : t -> string -> (float * float) option -> unit
+
 (* the addresses the page gave itself since last asked, in order
  * (history.pushState; true: replaceState), no page being loaded: the
  * browser shows the last, and Back comes back through the others *)

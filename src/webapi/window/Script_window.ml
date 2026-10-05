@@ -90,7 +90,8 @@ let computed_style (n : node) : value =
       show = (fun () -> "CSSStyleDeclaration");
     }
 
-(* an observer that is never told anything *)
+(* an observer that is never told anything (IntersectionObserver's is
+ * data/prelude/web.js's, which says all is in view) *)
 let observer (name : string) : value =
   let c = fn name (fun _ -> object_of [ nothing "observe"; nothing "unobserve"; nothing "disconnect"; ("takeRecords", fn "takeRecords" (fun _ -> Object (new_array []))) ]) in
   c

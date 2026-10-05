@@ -244,6 +244,12 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- web APIs: a <style>'s sheet (insertRule, cssRules: how
+  styled-components writes its rules) and document.styleSheets; an
+  IntersectionObserver that says what it observes is in view (a
+  page's lazy pictures come); a picture come tells its <img> (load,
+  error; complete, naturalWidth, naturalHeight); the CSS global;
+  Symbol.unscopables
 - every site's scripts run, not those of a few named sites: the
   omnibox's "JS" is the browser's switch, a click turning them off
   and on for all (the page loaded again); scripts=off, scripts=on,
@@ -831,6 +837,13 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- regular expressions: in a class, a range whose bounds are \u
+  escapes ([\u0020-\u007e]) lost its upper bound when the expression
+  was made from a string (new RegExp): the BBC's page went blank two
+  loads in three, a polyfill rebuilding its expressions so
+  (docs/dev/notes_debugging_techniques.txt, session 5)
+- a <script>'s and a <style>'s innerHTML is their text, not markup
+  ("r<t;r++" in a script written so was read as a tag)
 - GitHub's tabs (Issues, Pull requests) could not be clicked: a menu
   waiting, hidden (visibility: hidden), lay over them and took the
   click -- what is not seen is no longer under the pointer; and the

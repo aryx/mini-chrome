@@ -355,6 +355,24 @@ page with nothing. MDN's console has seventeen scripts "run too
 long". Those three are what to look at next; the switch is a click
 on the omnibox's "JS" for who meets another.
 
+**2026-10-05, night: the BBC with its scripts.** It was the survey's
+one site made worse that had worked. Six things of ours were found
+and fixed on the way (a `<style>`'s `sheet`, a script's `innerHTML`
+read as markup, a range of `\u` escapes in an expression made from a
+string -- which was the blank page, two loads in three --,
+`Symbol.unscopables`, the `CSS` global, lazy pictures and their
+`load`). The page is no longer blank: it stays as the server sent it,
+its text right. Its pictures are still grey boxes: the server puts a
+placeholder over each, which the application takes away when the
+picture has come, and the application (Next.js, React) does not start
+-- one of its scripts stops in a polyfill of core-js
+(`Object.defineProperty` of `sham` on undefined) that
+`Symbol.unscopables` now lets it reach; without that symbol React
+starts, finds the page other than it expects, and blanks it. So: the
+BBC reads with scripts on, and has its pictures only with them off.
+Next: that polyfill's stop, with `JS_THROWS` on the saved page
+(`/tmp/.../bbc`, to be saved again).
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

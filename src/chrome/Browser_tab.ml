@@ -553,7 +553,12 @@ let got_picture (cfg : 'msg config) (network : < Cap.network ; .. >) (url : stri
   else
     let pic = match result with Ok r when r.status / 100 = 2 -> Browser_picture.decode r.body | _ -> Browser_picture.Broken in
     let tab = match result with Ok r -> logged ~status:r.status ~bytes:(String.length r.body) Picture url tab | Error _ -> logged ~status:0 Picture url tab in
-    fetch_more cfg network (with_arrived cfg { tab with in_flight = List.filter (( <> ) url) tab.in_flight } url pic, Cmd.none)
+    let tab = with_arrived cfg { tab with in_flight = List.filter (( <> ) url) tab.in_flight } url pic in
+    (* the page's scripts told of it: a task *)
+    Option.iter (fun s -> Browser_script.picture s url (match pic with Browser_picture.Arrived _ -> Browser_picture.size pic | _ -> None)) tab.script;
+    (* a layout owed if they changed the page (the Tick's settle) *)
+    let tab = match tab.script with Some s when Browser_script.changed s -> { tab with stale = true } | _ -> tab in
+    fetch_more cfg network (tab, Cmd.none)
 
 (*****************************************************************************)
 (* Forms, and the scripts' tasks *)

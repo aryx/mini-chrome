@@ -444,3 +444,12 @@
   def(P, "toGMTString", P.toUTCString);
   globalThis.Date = Date;
 })();
+
+// Symbol.unscopables (ES2015): the names of an object that a "with"
+// does not see. Nobody writes "with" any more, but the polyfills of
+// arrays' newer methods (core-js) write theirs in
+// Array.prototype[Symbol.unscopables], and stop if it is not there.
+(function () {
+  if (!Symbol.unscopables) Symbol.unscopables = Symbol("Symbol.unscopables");
+  Array.prototype[Symbol.unscopables] = { at: true, copyWithin: true, entries: true, fill: true, find: true, findIndex: true, findLast: true, findLastIndex: true, flat: true, flatMap: true, includes: true, keys: true, values: true };
+})();

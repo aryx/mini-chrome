@@ -208,6 +208,21 @@ let tests =
           check "DOMParser: HTML read into a page of its own" {|const d = new DOMParser().parseFromString("<p class=a>one</p><p>two</p>", "text/html");
             [d.body.children.length, d.querySelector("p.a").textContent, d.querySelectorAll("p").length, document.querySelectorAll("p").length]|}
             {|[2, "one", 2, 0]|});
+      Testo.create "a picture come: its <img> told, and its size" (fun () ->
+          let t =
+            Browser_script.create ~base:"http://site.test/news/"
+              (Html_tree.of_string
+                 {|<body><img id=a src="a.png"><img id=b src="/b.png" onerror="seen.push('b error')"><img id=c srcset="c-240.webp 240w, c-480.webp 480w" onload="seen.push('c load')"><script>var seen = [];
+                   var a = document.getElementById("a"); a.addEventListener("load", function () { seen.push("a load " + a.naturalWidth + "x" + a.naturalHeight + " " + a.complete) });</script></body>|})
+          in
+          Browser_script.run_scripts t;
+          let value s = match Browser_script.eval t s with Ok v -> Js_value.display v | Error e -> e.message in
+          Alcotest.(check string) "before: not complete" "[undefined, []]" (value "[a.complete, seen]");
+          Browser_script.picture t "http://site.test/news/a.png" (Some (640., 360.));
+          Browser_script.picture t "http://site.test/b.png" None;
+          Browser_script.picture t "http://site.test/other.png" (Some (1., 1.));
+          Browser_script.picture t "http://site.test/news/c-240.webp" (Some (240., 135.));
+          Alcotest.(check string) "load with its size; error for the one not had; nothing for another address; a srcset's first" {|["a load 640x360 true", "b error", "c load"]|} (value "seen"));
       Testo.create "an element is of its tag's class; EventTarget; a listener's signal; a sheet made by a script" (fun () ->
           check "instanceof" ~html:"<a id=a href=x>l</a><button id=b>b</button>"
             {|const a = document.getElementById("a"), b = document.getElementById("b");
@@ -231,6 +246,20 @@ let tests =
             {|const d = document.getElementById("d"), ids = () => [...d.children].map(e => e.id).join("");
               d.prepend(d.children[0]); const same = ids(); d.prepend(d.children[2]); const moved = ids(); d.prepend(d.children[1], d.children[0]); [same, moved, ids()]|}
             {|["abc", "cab", "acb"]|};
+          check "a <style>'s sheet: rules put in by a script, after its own text" ~html:"<style id=s>p { margin: 0 }</style><p id=p>x</p>"
+            {|const s = document.getElementById("s"), sheet = s.sheet;
+              sheet.insertRule(".a { color: red }", 0); sheet.insertRule(".b { color: blue }", 1); sheet.deleteRule(0);
+              [sheet === s.sheet, sheet.ownerNode === s, sheet.cssRules.length, sheet.cssRules[0].cssText, sheet.cssRules[0].selectorText,
+               s.textContent.replace(/\s+/g, " "), document.styleSheets.length, document.getElementById("p").sheet]|}
+            {|[true, true, 1, ".b { color: blue }", ".b", "p { margin: 0 } .b { color: blue }", 1, null]|};
+          check "a <script>'s innerHTML is its text, whatever < and > it holds"
+            {|const s = document.createElement("script"); s.innerHTML = "var made = 0; for (var i = 0; i<3; i++) made += i>0 ? 1 : 0;"; document.head.appendChild(s);
+              const st = document.createElement("style"); st.innerHTML = "a>b { color: red }"; [made, s.textContent.length, st.textContent]|}
+            {|[2, 60, "a>b { color: red }"]|};
+          check "IntersectionObserver: what is observed is not told at once" ~html:"<img id=i>"
+            {|var told = []; const o = new IntersectionObserver(es => es.forEach(e => told.push(e.target.id + ":" + e.isIntersecting)));
+              o.observe(document.getElementById("i")); [told.length, typeof o.unobserve, o.takeRecords().length]|}
+            {|[0, "function", 0]|};
           check "adoptedStyleSheets: a <style> of the page"
  {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}

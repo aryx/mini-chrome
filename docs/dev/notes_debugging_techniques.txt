@@ -669,3 +669,113 @@ worse, put back. Js_bench.exe read=FILE times a script's reading by
 stage (lexing, parsing, Js_quicken) with the megabytes each makes:
 it said reading was 0.7 s of a 13 s start, where a guess from an
 inclusive profile had said a quarter.
+
+Session 5: a bug that came and went (the BBC, 2026-10-05)
+==========================================================
+The BBC's page with its scripts on went blank two loads in three:
+"TypeError: argument name is invalid", then Next.js's "Application
+error". The cause was six lines of the regular expressions' compiler.
+Finding it took six steps, two of them wrong, and the wrong ones are
+the lesson.
+
+20. What the message is, before what the bug is
+------------------------------------------------
+grep the message in our own code first: it was not ours (grep -rn "is
+invalid" src data languages). Then in the site's saved scripts (the
+offline harness of section 2): the "cookie" library, checking a
+cookie's name against /^[\u0009 -~\u0080-ÿ]+$/. That
+expression in mini-node: true. So the engine was "right", and the
+name had to be wrong -- the first wrong turn: an hour was spent on who
+calls setCookie with what, when the name was fine.
+
+What would have cut it short: JS_THROWS now prints, for each call a
+throw leaves by, what each parameter was given:
+
+  JS_THROWS=6000 mini-chrome -v url=... js=walk 2>&1 | grep -A4 "argument name"
+  throw: {name: "TypeError", message: "argument name is invalid"}
+    left (no name), written at line 1 (e = ckns_echo_device_id, t = a063a037-..., r = {path: "/", ...)
+
+A valid name, rejected: the check itself was failing. (js=walk: the
+compiled functions do not report their calls.)
+
+21. It comes and goes: say what differs between the runs
+---------------------------------------------------------
+Never offline (Page_scripts.exe on the saved files), two times in
+three live. Then, live, five runs each:
+
+  as it is            3 of 5 fail
+  threads=off         0 of 5
+  opti=off            0 of 5
+
+"Never without threads": a race, then -- the second wrong turn. The
+pool's workers had become domains that day, and a module's text was
+parsed on them: an obvious suspect. Turned off (one line, a build):
+still 3 of 5. A flag that makes a bug go away says the bug depends on
+*when* things happen, not that threads touch the same thing: without
+the pool, scripts arrive in another order. Before accusing a race,
+find what is shared and written by two threads; the regular
+expressions' matcher shares nothing (grep "ref\|Hashtbl" in it: all
+local).
+
+22. The disk cache as a debugger of the live site
+--------------------------------------------------
+The offline harness could not show it (there it never failed), and
+the live site's scripts cannot be edited. But the cache is files, and
+a script kept "immutable" is read from them:
+
+  mini-chrome url=https://www.bbc.com/news profile=/tmp/pb       # once: fills /tmp/pb/Cache
+  grep -lF "argument name is invalid" /tmp/pb/Cache/*            # the copy of that script
+  # in it, by a line of python: before the throw,
+  #   console.log("NAMECHK", String(i), typeof i, JSON.stringify(e), i.lastIndex,
+  #               i.test(e), /^[\u0009 -~\u0080-ÿ]+$/.test(e), /^[a-z_]+$/.test(e))
+  mini-chrome -v url=https://www.bbc.com/news profile=/tmp/pb    # until it fails
+
+  console: NAMECHK /^[\u0009 ...]+$/ object "ckns_echo_device_id" string 0 false false true
+
+The fourth and fifth values are the finding: not only the library's
+expression says no, a new one written on the spot does too, and a
+simpler one says yes. So nothing had changed the library's variable:
+something had changed what such an expression *means* in that page
+at that moment. What to print at a failing check: the value, its
+type, the check again, the same check made fresh, and a simpler one
+-- each rules a family of causes out.
+
+23. Then the small program finds it at once
+--------------------------------------------
+"Changed what an expression means": a polyfill that builds
+expressions from strings (core-js does, to add flags), loaded before
+or after that code by the luck of the network. In mini-node:
+
+  new RegExp("^[\\u0020-\\u007e]+$").test("ckns")       -> false
+  /^[ -~]+$/.test("ckns")                     -> true
+  /^[ -~]+$/.source                           -> "^[ -~]+$"
+
+The literal worked by accident: the lexer had already turned  
+into a space. From a string, the class's parser read the range's
+upper bound "~" as "-" (only a plain escaped character was a
+bound: Js_regexp's items). Six lines; a test from a string, where the
+tests were all literals.
+
+The steps that paid, in order: the message's owner; the arguments at
+the throw; what differs between a run that fails and one that does
+not, counted; a print at the failing check, through the cache; the
+small program. The two that did not: reasoning about who could have
+passed a bad value before looking at the value, and blaming the
+newest change.
+
+24. Other finds of that day, each in a line
+--------------------------------------------
+- A syntax error in code that parses alone: "after: ..." (JS_SYNTAX's
+  tokens) was grepped in the saved scripts and found inside a
+  *string* of another script, which set it as a <script>'s innerHTML:
+  we read that as HTML, and "r<t;r++)...>" was a tag. grep tells where
+  the text is, not who runs it.
+- A click that does nothing: with -v, a click now says what it was on
+  ("click on <div class=NavGroup...>: no link, in html > body > ...").
+  The first line said a hidden menu had it; the second, once that was
+  fixed, that the link was three boxes up.
+- A page worse with scripts than without: dump both and put them side
+  by side for every site (scripts=off, scripts=on, a sheet of pairs):
+  three regressions in twenty-four were seen in a minute.
+- -script's at(x;y) is from the window's centre, y up: a click "at the
+  tab" landed in the page's middle and its log line said so.

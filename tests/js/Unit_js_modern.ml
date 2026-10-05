@@ -198,4 +198,9 @@ let tests =
             "[true, true, true, 2]";
           check "stack: a text, not enumerated, that can be set" {|var e = new Error('x'); var before = typeof e.stack; e.stack = 'mine'; [before, Object.keys(e).indexOf('stack'), e.stack]|}
             {|["string", -1, "mine"]|});
+      Testo.create "a regular expression's class: bounds written as \\u escapes" (fun () ->
+          check "from a string as from a literal; beyond ASCII, any such character" {|[new RegExp("^[\\u0009\\u0020-\\u007e\\u0080-\\u00ff]+$").test("ckns_echo_device_id"),
+            new RegExp("^[\\u0041-\\u005a]+$").test("ABC"), new RegExp("^[\\u0041-\\u005a]+$").test("abc"), /^[\u00e0-\u00ff]+$/.test("\u00e9"),
+            /[^\u0000-\u007f]/.test("e"), /[^\u0000-\u007f]/.test("\u00e9"), /[\u0041]/.test("A"), /[a\-z]/.test("-")]|}
+            "[true, true, false, true, false, true, true, true]");
     ]

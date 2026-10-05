@@ -57,6 +57,13 @@ let parse (p : string) : node list list * int * (string * int) list =
     if !pos = start then None else Some (int_of_string (String.sub p start (!pos - start)))
   in
   (* \x: a class, or the character it stands for *)
+  (* the code point of a character's UTF-8 bytes (its first one or two; beyond: large) *)
+  let code_point (s : string) : int =
+    match String.length s with
+    | 1 -> Char.code s.[0]
+    | 2 -> ((Char.code s.[0] land 0x1f) lsl 6) lor (Char.code s.[1] land 0x3f)
+    | _ -> 0x800
+  in
   let escape () : [ `Class of char | `Char of char | `Chars of string | `Boundary of bool | `Node of node ] =
     if !pos >= n then raise (Bad "\\ at the end of the pattern");
     match next () with
@@ -194,21 +201,37 @@ let parse (p : string) : node list list * int * (string * int) list =
                 match escape () with
                 | `Class c -> `Item (Class c)
                 | `Char c -> `C c
-                | `Chars s -> `C s.[0]
+                | `Chars s -> `U (code_point s)
                 | `Boundary _ -> `C '\b'
                 (* in a set, \1 is the character of that code *)
                 | `Node (Backref g) -> `C (Char.chr (g land 255))
                 | `Node _ -> `C 'k')
             | c -> `C c
           in
+          (* a bound is a byte, or the code point a \u escape names *)
+          let code = function `C c -> Char.code c | `U cp -> cp in
+          (* the bytes between two bounds. A text is matched byte by
+           * byte, in UTF-8: up to U+007F a code point is its byte;
+           * above, a bound that an escape named stands for every byte
+           * of a character beyond ASCII (\u0080-\u00ff, "any Latin-1
+           * letter", then takes any such character: more than it
+           * says, never less) *)
+          let range lo hi =
+            match (lo, hi) with
+            | `C a, `C b -> [ Range (a, b) ]
+            | _ ->
+                let a = code lo and b = code hi in
+                (if a < 0x80 then [ Range (Char.chr a, Char.chr (min b 0x7f)) ] else []) @ if b >= 0x80 then [ Range ('\x80', '\xff') ] else []
+          in
           (match lo with
           | `Item it -> items (it :: acc) false
-          | `C lo ->
+          | (`C _ | `U _) as lo ->
               if peek () = Some '-' && !pos + 1 < n && p.[!pos + 1] <> ']' then (
                 incr pos;
-                let hi = match next () with '\\' -> ( match escape () with `Char c -> c | _ -> '-') | c -> c in
-                items (Range (lo, hi) :: acc) false)
-              else items (Range (lo, lo) :: acc) false)
+                (* the upper bound: an escape too ("\u0020-\u007e" lost its, read as "-") *)
+                let hi = match next () with '\\' -> ( match escape () with `Char c -> `C c | `Chars s -> `U (code_point s) | _ -> `C '-') | c -> `C c in
+                items (List.rev_append (range lo hi) acc) false)
+              else items (List.rev_append (range lo lo) acc) false)
     in
     Set (negated, items [] true)
   in

@@ -387,6 +387,27 @@ let web_key (k : string) : string =
 let window_event ?(at : Dom.element option) (t : t) (typ : string) (fields : (string * value) list) : bool =
   listens t typ && dispatch_event t (Option.bind at (node_of_element t)) (Script_events.make ~bubbles:true typ (List.map (fun (k, v) -> if k = "key" then (k, (match v with String s -> String (web_key s) | v -> v)) else (k, v)) fields))
 
+(* a picture has come (or not: [size] None): each <img> of that address
+ * is told -- its load event, or error -- and says its size
+ * (naturalWidth, complete): what a page waits for to show a picture it
+ * keeps hidden until then *)
+let picture (t : t) (url : string) (size : (float * float) option) : unit =
+  List.iter
+    (fun (n : node) ->
+      (* its address as the layout takes it: src, else srcset's first *)
+      let address =
+        match attribute n "src" with
+        | Some src when String.trim src <> "" -> Some src
+        | _ -> Option.bind (attribute n "srcset") (fun set -> match String.split_on_char ' ' (String.trim (List.hd (String.split_on_char ',' set))) with u :: _ when u <> "" -> Some u | _ -> None)
+      in
+      match address with
+      | Some src when n.name = "img" && Browser_url.resolve t.base src = url ->
+          let w, h = Option.value size ~default:(0., 0.) in
+          n.expando <- [ ("complete", Bool true); ("naturalWidth", Number w); ("naturalHeight", Number h) ] @ List.filter (fun (k, _) -> not (List.mem k [ "complete"; "naturalWidth"; "naturalHeight" ])) n.expando;
+          ignore (dispatch_event t (Some n) (Script_events.make ~bubbles:false (if size = None then "error" else "load") []))
+      | _ -> ())
+    (elements t.root)
+
 (* Back or Forward to another state of this document (one the page
  * made by history.pushState): its address is that one's, and the
  * window is told (popstate), for the page to draw that state *)

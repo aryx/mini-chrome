@@ -77,7 +77,8 @@ let object_statics : (string * value) list =
      fn "defineProperty" (fun ~this:_ args ->
          match arg args 0 with
          | Object o as target -> define o (to_string (arg args 1)) (arg args 2); target
-         | _ -> throw "TypeError" "Object.defineProperty called on non-object"));
+         (* which property, of what: the one clue to who called it *)
+         | v -> throw "TypeError" (Printf.sprintf "Object.defineProperty called on non-object (%s of %s)" (to_string (arg args 1)) (display v))));
     ("defineProperties",
      fn "defineProperties" (fun ~this:_ args ->
          (match (arg args 0, arg args 1) with Object o, (Object ds as d) -> List.iter (fun k -> define o k (own d k)) (keys ds) | _ -> ());

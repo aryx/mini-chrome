@@ -252,6 +252,9 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
   | "className" -> set_attribute n "class" (str v); touch t
   | "textContent" | "innerText" | "data" | "nodeValue" ->
       if is_text n || n.name = comment_name then (n.text <- str v; touch t) else replace_children [ make text_name ~text:(str v) ]
+  (* a <script>'s and a <style>'s is text, not markup: "r<t;r++" in a
+   * script written so was read as a tag, up to the next ">" *)
+  | "innerHTML" when n.name = "script" || n.name = "style" -> replace_children [ make text_name ~text:(str v) ]
   | "innerHTML" -> replace_children (parse_fragment (str v))
   | "value" -> if n.name = "textarea" then replace_children [ make text_name ~text:(str v) ] else (set_attribute n "value" (str v); touch t)
   | "checked" ->
