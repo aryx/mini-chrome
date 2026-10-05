@@ -293,7 +293,10 @@ let tests =
             (sizes {|<body style="margin: 0"><div style="height: 80px"><img src=a.png style="width: 100%; height: 100%">|});
           (* else auto, not nothing: no picture 0 high *)
           Alcotest.(check (list (pair near near))) "a block as high as its content: no picture of no height" []
-            (List.filter (fun (_, h) -> h = 0.) (sizes {|<body style="margin: 0"><div><img src=a.png style="width: 100%; height: 100%">|})));
+            (List.filter (fun (_, h) -> h = 0.) (sizes {|<body style="margin: 0"><div><img src=a.png style="width: 100%; height: 100%">|}));
+          (* an icon: an svg that fills a box of 24 *)
+          Alcotest.(check (list (pair near near))) "an svg the same: its block's height, else its viewBox's ratio" [ (24., 24.); (200., 200.) ]
+            (sizes {|<body style="margin: 0"><div style="width: 24px; height: 24px"><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div><div><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div>|}));
       Testo.create "Box_flow's worked examples: the horizontal equation, two margins one" (fun () ->
           let p = page ~width:976. {|<body style="margin: 0"><div id=d style="width: 400px; padding: 10px; border: 1px solid; margin: 0 auto">x</div><div id=a style="padding: 10px; border: 1px solid">y</div>|} in
           let ml, w, mr = Box_flow.horizontal (box "d" p).style ~cb_width:976. () in

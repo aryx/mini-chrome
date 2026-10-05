@@ -69,7 +69,8 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
             | _ -> None
           in
           match page o.proto with
-          | Some v -> v
+          (* but what a script put on the object itself comes before its class's *)
+          | Some v -> if h.get (Js_builtins.own_query ^ k) = Bool true then h.get k else v
           | None -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v))
       | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
 

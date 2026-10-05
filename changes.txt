@@ -244,6 +244,15 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- YouTube's icons: an inline <svg>'s height in percents is of its
+  block's (it was 0: every icon a flat line); a path's arc may have
+  its two flags glued to what follows ("a9 9 0 105.6 16", a
+  minifier's: the magnifier was a blot); and a property a script put
+  on an element before its class was defined is its own
+  (hasOwnProperty says so, it comes before the class's accessor, and
+  delete takes it away): what Polymer looks for at an element's
+  upgrade to take the values its parent gave it early -- the
+  masthead's icons had lost theirs
 - YouTube's search page whole: its twenty results, the views and
   ages, the channels' pictures, the filter chosen; the lower ones'
   thumbnails come as the page is scrolled. MutationObserver is told

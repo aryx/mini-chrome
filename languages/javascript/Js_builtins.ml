@@ -17,6 +17,9 @@ type protos = { strings : obj; arrays : obj; objects : obj; functions : obj; reg
 (* Helpers *)
 (*****************************************************************************)
 
+(* what hasOwnProperty asks a host object: this, then the property's name *)
+let own_query = "@@own:"
+
 let arg (args : value list) (i : int) : value = Option.value (List.nth_opt args i) ~default:Undefined
 let num (args : value list) (i : int) : float = to_number (arg args i)
 
@@ -554,7 +557,15 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
    * a number's; a string's and an array's below *)
   let objects = new_object () and functions = new_object () and regexps = new_object () and numbers = new_object () in
   let method_ (o : obj) name f = set_own o name (fn name f) in
-  method_ objects "hasOwnProperty" (fun ~this args -> match this with Object o -> Bool (get_own o (to_string (arg args 0)) <> None) | _ -> Bool false);
+  (* a host object says which properties a script put on it (an
+   * element's: kept by the browser, not in the object): asked by
+   * [own_query] and the name *)
+  method_ objects "hasOwnProperty" (fun ~this args ->
+      let k = to_string (arg args 0) in
+      match this with
+      | Object ({ kind = Host_object h; _ } as o) -> Bool (get_own o k <> None || h.get (own_query ^ k) = Bool true)
+      | Object o -> Bool (get_own o k <> None)
+      | _ -> Bool false);
   (* Object.prototype.toString.call(x): "[object Array]", how a script
    * asked what a value was before Array.isArray; an object's own
    * Symbol.toStringTag is its name. On an error and a host's object,

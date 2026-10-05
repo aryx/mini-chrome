@@ -57,6 +57,11 @@
  * Array.prototype.indexOf.call(a, x)), or adds its own *)
 type protos = { strings : Js_value.obj; arrays : Js_value.obj; objects : Js_value.obj; functions : Js_value.obj; regexps : Js_value.obj; numbers : Js_value.obj }
 
+(* what hasOwnProperty asks a host object, before the property's name:
+ * a host keeps what a script put on it itself (an element's
+ * properties), and answers true for those *)
+val own_query : string
+
 (* an iterator over these values: next(), and itself as its
  * [Symbol.iterator]() *)
 val iterator : Js_value.value list -> Js_value.value

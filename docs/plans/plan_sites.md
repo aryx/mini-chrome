@@ -483,6 +483,21 @@ runs of script, 34 s; 60 layouts, 13 s), nothing asked for that is
 not near the window, and the lower thumbnails come when the page is
 scrolled to them.
 
+**The icons.** Three causes for one blank. The newer components'
+icons were in the document, each an `<svg>` of `height: 100%`, 0 for
+us (the picture's bug of the day before, again). The magnifier then
+came as a blot: its arc's flags written with nothing after them. And
+the masthead's own, Polymer's `yt-icon`, were empty where six
+elsewhere were filled: asked in the saved page, an empty one and a
+filled one differed by their parent, and the parent's value
+(`logoName`) was right -- the child never had it. Polymer gives a
+child its properties before the child's class is defined, and at the
+upgrade takes those `hasOwnProperty` finds; ours found none (an
+element's properties are the browser's to keep, not the object's).
+Nineteen of fifty-two are now filled, the rest not asked for
+(`disable-upgrade`). Left: their colour (pale), the logo (YouTube
+says a doodle is there, and its picture has no address).
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

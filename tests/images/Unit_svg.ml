@@ -47,7 +47,11 @@ let tests =
       Testo.create "an arc: two half circles" (fun () ->
           let img = picture {|<svg width="10" height="10"><path d="M0 5A5 5 0 1 0 10 5A5 5 0 1 0 0 5Z" fill="blue"/></svg>|} 10 10 in
           Alcotest.check rgba "the centre" [ 0; 0; 255; 255 ] (pixel img 5 5);
-          Alcotest.check Alcotest.int "a corner, outside the circle" 0 (alpha img 0 0));
+          Alcotest.check Alcotest.int "a corner, outside the circle" 0 (alpha img 0 0);
+          (* the two flags a digit each, nothing after them: what a minifier writes *)
+          let glued = picture {|<svg width="10" height="10"><path d="M0 5A5 5 0 1010 5A5 5 0 100 5Z" fill="blue"/></svg>|} 10 10 in
+          Alcotest.check rgba "flags glued to the next number: the same centre" [ 0; 0; 255; 255 ] (pixel glued 5 5);
+          Alcotest.check Alcotest.int "and the same corner" 0 (alpha glued 0 0));
       Testo.create "evenodd: a hole" (fun () ->
           let square a b = Printf.sprintf "M%d %dH%dV%dH%dZ" a a b b a in
           let d = square 0 6 ^ square 2 4 in

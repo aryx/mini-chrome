@@ -52,13 +52,16 @@ let sniff (bytes : string) : bool =
 
 (* the numbers of "M10-5.5.5e2,3": 10 -5.5 .5e2 3 -- SVG's grammar,
  * a sign or a second "." starting the next *)
-let numbers (s : string) : float list =
+let numbers ?(arc = false) (s : string) : float list =
   let n = String.length s in
   let rec go i acc =
     if i >= n then List.rev acc
     else
       let c = s.[i] in
-      if (c >= '0' && c <= '9') || c = '.' || c = '-' || c = '+' then (
+      (* an arc's two flags are a digit each, and may be written with
+       * nothing after: "a9 9 0 105.6 16" is flags 1 and 0, then 5.6 *)
+      if arc && (c = '0' || c = '1') && (let k = List.length acc mod 7 in k = 3 || k = 4) then go (i + 1) ((if c = '1' then 1. else 0.) :: acc)
+      else if (c >= '0' && c <= '9') || c = '.' || c = '-' || c = '+' then (
         let j = ref (i + 1) and dot = ref (c = '.') in
         let stop = ref false in
         while (not !stop) && !j < n do
@@ -194,7 +197,8 @@ let path (m : Affine.t) (d : string) : (point list * bool) list =
     else (
       let j = ref !i in
       while !j < n && not ((d.[!j] >= 'a' && d.[!j] <= 'z' && d.[!j] <> 'e') || (d.[!j] >= 'A' && d.[!j] <= 'Z' && d.[!j] <> 'E')) do incr j done;
-      List.iter (fun f -> tokens := `Num f :: !tokens) (numbers (String.sub d !i (!j - !i)));
+      let arc = match !tokens with `Cmd ('a' | 'A') :: _ -> true | _ -> false in
+      List.iter (fun f -> tokens := `Num f :: !tokens) (numbers ~arc (String.sub d !i (!j - !i)));
       i := !j)
   done;
   let rec run cmd args =

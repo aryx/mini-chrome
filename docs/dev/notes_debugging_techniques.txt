@@ -839,3 +839,8 @@ read the source at that line before judging the message's printing.
   323 layouts and a document of 68 results. The page did more, not
   the browser slower: count what the document holds before blaming a
   stage.
+- Some of a kind work and some do not (6 icons of 52): list them all
+  with what differs (their value, their parent, an attribute), in one
+  expression. Then the smallest page that does what the failing ones'
+  parent does, asked the same thing Chrome's console is: three
+  booleans differed.

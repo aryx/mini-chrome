@@ -504,7 +504,13 @@ and svg_size ?within (ctx : ctx) (e : Dom.element) (s : Computed.t) : float * fl
     | Some [ _; _; w; h ] when w > 0. && h > 0. -> Some (w, h)
     | _ -> None
   in
-  match (size s.width cw, size s.height ch, view_box) with
+  (* a height in percents: of the block's when that is known, else
+   * auto, as a picture's *)
+  let h = match (s.height, within, ctx.env.known_height) with
+    | Len l, None, k when l.pct <> 0. -> if ctx.env.measuring then None else Option.map (Css_values.resolve l) k
+    | sz, _, _ -> size sz ch
+  in
+  match (size s.width cw, h, view_box) with
   | Some w, Some h, _ -> (w, h)
   | Some w, None, Some (vw, vh) -> (w, w *. vh /. vw)
   | None, Some h, Some (vw, vh) -> (h *. vw /. vh, h)

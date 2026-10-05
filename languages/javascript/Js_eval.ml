@@ -244,7 +244,10 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
             match o with
             | Object { kind = Proxy (tg, h); _ } -> (
                 match trap t h "deleteProperty" with Some f -> ignore (call_value t f ~this:(Object h) [ Object tg; String k ]) | None -> remove (Object tg) k)
-            | Object o -> o.props <- List.filter (fun (k', _) -> k' <> k) o.props
+            | Object o ->
+                o.props <- List.filter (fun (k', _) -> k' <> k) o.props;
+                (* and what a host keeps of it itself (an element's property a script set) *)
+                (match o.kind with Host_object h -> h.set (Js_builtins.own_query ^ k) Undefined | _ -> ())
             | _ -> ()
           in
           match x with

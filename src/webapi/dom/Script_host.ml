@@ -197,6 +197,10 @@ and get (t : t) (n : node) (k : string) : value =
           n.listeners <- List.filter (fun (ty, g) -> not (ty = typ && strict_equal g f)) n.listeners;
           Undefined)
   (* what a script set on it; else the members of Script_element *)
+  (* el.hasOwnProperty(k): a property a script put on it -- what a
+   * custom element looks for when it is upgraded, to take the values
+   * given before its class was defined (Polymer; YouTube's icons) *)
+  | _ when String.length k > 6 && String.sub k 0 6 = Js_builtins.own_query -> Bool (List.mem_assoc (String.sub k 6 (String.length k - 6)) n.expando)
   | _ -> ( match List.assoc_opt k n.expando with Some v -> v | None -> Option.value (t.more n k) ~default:Undefined)
 
 (* addEventListener(type, f, { once: true }): noted, to be removed when
@@ -296,6 +300,8 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
       let a = List.assoc k reflected_flags in
       (if truthy v then set_attribute n a "" else n.attributes <- List.remove_assoc a n.attributes);
       touch t
+  (* delete el.k: what a script had put on it, gone *)
+  | _ when String.length k > 6 && String.sub k 0 6 = Js_builtins.own_query -> n.expando <- List.remove_assoc (String.sub k 6 (String.length k - 6)) n.expando
   | _ -> n.expando <- (k, v) :: List.remove_assoc k n.expando
 
 (* child put in [parent], before [before] or at the end: moved if it

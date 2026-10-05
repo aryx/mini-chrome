@@ -276,6 +276,13 @@ let tests =
              (match Browser_script.eval t {|var p = document.getElementById("p"); [scrollY, pageYOffset, p.getBoundingClientRect().top, p.offsetTop]|} with
              | Ok v -> Js_value.display v
              | Error e -> "error: " ^ e.message));
+          check "a property given before the element's class is defined: its own, taken at the upgrade (Polymer)" ~html:"<x-a id=a></x-a>"
+            {|var a = document.getElementById("a"); a.icon = "menu"; var before = [a.hasOwnProperty("icon"), a.hasOwnProperty("id"), a.hasOwnProperty("nope")];
+              class XA extends HTMLElement {
+                constructor() { super(); if (this.hasOwnProperty("icon")) { var v = this.icon; delete this.icon; this.icon = v; } }
+                set icon(v) { this._icon = v + "!"; } get icon() { return this._icon; } }
+              customElements.define("x-a", XA); [before, a.icon, a.hasOwnProperty("icon")]|}
+            {|[[true, false, false], "menu!", false]|};
           check "its entry is a class, with the members a page looks for before it trusts the observer"
             {|["intersectionRatio" in IntersectionObserverEntry.prototype, "isIntersecting" in IntersectionObserverEntry.prototype, typeof new IntersectionObserver(() => 0).observe]|}
             {|[true, true, "function"]|};
