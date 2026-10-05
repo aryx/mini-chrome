@@ -220,7 +220,15 @@ let tests =
             {|const p = document.getElementById("p"), c = new AbortController(); let n = 0;
               p.addEventListener("x", () => n++, { signal: c.signal }); p.dispatchEvent(new Event("x")); c.abort(); p.dispatchEvent(new Event("x")); n|}
             "1";
-          check "adoptedStyleSheets: a <style> of the page" {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
+          check "a TreeWalker: down, across, up, back; a filter that skips, one that rejects" ~html:"<div id=r><p id=a>x<b id=b>y</b></p><span><i id=c>z</i></span><em id=d></em></div>"
+            {|const r = document.getElementById("r"), id = n => n && n.id;
+              const w = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT);
+              const seen = [id(w.firstChild()), id(w.firstChild()), id(w.nextSibling()), id(w.parentNode()), id(w.nextSibling()), id(w.lastChild()), id(w.parentNode()), id(w.nextSibling()), id(w.nextSibling()), id(w.previousNode())];
+              const skip = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT, n => n.tagName === "SPAN" ? NodeFilter.FILTER_SKIP : n.tagName === "P" ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT);
+              [seen, id(skip.firstChild()), id(skip.nextSibling()), id(skip.previousSibling()), id(skip.parentNode())]|}
+            {|[["a", "b", null, "a", "", "c", "", "d", null, "c"], "c", "d", "c", "r"]|};
+          check "adoptedStyleSheets: a <style> of the page"
+ {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}
             {|[1, "p { color: red }"]|});
     ]

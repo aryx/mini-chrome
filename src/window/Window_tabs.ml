@@ -34,7 +34,8 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
 let default_allowed =
   [ "news.ycombinator.com"; "aryx.github.io" (* the Playground's programs: docs/plans/plan_tinybox.md *);
     "9fans.topicbox.com" (* an application whole in scripts: docs/plans/plan_sites.md *);
-    "discuss.ocaml.org" (* Discourse's application (Ember): the same plan; Browser_agent asks for it *) ]
+    "discuss.ocaml.org" (* Discourse's application (Ember): the same plan; Browser_agent asks for it *);
+    "github.com" (* React over the server's page: each file's last commit comes with them; 12 s with OCaml 5 *) ]
 
 let config (m : model) (id : int) : msg Browser_tab.config =
   {

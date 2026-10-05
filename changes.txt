@@ -244,6 +244,14 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- github.com's scripts run by default: the server's page shows in the
+  first second and the scripts fill it (each file's last commit, the
+  counts, the files' tree beside a file, the issues' list). A
+  repository, a folder, a file, the commits, the issues and one, the
+  pull requests, a profile were each looked at. A TreeWalker has all
+  its methods (firstChild, nextSibling, parentNode, previousNode...,
+  with filters that skip or reject): a file's page and the issues'
+  list stopped on it
 - which program this is, said in the window: at the end of the tab
   strip the compiler and the pool ("OCaml 5.5.1, 8 domains", "OCaml
   4.14.2, 8 threads"), and about:version, after Chrome's (the

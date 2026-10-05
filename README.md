@@ -69,9 +69,10 @@ program to 5,000 lines of its own code, and TinyChrome was already
 well past that once its engine, kept in the libraries beside it, was
 counted; here it grows, towards the web as it is.
 [docs/sites.md](docs/sites.md) says where it stands on real sites,
-part by part: Hacker News and Wikipedia read well, GitHub and the
-BBC are readable but not right, and a site that is all scripts
-(YouTube) does not work yet.
+part by part: Hacker News, Wikipedia and GitHub read well, GitHub
+with its scripts running (React over the server's page), as do two
+applications that are all scripts (Discourse, Topicbox); the BBC is
+readable but not right, and YouTube does not work yet.
 
 All of the code was written by an AI, Claude Code, under the author's
 direction (see the [AI disclaimer](#ai-disclaimer)), but it was written

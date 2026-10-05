@@ -402,13 +402,48 @@
       while (n && n !== root) { if (n.nextSibling) return n.nextSibling; n = n.parentNode; }
       return null;
     }
+    // 1 a node is the walk's, 2 nor it nor what is under it, 3 not it
+    // but what is under it
+    function kept(n) { return (show >> (n.nodeType - 1)) & 1 ? accept(n) : 3; }
+    // the walk's children of a node: its own that are kept, and those
+    // of the ones skipped
+    function kids(n) {
+      var out = [];
+      for (var c = n.firstChild; c; c = c.nextSibling) {
+        var k = kept(c);
+        if (k === 1) out.push(c); else if (k !== 2) out = out.concat(kids(c));
+      }
+      return out;
+    }
+    function parent(n) {
+      for (n = n === root ? null : n.parentNode; n; n = n === root ? null : n.parentNode) if (n === root || kept(n) === 1) return n;
+      return null;
+    }
+    function to(walker, n) { if (n) walker.currentNode = n; return n || null; }
+    function sibling(walker, by) {
+      var p = parent(walker.currentNode);
+      if (!p) return null;
+      var all = kids(p);
+      return to(walker, all[all.indexOf(walker.currentNode) + by]);
+    }
     return {
-      root: root, currentNode: root,
+      root: root, currentNode: root, whatToShow: show, filter: filter || null,
       nextNode: function () {
         for (var n = next(this.currentNode); n; n = next(n))
-          if ((show >> (n.nodeType - 1)) & 1 && accept(n) === 1) { this.currentNode = n; return n; }
+          if (kept(n) === 1) { this.currentNode = n; return n; }
         return null;
-      }
+      },
+      // the one before in the document's order: found from the root
+      previousNode: function () {
+        var last = null;
+        for (var n = root; n && n !== this.currentNode; n = next(n)) if (n === root || kept(n) === 1) last = n;
+        return this.currentNode === root ? null : to(this, last);
+      },
+      firstChild: function () { return to(this, kids(this.currentNode)[0]); },
+      lastChild: function () { var all = kids(this.currentNode); return to(this, all[all.length - 1]); },
+      nextSibling: function () { return sibling(this, 1); },
+      previousSibling: function () { return this.currentNode === root ? null : sibling(this, -1); },
+      parentNode: function () { return to(this, parent(this.currentNode)); }
     };
   });
   method(D, "createNodeIterator", D && D.createTreeWalker);
