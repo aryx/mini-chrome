@@ -227,6 +227,10 @@ let tests =
               const skip = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT, n => n.tagName === "SPAN" ? NodeFilter.FILTER_SKIP : n.tagName === "P" ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT);
               [seen, id(skip.firstChild()), id(skip.nextSibling()), id(skip.previousSibling()), id(skip.parentNode())]|}
             {|[["a", "b", null, "a", "", "c", "", "d", null, "c"], "c", "d", "c", "r"]|};
+          check "prepend of a child already there, the first or another" ~html:"<div id=d><p id=a></p><p id=b></p><p id=c></p></div>"
+            {|const d = document.getElementById("d"), ids = () => [...d.children].map(e => e.id).join("");
+              d.prepend(d.children[0]); const same = ids(); d.prepend(d.children[2]); const moved = ids(); d.prepend(d.children[1], d.children[0]); [same, moved, ids()]|}
+            {|["abc", "cab", "acb"]|};
           check "adoptedStyleSheets: a <style> of the page"
  {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}

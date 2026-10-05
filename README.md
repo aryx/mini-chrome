@@ -136,7 +136,7 @@ program's flags are `key=value` words:
 | Flag | What it does |
 |---|---|
 | `url=ADDRESS` | the first page (`about:chrome` without) |
-| `scripts=off`, `scripts=HOST1,HOST2` | no page's scripts run, or those of these hosts too (the built-in pages and a few sites by default) |
+| `scripts=off`, `scripts=HOST1,HOST2` | no site's scripts run, or those of these hosts alone (every site's by default; a click on the omnibox's "JS" turns them all off and on) |
 | `css=off` | no style sheet but the browser's own |
 | `panel=elements`, `panel=network` | the developer tools, open |
 | `search=duckduckgo` | where the omnibox sends words |

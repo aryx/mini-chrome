@@ -97,7 +97,13 @@ let page_point_at (m : model) ((mx, my) : float * float) : (float * float) optio
 let page_point (m : model) : (float * float) option = page_point_at m m.mouse
 
 let hovered (m : model) : string option =
-  match ((current_tab m).state, page_point m) with Shown p, Some (x, y) -> Hit.link_at p.layout ~x ~y | _ -> None
+  match ((current_tab m).state, page_point m) with
+  | Shown p, Some (x, y) -> (
+      match Hit.link_at p.layout ~x ~y with
+      | Some href -> Some href
+      (* a link that holds blocks: asked of the tree *)
+      | None -> Option.bind (Hit.element_at p.layout ~x ~y) (Hit.enclosing_link p.tree))
+  | _ -> None
 
 let pointed_control (m : model) : Dom.element option =
   match ((current_tab m).state, page_point m) with

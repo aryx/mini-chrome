@@ -84,6 +84,18 @@ let rec element_at (b : Html_layout.box) ~(x : float) ~(y : float) : Dom.element
             | Some e -> Some e
             | None -> ( match b.kind with Block e when inside b -> Some e | _ -> None)))
 
+(* the link an element is in, by the tree: the nearest <a href> around
+ * it. What the words say ([link_at]) is lost where a link holds blocks
+ * (a tab that is a flex box in its <a>: GitHub's), each a new line's
+ * context *)
+let enclosing_link (root : Dom.element) (e : Dom.element) : string option =
+  (* down to [e], the last link gone through on the way *)
+  let rec go (node : Dom.element) (link : string option) : string option option =
+    let link = match (node.name, Dom.attribute "href" node) with "a", Some href -> Some href | _ -> link in
+    if node == e then Some link else List.find_map (fun (n : Dom.node) -> match n with Element c -> go c link | Text _ -> None) node.children
+  in
+  Option.join (go root None)
+
 let rec anchor (b : Html_layout.box) (name : string) : float option =
   match b.kind with
   | Block e when Dom.attribute "id" e = Some name -> Some b.y

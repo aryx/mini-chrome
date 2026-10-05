@@ -25,6 +25,10 @@ val settings : model -> Browser_tab.t -> Browser_page.settings
 (* the sites whose scripts run unless scripts= says otherwise *)
 val default_allowed : string list
 
+(* "*": every site's scripts run; and whether the model says so *)
+val everywhere : string
+val scripts_on : model -> bool
+
 (* what tab [id] works with *)
 val config : model -> int -> msg Browser_tab.config
 

@@ -34,7 +34,7 @@ let init (network : < Cap.network ; .. >) ?jar ?cache ((profile, profile_dir) : 
     { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.; busy = None;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
-      allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);
+      allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some "on" -> [ everywhere ] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
@@ -85,6 +85,21 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
        * click bubbling); then, unless one prevented it, the browser's *)
       let control = pointed_control m and link = hovered m and element = Hit.element_at p.layout ~x ~y in
       let m, cmd, prevented = task network m (fun s -> match Hit.element_at p.layout ~x ~y with Some e -> Browser_script.click s e | None -> false) in
+      (* with -v: what was clicked, and what became of it *)
+      Logs.info (fun f ->
+          f "click on %s: %s%s"
+            (match element with Some e -> "<" ^ e.name ^ (match Dom.attribute "class" e with Some c -> " class=\"" ^ c ^ "\"" | None -> "") ^ ">" | None -> "nothing")
+            (match (control, link) with
+             | Some _, _ -> "a control"
+             | _, Some href -> "a link to " ^ href
+             | _ ->
+                 (* no link: what it is in, to see why *)
+                 let rec chain (root : Dom.element) (e : Dom.element) : string list option =
+                   if root == e then Some []
+                   else List.find_map (fun (n : Dom.node) -> match n with Element c -> Option.map (fun l -> root.name :: l) (chain c e) | Text _ -> None) root.children
+                 in
+                 "no link, in " ^ String.concat " > " (Option.value (Option.bind element (chain p.tree)) ~default:[ "?" ]))
+            (if prevented then ", taken by the page's script" else ""));
       if prevented then (m, cmd)
       else
         let m, cmd2 =
@@ -152,7 +167,13 @@ let rec step (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m : model
    * script prevented it *)
   match (told m msg, (current_tab m).script) with
   | Some (typ, fields), Some s when Browser_script.listens s typ ->
-      let m, cmd, prevented = task network m (fun s -> Browser_script.window_event s typ fields) in
+      (* the pointer's events are of the element under it *)
+      let at =
+        match (msg, (current_tab m).state, page_point m) with
+        | (Click | Mouse_up | Mouse_move _ | Wheel _), Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y
+        | _ -> None
+      in
+      let m, cmd, prevented = task network m (fun s -> Browser_script.window_event ?at s typ fields) in
       let m = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
       (* what went down, until the page's next frame ([update]) *)
       let m = match msg with Key k -> { m with fresh = String.lowercase_ascii k :: m.fresh } | Click -> { m with fresh = "mouse" :: m.fresh } | _ -> m in
@@ -278,9 +299,17 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m :
         on_current { m with omnibox = Some field; selecting = before <> None && not double } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
       else if near (wrench_x m -. 12.) (toolbar_y m) 24. 28. m then (toggle_panel m, Cmd.none)
       else if near (js_x m) (toolbar_y m) 22. 20. m then
-        (* the site's scripts on or off, and the page loaded again *)
+        (* scripts on or off, for every site, and the page loaded again;
+         * with a list of hosts (scripts=a,b), this page's host in or
+         * out of it *)
         let host = host_of (current_url m) in
-        let allowed = if List.mem host m.allowed then List.filter (( <> ) host) m.allowed else host :: m.allowed in
+        let allowed =
+          if scripts_on m then []
+          else if m.allowed = [] then [ everywhere ]
+          else if List.mem host m.allowed then List.filter (( <> ) host) m.allowed
+          else host :: m.allowed
+        in
+        Logs.info (fun f -> f "scripts: %s" (match allowed with [] -> "off" | [ "*" ] -> "on, every site's" | hosts -> String.concat ", " hosts));
         load network (current_url m) { m with allowed }
       else
         match (Gui_tabs.at (strip m) m.mouse, panel_button m, Gui_toolbar.at (buttons m) m.mouse) with

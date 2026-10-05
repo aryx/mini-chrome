@@ -227,6 +227,33 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
             Sub.on_resize (fun w h -> Resized (w, h)) ]);
   }
 
+(* The log's lines, from the window's thread and from the pool's
+ * workers, which under OCaml 5 write at the same time. A line is made
+ * whole first, in a buffer of the call's own, then written under a
+ * lock held for that alone and let go whatever happens. Before, the
+ * Playground's reporter (one formatter for every domain) inside a lock
+ * given to Logs: what raised in there on a worker left the lock taken
+ * -- the pool keeps a job's exception for who asks -- and every thread
+ * that logged after waited for ever. A load of GitHub with -v stopped
+ * so once, all its threads asleep; it could not be made to again. *)
+let reporter () : Logs.reporter =
+  let lock = Mutex.create () and name = Filename.basename Sys.argv.(0) in
+  let report _src (level : Logs.level) ~over k msgf =
+    msgf (fun ?header:_ ?tags:_ fmt ->
+        Format.kasprintf
+          (fun line ->
+            Mutex.lock lock;
+            (try
+               prerr_string (if level = Logs.App then line ^ "\n" else Printf.sprintf "%s: [%s] %s\n" name (String.uppercase_ascii (Logs.level_to_string (Some level))) line);
+               flush stderr
+             with Sys_error _ -> ());
+            Mutex.unlock lock;
+            over ();
+            k ())
+          fmt)
+  in
+  { Logs.report }
+
 (* threads on, as in TinyNetscape (N2): a name resolved, an https://
  * page fetched, on the platform's threads *)
 let main = Program.main __MODULE__ (fun () ->
@@ -235,8 +262,7 @@ let main = Program.main __MODULE__ (fun () ->
       (* -v, -debug and -quiet are the Playground's, read by
        * flags (): Logs' level. A line at a time, the answers coming
        * from the pool's threads too (Tls_client's roots) *)
-      let lock = Mutex.create () in
-      Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
+      Logs.set_reporter (reporter ());
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
       (* the collector given more room before it goes through the heap

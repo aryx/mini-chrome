@@ -189,7 +189,9 @@ val listens : t -> string -> bool
  * program listens to: a game, the Playground's web platform
  * (docs/plans/plan_tinybox.md). Nothing is done, and false, if no
  * script listens; else whether one prevented what the browser does *)
-val window_event : t -> string -> (string * Js_value.value) list -> bool
+(* [at]: the element under the pointer, the event's target (what a
+ * page asks to know whether a press was inside its menu or outside) *)
+val window_event : ?at:Dom.element -> t -> string -> (string * Js_value.value) list -> bool
 
 (* a form's field typed into: its value= the text, then its input
  * event *)

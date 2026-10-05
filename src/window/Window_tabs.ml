@@ -29,13 +29,15 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
     sheet = (fun url -> List.assoc_opt url tab.sheets);
   }
 
-(* the sites whose scripts are small and old enough for our engine
- * (plan_tiny_chrome.md, "Famous sites with simple scripts") *)
-let default_allowed =
-  [ "news.ycombinator.com"; "aryx.github.io" (* the Playground's programs: docs/plans/plan_tinybox.md *);
-    "9fans.topicbox.com" (* an application whole in scripts: docs/plans/plan_sites.md *);
-    "discuss.ocaml.org" (* Discourse's application (Ember): the same plan; Browser_agent asks for it *);
-    "github.com" (* React over the server's page: each file's last commit comes with them; 12 s with OCaml 5 *) ]
+(* whose scripts run: every site's ("*"), the browser's setting, which
+ * a click on the omnibox's "JS" turns off and on for all; or the
+ * hosts named (scripts=host1,host2). It was a list of the few sites
+ * whose scripts the engine could run (Hacker News, then the
+ * Playground's programs, 9fans, Discourse, GitHub: docs/plans/
+ * plan_sites.md), until those were the heavy ones *)
+let everywhere = "*"
+let default_allowed = [ everywhere ]
+let scripts_on (m : model) : bool = List.mem everywhere m.allowed
 
 let config (m : model) (id : int) : msg Browser_tab.config =
   {
@@ -62,7 +64,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     visible = (match List.find_opt (fun t -> t.id = id) m.tabs with Some t -> visible_lines m t.tab | None -> 0);
     line_height;
     (* the built-in pages' scripts, and the allowed sites' *)
-    scripts = (fun url -> Browser_url.starts_with "about:" url || List.mem (host_of url) m.allowed);
+    scripts = (fun url -> Browser_url.starts_with "about:" url || scripts_on m || List.mem (host_of url) m.allowed);
     cookies = Fetch.jar m.fetches;
     seed = 1;
     epoch = Float.round (Unix.gettimeofday () *. 1000.);

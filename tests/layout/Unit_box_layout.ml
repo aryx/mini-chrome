@@ -313,4 +313,17 @@ let tests =
           Alcotest.(check (pair near near)) "under it" (8., 184.) (Box_inline.room floats ~x:8. ~width:184. ~top:38. ~height:12.);
           Alcotest.(check near) "cleared: below it" 38. (Box_inline.cleared floats [ On_left ] 8.);
           Alcotest.(check near) "cleared of the other side: where it was" 8. (Box_inline.cleared floats [ On_right ] 8.));
+      Testo.create "what is not seen is not under the pointer" (fun () ->
+          (* a menu waiting over a link, hidden; in it, one thing seen again *)
+          let css = "#menu { position: absolute; top: 0; left: 0; width: 200px; height: 60px; visibility: hidden } #again { visibility: visible }" in
+          let p = page ~css {|<a id=link href=x>the link</a><div id=menu>hidden words<p id=again>seen</p></div>|} in
+          let at x y = match Hit.element_at (Box_tree.as_html_layout p) ~x ~y with Some e -> Option.value (Dom.attribute "id" e) ~default:e.name | None -> "none" in
+          let again = box "again" p in
+          Alcotest.(check string) "over the link, under the hidden menu: the link" "link" (at 20. 8.);
+          Alcotest.(check string) "what the menu holds that is seen" "again" (at (again.x +. 10.) (again.y +. 5.)));
+      Testo.create "the link an element is in, by the tree" (fun () ->
+          let root = Html_tree.of_string {|<body><a href=tab><div><span id=in>Issues</span></div></a><p id=out>no</p><a><b id=named>x</b></a></body>|} in
+          let rec find id (e : Dom.element) = if Dom.attribute "id" e = Some id then Some e else List.find_map (fun (n : Dom.node) -> match n with Element c -> find id c | Text _ -> None) e.children in
+          let link id = Hit.enclosing_link root (Option.get (find id root)) in
+          Alcotest.(check (list (option string))) "in a block in a link; beside it; in an <a> with no href" [ Some "tab"; None; None ] [ link "in"; link "out"; link "named" ]);
     ]

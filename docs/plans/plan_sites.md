@@ -342,6 +342,19 @@ application will ask too. What is left is speed (78 s then, 45 since the styles:
 picture, React's hydration in an interpreter) before github.com can be
 in the default list.
 
+**2026-10-05, evening: every site's scripts, by default.** A survey
+first, twenty-four sites dumped with scripts off and on (the sixteen
+of `docs/sites.md`, and Amazon, YouTube, chess.com, Discourse, 9fans,
+ocaml.org, the New York Times, Stack Overflow, MDN). Eighteen are the
+same picture; Wikipedia, Discourse and 9fans are better; three were
+worse. example.com lost its text (`prepend` of a first child: fixed).
+The BBC's pictures become empty boxes, its script putting them in as
+the page scrolls, and its cookie banner comes. chess.com does not
+finish loading in three minutes, where without scripts it is a dark
+page with nothing. MDN's console has seventeen scripts "run too
+long". Those three are what to look at next; the switch is a click
+on the omnibox's "JS" for who meets another.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

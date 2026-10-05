@@ -70,14 +70,19 @@ let rec last_baseline (b : box) : float option =
   | [] -> List.fold_left (fun found c -> match last_baseline c with Some _ as s -> s | None -> found) None b.children
 
 let rec as_html_layout (b : box) : Html_layout.box =
+  (* a box that is not seen (visibility: hidden) is nobody's under the
+   * pointer, nor are its words: a menu waiting, hidden over the page's
+   * links, took their clicks (GitHub's, over its tabs). What it holds
+   * that is seen again is still there *)
+  let seen = b.style.visible in
   {
-    kind = (match b.element with Some e -> Block e | None -> Anonymous);
+    kind = (match b.element with Some e when seen -> Block e | _ -> Anonymous);
     x = b.x;
     y = b.y;
     width = b.width;
     height = b.height;
     children = List.map as_html_layout b.children;
-    lines = b.lines;
+    lines = (if seen then b.lines else []);
     floats = [];
     marker = b.marker;
     background = None;

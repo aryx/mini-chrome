@@ -130,7 +130,7 @@ let view_unscaled (m : model) : shape list =
   @ Gui_toolbar.shapes (buttons m)
   @ Omnibox.shapes (omnibox m)
   @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
-  @ (let on = tab.script <> None in
+  @ (let on = Window_tabs.scripts_on m || tab.script <> None in
      [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x m +. 11.) (toolbar_y m) ]
      @ monospace (js_x m +. 5.) (toolbar_y m) white "JS")
   (* the wrench: Chrome's one menu, here the developer tools *)

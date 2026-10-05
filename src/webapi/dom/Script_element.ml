@@ -68,7 +68,7 @@ let get (t : t) (n : node) (k : string) : value option =
           let sel = str (arg args 0) in
           let rec up (c : node option) = match c with Some c when is_element c -> if matches sel c then wrap t c else up c.parent | _ -> Null in
           up (Some n))
-  | "contains" -> m (fun args -> Bool (match arg args 0 with Object _ as o -> inside (node_of t o) n | _ -> false))
+  | "contains" -> m (fun args -> Bool (match arg args 0 with Object o when Hashtbl.mem t.nodes o.id -> inside (node_of t (arg args 0)) n | _ -> false))
   | "compareDocumentPosition" -> m (fun args -> Number (position n (node_of t (arg args 0))))
   | "isConnected" -> Some (Bool (top n == t.root))
   | "getRootNode" -> m (fun _ -> if top n == t.root then Option.value (Js_eval.global t.engine "document") ~default:Null else wrap t (top n))
@@ -92,8 +92,12 @@ let get (t : t) (n : node) (k : string) : value option =
   | "append" -> m (fun args -> List.iter (fun c -> ignore (insert t n c ~before:None)) (nodes args); Undefined)
   | "prepend" ->
       m (fun args ->
-          let first = List.nth_opt n.children 0 in
-          List.iter (fun c -> ignore (insert t n c ~before:first)) (nodes args);
+          (* before its first child that is not one of those put there
+           * (prepend of the first child itself lost it) *)
+          let put = nodes args in
+          let moved = List.filter_map (fun (v : value) -> match v with Object o -> Hashtbl.find_opt t.nodes o.id | _ -> None) put in
+          let first = List.find_opt (fun c -> not (List.memq c moved)) n.children in
+          List.iter (fun c -> ignore (insert t n c ~before:first)) put;
           Undefined)
   | "before" | "after" | "replaceWith" ->
       m (fun args ->

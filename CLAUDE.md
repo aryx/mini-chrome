@@ -56,7 +56,7 @@ several: a tab each). Program flags are `key=value` words
 (`dune exec mini-chrome -- url=https://news.ycombinator.com panel=network`;
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
-`scripts=off|host1,host2`, `threads=off` (no thread: fetches wait, and a
+`scripts=off|on|host1,host2`, `threads=off` (no thread: fetches wait, and a
 script's long run freezes the window), `cache=off` (no answer kept on
 disk), `timings=on` (where the time
 went, by stage, said at the end: `Stopwatch`), `profile=DIR|off`, `scale=N`,
@@ -301,8 +301,11 @@ of), and freezes it back when it changed; the page
 is then laid out again whole (`Browser_page.with_tree`). The
 JavaScript engine itself knows nothing of pages: everything outside the
 language is a record of host functions that `Browser_script` supplies.
-Scripts run only on the built-in pages and on allow-listed hosts
-(`default_allowed` in `Window_tabs`). A script that asks where an
+Every site's scripts run (`Window_tabs.default_allowed` is "*", every
+site; the model's `allowed`), and a click on the omnibox's "JS" turns
+them off and on for all, the page loaded again; `scripts=off` starts
+without, `scripts=host1,host2` with those hosts' alone. The built-in
+pages' always run. A script that asks where an
 element is (`offsetHeight`, `getBoundingClientRect`) has the page laid
 out as it is then: `Browser_script.set_measure`, given by the tab
 (`Browser_tab.measuring`) and asked at most once between two changes

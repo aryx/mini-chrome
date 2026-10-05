@@ -244,6 +244,10 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- every site's scripts run, not those of a few named sites: the
+  omnibox's "JS" is the browser's switch, a click turning them off
+  and on for all (the page loaded again); scripts=off, scripts=on,
+  scripts=host1,host2
 - github.com's scripts run by default: the server's page shows in the
   first second and the scripts fill it (each file's last commit, the
   counts, the files' tree beside a file, the issues' list). A
@@ -827,6 +831,21 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- GitHub's tabs (Issues, Pull requests) could not be clicked: a menu
+  waiting, hidden (visibility: hidden), lay over them and took the
+  click -- what is not seen is no longer under the pointer; and the
+  link was not found, the tab being a flex box inside its <a> -- a
+  click with no link under it asks the tree for the nearest <a href>
+  (Hit.enclosing_link). The pointer's events told to a page
+  (mousedown...) have the element under it for target, and
+  contains() of what is not a node is false
+- the log's lines are made whole, then written under a lock held for
+  that alone: with the pool's workers domains, one formatter was
+  shared by all inside a lock an exception could leave taken (a load
+  with -v stopped once, every thread asleep)
+- with -v, a click says what it was on and what became of it
+- parent.prepend(child) of the child already first lost it
+  (example.com's own text, with its script)
 - OCaml 5.5: Brotli's dictionary was embedded between {| and |}, where
   that compiler reads a carriage return and a newline as a newline
   alone: every answer in Brotli failed. Embedded escaped

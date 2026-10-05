@@ -52,3 +52,8 @@ val element_at : Html_layout.box -> x:float -> y:float -> Dom.element option
 (* where the page's anchor named so is (its y), if it has one: the
  * first in the page, an element's id or an <a name> *)
 val anchor : Html_layout.box -> string -> float option
+
+(* the address of the nearest <a href> around an element of this tree
+ * (the tree's root first): the link a click on it follows when the
+ * words under the pointer name none *)
+val enclosing_link : Dom.element -> Dom.element -> string option
