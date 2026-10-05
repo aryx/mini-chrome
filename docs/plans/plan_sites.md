@@ -385,6 +385,25 @@ regular expressions, which Fluent's parser is made of. Its article is
 still set in a narrow column, with scripts or without: a matter of
 layout, next.
 
+**2026-10-05, the end of the day: YouTube, the first links.** Asked
+for with Gmail as the two sites that matter most. Gmail: Google's
+sign-in page is drawn; what follows needs an account, and a throwaway
+one (this TLS has had no review). YouTube, on a saved copy
+(`Page_scripts.exe`, its 10.8 MB run in 4 s): it forces Shady DOM,
+its polyfill of shadow trees, in every browser (`ShadyDOM = { force:
+true }`), and that polyfill takes the DOM's own methods from the
+prototypes -- where ours were not, an element answering for itself.
+They are there now, as thin accessors (`data/prelude/web.js`, the
+last block; `__host_get`). Then, one after the other: the page
+watches `window.Polymer` arrive with a getter and a setter defined
+on window; a charting library maps over `new Array(3).concat(...)`,
+whose three places are holes; `Range`, `WheelEvent` as names. The
+application now builds 1,233 elements where it built 416, and stops
+in its own registry of services ("md": a provider not found, its key
+a class), the next link. The mark to aim at is the home page drawn
+with its pictures and titles; the player is another matter (VP9 or
+AV1 through Media Source Extensions: a decoder of thousands of lines).
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

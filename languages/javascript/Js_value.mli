@@ -98,7 +98,7 @@ and kind =
  * stored; [show], how the console shows it *)
 and host = { class_name : string; get : string -> value; set : string -> value -> unit; show : unit -> string }
 
-and items = { mutable elements : value array; mutable length : int }
+and items = { mutable elements : value array; mutable length : int; mutable holes : int (* its first items never given (new Array(3)): skipped by map and forEach while still undefined *) }
 
 and closure = { func : Js_ast.func; scope : scope; this : value option (* an arrow's, captured *) }
 

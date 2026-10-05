@@ -31,7 +31,7 @@ and kind =
 
 and host = { class_name : string; get : string -> value; set : string -> value -> unit; show : unit -> string }
 
-and items = { mutable elements : value array; mutable length : int }
+and items = { mutable elements : value array; mutable length : int; mutable holes : int }
 and closure = { func : Js_ast.func; scope : scope; this : value option }
 and scope = { vars : vars; parent : scope option; subject : value option; in_with : bool; strict : bool }
 
@@ -59,7 +59,7 @@ let new_object () : obj = make Plain
 
 let new_array (vs : value list) : obj =
   let elements = Array.of_list vs in
-  make (Array { elements; length = Array.length elements })
+  make (Array { elements; length = Array.length elements; holes = 0 })
 
 let host_function (name : string) (f : this:value -> value list -> value) : value = Object (make (Host_function (name, f)))
 let host_object (h : host) : value = Object (make (Host_object h))

@@ -319,8 +319,11 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
   (* f(item, index, array) for each item, as the callbacks are called *)
   (* f called on each item: f(item, index, array), its this the second
    * argument of the method (xs.forEach(f, self)), undefined if none *)
+  (* an item never given (new Array(3)'s, while still undefined) is
+   * not gone through: [f] is not called for it *)
   let each ?(self = Undefined) (arr : obj) (f : value) (k : value -> int -> unit) : unit =
-    List.iteri (fun i v -> k (call f ~this:self [ v; Number (float_of_int i); Object arr ]) i) (array_items arr)
+    let holes = match arr.kind with Array a -> a.holes | _ -> 0 in
+    List.iteri (fun i v -> k (if i < holes && v = Undefined then Undefined else call f ~this:self [ v; Number (float_of_int i); Object arr ]) i) (array_items arr)
   in
   (* its iterators: of its items, its indices, its pairs *)
   let indices arr = List.mapi (fun i _ -> Number (float_of_int i)) (array_items arr) in
@@ -378,8 +381,11 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
       let n = items.length in
       let a = relative (int_arg args 0 ~default:0) n and b = relative (int_arg args 1 ~default:n) n in
       array (List.filteri (fun i _ -> i >= a && i < b) (array_items arr)));
-  def "concat" (fun arr _ args ->
-      array (array_items arr @ List.concat_map (fun v -> match v with Object ({ kind = Array _; _ } as o) -> array_items o | v -> [ v ]) args));
+  def "concat" (fun arr items args ->
+      let out = array (array_items arr @ List.concat_map (fun v -> match v with Object ({ kind = Array _; _ } as o) -> array_items o | v -> [ v ]) args) in
+      (* what it starts with, holes and all *)
+      (match out with Object { kind = Array o; _ } -> o.holes <- items.holes | _ -> ());
+      out);
   def "reverse" (fun arr items _ -> set_items items (List.rev (array_items arr)); Object arr);
   def "sort" (fun arr items args ->
       let compare =
@@ -699,7 +705,14 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
               | Object o -> array (List.filter_map (fun k -> if String.length k >= 2 && String.sub k 0 2 = "@@" then None else Some (String k)) (keys o))
               | _ -> array [])) ];
   constructor "Array"
-    (fun ~this:_ args -> match args with [ Number n ] -> array (List.init (int_of_float n) (fun _ -> Undefined)) | _ -> array args)
+    (fun ~this:_ args ->
+      match args with
+      | [ Number n ] ->
+          (* new Array(3): three places, none given *)
+          let a = array (List.init (int_of_float n) (fun _ -> Undefined)) in
+          (match a with Object { kind = Array items; _ } -> items.holes <- items.length | _ -> ());
+          a
+      | _ -> array args)
     arrays
     [ ("isArray", fn "isArray" (fun ~this:_ args -> Bool (match arg args 0 with Object o -> (match (target o).kind with Array _ -> true | _ -> false) | _ -> false)));
       (* of what can be gone through (an array, a string, a Set),

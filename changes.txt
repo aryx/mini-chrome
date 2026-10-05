@@ -244,6 +244,16 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- the DOM's members are on its prototypes too (Node.prototype's
+  firstChild, Element.prototype's querySelector...: thin accessors
+  that ask the element), for the code that takes them from there --
+  Shady DOM, which YouTube runs in every browser. A property defined
+  on window with a getter and a setter is set through it, one defined
+  with a value is the global; new Array(3)'s places not given are
+  skipped by map and forEach; CDATASection, ProcessingInstruction,
+  Range, WheelEvent and fifteen other events as names. YouTube's
+  application goes from its first line to building its page (1,233
+  elements; it then stops in its own registry of services)
 - a page's comments are in the tree its scripts see (not in the one
   styled and laid out): what an application that takes over a page
   made on a server looks for -- Lit's <!--lit-part-->, React's <!--$-->

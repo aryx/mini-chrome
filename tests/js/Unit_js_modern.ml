@@ -215,4 +215,9 @@ let tests =
             var no = / +/y; no.lastIndex = 0; var none = [no.test(source), no.lastIndex];
             var plain = /l+/; plain.lastIndex = 7; var kept = [plain.test(source), plain.lastIndex];
             [first, blank, none, kept]|} {|[["Hello, world", 24], [true, 29], [false, 0], [true, 7]]|});
+      Testo.create "new Array(n): places not given, which map and forEach skip" (fun () ->
+          check "the schemes of a charting library" {|var calls = 0, f = function (s) { calls++; return s.length; };
+            var a = new Array(3).concat("ab", "cde").map(f), seen = 0; new Array(2).forEach(function () { seen++ });
+            var b = new Array(2); b[0] = "x"; var given = b.map(function (v) { return v + "!" });
+            [a, calls, seen, given, new Array(2).fill(7).map(function (v) { return v + 1 })]|} {|[[undefined, undefined, undefined, 2, 3], 2, 0, ["x!", undefined], [8, 8]]|});
     ]

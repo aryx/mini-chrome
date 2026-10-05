@@ -44,7 +44,7 @@ let more_tags =
 
 let classes =
   [ ("EventTarget", None); ("Node", Some "EventTarget"); ("Element", Some "Node"); ("HTMLElement", Some "Element"); ("SVGElement", Some "Element");
-    ("CharacterData", Some "Node"); ("Text", Some "CharacterData"); ("Comment", Some "CharacterData"); ("DocumentFragment", Some "Node");
+    ("CharacterData", Some "Node"); ("Text", Some "CharacterData"); ("Comment", Some "CharacterData"); ("CDATASection", Some "Text"); ("ProcessingInstruction", Some "CharacterData"); ("DocumentFragment", Some "Node");
     ("ShadowRoot", Some "DocumentFragment"); ("Document", Some "Node"); ("HTMLDocument", Some "Document"); ("Window", Some "EventTarget") ]
   @ List.map (fun tag -> ("HTML" ^ tag ^ "Element", Some "HTMLElement")) [ "Input"; "Form"; "Anchor"; "Image"; "Template"; "Select"; "TextArea"; "Button"; "Script"; "Style"; "IFrame"; "Slot"; "Option" ]
   @ List.map (fun (_, name) -> ("HTML" ^ name ^ "Element", Some "HTMLElement")) more_tags
@@ -98,6 +98,11 @@ let observer (name : string) : value =
 
 let install (t : t) ~(viewport : float * float) (define : string -> value -> unit) : value =
   install_classes t define;
+  (* a host object asked, or told, itself -- not its prototypes: what
+   * the accessors the prelude puts on Node.prototype and the others
+   * call (data/prelude/web.js, "the DOM's members on its prototypes") *)
+  define "__host_get" (fn "__host_get" (fun args -> match arg args 0 with Object { kind = Host_object h; _ } -> h.get (str (arg args 1)) | _ -> Undefined));
+  define "__host_set" (fn "__host_set" (fun args -> (match arg args 0 with Object { kind = Host_object h; _ } -> h.set (str (arg args 1)) (arg args 2) | _ -> ()); Undefined));
   define "getComputedStyle" (fn "getComputedStyle" (fun args -> computed_style (node_of t (arg args 0))));
   List.iter (fun name -> define name (observer name)) [ "MutationObserver"; "ResizeObserver"; "IntersectionObserver"; "PerformanceObserver" ];
   LocalStorage.install define;
@@ -165,16 +170,41 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "closed" (Bool false);
   List.iter (fun k -> define k Null) [ "opener"; "frameElement"; "onerror"; "onload"; "onpopstate"; "onunhandledrejection" ];
   (* window: the global object -- a global read or set through it *)
+  (* a property defined on window itself (Object.defineProperty(window,
+   * "Polymer", { get, set }): how a page watches a library arrive) is
+   * the object's own, which the engine reads before asking here. A
+   * value set through window must go by its setter, and one defined
+   * with a value is the global of that name: moved there, the object
+   * keeping none of its own that an assignment to the global would
+   * leave behind *)
+  let self : value ref = ref Undefined in
+  let own (k : string) = match !self with Object o -> get_own o k | _ -> None in
+  let settle (k : string) : unit =
+    match (own k, !self) with
+    | Some (Object { kind = Accessor _; _ }), _ | None, _ -> ()
+    | Some v, Object o -> Js_eval.define t.engine k v; o.props <- List.filter (fun (k', _) -> k' <> k) o.props
+    | Some _, _ -> ()
+  in
   let window =
     host_object
       {
         class_name = "Window";
         get = global;
         (* window.location = url goes there, as location.href = url *)
-        set = (fun k v -> match (k, v) with "location", String url -> t.navigation <- Some (Browser_url.resolve t.base url, false) | _ -> Js_eval.define t.engine k v);
+        set =
+          (fun k v ->
+            match (k, v, own k) with
+            | _, _, Some (Object { kind = Accessor (_, s); _ }) -> (
+                ignore (Js_eval.call_in_run t.engine s ~this:!self [ v ]);
+                (* the setter may have defined it anew, with a value *)
+                settle k;
+                match own k with Some (Object { kind = Accessor (g, _); _ }) -> Js_eval.define t.engine k (Js_eval.call_in_run t.engine g ~this:!self []) | _ -> ())
+            | "location", String url, _ -> t.navigation <- Some (Browser_url.resolve t.base url, false)
+            | _ -> settle k; Js_eval.define t.engine k v);
         show = (fun () -> "Window");
       }
   in
+  self := window;
   (match window with Object o -> o.proto <- List.assoc_opt "window" t.protos | _ -> ());
   List.iter (fun name -> define name window) [ "window"; "self"; "globalThis"; "top"; "parent"; "frames" ];
   window

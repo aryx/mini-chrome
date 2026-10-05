@@ -64,7 +64,9 @@ let install (define : string -> value -> unit) : unit =
       (match c with Object c -> set_own c "prototype" (Object p) | _ -> ());
       set_own p "constructor" c;
       define name c)
-    [ "Event"; "CustomEvent"; "UIEvent"; "MouseEvent"; "KeyboardEvent"; "InputEvent"; "FocusEvent"; "PointerEvent"; "ErrorEvent" ]
+    [ "Event"; "CustomEvent"; "UIEvent"; "MouseEvent"; "KeyboardEvent"; "InputEvent"; "FocusEvent"; "PointerEvent"; "ErrorEvent"; "WheelEvent"; "TouchEvent";
+      "DragEvent"; "AnimationEvent"; "TransitionEvent"; "ProgressEvent"; "MessageEvent"; "PopStateEvent"; "HashChangeEvent"; "ClipboardEvent";
+      "CompositionEvent"; "StorageEvent"; "PageTransitionEvent"; "BeforeUnloadEvent"; "SubmitEvent"; "ToggleEvent" ]
 
 let create () : value =
   let o = { (new_object ()) with proto = !proto } in
