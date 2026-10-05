@@ -85,6 +85,15 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- JavaScript, three cheap things the big engines do (plan_js_speed.md
+  has the table of what they do and what of it is cheap here):
+  an object of many properties has a table beside its list
+  (Js_value.find, "dictionary mode": a prototype of thirty methods was
+  a list walked at each call; a loop of method calls 5.0 G
+  instructions to 3.5 G); a module's text is parsed once, not once to
+  list its imports and again to run; the collector has more room
+  before a major pass (space_overhead 200). Discourse's start, counted
+  by callgrind: 65 G instructions to 44 G
 - array.push and pop work at the array's end (each made the whole
   array again: a list built by pushes cost its length squared)
 - matches, closest and querySelector freeze what a selector reads --

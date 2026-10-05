@@ -11,7 +11,13 @@
 (* See Js_value.mli *)
 
 type value = Undefined | Null | Bool of bool | Number of float | String of string | Symbol of string | Object of obj
-and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option }
+and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option; mutable lookup : lookup option; (* its properties by their key, when they are many (Js_value's find) *)
+}
+
+(* an object's properties in a table, good while its list is the one
+ * the table was made from (==): what writes the list itself -- a
+ * delete -- makes it stale with no word said *)
+and lookup = { table : value ref Js_ast.Names.t; mutable of_props : (string * value ref) list }
 
 and kind =
   | Plain
@@ -47,7 +53,7 @@ let counter = ref 0
 
 let make (kind : kind) : obj =
   incr counter;
-  { id = !counter; props = []; kind; proto = None }
+  { id = !counter; props = []; kind; proto = None; lookup = None }
 
 let new_object () : obj = make Plain
 
@@ -67,11 +73,46 @@ let rec target (o : obj) : obj = match o.kind with Proxy (t, _) -> target t | _ 
 let rec property (k : string) (props : (string * value ref) list) : value ref option =
   match props with [] -> None | (k', r) :: rest -> if String.equal k k' then Some r else property k rest
 
-let get_own (o : obj) (k : string) : value option = match property k (target o).props with Some r -> Some !r | None -> None
+(* opti: an object of many properties has a table of them (V8's
+ * "dictionary mode", here beside the list, which stays the truth): made
+ * the first time a search goes past [many] of them. A prototype has
+ * dozens of methods, and each call of one was a walk of the list --
+ * 43% of a program that calls methods, by callgrind (5.0 G instructions
+ * to 3.5 G on a loop of method calls) *)
+let many = 8
+
+let indexed (o : obj) : unit =
+  if !Mini_opti.enabled then (
+    let table = Js_ast.Names.create 32 in
+    List.iter (fun (k, r) -> Js_ast.Names.replace table k r) (List.rev o.props);
+    o.lookup <- Some { table; of_props = o.props })
+
+let find (o : obj) (k : string) : value ref option =
+  match o.lookup with
+  | Some ix when ix.of_props == o.props -> Js_ast.Names.find_opt ix.table k
+  | _ ->
+      let rec scan (props : (string * value ref) list) (n : int) =
+        match props with
+        | [] -> if n > many then indexed o; None
+        | (k', r) :: rest -> if String.equal k k' then (if n > many then indexed o; Some r) else scan rest (n + 1)
+      in
+      scan o.props 0
+
+let get_own (o : obj) (k : string) : value option = match find (target o) k with Some r -> Some !r | None -> None
 
 let set_own (o : obj) (k : string) (v : value) : unit =
   let o = target o in
-  match property k o.props with Some r -> r := v | None -> o.props <- (k, ref v) :: o.props
+  match find o k with
+  | Some r -> r := v
+  | None -> (
+      let before = o.props and r = ref v in
+      o.props <- (k, r) :: before;
+      (* the table follows a property added *)
+      match o.lookup with
+      | Some ix when ix.of_props == before ->
+          Js_ast.Names.replace ix.table k r;
+          ix.of_props <- o.props
+      | _ -> ())
 
 let keys (o : obj) : string list = List.rev_map fst (target o).props
 let array_items (o : obj) : value list = match (target o).kind with Array a -> Array.to_list (Array.sub a.elements 0 a.length) | _ -> []

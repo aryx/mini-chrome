@@ -31,8 +31,13 @@ type t = {
 (* Tokens *)
 (*****************************************************************************)
 
-let peek (p : t) : Js_lexer.token = p.tokens.(min p.pos (Array.length p.tokens - 1))
-let peek_at (p : t) (k : int) : Js_lexer.token = p.tokens.(min (p.pos + k) (Array.length p.tokens - 1))
+(* (the least of two ints written out, and a token's kind matched: OCaml's
+ * min and = on any two values are a call to the runtime each) *)
+let peek_at (p : t) (k : int) : Js_lexer.token =
+  let i = p.pos + k and last = Array.length p.tokens - 1 in
+  p.tokens.(if i < last then i else last)
+
+let peek (p : t) : Js_lexer.token = peek_at p 0
 let advance (p : t) : Js_lexer.token = let t = peek p in p.pos <- p.pos + 1; t
 
 let describe (k : Js_lexer.kind) : string =
@@ -55,8 +60,8 @@ let fail (p : t) (message : string) =
   in
   raise (Error { line = (peek p).line; message })
 let unexpected (p : t) (what : string) = fail p (Printf.sprintf "expected %s, not %s" what (describe (peek p).kind))
-let is_punct (p : t) (s : string) : bool = (peek p).kind = Punct s
-let is_keyword (p : t) (s : string) : bool = (peek p).kind = Keyword s
+let is_punct (p : t) (s : string) : bool = match (peek p).kind with Punct x -> String.equal x s | _ -> false
+let is_keyword (p : t) (s : string) : bool = match (peek p).kind with Keyword x -> String.equal x s | _ -> false
 
 let expect (p : t) (s : string) : unit = if is_punct p s then ignore (advance p) else unexpected p (Printf.sprintf "'%s'" s)
 

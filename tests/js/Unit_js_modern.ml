@@ -52,6 +52,15 @@ let tests =
             "[true, true, 3, 4, 7, 9, true]";
           check "Reflect.construct and new.target" "function P(a) { this.a = a } class Q { hi() { return 'q' } } class E2 extends Error { constructor(m) { super(m); Object.setPrototypeOf(this, new.target.prototype) } } class E3 extends E2 {} var o = Reflect.construct(P, [5], Q); [o.a, o.hi(), new E3('x') instanceof E3]"
             "[5, \"q\", true]");
+      (* an object of many properties is found by a table (Js_value.find):
+       * the answers are the list's, through adds, deletes and changes *)
+      Testo.create "an object of many properties: its table follows its list" (fun () ->
+          check "set, read, delete, set again, keys in order"
+            "var o = {}; for (var i = 0; i < 20; i++) o['k' + i] = i; var r = [o.k0, o.k19, o.nope]; delete o.k5; r.push(o.k5, 'k5' in o); o.k5 = 'again'; o.k19 = 'changed'; o.late = 1; r.push(o.k5, o.k19, o.late, Object.keys(o).length, Object.keys(o)[19], Object.keys(o)[20]); r"
+            "[0, 19, undefined, undefined, false, \"again\", \"changed\", 1, 21, \"k5\", \"late\"]";
+          check "a class of many methods, and one that shadows"
+            "class B { a(){return 1} b(){return 2} c(){return 3} d(){return 4} e(){return 5} f(){return 6} g(){return 7} h(){return 8} i(){return 9} j(){return 10} k(){return 11} } class C extends B { k(){ return super.k() + 100 } } var c = new C(); B.prototype.z = function () { return 26 }; [c.a(), c.k(), c.z(), c.nope]"
+            "[1, 111, 26, undefined]");
       Testo.create "template literals" (fun () ->
           check "values among the text" "var n = 3, who = 'you'; [`${n} for ${who}, ${n * 2} in all`]" "[\"3 for you, 6 in all\"]";
           check "no value; nothing at all" "[`plain`, ``]" "[\"plain\", \"\"]";

@@ -41,6 +41,23 @@ let () =
     (if no_loops then [] else loops);
   match args with
   | [] -> ()
+  (* read=FILE.js: what reading a script costs, stage by stage (a
+   * bundle of megabytes is seconds before its first line runs) *)
+  | file :: _ when String.length file > 5 && String.sub file 0 5 = "read=" ->
+      let text = In_channel.with_open_bin (String.sub file 5 (String.length file - 5)) In_channel.input_all in
+      let words () = (Gc.quick_stat ()).minor_words +. (Gc.quick_stat ()).major_words -. (Gc.quick_stat ()).promoted_words in
+      let stage name f =
+        let w0 = words () in
+        let v, s = timed f in
+        Printf.printf "%-28s %7.0f ms   %5.0f MB made\n%!" name (s *. 1000.) ((words () -. w0) *. 8. /. 1e6);
+        v
+      in
+      Printf.printf "%s: %.1f MB\n" file (float_of_int (String.length text) /. 1e6);
+      let tokens = stage "Js_lexer.tokenize" (fun () -> Js_lexer.tokenize text) in
+      Printf.printf "    %d tokens\n" (List.length tokens);
+      (match stage "Js_parse.parse (lexes again)" (fun () -> Js_parse.parse text) with
+      | Ok program -> ignore (stage "Js_quicken.program" (fun () -> Js_quicken.program program))
+      | Error e -> Printf.printf "error, line %d: %s\n" e.line e.message)
   | file :: rest ->
       let frames = match rest with n :: _ -> int_of_string n | [] -> 10 in
       let html = In_channel.with_open_bin file In_channel.input_all in

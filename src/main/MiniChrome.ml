@@ -232,6 +232,12 @@ let main = Program.main __MODULE__ (fun () ->
       Logs.set_reporter_mutex ~lock:(fun () -> Mutex.lock lock) ~unlock:(fun () -> Mutex.unlock lock);
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
+      (* the collector given more room before it goes through the heap
+       * again (200: twice OCaml's 120 of garbage for live data): an
+       * application's scripts keep hundreds of megabytes alive, their
+       * tree and their objects, and each pass over them is paid by the
+       * script running (Discourse's start: 4% faster, 50 MB more) *)
+      Gc.set { (Gc.get ()) with space_overhead = 200 };
       (* threads=off: a script's long run is not cut in slices either (Js_slice) *)
       if List.assoc_opt "threads" flags = Some "off" then Js_slice.enabled := false;
       (* opti=off: the simple code, where an optimized one

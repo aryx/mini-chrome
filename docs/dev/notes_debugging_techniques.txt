@@ -600,3 +600,19 @@ each turn of timers, each batch of answers), when it is over 0.2 s:
 Discourse's start was one task of twelve seconds, a single promise
 job of ten in it -- so no cut between tasks or jobs could show
 progress, and the run itself had to give way (Js_slice).
+
+17. Trying an optimization: count, and put it back if it did not pay
+---------------------------------------------------------------------
+A small script per question (props.js: method calls on a class of
+thirty methods; calls.js: calls, a method, an arrow, an object made),
+run under callgrind: "I refs" before and after, to the instruction,
+whatever the machine's load.
+
+  valgrind --tool=callgrind --callgrind-out-file=cg.out mini-node props.js 2>&1 | grep refs
+
+The property table: 4.99 G to 3.50 G, kept. Keys compared by their
+length and first letter before String.equal: 3.007 G to 3.038 G --
+worse, put back. Js_bench.exe read=FILE times a script's reading by
+stage (lexing, parsing, Js_quicken) with the megabytes each makes:
+it said reading was 0.7 s of a 13 s start, where a guess from an
+inclusive profile had said a quarter.

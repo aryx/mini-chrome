@@ -60,7 +60,13 @@ and obj = {
   mutable props : (string * value ref) list; (* the newest first: keys in order, reversed *)
   kind : kind;
   mutable proto : obj option; (* its prototype: where a property it does not have is looked for next *)
+  mutable lookup : lookup option; (* its properties by their key, when they are many (Js_value's find) *)
 }
+
+(* an object's properties in a table, good while its list is the one
+ * the table was made from (==): what writes the list itself -- a
+ * delete -- makes it stale with no word said *)
+and lookup = { table : value ref Js_ast.Names.t; mutable of_props : (string * value ref) list }
 
 and kind =
   | Plain

@@ -191,6 +191,30 @@ interpreter is three to five times faster on the loops; the menu
 would be near 30 ms a frame there. The rest of the way is the
 decision of the last section.
 
+## What the big engines do, and what of it is cheap here (2026-10-04)
+
+Asked while Discourse was being brought up (`plan_sites.md`): its
+start is 13 s of script where Chrome takes one. The famous techniques,
+each with what it would be in this engine:
+
+| Technique (who) | What it is | Here |
+|---|---|---|
+| **Lazy compilation** (every engine) | a function is compiled when first called: most of a bundle never runs | done: `Js_compile` compiles a body at its first call. Reading is eager, and cheap: 0.7 s for a bundle of 3.8 MB (`Js_bench.exe read=FILE`) |
+| **A code cache** (V8) | what was read of a script kept for the next time | done for one load: a module's text is parsed once (`Js_module.parse`; it was parsed to list its imports, then again to run: a tenth of the start). Not kept between two loads |
+| **Dictionary mode** (V8, for objects used as tables) | an object of many properties is a hash table | done: `Js_value.find`, a table beside the list past eight properties. A prototype of thirty methods was a list walked at each call: 30% of a loop of method calls |
+| **Hidden classes and inline caches** (Self, 1989; V8) | objects made alike share a shape; a place in the code remembers the shape it saw and the slot it found | not done: the next tier (step 7 below), 300 to 500 lines in `Js_value`. The names of scopes have it (`Js_scope`'s places) |
+| **Small integers unboxed** (V8's Smi) | a number that is a small integer is not allocated | not here: a `Number of float` is a block for OCaml; a second kind of number would be every operator written twice |
+| **Interned names** | a property's key compared by its address | half done: the lexer shares a name written many times, and `Js_scope` compares addresses first |
+| **A generational collector, tuned** | young objects die young | OCaml's is one. More room before a major pass (`space_overhead` 200): 4% for 50 MB more, set in the main |
+| **Ropes** (V8's strings) | `a + b` is a node, flattened when read | not done; no profile has asked for it yet |
+| **A JIT** | machine code for what is hot | never here |
+
+So the cheap ones are taken, and they were not where the time was
+expected: Discourse's start went from 56 s to 13 mostly by removing
+lists where tables were wanted, in the engine's library and in the
+DOM (`changes.txt`), not by a faster evaluator. What is left in its
+profile is flat: property reads, the collector, the calls themselves.
+
 ## Step 0: what to count first
 
 A day of measure before any of the above, kept in
