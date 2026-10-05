@@ -25,8 +25,9 @@
    two threads writing one table take turns without knowing it. Under
    5 they really run together: what jobs share must be behind a mutex
    (Keep_alive's connections, Cookie_jar, Tls_client's chains checked,
-   Browser_picture's pictures decoded ahead, the log's reporter), or
-   made before the first job starts. [parallel] says which world it
+   Browser_picture's pictures decoded ahead, Js_module's texts read
+   ahead, the log's reporter), or made before the first job starts
+   (Http.ready; the parser's table of operators). [parallel] says which world it
    is, for who must do something more in that one.
 
    cs-history:

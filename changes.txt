@@ -103,6 +103,9 @@
   to its last picture: 25 s with 4.14, 12 s with 5.5.1 (58 s before
   this day's work). Eight workers, were six threads
 - the wheel scrolls the page while a script runs, not at its end
+- a module's text is read (parsed) by the job that fetched it, on the
+  pool: GitHub's 119 modules, 1.3 s that the window's thread no
+  longer spends under OCaml 5; timings=on has a "parse" line
 - a picture is decoded on the thread of the pool that fetched it, not
   in a frame (GitHub's README: 4.5 s of the window's thread)
 - one layout a frame: a picture come, a tree a script changed mark

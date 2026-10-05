@@ -107,13 +107,12 @@ let infix_of (op : string) : (int * bool) option =
  * string comparisons, asked at every token of an expression) *)
 let infix_memo : (string, (int * bool) option) Hashtbl.t = Hashtbl.create 64
 
-let infix (op : string) : (int * bool) option =
-  match Hashtbl.find_opt infix_memo op with
-  | Some r -> r
-  | None ->
-      let r = infix_of op in
-      Hashtbl.replace infix_memo op r;
-      r
+(* filled once, for every punctuation, and only read after: a text may
+ * be parsed on a worker of the pool while another is here
+ * (Js_module.parse), and a table two write at once is a table broken *)
+let () = List.iter (fun op -> Hashtbl.replace infix_memo op (infix_of op)) Js_lexer.punctuators
+
+let infix (op : string) : (int * bool) option = match Hashtbl.find_opt infix_memo op with Some r -> r | None -> infix_of op
 
 let prefix_power = 15
 let postfix_power = 16

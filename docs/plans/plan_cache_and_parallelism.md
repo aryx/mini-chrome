@@ -215,9 +215,34 @@ What the audit found, each a line of `Worker_spawn.mli`'s list:
   return and a newline in a quoted string as a newline, which broke
   Brotli's dictionary, embedded that way.
 
-Left: P3 (styles and boxes on the pool: 5.6 s of the window's thread
-on this page under 5.5.1, and what would keep scrolling smooth
-through a restyle) and P5. ThreadSanitizer was not run.
+**P3 was tried and taken out** (the same day). The styles alone
+went to the pool (`Browser_page.prestyle`: a worker computed a changed
+tree's styles and left them in the memo, the window's `with_tree`
+then found them made; the boxes stayed, for the letters' tables they
+share with the view). GitHub's last picture: 12.8 s where it was
+12.5 (OCaml 5.5.1), 25.5 for 25.5 (4.14). The styles on the window's
+thread went from 4.0 s to 2.6, not to nothing, and the rest of
+`update` grew by as much: a script that asks where an element is
+needs the styles at once, on its own thread, and those passes waited
+for the worker's lock or threw its result out of a memo of one. 45
+lines of two threads sharing memos, for nothing measured: put back.
+What would make it pay is the styles asked for by scripts being the
+same ones (a memo of more than one tree, or styles kept by element
+and renewed where the tree changed: `plan_performance.md`'s
+"invalidation", an algorithm, not a thread).
+
+**A module's text read on the pool** (kept). `update`'s own time,
+3 to 4 s in no stage's span, was cut in finer spans: 1.3 s of it was
+119 modules parsed as their text came. The job that fetched one now
+reads it (`Js_module.ahead`, as a picture is decoded there; the
+parser's one table, the operators', is filled at start and only read
+after). With 5.5.1 that is 1.3 s the window's thread no longer
+spends; the last picture comes when it did, 12.7 s, that stretch
+being now the network's (the README's screenshots, each behind a
+redirection). "parse" is a span of `timings=on` since.
+
+Left: P5; about 2 s of `update` still in no span; and the styles a
+script's question forces (above). ThreadSanitizer was not run.
 
 ## The order
 

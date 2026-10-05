@@ -426,7 +426,7 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
           let tab = List.fold_left (fun tab (r : Script_types.request) -> logged ~status:0 Fetch r.url tab) tab requests in
           let send (r : Script_types.request) =
             let k = cfg.got_answer r.rid r.url in
-            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post ~said:r.said network r.url ~content_type ~body k | None -> Fetch.get ~said:r.said network r.url k))
+            Cmd.Msg (cfg.fetch (match r.post with Some (content_type, body) -> Fetch.post ~said:r.said network r.url ~content_type ~body k | None -> Fetch.get ~said:r.said ?ready:(Option.map (fun ahead (a : Fetch.response) -> if a.status / 100 = 2 then ahead a.body) r.ahead) network r.url k))
           in
           (tab, Cmd.batch (cmd :: List.map send requests))
       in

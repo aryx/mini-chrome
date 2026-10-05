@@ -81,7 +81,7 @@ let load (t : t) (url : string) (k : (unit, string) result -> unit) : unit =
                 List.iter (fun come -> come r) !waiting
               in
               ignore
-                (Script_fetch.ask t ~meth:"GET" ~url ~post:None (fun answer ->
+                (Script_fetch.ask t ~ahead:Js_module.ahead ~meth:"GET" ~url ~post:None (fun answer ->
                      match answer with
                      | Ok a when a.status / 100 = 2 ->
                          t.module_sources <- (url, a.body) :: t.module_sources;

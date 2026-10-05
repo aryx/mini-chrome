@@ -1029,7 +1029,7 @@ let run_in_run (t : t) (program : A.program) : value =
       !last
 
 let eval_in_run (t : t) (text : string) : value =
-  match Js_parse.parse text with
+  match Stopwatch.time "parse" (fun () -> Js_parse.parse text) with
   | Ok program -> run_in_run t program
   | Error e -> t.line <- e.line; throw "SyntaxError" e.message
 
@@ -1168,7 +1168,7 @@ let exec_module (t : t) (s : scope) (program : A.program) : unit =
 let call_in_run = call_value
 
 let eval (t : t) (text : string) : (value, error) result =
-  match Js_parse.parse text with
+  match Stopwatch.time "parse" (fun () -> Js_parse.parse text) with
   | Ok program -> run t program
   | Error e -> Error { line = e.line; message = "SyntaxError: " ^ e.message }
 

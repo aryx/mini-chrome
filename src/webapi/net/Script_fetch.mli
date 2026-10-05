@@ -60,7 +60,9 @@ open Script_types
  * there is none. The request's number. [cors] (true): whether the
  * answer is given only if the page may read it -- false for a classic
  * <script src>, which runs from anywhere *)
-val ask : ?cors:bool -> ?headers:(string * string) list -> t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
+(* [ahead]: called with the body where the answer is fetched (a thread
+ * of the pool), before [k] has it: Script_types.request *)
+val ask : ?cors:bool -> ?headers:(string * string) list -> ?ahead:(string -> unit) -> t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
 
 (* the request of that number will not be answered to (abort) *)
 val forget : t -> int -> unit

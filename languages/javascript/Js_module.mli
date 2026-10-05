@@ -145,3 +145,8 @@ val specifiers : string -> string list
  * [load url ready failed], the host's, which fetches the module and
  * all it imports and then calls [ready] (in a run), or [failed why] *)
 val set_dynamic : t -> (string -> (unit -> unit) -> (string -> unit) -> unit) -> unit
+
+(* a module's text read ahead and kept for the module system to find
+ * it read: to be called where the text was fetched, off the window's
+ * thread (the parser shares nothing; the memo is behind a lock) *)
+val ahead : string -> unit

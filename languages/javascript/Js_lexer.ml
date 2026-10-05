@@ -50,6 +50,9 @@ let puncts1 = "{}()[];,.<>+-*/%=!?:&|^~"
 
 let puncts32 = puncts3 @ puncts2
 
+(* every punctuation there is *)
+let punctuators : string list = puncts32 @ List.init (String.length puncts1) (fun i -> String.make 1 puncts1.[i])
+
 (* opti: those of three and two characters by their first: the few to
  * try where a punctuation starts, not all forty *)
 let puncts_by_first : string list array =

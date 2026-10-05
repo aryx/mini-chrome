@@ -59,13 +59,25 @@ let named (program : A.program) : string list =
  * Discourse's start). The last texts read, by the text itself (==) *)
 let read : (string * (A.program, Js_parse.error) result) list ref = ref []
 
+(* the memo is also filled from a worker of the pool ([ahead]) *)
+let lock = Mutex.create ()
+let locked (f : unit -> 'a) : 'a = Mutex.lock lock; Fun.protect ~finally:(fun () -> Mutex.unlock lock) f
+let known (text : string) = locked (fun () -> List.find_opt (fun (t, _) -> t == text) !read)
+let keep (text : string) r = locked (fun () -> read := (text, r) :: List.filteri (fun i _ -> i < 255) !read)
+
 let parse (text : string) : (A.program, Js_parse.error) result =
-  match List.find_opt (fun (t, _) -> t == text) !read with
+  match known text with
   | Some (_, r) when !Mini_opti.enabled -> r
   | _ ->
-      let r = Js_parse.parse text in
-      read := (text, r) :: List.filteri (fun i _ -> i < 63) !read;
+      let r = Stopwatch.time "parse" (fun () -> Js_parse.parse text) in
+      keep text r;
       r
+
+(* opti: a text read ahead, where it was fetched (a worker of the
+ * pool), for the [parse] of that very text that follows to find it
+ * read: GitHub's 119 modules, 4.9 MB, are 1.3 s of the window's
+ * thread otherwise *)
+let ahead (text : string) : unit = if !Mini_opti.enabled && known text = None then keep text (Js_parse.parse text)
 
 let specifiers (text : string) : string list = match parse text with Ok program -> named program | Error _ -> []
 
@@ -88,7 +100,7 @@ let rec find (t : t) (url : string) : modul =
       let text = match t.source url with Some text -> text | None -> throw "TypeError" ("Failed to fetch the module " ^ url) in
       (* read for the last time: the tree is the module's from here, not the memo's *)
       let parsed = parse text in
-      read := List.filter (fun (t, _) -> t != text) !read;
+      locked (fun () -> read := List.filter (fun (t, _) -> t != text) !read);
       let program = match parsed with Ok p -> p | Error e -> throw "SyntaxError" (Printf.sprintf "%s (%s, line %d)" e.message url e.line) in
       let scope = Js_eval.module_scope t.engine ~url in
       let m = { url; scope; program; state = Fresh; exports = []; stars = []; namespace = None; late = [] } in

@@ -83,3 +83,6 @@ val tokenize : string -> token list
 (* a token as the notes and the tests write it: Keyword let, Name s,
  * String "a" (quoted, escaped), Number 1, Punct ===, Eof *)
 val to_string : kind -> string
+
+(* every punctuation the lexer makes a token of *)
+val punctuators : string list
