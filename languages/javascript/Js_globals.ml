@@ -24,6 +24,13 @@ let own_keys (v : value) : string list =
   | String s -> List.init (String.length s) string_of_int
   | _ -> []
 
+(* all of them, those that do not show too *)
+let own_names (v : value) : string list =
+  match v with
+  | Object ({ kind = Array a; _ } as o) when o.hidden <> [] -> List.init a.length string_of_int @ List.filter (fun k -> not (is_symbol k)) (all_keys o)
+  | Object o when (target o).hidden <> [] -> List.filter (fun k -> not (is_symbol k)) (all_keys o)
+  | v -> own_keys v
+
 (* a key's value, read without calling a getter: an array's item, a
  * string's character, an object's own *)
 let own (v : value) (k : string) : value =
@@ -44,7 +51,14 @@ let same_value (a : value) (b : value) : bool =
 let object_statics : (string * value) list =
   (* a descriptor { value } or { get, set } made the property *)
   let define (o : obj) (k : string) (descriptor : value) : unit =
-    match descriptor with
+    let fresh = get_own o k = None in
+    (* enumerable: as said; not said, a property made here does not
+     * show (the standard's default: how a library hides what it adds) *)
+    (match descriptor with
+    | Object d -> ( match get_own d "enumerable" with Some v -> if truthy v then show o k else hide o k | None -> if fresh then hide o k)
+    | _ -> ());
+    let hidden = not (shows o k) in
+    (match descriptor with
     | Object d -> (
         match (get_own d "get", get_own d "set") with
         (* what the descriptor does not say stays as it was: a
@@ -54,7 +68,9 @@ let object_statics : (string * value) list =
         | g, s ->
             let g0, s0 = match get_own o k with Some (Object { kind = Accessor (g0, s0); _ }) -> (g0, s0) | _ -> (Undefined, Undefined) in
             set_own o k (Object { (new_object ()) with kind = Accessor (Option.value g ~default:g0, Option.value s ~default:s0) }))
-    | _ -> throw "TypeError" "Property description must be an object"
+    | _ -> throw "TypeError" "Property description must be an object");
+    (* (set_own shows a key it adds) *)
+    if hidden then hide o k
   in
   let pairs v = List.map (fun k -> array [ String k; own v k ]) (own_keys v) in
   [ ("defineProperty",
@@ -66,18 +82,18 @@ let object_statics : (string * value) list =
      fn "defineProperties" (fun ~this:_ args ->
          (match (arg args 0, arg args 1) with Object o, (Object ds as d) -> List.iter (fun k -> define o k (own d k)) (keys ds) | _ -> ());
          arg args 0));
-    ("getOwnPropertyNames", fn "getOwnPropertyNames" (fun ~this:_ args -> array (List.map (fun k -> String k) (own_keys (arg args 0)))));
+    ("getOwnPropertyNames", fn "getOwnPropertyNames" (fun ~this:_ args -> array (List.map (fun k -> String k) (own_names (arg args 0)))));
     ("getOwnPropertySymbols", fn "getOwnPropertySymbols" (fun ~this:_ _ -> array []));
     ("getOwnPropertyDescriptor",
      fn "getOwnPropertyDescriptor" (fun ~this:_ args ->
          let k = to_string (arg args 1) in
          match arg args 0 with
-         | Object o when get_own o k <> None || List.mem k (own_keys (Object o)) -> (
+         | Object o when get_own o k <> None || List.mem k (own_names (Object o)) -> (
              let d = new_object () in
              (match own (Object o) k with
              | Object { kind = Accessor (g, s); _ } -> set_own d "get" g; set_own d "set" s
              | v -> set_own d "value" v; set_own d "writable" (Bool true));
-             set_own d "enumerable" (Bool true);
+             set_own d "enumerable" (Bool (shows o k));
              set_own d "configurable" (Bool true);
              Object d)
          | _ -> Undefined));
@@ -91,10 +107,10 @@ let object_statics : (string * value) list =
              (match own v k with
              | Object { kind = Accessor (g, s); _ } -> set_own d "get" g; set_own d "set" s
              | x -> set_own d "value" x; set_own d "writable" (Bool true));
-             set_own d "enumerable" (Bool true);
+             set_own d "enumerable" (Bool (match v with Object o -> shows o k | _ -> true));
              set_own d "configurable" (Bool true);
              set_own all k (Object d))
-           (own_keys v);
+           (own_names v);
          Object all));
     ("values", fn "values" (fun ~this:_ args -> let v = arg args 0 in array (List.map (own v) (own_keys v))));
     ("entries", fn "entries" (fun ~this:_ args -> array (pairs (arg args 0))));

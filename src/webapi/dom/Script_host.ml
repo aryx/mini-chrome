@@ -69,7 +69,7 @@ let rec wrap (t : t) (n : node) : value =
   | None ->
       let v = host_object { class_name = (if is_text n then "Text" else "HTMLElement"); get = get t n; set = set t n; show = (fun () -> show n) } in
       let kind = if is_text n then "text" else if n.name = comment_name then "comment" else if n.name = fragment_name then "fragment" else "element" in
-      (match v with Object o -> Hashtbl.replace t.nodes o.id n; o.proto <- List.assoc_opt kind t.protos | _ -> ());
+      (match v with Object o -> Hashtbl.replace t.nodes o.id n; o.proto <- (match List.assoc_opt ("tag:" ^ n.name) t.protos with Some p when kind = "element" -> Some p | _ -> List.assoc_opt kind t.protos) | _ -> ());
       n.wrapper <- Some v;
       v
 
@@ -171,7 +171,7 @@ and get (t : t) (n : node) (k : string) : value =
   | "addEventListener" ->
       method_ k (fun args ->
           n.listeners <- n.listeners @ [ (str (arg args 0), arg args 1) ];
-          listening_once t args;
+          listening_once t args ~remove:(fun () -> n.listeners <- List.filter (fun (ty, g) -> not (ty = str (arg args 0) && g == arg args 1)) n.listeners);
           Undefined)
   | "removeEventListener" ->
       method_ k (fun args ->
@@ -181,10 +181,20 @@ and get (t : t) (n : node) (k : string) : value =
   (* what a script set on it; else the members of Script_element *)
   | _ -> ( match List.assoc_opt k n.expando with Some v -> v | None -> Option.value (t.more n k) ~default:Undefined)
 
-(* addEventListener(type, f, { once: true }): noted, to be removed when called *)
-and listening_once (t : t) (args : value list) : unit =
+(* addEventListener(type, f, { once: true }): noted, to be removed when
+ * called; { signal }: removed when the signal aborts (an
+ * AbortController's: how a component takes all its listeners off at
+ * once) -- read as any property is, a page testing for it with a getter *)
+and listening_once (t : t) (args : value list) ~(remove : unit -> unit) : unit =
   match arg args 2 with
-  | Object o when (match get_own o "once" with Some v -> truthy v | None -> false) -> t.once <- (str (arg args 0), arg args 1) :: t.once
+  | Object _ as options ->
+      if truthy (Js_eval.get t.engine options "once") then t.once <- (str (arg args 0), arg args 1) :: t.once;
+      (match Js_eval.get t.engine options "signal" with
+      | Object _ as signal -> (
+          match Js_eval.get t.engine signal "addEventListener" with
+          | Object _ as listen -> ignore (Js_eval.call_in_run t.engine listen ~this:signal [ String "abort"; host_function "abort" (fun ~this:_ _ -> remove (); Undefined) ])
+          | _ -> ())
+      | _ -> ())
   | _ -> ()
 
 (* whether an element has every class of [wanted] *)

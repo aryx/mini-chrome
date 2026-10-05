@@ -106,6 +106,8 @@ type t = {
   border_width : float * float * float * float; (* 0 where the style is none or hidden *)
   border_color : Css_values.color * Css_values.color * Css_values.color * Css_values.color;
   border_box : bool; (* box-sizing: border-box *)
+  table_fixed : bool; (* table-layout: fixed *)
+  border_spacing : float option; (* a table's, between its cells *)
   color : Css_values.color;
   background : Css_values.color;
   background_image : string option; (* its url(), as written (a sheet's resolved against it: Browser_page) *)

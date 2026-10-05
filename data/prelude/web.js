@@ -6,6 +6,33 @@
   var g = globalThis;
   function global(name, v) { if (typeof g[name] === "undefined") g[name] = v; }
 
+  // EventTarget made by a page itself (new EventTarget(), a class that
+  // extends it): listeners kept on the object, told in order. An
+  // element's own are the browser's (Script_host), found before these.
+  (function () {
+    var P = g.EventTarget && g.EventTarget.prototype;
+    if (!P) return;
+    function listeners(o, type) { var all = o.__listeners || (o.__listeners = {}); return all[type] || (all[type] = []); }
+    Object.defineProperty(P, "addEventListener", { value: function (type, f, options) {
+      var l = listeners(this, type), self = this;
+      if (!f || l.some(function (e) { return e.f === f; })) return;
+      l.push({ f: f, once: !!(options && options.once) });
+      var signal = options && typeof options === "object" && options.signal;
+      if (signal) signal.addEventListener("abort", function () { self.removeEventListener(type, f); });
+    }, writable: true, configurable: true });
+    Object.defineProperty(P, "removeEventListener", { value: function (type, f) {
+      var all = this.__listeners; if (all && all[type]) all[type] = all[type].filter(function (e) { return e.f !== f; });
+    }, writable: true, configurable: true });
+    Object.defineProperty(P, "dispatchEvent", { value: function (event) {
+      var self = this; try { event.target = this; event.currentTarget = this; } catch (e) {}
+      listeners(this, event.type).slice().forEach(function (e) {
+        if (e.once) self.removeEventListener(event.type, e.f);
+        if (typeof e.f === "function") e.f.call(self, event); else if (e.f && e.f.handleEvent) e.f.handleEvent(event);
+      });
+      return !event.defaultPrevented;
+    }, writable: true, configurable: true });
+  })();
+
   // the kinds of lists the DOM gives, as names a page tests against
   // (NodeList.prototype.isPrototypeOf(x)); the lists themselves are arrays
   global("NodeList", function NodeList() {});
@@ -210,6 +237,26 @@
     }
   });
 
+  // Request (the Fetch Standard): what fetch is asked, as a value --
+  // an address, a method, headers, a body -- that can be made from
+  // another with something changed
+  global("Request", class Request {
+    constructor(input, init) {
+      var from = input instanceof Request ? input : null;
+      init = init || {};
+      this.url = from ? from.url : new URL(String(input), location.href).href;
+      this.method = String(init.method || (from ? from.method : "GET")).toUpperCase();
+      this.headers = new Headers(init.headers || (from ? from.headers : undefined));
+      this.body = init.body !== undefined ? init.body : from ? from.body : null;
+      this.credentials = init.credentials || (from ? from.credentials : "same-origin");
+      this.mode = init.mode || (from ? from.mode : "cors");
+      this.signal = init.signal || (from ? from.signal : new AbortController().signal);
+    }
+    clone() { return new Request(this); }
+  });
+  // what a page asks before it measures itself: none of it is measured here
+  if (typeof PerformanceObserver === "function" && !PerformanceObserver.supportedEntryTypes) PerformanceObserver.supportedEntryTypes = [];
+
   // a request's or an answer's headers: names whatever their case
   global("Headers", class Headers {
     constructor(init) {
@@ -306,7 +353,33 @@
   getter(D, "dir", function () { return ""; });
   getter(D, "scrollingElement", function () { return this.documentElement; });
   getter(D, "fullscreenEnabled", function () { return false; });
-  getter(D, "adoptedStyleSheets", function () { return []; });
+  // CSSStyleSheet made by a script (Constructable Stylesheets, Chrome
+  // 73, 2019): a sheet with no element, given its text by replaceSync
+  // and put on the page by document.adoptedStyleSheets = [sheet] --
+  // how a component library shares one sheet between its components.
+  // Here each adopted sheet is a <style> of the head, kept up to date.
+  (function () {
+    function CSSStyleSheet() { this._text = ""; this._rules = []; this._style = null; this.cssRules = this._rules; this.disabled = false; }
+    var P = CSSStyleSheet.prototype;
+    P._sync = function () { if (this._style) this._style.textContent = this._text + "\n" + this._rules.join("\n"); };
+    P.replaceSync = function (text) { this._text = String(text); this._rules.length = 0; this._sync(); };
+    P.replace = function (text) { this.replaceSync(text); return Promise.resolve(this); };
+    P.insertRule = function (rule, index) { index = index === undefined ? 0 : index; this._rules.splice(index, 0, String(rule)); this._sync(); return index; };
+    P.deleteRule = function (index) { this._rules.splice(index, 1); this._sync(); };
+    g.CSSStyleSheet = CSSStyleSheet;
+    var adopted = [];
+    getter(D, "adoptedStyleSheets", function () { return adopted; });
+    // document.adoptedStyleSheets = sheets (the document tells us: Script_document)
+    g.__adopt = function (sheets) {
+      var doc = document;
+      adopted.forEach(function (s) { if (Array.prototype.indexOf.call(sheets, s) < 0 && s._style) { s._style.remove(); s._style = null; } });
+      adopted = Array.prototype.slice.call(sheets);
+      adopted.forEach(function (s) {
+        if (!s._style && doc.head) { s._style = doc.createElement("style"); s._style.setAttribute("data-adopted", ""); doc.head.appendChild(s._style); }
+        if (s._sync) s._sync();
+      });
+    };
+  })();
   getter(D, "fonts", function () { return { ready: Promise.resolve(), status: "loaded", addEventListener: nothing, removeEventListener: nothing, load: function () { return Promise.resolve([]); }, check: function () { return true; } }; });
   method(D, "importNode", function (node, deep) { return node.cloneNode(deep); });
   method(D, "adoptNode", function (node) { return node; });

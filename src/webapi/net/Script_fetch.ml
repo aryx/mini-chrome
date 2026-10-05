@@ -19,7 +19,7 @@ let header (a : answer) (name : string) : string option = Cors.header a.headers 
 (* The request out, the answer back *)
 (*****************************************************************************)
 
-let ask ?(cors = true) (t : t) ~(meth : string) ~(url : string) ~(post : (string * string) option) (k : (answer, string) result -> unit) : int =
+let ask ?(cors = true) ?(headers = []) (t : t) ~(meth : string) ~(url : string) ~(post : (string * string) option) (k : (answer, string) result -> unit) : int =
   t.next_request <- t.next_request + 1;
   let rid = t.next_request in
   if not cors then t.exempt <- rid :: t.exempt;
@@ -30,8 +30,10 @@ let ask ?(cors = true) (t : t) ~(meth : string) ~(url : string) ~(post : (string
     let url = Browser_url.resolve t.base url in
     (* Origin: said to another site, and with any POST (the Fetch
      * Standard's "serializing a request origin") *)
-    let origin = if meth = "POST" || Cors.origin url <> Cors.origin t.base then Some (Cors.origin t.base) else None in
-    t.requests <- { rid; meth; url; origin; post = (if meth = "POST" then Some (Option.value post ~default:("text/plain;charset=UTF-8", "")) else None) } :: t.requests;
+    let origin = if meth = "POST" || Cors.origin url <> Cors.origin t.base then [ ("Origin", Cors.origin t.base) ] else [] in
+    (* the script's own headers, but those that are the browser's to say *)
+    let own (k, _) = not (List.mem (String.lowercase_ascii k) [ "host"; "cookie"; "origin"; "connection"; "content-length"; "content-type"; "accept-encoding"; "user-agent" ]) in
+    t.requests <- { rid; meth; url; said = origin @ List.filter own headers; post = (if meth = "POST" then Some (Option.value post ~default:("text/plain;charset=UTF-8", "")) else None) } :: t.requests;
     t.waiting <- (rid, k) :: t.waiting);
   rid
 
@@ -105,13 +107,17 @@ let install (t : t) (define : string -> value -> unit) : unit =
          (* fetch(url, init), fetch(request): an object with a url *)
          let property (v : value) (k : string) : value = match v with Object _ -> Js_eval.get t.engine v k | _ -> Undefined in
          let url = match arg args 0 with Object _ as r when property r "url" <> Undefined -> str (property r "url") | v -> str v in
-         let init = arg args 1 in
+         (* a Request says its own method and body, if nothing else does *)
+         let init = match (arg args 1, arg args 0) with Undefined, (Object _ as r) -> r | i, _ -> i in
          let meth = match property init "method" with Undefined -> "GET" | m -> str m in
-         let content_type = match property (property init "headers") "Content-Type" with Undefined -> "text/plain;charset=UTF-8" | c -> str c in
+         (* its headers: an object of them, or a Headers and the one it keeps *)
+         let headers = match property init "headers" with Object _ as h -> (match property h "_h" with Object _ as kept -> kept | _ -> h) | v -> v in
+         let said = match headers with Object o -> List.map (fun k -> (k, str (property headers k))) (Js_value.keys o) | _ -> [] in
+         let content_type = match List.find_opt (fun (k, _) -> String.lowercase_ascii k = "content-type") said with Some (_, c) -> c | None -> "text/plain;charset=UTF-8" in
          let post = match property init "body" with Undefined | Null -> None | b -> Some (content_type, str b) in
          let p, resolve, reject = Js_eval.promise t.engine in
          ignore
-           (ask t ~meth ~url ~post (fun result ->
+           (ask t ~headers:said ~meth ~url ~post (fun result ->
                 match result with
                 | Ok a -> resolve (response t a)
                 (* no answer, or one not to be read: as browsers say it *)

@@ -184,4 +184,18 @@ let tests =
       Testo.create "in, inside a for's first part" (fun () ->
           check "between brackets and in a function's body it is the operator" {|var o = { x: 1 }, r = [];
             for (var i = 0, a = ['x' in o], f = function () { return 'y' in o }, t = ('x' in o); i < 1; i++) r.push(a[0], f(), t); r|} "[true, false, true]");
+      Testo.create "properties that are not enumerated" (fun () ->
+          check "a class's methods, a defined property; they are still own names" {|class A { m() {} static s() {} get g() { return 1 } }
+            var o = {}; Object.defineProperty(o, 'hid', { value: 1 }); Object.defineProperty(o, 'seen', { value: 2, enumerable: true }); o.plain = 3;
+            var c = Object.create({}, { x: { value: 7 }, y: { value: 8, enumerable: true } });
+            [Object.keys(A.prototype), Object.keys(A), Object.getOwnPropertyNames(A.prototype), Object.keys(o), o.hid, JSON.stringify(o),
+             Object.getOwnPropertyDescriptor(o, 'hid').enumerable, Object.keys(function () {}), [c.x, Object.keys(c)]]|}
+            {|[[], [], ["constructor", "m", "g"], ["seen", "plain"], 1, "{\"seen\":2,\"plain\":3}", false, [], [7, ["y"]]]|});
+      Testo.create "an assignment to a pattern with a rest; a typed array's kind kept; an error's stack" (fun () ->
+          check "({ a, ...rest } = v)" {|var a, rest; ({ a, ...rest } = { a: 1, b: 2, c: 3 }); [a, rest]|} {|[1, {b: 2, c: 3}]|};
+          check "slice, subarray, map of a Uint8Array are Uint8Arrays" {|var u = new Uint8Array([1, 2, 3]);
+            [u.slice(1) instanceof Uint8Array, u.subarray(1) instanceof Uint8Array, u.map(x => x * 2) instanceof Uint8Array, u.filter(x => x > 1).length]|}
+            "[true, true, true, 2]";
+          check "stack: a text, not enumerated, that can be set" {|var e = new Error('x'); var before = typeof e.stack; e.stack = 'mine'; [before, Object.keys(e).indexOf('stack'), e.stack]|}
+            {|["string", -1, "mine"]|});
     ]

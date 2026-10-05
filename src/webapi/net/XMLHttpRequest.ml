@@ -18,7 +18,7 @@ let fn (name : string) (f : value list -> value) : value = host_function name (f
 (* new XMLHttpRequest(): [o], the object new made, given its state and
  * its methods *)
 let make (t : t) (o : obj) : unit =
-  let meth = ref "GET" and url = ref "" and content_type = ref "text/plain;charset=UTF-8" in
+  let meth = ref "GET" and url = ref "" and content_type = ref "text/plain;charset=UTF-8" and headers = ref [] in
   let sent : int option ref = ref None and answered : answer option ref = ref None in
   let listeners : (string * value) list ref = ref [] in
   let set k v = set_own o k v in
@@ -44,6 +44,7 @@ let make (t : t) (o : obj) : unit =
       Undefined));
   set "setRequestHeader" (fn "setRequestHeader" (fun args ->
       if String.lowercase_ascii (str (arg args 0)) = "content-type" then content_type := str (arg args 1);
+      headers := (str (arg args 0), str (arg args 1)) :: !headers;
       Undefined));
   set "send" (fn "send" (fun args ->
       let post = match arg args 0 with Undefined | Null -> None | body -> Some (!content_type, str body) in
@@ -69,7 +70,7 @@ let make (t : t) (o : obj) : unit =
        * sent and fails, a moment later, as one the network lost *)
       | Some (String ("arraybuffer" | "blob")) ->
           ignore (Event_loop.add t [ fn "failed" (fun _ -> done_ (Error "no bytes"); Undefined); Number 0. ] ~repeat:false)
-      | _ -> sent := Some (Script_fetch.ask t ~meth:!meth ~url:!url ~post done_));
+      | _ -> sent := Some (Script_fetch.ask t ~headers:(List.rev !headers) ~meth:!meth ~url:!url ~post done_));
       Undefined));
   (* what libraries set or call before sending, and that changes nothing here *)
   set "overrideMimeType" (fn "overrideMimeType" (fun _ -> Undefined));

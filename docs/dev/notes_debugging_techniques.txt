@@ -424,6 +424,22 @@ evaluator, whose calls are the ones counted):
 (JS_STACK=1 alone is the older use: the stack when it overflows.) The
 names are then grepped in the bundles.
 
+3b. An application that fails quietly: the first values thrown
+---------------------------------------------------------------
+GitHub's page was emptied by React with one line on the console, its
+error 321 ("invalid hook call"), which was not the fault: a framework
+catches most of what is thrown, and reports the last thing, not the
+first. JS_THROWS=n prints the first n values thrown, caught or not,
+each with the calls it leaves by:
+
+  JS_THROWS=8 WALK=1 FILES=$PWD Page_scripts.exe page.html URL
+
+The first was a SyntaxError of ours, "Invalid assignment target",
+thrown from a module React loaded lazily and whose failure it took for
+a component to try again; the 321 came from React calling components
+outside a render to learn their stacks (it catches that one itself).
+To read before believing a framework's own message.
+
 4. A line of console.log put in the saved bundle
 -------------------------------------------------
 The stack said where, not which property. The bundle being a file of

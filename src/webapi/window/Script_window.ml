@@ -30,11 +30,24 @@ let nothing (name : string) : string * value = (name, fn name (fun _ -> Undefine
 (* each class and the one it extends; its constructor does nothing (a
  * page's class may extend HTMLElement), its prototype is behind its
  * instances' *)
+(* an element's class by its tag, where the class has a name of its own
+ * (el instanceof HTMLAnchorElement: how a component checks what it was
+ * given); the others are HTMLElements *)
+let tags =
+  [ ("a", "Anchor"); ("img", "Image"); ("input", "Input"); ("form", "Form"); ("template", "Template"); ("select", "Select");
+    ("textarea", "TextArea"); ("button", "Button"); ("script", "Script"); ("style", "Style"); ("iframe", "IFrame"); ("slot", "Slot"); ("option", "Option") ]
+
+let more_tags =
+  [ ("div", "Div"); ("span", "Span"); ("p", "Paragraph"); ("ul", "UList"); ("ol", "OList"); ("li", "LI"); ("table", "Table"); ("body", "Body");
+    ("head", "Head"); ("html", "Html"); ("link", "Link"); ("meta", "Meta"); ("label", "Label"); ("canvas", "Canvas"); ("video", "Video");
+    ("audio", "Audio"); ("pre", "Pre"); ("details", "Details"); ("dialog", "Dialog"); ("h1", "Heading"); ("h2", "Heading"); ("h3", "Heading") ]
+
 let classes =
   [ ("EventTarget", None); ("Node", Some "EventTarget"); ("Element", Some "Node"); ("HTMLElement", Some "Element"); ("SVGElement", Some "Element");
     ("CharacterData", Some "Node"); ("Text", Some "CharacterData"); ("Comment", Some "CharacterData"); ("DocumentFragment", Some "Node");
     ("ShadowRoot", Some "DocumentFragment"); ("Document", Some "Node"); ("HTMLDocument", Some "Document"); ("Window", Some "EventTarget") ]
   @ List.map (fun tag -> ("HTML" ^ tag ^ "Element", Some "HTMLElement")) [ "Input"; "Form"; "Anchor"; "Image"; "Template"; "Select"; "TextArea"; "Button"; "Script"; "Style"; "IFrame"; "Slot"; "Option" ]
+  @ List.map (fun (_, name) -> ("HTML" ^ name ^ "Element", Some "HTMLElement")) more_tags
 
 let install_classes (t : t) (define : string -> value -> unit) : unit =
   let protos : (string, obj) Hashtbl.t = Hashtbl.create 32 in
@@ -51,7 +64,7 @@ let install_classes (t : t) (define : string -> value -> unit) : unit =
   | Some (Object node) ->
       List.iter (fun (k, v) -> set_own node k (Number v)) [ ("ELEMENT_NODE", 1.); ("TEXT_NODE", 3.); ("COMMENT_NODE", 8.); ("DOCUMENT_NODE", 9.); ("DOCUMENT_FRAGMENT_NODE", 11.) ]
   | _ -> ());
-  t.protos <- List.map (fun (kind, name) -> (kind, Hashtbl.find protos name)) [ ("element", "HTMLElement"); ("text", "Text"); ("comment", "Comment"); ("fragment", "DocumentFragment"); ("document", "HTMLDocument"); ("window", "Window") ]
+  t.protos <- List.map (fun (kind, name) -> (kind, Hashtbl.find protos name)) (List.map (fun (tag, name) -> ("tag:" ^ tag, "HTML" ^ name ^ "Element")) (tags @ more_tags) @ [ ("tag:svg", "SVGElement"); ("tag:path", "SVGElement"); ("element", "HTMLElement"); ("text", "Text"); ("comment", "Comment"); ("fragment", "DocumentFragment"); ("document", "HTMLDocument"); ("window", "Window") ])
 
 (*****************************************************************************)
 (* What a page is given *)

@@ -61,6 +61,11 @@ and obj = {
   kind : kind;
   mutable proto : obj option; (* its prototype: where a property it does not have is looked for next *)
   mutable lookup : lookup option; (* its properties by their key, when they are many (Js_value's find) *)
+  (* its own keys that do not show (not enumerable): a class's methods,
+   * what Object.defineProperty made without saying enumerable. They
+   * are read and written as the others; for-in, Object.keys, a spread
+   * and JSON pass them *)
+  mutable hidden : string list;
 }
 
 (* an object's properties in a table, good while its list is the one
@@ -144,6 +149,14 @@ val set_own : obj -> string -> value -> unit
 (* the keys, in the order they were added *)
 val keys : obj -> string list
 
+(* all of its own keys, those that do not show too (getOwnPropertyNames) *)
+val all_keys : obj -> string list
+
+(* a key made not to show, to show again; whether it does *)
+val hide : obj -> string -> unit
+val show : obj -> string -> unit
+val shows : obj -> string -> bool
+
 val array_items : obj -> value list
 
 (* an error object, {name, message}: [error "TypeError" "x is not a
@@ -155,6 +168,9 @@ val throw : string -> string -> 'a
 
 (* whether a text has another in it *)
 val contains : string -> string -> bool
+
+(* JS_THROWS=n: a value thrown is said, the first n times *)
+val thrown : (unit -> string) -> unit
 
 (* JS_STACK's count of calls still to say (Js_eval says them) *)
 val unwinding : int ref

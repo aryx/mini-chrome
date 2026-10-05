@@ -143,15 +143,16 @@ type request = {
  * for a port that isn't the default), with the headers above: Host,
  * User-Agent ([agent], else [default_agent]), Accept-Encoding: gzip,
  * br, zstd, Connection: close; and "Cookie:
- * [cookie]" if there is one to send (Cookie.header) *)
+ * [cookie]" if there is one to send (Cookie.header); then [said],
+ * the asker's own headers (a script's Accept, its page's Origin) *)
 (* what a request says it comes from when nothing else is given *)
 val default_agent : string
 
-val get : ?cookie:string -> ?agent:string -> ?keep:bool -> ?origin:string -> host:string -> string -> request
+val get : ?cookie:string -> ?agent:string -> ?keep:bool -> ?said:header list -> host:string -> string -> request
 
 (* a POST of [body] to [target]: get's headers, and the body's
  * Content-Type and Content-Length (a form's fields, Urlencoded) *)
-val post : ?cookie:string -> ?agent:string -> ?keep:bool -> ?origin:string -> host:string -> content_type:string -> body:string -> string -> request
+val post : ?cookie:string -> ?agent:string -> ?keep:bool -> ?said:header list -> host:string -> content_type:string -> body:string -> string -> request
 
 (* the bytes to send: the request line, the headers, the empty line,
  * and the body if there is one (a POST's) *)

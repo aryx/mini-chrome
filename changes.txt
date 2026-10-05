@@ -205,6 +205,27 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- GitHub with its scripts (scripts=github.com): React takes the page
+  the server made and keeps it, and what the scripts ask for comes --
+  each file's last commit and its date, the branch's latest commit,
+  the counts of branches and tags. 78 s of script: not on by default
+- a script's request headers are sent (fetch's headers, a Request's,
+  XMLHttpRequest.setRequestHeader), but those that are the browser's
+  to say (Host, Cookie, Origin, User-Agent...): GitHub's answers in
+  JSON are a 406 without the script's Accept
+- tables: table-layout: fixed (the first row's cells say the columns,
+  those that say nothing share the rest: Table_layout.fixed) and
+  border-spacing
+- JavaScript: properties that are not enumerated (a class's methods, a
+  function's prototype, what Object.defineProperty makes without
+  enumerable: Object.keys and for-in skip them, getOwnPropertyNames
+  does not); a rest in an assigned pattern (({ a, ...rest } = v));
+  Object.create's second argument; a typed array's slice, subarray,
+  map and filter give its kind; an error's stack
+- web APIs: an element is of its tag's class (a instanceof
+  HTMLAnchorElement, which Primer's links check); new EventTarget()
+  and classes that extend it; a listener's { signal }; Request;
+  CSSStyleSheet and document.adoptedStyleSheets (a <style> a sheet)
 - the window stays alive while a page's script runs long: a message's
   work is made on a thread that takes turns with the window's
   (Js_slice: a quarter of a second each, never both at once), the

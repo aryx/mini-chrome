@@ -31,7 +31,7 @@ type node = {
 (* a request a script made (XMLHttpRequest, fetch), for the
  * browser to send: its number, by which its answer comes back; and an
  * answer, as the script is given it *)
-type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *); origin : string option (* the page's, said to another site *) }
+type request = { rid : int; meth : string; (* "GET", "POST" *) url : string; post : (string * string) option (* a body's content type, and it *); said : (string * string) list (* the script's headers; Origin, the page's, to another site *) }
 type answer = { status : int; headers : (string * string) list; body : string; final : string (* the URL, after the redirections *) }
 
 (* what a script's WebSocket asks of the browser: a connection opened

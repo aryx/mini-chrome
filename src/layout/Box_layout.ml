@@ -664,7 +664,10 @@ and layout_table (env : env) (table : Dom.element) (s : Computed.t) ~(cb_x : flo
   if cells = [] then fst (layout_block env (ref []) table { s with display = Block } ~cb_x ~cb_width ~y ~marker:None ())
   else
     let spacing =
-      match Option.bind (Dom.attribute "cellspacing" table) float_of_string_opt with Some sp when sp >= 0. -> sp | _ -> 2.
+      match (Option.bind (Dom.attribute "cellspacing" table) float_of_string_opt, s.border_spacing) with
+      | Some sp, _ when sp >= 0. -> sp
+      | _, Some sp -> sp
+      | _ -> 2.
     in
     let bt, br, bb, bl = s.border_width in
     let _, pr, _, pl = four (fun l -> Css_values.resolve l cb_width) s.padding in
@@ -692,7 +695,20 @@ and layout_table (env : env) (table : Dom.element) (s : Computed.t) ~(cb_x : flo
     let columns = Table_layout.columns n measured ~spacing in
     let frame = bl +. pl +. pr +. br +. (spacing *. float_of_int (n + 1)) in
     let asked = Option.map (fun w -> if s.border_box then w else w +. bl +. pl +. pr +. br) (size s.width cb_width) in
-    let widths = Table_layout.widths ~room:(Option.value asked ~default:cb_width -. frame) ~fixed:(asked <> None) columns in
+    let room = Option.value asked ~default:cb_width -. frame in
+    let widths =
+      if s.table_fixed && asked <> None then (
+        (* the first row's cells say the columns; one no cell is in has none *)
+        let first = Array.make n (Some 0.) and top = List.fold_left (fun r (c : Table_layout.cell) -> min r c.row) max_int cells in
+        List.iter
+          (fun (c : Table_layout.cell) ->
+            if c.row = top then
+              let w = Option.map (fun w -> w /. float_of_int c.span) (size (style_of c).width room) in
+              for i = c.column to c.column + c.span - 1 do first.(i) <- w done)
+          cells;
+        Table_layout.fixed ~room first)
+      else Table_layout.widths ~room ~fixed:(asked <> None) columns
+    in
     let width = Array.fold_left ( +. ) frame widths in
     let _, mr, _, ml = s.margin in
     let x =

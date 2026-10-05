@@ -321,9 +321,30 @@ root's place in the tree that is laid out).
   its robot check (3 requests). `new.target`, `Reflect.construct`,
   typed arrays' buffers and `:target` were theirs.
 
+**2026-10-05: GitHub's scripts run.** Offline first (the page and its
+111 modules saved, `Page_scripts.exe`), where React hydrated and then
+emptied the page. Its error 321, "invalid hook call", was not the
+fault: React calls a component outside a render to learn its stack,
+and catches what that throws. The first throw that mattered was ours,
+"Invalid assignment target", for `({ a, ...rest } = v)`; `JS_THROWS`
+found it (`docs/dev/notes_debugging_techniques.txt`). Then, each
+found the same way: `Object.keys` giving a class's methods (a colour
+library went through them), so properties that are not enumerated;
+`instanceof HTMLAnchorElement` (Primer's `Link` checks what it
+renders); `EventTarget` made by `new`; a listener's `signal`;
+`adoptedStyleSheets`. In the real program the page then stood, with
+"Cannot retrieve latest commit": the four addresses the scripts ask
+answered 406, for want of the `Accept: application/json` the script
+said and we did not send -- a script's headers are now sent. The
+files' table is `table-layout: fixed`, now done. 145 lines for all of
+it, and every one is the web's, not GitHub's: what the next
+application will ask too. What is left is speed (78 s to the last
+picture, React's hydration in an interpreter) before github.com can be
+in the default list.
+
 ## Cost
 
-The budget has 5,545 lines left of 40,000. Step 1 is 300 to 600
+The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600
 (CSS properties and selectors are small each; the tool is in
 `scripts/`, not counted). Step 3 and 4 are web APIs, a hundred lines
 each for a dozen of them: they do not fit with the rest, and reaching

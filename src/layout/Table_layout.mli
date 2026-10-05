@@ -58,8 +58,16 @@
      W = 120:  between: 20 beyond the mins, shared 50 : 0: 80 and 40
      W =  90:  90 < 100: 60 and 40, and the table overflows
 
-   Not done: rowspan= (a cell down several rows), the fixed layout
-   (table-layout: fixed, the first row decides), a column's width=.
+   **The fixed layout** (table-layout: fixed, section 17.5.2.1): the
+   first row alone decides, whatever the cells below hold -- a table
+   that can be drawn before its last row has come, and whose text is
+   cut rather than its columns pushed. A column takes its first cell's
+   width, and those that say none share what is left:
+
+     W = 500, first row:  40% | (none) | 136px
+                          200 |  164   | 136
+
+   Not done: rowspan= (a cell down several rows), a column's width=.
 
    Reference: W3C, CSS 2.1, section 17.5.2.2 (automatic table layout);
    HTML 3.2, "Tables"; notes_browser.md section 12. *)
@@ -81,4 +89,8 @@ val columns : int -> (cell * (float * float)) list -> spacing:float -> (float * 
 (* [widths ~room ~fixed columns]: each column's width, [room] the
  * table's (its cells' spacing taken out), [fixed] when the table said
  * its width (width=): then it takes all of [room] *)
+(* [fixed ~room first]: the fixed layout's widths, [first] what each
+ * column's cell of the first row asks (None: a share of the rest) *)
+val fixed : room:float -> float option array -> float array
+
 val widths : room:float -> fixed:bool -> (float * float) array -> float array

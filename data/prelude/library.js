@@ -120,6 +120,24 @@
   def(Number, "parseFloat", parseFloat);
   def(Number, "parseInt", parseInt);
 
+  // an error's stack: where it was made is not kept here, and a text is
+  // what a library expects to cut (e.stack.trim().match(...))
+  [Error, TypeError, RangeError, SyntaxError, ReferenceError].forEach(function (E) {
+    if (E.prototype && !("stack" in E.prototype)) Object.defineProperty(E.prototype, "stack", {
+      get: function () { return String(this.name || "Error") + ": " + String(this.message || "") + "\n    at <anonymous>"; },
+      set: function (v) { Object.defineProperty(this, "stack", { value: v, writable: true, configurable: true }); },
+      configurable: true });
+  });
+
+  // Object.create(proto, properties): the second argument, descriptors
+  // as Object.defineProperties takes them
+  var create = Object.create;
+  Object.create = function (proto, properties) {
+    var o = create(proto);
+    if (properties !== undefined) Object.defineProperties(o, properties);
+    return o;
+  };
+
   // Reflect.construct(F, args, NewTarget): new F(...args), the object
   // then of NewTarget's kind (how a class compiled for old browsers
   // extends a built-in: Reflect.construct(HTMLElement, [], new.target))
@@ -216,6 +234,13 @@
       if (!this._buffer) { var b = new ArrayBuffer(0); b._bytes = this; b.byteLength = this.length * size; Object.defineProperty(this, "_buffer", { value: b, enumerable: false, configurable: true }); }
       return this._buffer;
     }, configurable: true });
+    // a part of one, or what map and filter make of it, is of its kind
+    // too (a plain array would have no buffer: bytes cut with subarray,
+    // then read through a DataView)
+    ["slice", "subarray", "map", "filter"].forEach(function (m) {
+      var plain = Array.prototype[m === "subarray" ? "slice" : m];
+      Object.defineProperty(C.prototype, m, { value: function () { return new C(plain.apply(this, arguments)); }, writable: true, configurable: true });
+    });
     C.from = function (items, f) { return new C(Array.from(items, f)); };
     C.of = function () { return new C(Array.prototype.slice.call(arguments)); };
   });

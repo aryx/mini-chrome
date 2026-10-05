@@ -64,8 +64,9 @@ val nodes_array : t -> node list -> value
  * children in its place. The child *)
 val insert : t -> node -> value -> before:node option -> value
 
-(* addEventListener's third argument read: { once: true } noted *)
-val listening_once : t -> value list -> unit
+(* addEventListener's third argument read: { once: true } noted;
+ * { signal }: [remove] called when it aborts *)
+val listening_once : t -> value list -> remove:(unit -> unit) -> unit
 
 (* backgroundColor, the property; background-color, the CSS (and an
  * attribute: dataset.userId is data-user-id) *)

@@ -188,7 +188,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Super_call args ->
       let hidden x = match lookup s x with Some b -> b.value | None -> Undefined in
       (match (call_value t (hidden "%super") ~this (eval_list t s this args), this) with
-      | Object made, Object self when made != self -> List.iter (fun k -> set_own self k (Option.get (get_own made k))) (keys made)
+      | Object made, Object self when made != self -> List.iter (fun k -> set_own self k (Option.get (get_own made k))) (all_keys made)
       | _ -> ());
       ignore (call_value t (hidden "%init") ~this []);
       Undefined
@@ -388,7 +388,9 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
   let made = closure cs this { ctor with name = c.class_name } in
   let f = match made with Object f -> f | _ -> assert false in
   set_own f "prototype" (Object proto);
+  hide f "prototype";
   set_own proto "constructor" made;
+  hide proto "constructor";
   (match parent with Some (Object pc) -> f.proto <- Some pc | _ -> ());
   Option.iter (fun name -> declare cs name ~constant:true made) c.class_name;
   (* a static member's home is the class itself: its super.m is the
@@ -404,9 +406,10 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
       let target = if m.static then f else proto in
       let cs = if m.static then statics else cs in
       match m.what with
-      | Method fn -> set_own target (key m.key) (closure cs this fn)
-      | Get fn -> define_accessor target (key m.key) ~getter:(Some (closure cs this fn)) ~setter:None
-      | Set fn -> define_accessor target (key m.key) ~getter:None ~setter:(Some (closure cs this fn))
+      (* a class's methods and accessors do not show (for-in, Object.keys) *)
+      | Method fn -> let k = key m.key in set_own target k (closure cs this fn); hide target k
+      | Get fn -> let k = key m.key in define_accessor target k ~getter:(Some (closure cs this fn)) ~setter:None; hide target k
+      | Set fn -> let k = key m.key in define_accessor target k ~getter:None ~setter:(Some (closure cs this fn)); hide target k
       | Field _ | Static_block _ -> ())
     c.members;
   List.iter
@@ -667,14 +670,21 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
       in
       go es (items_of t v)
   | Object props ->
+      let taken = ref [] in
       List.iter
         (fun (pr : A.property) ->
           match pr with
           | Prop (k, target) -> (
               let k = match k with Key k -> k | Computed e -> key_of (eval_expr t s this e) in
+              taken := k :: !taken;
               match (target, get t v k) with
               | Assign ("=", target, d), Undefined -> assign t s this target (eval_expr t s this d)
               | Assign ("=", target, _), pv | target, pv -> assign t s this target pv)
+          (* ({ a, ...rest } = v): the keys not taken, in an object of their own *)
+          | Spread_prop target ->
+              let rest = new_object () in
+              (match v with Object src -> List.iter (fun k -> if not (List.mem k !taken) then set_own rest k (get t v k)) (keys src) | _ -> ());
+              assign t s this target (Object rest)
           | _ -> throw "SyntaxError" "Invalid assignment target")
         props
   | _ -> throw "SyntaxError" "Invalid assignment target"
@@ -942,7 +952,10 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
   | Labeled (l, body) -> ( match exec ~labels:(l :: labels) t s this body with Break (Some l') when l' = l -> Normal | o -> o)
   | Break l -> Break l
   | Continue l -> Continue l
-  | Throw e -> raise (Throw (eval e))
+  | Throw e ->
+      let v = eval e in
+      Js_value.thrown (fun () -> display v);
+      raise (Throw v)
   (* finally runs however the rest ended, and its own ending wins if
    * it is not the normal one *)
   | Try (body, handler, finally) ->

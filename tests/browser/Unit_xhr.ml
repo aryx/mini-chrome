@@ -91,6 +91,18 @@ let tests =
           Browser_script.answer t (List.hd rids) (ok {|["a", "b"]|});
           Alcotest.(check string) "the function went on from its await, to its end" {|["the script goes on", [true, 200, "application/json"], "done 2"]|} (value t "seen");
           Alcotest.(check (pair bool string)) "and changed the page: to be laid out again" (true, "a b") (Browser_script.changed t, value t {|document.getElementById("out").textContent|}));
+      Testo.create "a script's request headers: its own, not the browser's" (fun () ->
+          let t =
+            page
+              {|fetch("a.json", { headers: { Accept: "application/json", Cookie: "stolen=1" } });
+                fetch(new Request("b.json", { headers: new Headers({ "X-Requested-With": "XMLHttpRequest" }) }));
+                const x = new XMLHttpRequest(); x.open("GET", "c.json"); x.setRequestHeader("Accept", "text/plain"); x.send();
+                fetch("http://other.test/d.json", { headers: { Accept: "*/*" } });|}
+          in
+          Alcotest.(check (list (list (pair string string))))
+            "an object's, a Request's Headers, setRequestHeader's; Origin first to another site"
+            [ [ ("Accept", "application/json") ]; [ ("x-requested-with", "XMLHttpRequest") ]; [ ("Accept", "text/plain") ]; [ ("Origin", "http://site.test"); ("Accept", "*/*") ] ]
+            (List.map (fun (r : Script_types.request) -> r.said) (Browser_script.take_requests t)));
       Testo.create "fetch: a POST, a 404, no answer, a method not sent" (fun () ->
           let t =
             page

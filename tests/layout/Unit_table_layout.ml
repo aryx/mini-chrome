@@ -27,6 +27,9 @@ let tests =
       Testo.create "a table that says its width takes it all" (fun () ->
           Alcotest.(check (list near)) "300, shared as the maxes" [ 200.; 100. ]
             (Array.to_list (Table_layout.widths ~room:300. ~fixed:true [| (10., 20.); (5., 10.) |])));
+      Testo.create "the fixed layout: the first row decides" (fun () ->
+          Alcotest.(check (list near)) "the worked example" [ 200.; 164.; 136. ] (Array.to_list (Table_layout.fixed ~room:500. [| Some 200.; None; Some 136. |]));
+          Alcotest.(check (list near)) "every column said: the room shared as they are" [ 100.; 300. ] (Array.to_list (Table_layout.fixed ~room:400. [| Some 50.; Some 150. |])));
       Testo.create "the grid: a cell of two columns" (fun () ->
           let cells, n = Table_layout.grid (table "<table><tr><td colspan=2>a<td>b<tr><td>c<td>d<td>e</table>") in
           Alcotest.(check int) "three columns" 3 n;

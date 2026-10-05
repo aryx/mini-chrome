@@ -46,7 +46,9 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
       | (Closure _ | Host_function _), "prototype" ->
           let p = new_object () in
           set_own p "constructor" (Object o);
+          hide p "constructor";
           set_own o "prototype" (Object p);
+          hide o "prototype";
           Object p
       (* a function's name, and how many parameters it declares *)
       | Closure { func; _ }, "name" -> String (Option.value func.name ~default:"")

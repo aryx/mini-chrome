@@ -208,4 +208,19 @@ let tests =
           check "DOMParser: HTML read into a page of its own" {|const d = new DOMParser().parseFromString("<p class=a>one</p><p>two</p>", "text/html");
             [d.body.children.length, d.querySelector("p.a").textContent, d.querySelectorAll("p").length, document.querySelectorAll("p").length]|}
             {|[2, "one", 2, 0]|});
+      Testo.create "an element is of its tag's class; EventTarget; a listener's signal; a sheet made by a script" (fun () ->
+          check "instanceof" ~html:"<a id=a href=x>l</a><button id=b>b</button>"
+            {|const a = document.getElementById("a"), b = document.getElementById("b");
+              [a instanceof HTMLAnchorElement, a instanceof HTMLElement, b instanceof HTMLButtonElement, b instanceof HTMLAnchorElement, document.createElement("div") instanceof HTMLDivElement]|}
+            "[true, true, true, false, true]";
+          check "new EventTarget(), and a class that extends it" {|class Bus extends EventTarget {} const bus = new Bus(), seen = [];
+              const f = e => seen.push(e.type); bus.addEventListener("ping", f); bus.dispatchEvent(new Event("ping")); bus.removeEventListener("ping", f); bus.dispatchEvent(new Event("ping")); seen|}
+            {|["ping"]|};
+          check "{ signal }: aborted, the listener is gone" ~html:"<p id=p></p>"
+            {|const p = document.getElementById("p"), c = new AbortController(); let n = 0;
+              p.addEventListener("x", () => n++, { signal: c.signal }); p.dispatchEvent(new Event("x")); c.abort(); p.dispatchEvent(new Event("x")); n|}
+            "1";
+          check "adoptedStyleSheets: a <style> of the page" {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
+              [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}
+            {|[1, "p { color: red }"]|});
     ]

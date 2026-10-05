@@ -37,8 +37,10 @@
    One check is all of it here: no preflight, no distinction of
    requests with credentials.
 
-   GET and POST only (what the browser's Fetch sends); a script's own
-   request headers are not sent, but a POST's Content-Type.
+   GET and POST only (what the browser's Fetch sends), with the
+   script's own request headers but those a browser alone may say
+   (Host, Cookie, Origin, User-Agent...: the standard's "forbidden"
+   names).
 
    cs-history:
    fetch itself is of 2015 (Chrome 42, Firefox 39; the Fetch Standard,
@@ -58,7 +60,7 @@ open Script_types
  * there is none. The request's number. [cors] (true): whether the
  * answer is given only if the page may read it -- false for a classic
  * <script src>, which runs from anywhere *)
-val ask : ?cors:bool -> t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
+val ask : ?cors:bool -> ?headers:(string * string) list -> t -> meth:string -> url:string -> post:(string * string) option -> ((answer, string) result -> unit) -> int
 
 (* the request of that number will not be answered to (abort) *)
 val forget : t -> int -> unit

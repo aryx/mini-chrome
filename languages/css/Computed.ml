@@ -65,6 +65,8 @@ type t = {
   border_width : float * float * float * float;
   border_color : Css_values.color * Css_values.color * Css_values.color * Css_values.color;
   border_box : bool;
+  table_fixed : bool;
+  border_spacing : float option;
   color : Css_values.color;
   background : Css_values.color;
   background_image : string option;
@@ -126,6 +128,8 @@ let initial : t =
     border_width = (0., 0., 0., 0.);
     border_color = (black, black, black, black);
     border_box = false;
+    table_fixed = false;
+    border_spacing = None;
     color = black;
     background = V.transparent;
     background_image = None;
@@ -481,6 +485,8 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
     border_width = (bt, br, bb, bl);
     border_color = (ct, cr, cb, cl);
     border_box = word "box-sizing" = Some "border-box";
+    table_fixed = word "table-layout" = Some "fixed";
+    border_spacing = (match get "border-spacing" with Some v -> ( match V.parts v with c :: _ -> Option.map (fun l -> V.resolve l 0.) (V.length ctx c) | [] -> None) | None -> None);
     color;
     background = prop "background-color" ~inh:V.transparent ~init:V.transparent (fun v -> V.color ~current:color v);
     background_image = (match get "background-image" with Some v -> List.find_map url_of (V.parts v) | None -> None);

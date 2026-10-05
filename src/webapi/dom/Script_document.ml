@@ -107,7 +107,7 @@ let document (t : t) : value =
           | "addEventListener" ->
               method_ k (fun args ->
                   t.document_listeners <- t.document_listeners @ [ (str (arg args 0), arg args 1) ];
-                  listening_once t args;
+                  listening_once t args ~remove:(fun () -> t.document_listeners <- List.filter (fun (ty, g) -> not (ty = str (arg args 0) && g == arg args 1)) t.document_listeners);
                   Undefined)
           | "removeEventListener" ->
               method_ k (fun args ->
@@ -135,6 +135,9 @@ let document (t : t) : value =
                   adopt h [ n ];
                   touch t
               | None -> ())
+          (* the sheets a script made and adopts: the prelude's to put in the page *)
+          | "adoptedStyleSheets", _ -> (
+              match Js_eval.global t.engine "__adopt" with Some (Object _ as f) -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ v ]) | _ -> ())
           | _ -> ());
       show = (fun () -> "#document");
     }

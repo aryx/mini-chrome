@@ -81,6 +81,11 @@ let columns (n : int) (cells : (cell * (float * float)) list) ~(spacing : float)
     cells;
   Array.init n (fun i -> (mins.(i), Float.max mins.(i) maxs.(i)))
 
+let fixed ~(room : float) (first : float option array) : float array =
+  let known = Array.fold_left (fun s w -> s +. Option.value w ~default:0.) 0. first in
+  let free = Array.fold_left (fun n w -> if w = None then n + 1 else n) 0 first in
+  Array.map (function Some w -> if free = 0 && known > 0. then w *. room /. known else w | None -> Float.max 0. (room -. known) /. float_of_int free) first
+
 let widths ~(room : float) ~(fixed : bool) (columns : (float * float) array) : float array =
   let sum f = Array.fold_left (fun s c -> s +. f c) 0. columns in
   let min_sum = sum fst and max_sum = sum snd in

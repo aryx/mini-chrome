@@ -43,12 +43,12 @@ val error_to_string : error -> string
 (* a request, and the message its answer becomes *)
 type 'msg request
 
-(* [origin]: said in the request (Origin: the page's, when a script of
- * it asks another site) *)
-val get : ?origin:string -> < Cap.network ; .. > -> string -> ((response, error) result -> 'msg) -> 'msg request
+(* [said]: headers of the asker's own in the request (a script's
+ * Accept; Origin, its page's, when it asks another site) *)
+val get : ?said:(string * string) list -> < Cap.network ; .. > -> string -> ((response, error) result -> 'msg) -> 'msg request
 
 val post :
-  ?origin:string -> < Cap.network ; .. > -> string -> content_type:string -> body:string -> ((response, error) result -> 'msg) -> 'msg request
+  ?said:(string * string) list -> < Cap.network ; .. > -> string -> content_type:string -> body:string -> ((response, error) result -> 'msg) -> 'msg request
 
 (* the requests in flight *)
 type 'msg t

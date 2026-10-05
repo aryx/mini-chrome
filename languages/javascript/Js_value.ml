@@ -11,7 +11,7 @@
 (* See Js_value.mli *)
 
 type value = Undefined | Null | Bool of bool | Number of float | String of string | Symbol of string | Object of obj
-and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option; mutable lookup : lookup option; (* its properties by their key, when they are many (Js_value's find) *)
+and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option; mutable lookup : lookup option; mutable hidden : string list; (* its properties by their key, when they are many (Js_value's find) *)
 }
 
 (* an object's properties in a table, good while its list is the one
@@ -53,7 +53,7 @@ let counter = ref 0
 
 let make (kind : kind) : obj =
   incr counter;
-  { id = !counter; props = []; kind; proto = None; lookup = None }
+  { id = !counter; props = []; kind; proto = None; lookup = None; hidden = [] }
 
 let new_object () : obj = make Plain
 
@@ -107,6 +107,8 @@ let set_own (o : obj) (k : string) (v : value) : unit =
   | None -> (
       let before = o.props and r = ref v in
       o.props <- (k, r) :: before;
+      (* a key set anew shows, whatever one of its name was before *)
+      if o.hidden <> [] then o.hidden <- List.filter (fun h -> h <> k) o.hidden;
       (* the table follows a property added *)
       match o.lookup with
       | Some ix when ix.of_props == before ->
@@ -114,13 +116,28 @@ let set_own (o : obj) (k : string) (v : value) : unit =
           ix.of_props <- o.props
       | _ -> ())
 
-let keys (o : obj) : string list = List.rev_map fst (target o).props
+(* an object's own keys, in the order they were set: all of them, and
+ * those that show (the enumerable ones) *)
+let all_keys (o : obj) : string list = List.rev_map fst (target o).props
+
+let keys (o : obj) : string list =
+  let o = target o in
+  let all = List.rev_map fst o.props in
+  if o.hidden = [] then all else List.filter (fun k -> not (List.mem k o.hidden)) all
+
+let hide (o : obj) (k : string) : unit = let o = target o in if not (List.mem k o.hidden) then o.hidden <- k :: o.hidden
+let show (o : obj) (k : string) : unit = let o = target o in if o.hidden <> [] then o.hidden <- List.filter (fun h -> h <> k) o.hidden
+let shows (o : obj) (k : string) : bool = not (List.mem k (target o).hidden)
 let array_items (o : obj) : value list = match (target o).kind with Array a -> Array.to_list (Array.sub a.elements 0 a.length) | _ -> []
 
 let error (name : string) (message : string) : value =
   let o = new_object () in
   set_own o "name" (String name);
   set_own o "message" (String message);
+  (* where it was thrown is not kept: a text all the same, which a
+   * library cuts (e.stack.trim()) *)
+  set_own o "stack" (String (name ^ ": " ^ message ^ "\n    at <anonymous>"));
+  hide o "stack";
   Object o
 
 (* how many more calls to say, as an error leaves them: forty, from an
@@ -133,7 +150,19 @@ let contains (s : string) (sub : string) : bool =
   let rec at i = i + n <= String.length s && (String.sub s i n = sub || at (i + 1)) in
   at 0
 
+(* JS_THROWS=n: the first n values thrown, by the engine or by a
+ * script's throw, said as they are -- a framework catches its
+ * components' errors and reports its own, later and elsewhere *)
+let throws_left = ref (match Option.bind (Sys.getenv_opt "JS_THROWS") int_of_string_opt with Some n -> n | None -> 0)
+
+let thrown (what : unit -> string) : unit =
+  if !throws_left > 0 then (
+    decr throws_left;
+    prerr_endline ("throw: " ^ what ());
+    if !unwinding = 0 then unwinding := 12)
+
 let throw (name : string) (message : string) : 'a =
+  thrown (fun () -> name ^ ": " ^ message);
   (match Sys.getenv_opt "JS_STACK" with
   | Some words when words <> "" && words <> "1" && contains message words ->
       prerr_endline ("thrown: " ^ message);
