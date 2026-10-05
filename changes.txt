@@ -241,6 +241,11 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- which program this is, said in the window: at the end of the tab
+  strip the compiler and the pool ("OCaml 5.5.1, 8 domains", "OCaml
+  4.14.2, 8 threads"), and about:version, after Chrome's (the
+  compiler, the workers, the program and its command line, where the
+  profile and the cache are)
 - GitHub with its scripts (scripts=github.com): React takes the page
   the server made and keeps it, and what the scripts ask for comes --
   each file's last commit and its date, the branch's latest commit,

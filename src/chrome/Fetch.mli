@@ -64,6 +64,10 @@ val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> 
  * (Http_cache; none if not given), read and written on the pool's
  * threads; a request made with [reload] asks about a fresh copy too *)
 val cache : 'msg t -> Http_cache.store option
+
+(* how many workers the pool is asked of, and whether there is one *)
+val workers : int
+val threads : 'msg t -> bool
 (* [jar], the cookies the requests say and keep (an empty one
  * if none is given): one for the whole browser *)
 (* [agent]: what the browser says it is to a host, the User-Agent of

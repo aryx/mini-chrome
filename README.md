@@ -149,6 +149,9 @@ program's flags are `key=value` words:
 | `letters=segments` | a letter drawn as its pen's strokes |
 | `pdf=strokes`, `pdf=plain` | a PDF's text in our own letters; its simplest rendering |
 
+The end of the tab strip says which build is running ("OCaml 5.5.1,
+8 domains"), and `about:version` the rest.
+
 The Playground's own flags start with a dash: `-v` shows each file
 and URL opened and what a page's scripts say on their console
 (`-debug` more, `-quiet` nothing); `-size WxH`, `-dump-frame N

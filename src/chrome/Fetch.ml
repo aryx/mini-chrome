@@ -54,14 +54,17 @@ type 'msg t = {
 (* eight workers (a browser's six connections a host, Netscape's four,
  * and room for a picture being decoded): at most eight names resolved
  * or https:// fetches at once, the others queued *)
+let workers = 8
+
 let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache () : 'msg t =
   (* the pool's workers may be domains, reading answers at the same time *)
   if threads && Worker_spawn.parallel then Http.ready ();
-  let pool = if threads then Some (Worker.create 8) else None in
+  let pool = if threads then Some (Worker.create workers) else None in
   { in_flight = []; pool; jar; agent; cache; sockets = Web_sockets.create ?pool () }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar
 let cache (t : 'msg t) : Http_cache.store option = t.cache
+let threads (t : 'msg t) : bool = t.pool <> None
 let sockets (t : 'msg t) : 'msg Web_sockets.t = t.sockets
 
 (* https://, by Http_client over our own TLS 1.3 (Tls_client, Tls13) --

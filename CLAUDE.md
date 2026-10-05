@@ -110,6 +110,11 @@ frame waits for the disk; Reload asks the network again. `cache=off`
 and `profile=off` keep none: the dumps of this file, made with
 `profile=off`, always ask the network. `about:cache` lists the copies.
 
+Which program is running is said at the end of the tab strip
+(`Browser_version.label`: "OCaml 5.5.1, 8 domains", "OCaml 4.14.2, 8
+threads") and in `about:version`: a dump made by one compiler is not
+the other's to the pixel, by that label.
+
 The Playground's own flags start with a dash. `-v` (or `-verbose`),
 `-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
 `-v` the terminal shows what a page's scripts say on their console

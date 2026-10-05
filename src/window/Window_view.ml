@@ -124,6 +124,9 @@ let view_unscaled (m : model) : shape list =
       rectangle toolbar (width m) 42. |> move_y (area_top m +. 21.);
       rectangle edge (width m) 1. |> move_y (area_top m) ]
   @ Gui_tabs.shapes (strip m) ~time:m.time
+  (* which program this is, at the strip's end: the compiler, the pool (Browser_version) *)
+  @ (let runtime = Browser_version.label ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers in
+     monospace (-.left m -. 12. -. (cell *. float_of_int (String.length runtime))) (top m -. 22.) (rgb 214 226 245) runtime)
   @ Gui_toolbar.shapes (buttons m)
   @ Omnibox.shapes (omnibox m)
   @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent

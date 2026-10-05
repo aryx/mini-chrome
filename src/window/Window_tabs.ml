@@ -44,6 +44,11 @@ let config (m : model) (id : int) : msg Browser_tab.config =
       (fun name ->
         match name with
         (* the jar as a page, made when asked for *)
+        | "version" ->
+            Some
+              ( Browser_version.page ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers ~profile:m.profile_dir
+                  ~cache:(Option.map (fun (c : Http_cache.store) -> c.place) (Fetch.cache m.fetches)),
+                "text/html; charset=utf-8" )
         | "cache" -> Some (Browser_cache.page ~now:(Unix.gettimeofday ()) (Fetch.cache m.fetches), "text/html; charset=utf-8")
         | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
