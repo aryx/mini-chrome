@@ -244,6 +244,26 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- helper applications, as Mosaic had (Browser_helpers): programs of
+  the person's, written in the profile's Preferences ("helpers"),
+  given what the browser does not show. A rule for a site
+  ({"site": "youtube.com/watch", "run": ["mpv", "%u"]}) adds "Open
+  with mpv" to the right click's menu, on the page and on a link to
+  it: a YouTube video plays in mpv's window. A rule for a content
+  type ({"type": "application/postscript", "run": ["gv", "%f"]}) has
+  such a page written to a file and the program run on it, the tab
+  saying so. Only a program named there is run (Cap.exec), each
+  argument its own, started without a fork (OCaml 5's domains) and
+  not waited for. mini-httpd says a .ps file is PostScript
+- A custom element is told of an attribute it observes set or
+  removed later (attributeChangedCallback, from setAttribute and
+  removeAttribute; not inside a <template>'s content, which a browser
+  keeps in a document of its own). YouTube starts a video's page by
+  removing disable-upgrade from its application: the page now builds
+  -- the player's frame and controls, the related videos with their
+  thumbnails -- and says, in YouTube's words, that this browser
+  cannot play the video (no MediaSource; the plain file it then asks
+  for is refused, 403, to any asker)
 - YouTube's icons: an inline <svg>'s height in percents is of its
   block's (it was 0: every icon a flat line); a path's arc may have
   its two flags glued to what follows ("a9 9 0 105.6 16", a

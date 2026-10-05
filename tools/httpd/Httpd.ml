@@ -24,6 +24,7 @@ let content_type (name : string) : string =
   | ".ico" -> "image/x-icon"
   | ".wav" -> "audio/wav"
   | ".pdf" -> "application/pdf"
+  | ".ps" -> "application/postscript"
   | _ -> "application/octet-stream"
 
 let escape (s : string) : string =

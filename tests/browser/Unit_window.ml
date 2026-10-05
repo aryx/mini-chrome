@@ -43,6 +43,13 @@ let cursors (m : Window_model.model) ~(page : bool) : Playground.cursor list =
 let tests caps =
   Testo.categorize "Window"
     [
+      Testo.create "a helper program: run on a file of the content, and one that is not there" (fun () ->
+          let rule : Browser_helpers.rule = { site = None; kind = Some "application/postscript"; run = [ "true"; "%f" ] } in
+          let page = Browser_helpers.opened caps rule ~url:"http://x.org/paper.ps" "%!PS-Adobe-3.0" in
+          let has sub = Str.string_match (Str.regexp (".*" ^ Str.quote sub)) page 0 in
+          Alcotest.(check bool) ("the tab told: " ^ page) true (has "Opened with <b>true</b>" && has "paper.ps");
+          Alcotest.(check bool) "a program that does not exist is an error, not a crash" true
+            (match Browser_helpers.launch caps [ "mini-chrome-no-such-program" ] with Error _ -> true | Ok () -> false));
       Testo.create "the omnibox: clicked, its text selected; the keys, a drag, a double click, copy and paste" (fun () ->
           let m = window caps "about:home" in
           let send msg m = after caps (Window_update.update caps msg m) in

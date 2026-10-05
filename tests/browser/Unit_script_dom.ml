@@ -283,6 +283,11 @@ let tests =
                 set icon(v) { this._icon = v + "!"; } get icon() { return this._icon; } }
               customElements.define("x-a", XA); [before, a.icon, a.hasOwnProperty("icon")]|}
             {|[[true, false, false], "menu!", false]|};
+          check "a custom element told of an attribute it observes, set and removed later" ~html:"<x-b id=b held></x-b>"
+            {|var told = []; class XB extends HTMLElement { static get observedAttributes() { return ["held", "size"]; } attributeChangedCallback(n, o, v) { told.push(n + ":" + o + ">" + v); } }
+              customElements.define("x-b", XB); var b = document.getElementById("b");
+              b.setAttribute("size", "2"); b.setAttribute("size", "2"); b.setAttribute("other", "x"); b.removeAttribute("held"); told|}
+            {|["held:null>", "size:null>2", "held:>null"]|};
           check "its entry is a class, with the members a page looks for before it trusts the observer"
             {|["intersectionRatio" in IntersectionObserverEntry.prototype, "isIntersecting" in IntersectionObserverEntry.prototype, typeof new IntersectionObserver(() => 0).observe]|}
             {|[true, true, "function"]|};

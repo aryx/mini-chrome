@@ -184,6 +184,28 @@ Ctrl and `+`, `-` or the wheel zoom the page, Ctrl and `0` back to
 100%; each site keeps its zoom, saved with the window's size in the
 profile (`~/.config/mini-chrome/Preferences`, JSON).
 
+What the browser does not show itself can be given to a program of
+yours, as Mosaic gave PostScript to ghostview: its "helper
+applications". They are written by hand in the profile's
+`Preferences`, and none is there until you do:
+
+```json
+{
+  "helpers": [
+    { "site": "youtube.com/watch", "run": ["mpv", "%u"] },
+    { "type": "application/postscript", "run": ["gv", "%f"] }
+  ]
+}
+```
+
+A rule for a site (a host, and what the path begins with) adds "Open
+with mpv" to the right click's menu, on that page and on a link to
+it; the program is given the address (`%u`). A rule for a content
+type has a page of that type written to a file (`%f`) and the program
+run on it. YouTube's videos are played that way: the browser shows
+the site, its search and a video's page, and cannot play the film
+itself.
+
 ## Layout
 
 After [mmm](https://github.com/aryx/mmm)'s: the languages a page is

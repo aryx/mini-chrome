@@ -498,6 +498,42 @@ Nineteen of fifty-two are now filled, the rest not asked for
 (`disable-upgrade`). Left: their colour (pale), the logo (YouTube
 says a doodle is there, and its picture has no address).
 
+**A video's page.** Offline it built the masthead and nothing else:
+`<ytd-app disable-upgrade="true">`, which a script of the page lifts
+once the player has drawn (`removeAttribute`), and Polymer starts the
+element in `attributeChangedCallback` -- which our registry called at
+the upgrade only. Called now for `setAttribute` and `removeAttribute`
+(not in a template's content: Polymer writes `[[data]]` there as
+attributes, and an element told of those took them for values). Live:
+the player's frame and controls, "Il tuo browser non può riprodurre
+questo video", twenty related videos with thumbnails; 4 min 30 (9,100
+runs of script, 123 s; 221 layouts, 80 s; a heap of 4.6 GB). No
+title, owner nor description yet, the controls are above the frame,
+and the related list seems drawn twice.
+
+**Playing it** was looked at for an outside decoder (ffmpeg on a
+pipe, or a helper program as Mosaic had). What the player does here:
+with no `MediaSource` it asks for the plain file (`videoplayback`,
+`itag=18`: MP4, H.264 and AAC, 360p) and is answered 403 -- as is
+curl with Chrome's name and the page as referrer, a minute later. So
+the refusal is not about who decodes: the address lacks what
+YouTube's attestation gives a browser it believes (its machine runs
+here, and throws a thousand times). To decide with the author before
+going on: a `MediaSource` of ours and a try at the attestation, or a
+helper program given the page's address (mpv, which has its own way
+in), or leaving YouTube's videos unplayed.
+
+**Decided (the same day): a helper program.** The author's choice of
+the three, and his idea of a table of outside viewers (PostScript as
+well as video): `Browser_helpers`, Mosaic's helper applications,
+written by hand in the profile. A right click on a result's link,
+"Open link with mpv", and the film plays beside the browser -- the
+heavy page of the video need not even be loaded. Checked with the
+real program under OCaml 5 (a rule that writes a file, then mpv
+itself: AV1 and Opus, which says what a decoder of ours would have had
+to be). A `MediaSource` of ours and the attestation stay a later
+experiment.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

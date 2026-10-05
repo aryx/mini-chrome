@@ -643,6 +643,9 @@
     if (!this.__content) {
       var f = document.createDocumentFragment();
       while (this.firstChild) f.appendChild(this.firstChild);
+      // of a document of its own in a browser, where no element is a
+      // custom one: here marked, for the registry to leave it alone
+      f.__inert = true;
       this.__content = f;
     }
     return this.__content;
@@ -656,8 +659,10 @@
   // connectedCallback when it is in the page. It is there that a
   // component attaches its shadow tree (libs/dom/Shadow_tree.mli). The
   // browser says when an element enters the page (__connected).
+  // An attribute set or removed later by setAttribute and
+  // removeAttribute is told too (__attribute).
   // Not done: new UserCard() (an element is made by its name), the
-  // callbacks of an attribute changed later and of an element removed.
+  // callback of an element removed.
   (function () {
     var classes = {}, waiting = {};
     function upgrade(el) {
@@ -695,6 +700,15 @@
         return new Promise(function (resolve) { (waiting[name] = waiting[name] || []).push(resolve); });
       },
       upgrade: function (root) { under(root).forEach(upgrade); }
+    };
+    // an attribute set or removed later, said by the browser
+    g.__attribute = function (el, name, old, now) {
+      var C = classes[el.localName];
+      if (!C || !el.attributeChangedCallback || (C.observedAttributes || []).indexOf(name) < 0) return;
+      // not in a <template>'s content (Polymer writes its bindings
+      // there as attributes, "[[data]]", and takes them away)
+      if (el.getRootNode().__inert) return;
+      el.attributeChangedCallback(name, old, now);
     };
     g.__connected = function (node) {
       under(node).forEach(function (el) {

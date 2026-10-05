@@ -42,9 +42,26 @@ let tests =
           Alcotest.(check int) "the space is an empty cell" 2 (List.length (Gui_text.monospace 100. 0. Playground.black "a b"));
           Alcotest.(check int) "no more than max" 3 (List.length (Gui_text.monospace ~max:3 0. 0. Playground.black "abcdef")));
       Testo.create "Browser_menu: a link's menu, the page's" (fun () ->
-          let items = Browser_menu.items ~link:(Some "http://x.org/a") ~back:true ~forward:false in
+          let items = Browser_menu.items ~link:(Some "http://x.org/a") ~back:true ~forward:false () in
           Alcotest.(check (list (pair string bool))) "a link's" [ ("Open link in new tab", true); ("Inspect", true) ] (labels items);
           Alcotest.(check bool) "the link's address" true ((List.hd items).value = Browser_menu.Open_in_new_tab "http://x.org/a");
           Alcotest.(check (list (pair string bool))) "the page's" [ ("Back", true); ("Forward", false); ("Reload", true); ("Inspect", true) ]
-            (labels (Browser_menu.items ~link:None ~back:true ~forward:false)));
+            (labels (Browser_menu.items ~link:None ~back:true ~forward:false ()));
+          (* a helper program for the address: Browser_helpers' worked example *)
+          let rules = Browser_helpers.of_json (Result.get_ok (Json.parse {|[{"site": "youtube.com/watch", "run": ["mpv", "%u"]}, {"type": "application/postscript", "run": ["gv", "%f"]}, {"run": ["rm"]}, {"site": "x.org", "run": []}]|})) in
+          Alcotest.(check int) "the rules read, those of no site and type or no program left out" 2 (List.length rules);
+          Alcotest.(check bool) "written back as read" true (Browser_helpers.of_json (Browser_helpers.to_json rules) = rules);
+          let video = "https://www.youtube.com/watch?v=abc" in
+          let rule = Option.get (Browser_helpers.for_url rules video) in
+          Alcotest.(check (list string)) "by an address: the host and the path's beginning" [ "mpv"; video ] (Browser_helpers.command rule ~url:video ~file:None);
+          Alcotest.(check bool) "another path, another host: none" true
+            (Browser_helpers.for_url rules "https://www.youtube.com/results" = None && Browser_helpers.for_url rules "https://notyoutube.com/watch" = None && Browser_helpers.for_url rules "about:chrome" = None);
+          Alcotest.(check (option string)) "by a type, its parameters not looked at" (Some "gv")
+            (Option.map Browser_helpers.name (Browser_helpers.for_type rules "Application/PostScript; x=1"));
+          Alcotest.(check (list string)) "%f: the file" [ "gv"; "/tmp/a.ps" ]
+            (Browser_helpers.command (Option.get (Browser_helpers.for_type rules "application/postscript")) ~url:"http://x.org/a.ps" ~file:(Some "/tmp/a.ps"));
+          Alcotest.(check (list (pair string bool))) "the page's menu with it" [ ("Open with mpv", true); ("Back", false); ("Forward", false); ("Reload", true); ("Inspect", true) ]
+            (labels (Browser_menu.items ~helper:("mpv", [ "mpv"; video ]) ~link:None ~back:false ~forward:false ()));
+          Alcotest.(check (list (pair string bool))) "a link's" [ ("Open link in new tab", true); ("Open link with mpv", true); ("Inspect", true) ]
+            (labels (Browser_menu.items ~helper:("mpv", [ "mpv"; video ]) ~link:(Some video) ~back:false ~forward:false ())));
     ]

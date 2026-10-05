@@ -299,7 +299,8 @@ hands down only what each part needs:
      |- Cap.network ................. Browser_tab -> Fetch -> Tcp, Http_request, Tls_client
      |- Cap.open_in, Cap.env ........ Browser_profile.load, .default_dir   (before the window is made)
      |- Cap.forkew, Cap.env ......... Gui_scale.desktop: xrdb, for the desktop's scale
-     '- Cap.open_out ................ Browser_profile.save                 (update's Tick, and at exit)
+     |- Cap.open_out ................ Browser_profile.save                 (update's Tick, and at exit)
+     '- Cap.exec, Cap.open_out ...... Browser_helpers: a helper program of the profile's, run beside the browser
 ```
 
 A function's type says what it can reach. `Tls_client` predates this for

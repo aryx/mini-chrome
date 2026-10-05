@@ -91,6 +91,17 @@ writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
 
+The one part of `Preferences` a person writes is `"helpers"`: the
+programs given what the browser does not show itself, Mosaic's helper
+applications (`Browser_helpers`, `src/chrome`; its `.mli` has the
+form). A rule for a site (`{"site": "youtube.com/watch", "run":
+["mpv", "%u"]}`) puts "Open with mpv" in the right click's menu, on
+the page and on a link to it; a rule for a content type (`{"type":
+"application/postscript", "run": ["gv", "%f"]}`) has a page of that
+type written to a file and the program run on it. Only a program
+named there is ever run, by `Cap.exec`, without a fork of ours
+(`Unix.create_process`: OCaml 5's domains) and not waited for.
+
 The cookies with a date are beside it, in `Cookies` (JSON too,
 readable by its owner alone: `Browser_cookies`), read at the start into
 the browser's one jar (`Cookie_jar`, in the `Fetch.t`: the requests,
@@ -411,8 +422,9 @@ threaded from `Cap.main` in MiniChrome.ml through `Browser_tab` and
 `Fetch`. Files are the same: `Browser_profile` takes `Cap.open_in` to
 read, `Cap.open_out` to write, `Cap.env` to find the directory, and
 asks the object for the path (`caps#open_in path`) before opening it.
-`init` and `update` get the capabilities they need and narrow them to
-`< Cap.network >` for the tabs. Running a program takes `Cap.forkew`
+`init` and `update` get the capabilities they need (`update`:
+`Cap.network`, `Cap.open_out` for the profile, `Cap.exec` for a helper
+program) and narrow them to `< Cap.network >` for the tabs. Running a program takes `Cap.forkew`
 (fork, exec and wait): `Gui_scale.desktop` asks `xrdb` for the
 desktop's scale. New code touching a file or the
 environment follows this; `Tls_client` (the roots' file, /dev/urandom)

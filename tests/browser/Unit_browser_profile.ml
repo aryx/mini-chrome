@@ -10,7 +10,7 @@
 
 (* See Unit_browser_profile.mli *)
 
-let example : Browser_profile.t = { window = Some (1400, 800); scale = Some 1.5; zooms = [ ("news.ycombinator.com", 1.5); ("en.wikipedia.org", 0.9); ("", 1.25) ] }
+let example : Browser_profile.t = { window = Some (1400, 800); scale = Some 1.5; zooms = [ ("news.ycombinator.com", 1.5); ("en.wikipedia.org", 0.9); ("", 1.25) ]; helpers = [] }
 
 let text = {|{
   "window": {

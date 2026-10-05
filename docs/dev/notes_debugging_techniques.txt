@@ -844,3 +844,11 @@ read the source at that line before judging the message's printing.
   expression. Then the smallest page that does what the failing ones'
   parent does, asked the same thing Chrome's console is: three
   booleans differed.
+- Who prints a warning: a script put first in a copy of the page that
+  wraps console.warn and, for that message, reads a property of null
+  with a word of ours in its name; JS_STACK=<that word> WALK=1 then
+  prints the calls, with their arguments (JS_STACK is for the engine's
+  own errors; do not catch it, the calls are printed as it unwinds).
+- A request refused: try it once with curl under another browser's
+  name before blaming ours. 403 for both is the server's reason, not
+  the client's.

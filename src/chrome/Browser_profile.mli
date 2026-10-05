@@ -48,6 +48,7 @@ type t = {
   window : (int * int) option; (* the window's width and height, once it was resized *)
   scale : float option; (* the scale chosen; None, the desktop's *)
   zooms : Browser_zoom.t;
+  helpers : Browser_helpers.t; (* the programs given what the browser does not show: written by hand, kept as read *)
 }
 
 (* a first run's: nothing chosen yet *)

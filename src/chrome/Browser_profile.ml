@@ -10,9 +10,9 @@
 
 (* See Browser_profile.mli *)
 
-type t = { window : (int * int) option; scale : float option; zooms : Browser_zoom.t }
+type t = { window : (int * int) option; scale : float option; zooms : Browser_zoom.t; helpers : Browser_helpers.t }
 
-let empty : t = { window = None; scale = None; zooms = Browser_zoom.empty }
+let empty : t = { window = None; scale = None; zooms = Browser_zoom.empty; helpers = [] }
 
 (*****************************************************************************)
 (* The Preferences file's text *)
@@ -21,7 +21,8 @@ let empty : t = { window = None; scale = None; zooms = Browser_zoom.empty }
 let to_string (p : t) : string =
   let window = match p.window with Some (w, h) -> [ ("window", Json.Object [ ("width", Number (float_of_int w)); ("height", Number (float_of_int h)) ]) ] | None -> [] in
   let scale = match p.scale with Some s -> [ ("scale", Json.Number s) ] | None -> [] in
-  Json.to_string (Object (window @ scale @ [ ("zoom", Object (List.map (fun (host, z) -> (host, Json.Number z)) p.zooms)) ])) ^ "\n"
+  let helpers = if p.helpers = [] then [] else [ ("helpers", Browser_helpers.to_json p.helpers) ] in
+  Json.to_string (Json.Object (window @ scale @ [ ("zoom", Json.Object (List.map (fun (host, z) -> (host, Json.Number z)) p.zooms)) ] @ helpers)) ^ "\n"
 
 let of_string (s : string) : (t, string) result =
   let first = List.hd Browser_zoom.levels and last = List.nth Browser_zoom.levels (List.length Browser_zoom.levels - 1) in
@@ -35,7 +36,8 @@ let of_string (s : string) : (t, string) result =
       let window = Json.member "window" json in
       { window = (match (side "width" window, side "height" window) with Some w, Some h -> Some (w, h) | _ -> None);
         scale = level (Json.member "scale" json);
-        zooms = (match Json.member "zoom" json with Some (Object fields) -> List.filter_map zoom fields | _ -> []) })
+        zooms = (match Json.member "zoom" json with Some (Object fields) -> List.filter_map zoom fields | _ -> []);
+        helpers = (match Json.member "helpers" json with Some h -> Browser_helpers.of_json h | None -> []) })
     (Json.parse s)
 
 (*****************************************************************************)

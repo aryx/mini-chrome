@@ -127,6 +127,7 @@ and the JavaScript engine are OCaml.
 | `/dev/urandom` | TLS's secrets, WebSocket's keys and masks | no https |
 | the root certificates (`/etc/ssl/certs/ca-certificates.crt`, or the three other usual places) | whom TLS trusts | every https site refused |
 | `xrdb` (optional; not run on macOS, where it would start XQuartz) | the desktop's scale (`Xft.dpi`) | scale 1 |
+| the helper programs of the profile's `Preferences` (optional, the person's choice: `mpv`, `gv`...) | what the browser does not show: a film of YouTube's, PostScript (`Browser_helpers`) | none is run |
 | `~/.config/mini-chrome/` | the profile and the cookies | defaults; nothing saved |
 | `~/.cache/mini-chrome/` | the answers kept (the HTTP cache) | every answer asked of the network |
 

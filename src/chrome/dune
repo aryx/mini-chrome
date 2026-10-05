@@ -3,7 +3,8 @@
 ; (Fetch), the history's two stacks (Browser_history), the developer
 ; tools' panels (Browser_devtools), the page zoom's levels and each
 ; site's (Browser_zoom), what is kept on disk between runs
-; (Browser_profile), the right click's menu (Browser_menu).
+; (Browser_profile), the right click's menu (Browser_menu), the programs
+; given what the browser does not show (Browser_helpers).
 (library
  (name browser_chrome)
  (wrapped false)
