@@ -13,7 +13,10 @@
 let table : (string * string * string) list =
   [ ( "discuss.ocaml.org",
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 MiniChrome",
-      "Discourse gives a name it does not know its page for crawlers, a plain list; its application, the page a browser shows, to a browser's name" ) ]
+      "Discourse gives a name it does not know its page for crawlers, a plain list; its application, the page a browser shows, to a browser's name" );
+    ( "youtube.com",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 MiniChrome",
+      "YouTube gives a name it does not know another page, with other polyfills (of fetch, of every web component); the one Chrome is given is the one its application is tested with" ) ]
 
 let for_host (host : string) : string =
   let host = String.lowercase_ascii host in

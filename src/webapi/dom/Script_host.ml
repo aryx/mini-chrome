@@ -18,6 +18,19 @@ let touch (t : t) : unit =
   t.changed <- true;
   t.geometry <- None
 let str (v : value) : string = to_string v
+
+(* what a script gives where a text is expected, as a text: an
+ * object's by its own toString -- a page that wraps its HTML and its
+ * scripts' addresses in "trusted" objects (Trusted Types, or its own:
+ * YouTube) gives those to innerHTML and to src, and "[object Object]"
+ * was what became of them *)
+let text (t : t) (v : value) : string =
+  match v with
+  | Object { kind = Plain; _ } -> (
+      match Js_eval.get t.engine v "toString" with
+      | Object { kind = Closure _ | Host_function _; _ } as f -> to_string (Js_eval.call_in_run t.engine f ~this:v [])
+      | _ -> to_string v)
+  | _ -> to_string v
 let arg (args : value list) (i : int) : value = Option.value (List.nth_opt args i) ~default:Undefined
 
 (* the node a host object stands for *)
@@ -84,6 +97,7 @@ and nodes_array (t : t) (ns : node list) : value = Object (new_array (List.map (
 and method_ (name : string) (f : value list -> value) : value = host_function name (fun ~this:_ args -> f args)
 
 and get (t : t) (n : node) (k : string) : value =
+  let str = text t in
   let elements_of ns = List.filter is_element ns in
   let opt = function Some c -> wrap t c | None -> Null in
   match k with
@@ -92,6 +106,8 @@ and get (t : t) (n : node) (k : string) : value =
   | "ownerDocument" -> Option.value (Js_eval.global t.engine "document") ~default:Null
   | "id" -> String (Option.value (attribute n "id") ~default:"")
   | "className" -> String (Option.value (attribute n "class") ~default:"")
+  (* a text's data, a comment's: not an element's, whose class may have a data of its own *)
+  | ("data" | "nodeValue") when is_element n -> Option.value (List.assoc_opt k n.expando) ~default:(Option.value (t.more n k) ~default:(if k = "data" then Undefined else Null))
   | "textContent" | "innerText" | "data" | "nodeValue" -> String (if is_element n || n.name = fragment_name then text_content n else n.text)
   | "innerHTML" -> String (inner_html n)
   | "outerHTML" -> String (html_of n)
@@ -243,6 +259,7 @@ and class_list (t : t) (n : node) : value =
     }
 
 and set (t : t) (n : node) (k : string) (v : value) : unit =
+  let str = text t in
   let replace_children (cs : node list) =
     List.iter (fun c -> c.parent <- None) n.children;
     n.children <- cs;
@@ -252,6 +269,7 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
   match k with
   | "id" -> set_attribute n "id" (str v); touch t
   | "className" -> set_attribute n "class" (str v); touch t
+  | ("data" | "nodeValue") when is_element n -> n.expando <- (k, v) :: List.remove_assoc k n.expando
   | "textContent" | "innerText" | "data" | "nodeValue" ->
       if is_text n || n.name = comment_name then (n.text <- str v; touch t) else replace_children [ make text_name ~text:(str v) ]
   (* a <script>'s and a <style>'s is text, not markup: "r<t;r++" in a

@@ -17,7 +17,7 @@ let tests =
           Alcotest.(check (list bool)) "example.com, Google, a host under it"
             [ true; true; true ]
             (List.map (fun h -> Browser_agent.for_host h = Http.default_agent) [ "example.com"; "google.com"; "www.google.com" ]);
-          Alcotest.(check (list string)) "the sites given another name" [ "discuss.ocaml.org" ] (List.map (fun (h, _, _) -> h) Browser_agent.table);
+          Alcotest.(check (list string)) "the sites given another name" [ "discuss.ocaml.org"; "youtube.com" ] (List.map (fun (h, _, _) -> h) Browser_agent.table);
           Alcotest.(check bool) "a browser's, ours said in it" true
             (let a = Browser_agent.for_host "discuss.ocaml.org" in
              String.starts_with ~prefix:"Mozilla/5.0" a && String.ends_with ~suffix:"MiniChrome" a));

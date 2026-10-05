@@ -404,6 +404,27 @@ a class), the next link. The mark to aim at is the home page drawn
 with its pictures and titles; the player is another matter (VP9 or
 AV1 through Media Source Extensions: a decoder of thousands of lines).
 
+**2026-10-06: YouTube mounts.** The chain went on, a dozen links,
+each found on the saved copy and each the platform's, not YouTube's:
+its container of services builds a class with `new` on a bound
+function; Shady DOM makes a fragment one of its own by `__proto__`;
+`attributes.getNamedItem`; the loader takes its own address apart
+with `path.match("/k=([^/]+)")`, a string where an expression is
+meant; a `DataView`'s floats; `document.x = v` kept. Then the one
+that mattered most: **an element's assignment did not reach its
+class.** Polymer gives each property of a component a setter on the
+component's class, and `el.data = x` is how everything is drawn; ours
+kept the value aside (and for `data`, which a text node has, replaced
+the element's children with "[object Object]"). An assignment now
+goes by the setter of the page's class if there is one, and what the
+page's class has of a name comes before what the browser answers
+(`Js_props.dom_mark` tells the browser's prototypes from the page's).
+148 components are made where 31 were. Live, asked as Chrome is (the
+server gives an unknown browser another page), the skeleton is gone
+and the masthead's search field is drawn by YouTube itself; the
+search page does not fill its results yet, and no error says why:
+the next stretch.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

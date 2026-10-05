@@ -216,15 +216,18 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
   def "trimStart" (fun s _ -> let t = String.trim s in if t = "" then String "" else String (String.sub s (index_of s t 0) (String.length s - index_of s t 0)));
   def "toString" (fun s _ -> String s);
   (* with a regular expression, or a string as one *)
+  (* for match and search a string is an expression's text ("a.c"
+   * matches "abc"), where replace and split take it letter for letter *)
+  let expression (v : value) : Js_regexp.t = match v with Object { kind = Regexp re; _ } -> re | Undefined -> compile "" "" | v -> compile (to_string v) "" in
   def "match" (fun s args ->
-      let re = pattern (arg args 0) in
+      let re = expression (arg args 0) in
       if Js_regexp.global re then
         match all_matches re s with
         | [] -> Null
         | ms -> array (List.map (fun spans -> match spans.(0) with Some (a, b) -> String (String.sub s a (b - a)) | None -> Undefined) ms)
       else match Js_regexp.exec re s 0 with Some spans -> match_array ~re s spans | None -> Null);
   def "search" (fun s args ->
-      match Js_regexp.exec (pattern (arg args 0)) s 0 with Some spans -> ( match spans.(0) with Some (a, _) -> Number (float_of_int a) | None -> Number (-1.)) | None -> Number (-1.));
+      match Js_regexp.exec (expression (arg args 0)) s 0 with Some spans -> ( match spans.(0) with Some (a, _) -> Number (float_of_int a) | None -> Number (-1.)) | None -> Number (-1.));
   def "replace" (fun s args ->
       let re = pattern (arg args 0) in
       let ms = if Js_regexp.global re then all_matches re s else Option.to_list (Js_regexp.exec re s 0) in
@@ -579,7 +582,16 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
       call this ~this:(arg args 0) (match arg args 1 with Object ({ kind = Array _; _ } as a) -> array_items a | _ -> []));
   method_ functions "bind" (fun ~this args ->
       let f = this and self = arg args 0 and bound = match args with _ :: rest -> rest | [] -> [] in
-      fn "bound" (fun ~this:_ more -> call f ~this:self (bound @ more)));
+      (* new on a bound function makes one of the function it is of,
+       * with the arguments bound (how a container of services builds a
+       * class it was given: new (Function.prototype.bind.apply(C,
+       * [null].concat(args)))). Its prototype is that function's, and
+       * a new, empty object of that prototype for this is a new *)
+      let proto = get f "prototype" in
+      let made (this : value) = match (this, proto) with Object o, Object p -> o.props = [] && (match o.proto with Some q -> q == p | None -> false) | _ -> false in
+      let b = fn "bound" (fun ~this more -> call f ~this:(if made this then this else self) (bound @ more)) in
+      (match (b, proto) with Object bo, Object _ -> set_own bo "prototype" proto; hide bo "prototype" | _ -> ());
+      b);
   let regexp_of this = match this with Object { kind = Regexp re; _ } -> re | _ -> throw "TypeError" "not a RegExp" in
   (* exec and test: from lastIndex, and moving it, when global -- or
    * sticky (y: a match at lastIndex itself, how a parser written with

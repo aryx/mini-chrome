@@ -220,4 +220,23 @@ let tests =
             var a = new Array(3).concat("ab", "cde").map(f), seen = 0; new Array(2).forEach(function () { seen++ });
             var b = new Array(2); b[0] = "x"; var given = b.map(function (v) { return v + "!" });
             [a, calls, seen, given, new Array(2).fill(7).map(function (v) { return v + 1 })]|} {|[[undefined, undefined, undefined, 2, 3], 2, 0, ["x!", undefined], [8, 8]]|});
+      Testo.create "new on a bound function" (fun () ->
+          check "an object of the function bound, its arguments first" {|function C(a, b) { this.a = a; this.b = b } C.prototype.sum = function () { return this.a + this.b };
+            var o = new (Function.prototype.bind.apply(C, [null, 5]))(2);
+            class K { constructor(x) { this.x = x } get twice() { return this.x * 2 } } var k = new (K.bind(null, 21))();
+            var self = { n: 1 }, plain = function () { return this.n }.bind(self);
+            [o instanceof C, o.sum(), k instanceof K, k.twice, plain(), plain.call({ n: 2 })]|} "[true, 7, true, 42, 1, 1]");
+      Testo.create "__proto__, read and set" (fun () ->
+          check "an object's prototype as a property" {|var p = { hi: function () { return "p" } }, o = { a: 1 }; var before = o.__proto__ === Object.prototype;
+            o.__proto__ = p; function F() {} var f = new F();
+            [before, o.hi(), Object.getPrototypeOf(o) === p, f.__proto__ === F.prototype, [].__proto__ === Array.prototype, Object.keys(o)]|} {|[true, "p", true, true, true, ["a"]]|});
+      Testo.create "a DataView's floats: IEEE 754's bytes" (fun () ->
+          check "written and read back, of eight bytes and of four" {|function bytes(v, n) { var d = new DataView(new ArrayBuffer(n)); if (n === 8) d.setFloat64(0, v); else d.setFloat32(0, v); var out = []; for (var i = 0; i < n; i++) out.push(d.getUint8(i)); return out }
+            function back(v) { var d = new DataView(new ArrayBuffer(8)); d.setFloat64(0, v, true); return d.getFloat64(0, true) }
+            [bytes(1, 8), bytes(0.1, 8), bytes(1.5, 4), [-2.5, 1e300, 5e-324, 123456.789, Infinity].every(function (v) { return back(v) === v }), 1 / back(-0)]|}
+            "[[63, 240, 0, 0, 0, 0, 0, 0], [63, 185, 153, 153, 153, 153, 153, 154], [63, 192, 0, 0], true, -Infinity]");
+      Testo.create "match and search with a string: an expression's text" (fun () ->
+          check "a key taken out of an address (a script loader's own)" {|var path = "/js/k=base.en_US/am=AAAA/d=1/m=a,b";
+            [["k", "am", "d", "m"].map(function (e) { var v = path.match("/" + e + "=([^/]+)"); return v && v[1] }), "abc".match("a.c")[0], "abc".search("b."), "a.c".replace(".", "-"), "a.c".split(".").length]|}
+            {|[["base.en_US", "AAAA", "1", "a,b"], "abc", 1, "a-c", 2]|});
     ]

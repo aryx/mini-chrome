@@ -290,6 +290,47 @@
       setInt8(at, v) { this._set(at, 1, v & 255); }
       setInt16(at, v, little) { this._set(at, 2, v & 65535, little); }
       setInt32(at, v, little) { this._set(at, 4, v >>> 0, little); }
+      // a float's eight bytes (IEEE 754: a sign, eleven bits of
+      // exponent, fifty-two of fraction), by arithmetic; four for a
+      // float32 (the same, of 8 and 23 bits)
+      _float(v, ebits, fbits) {
+        var bias = (1 << (ebits - 1)) - 1, s = v < 0 || (v === 0 && 1 / v < 0) ? 1 : 0, e, f;
+        v = Math.abs(v);
+        if (v !== v) { e = (1 << ebits) - 1; f = Math.pow(2, fbits - 1); }
+        else if (v === Infinity) { e = (1 << ebits) - 1; f = 0; }
+        else if (v === 0) { e = 0; f = 0; }
+        else {
+          e = Math.min(Math.floor(Math.log(v) / Math.LN2), 1023);
+          if (v / Math.pow(2, e) < 1) e--;
+          if (v / Math.pow(2, e) >= 2) e++;
+          if (e + bias >= 1) { f = Math.round((v / Math.pow(2, e) - 1) * Math.pow(2, fbits)); e += bias; if (f >= Math.pow(2, fbits)) { f = 0; e++; } }
+          else { f = Math.round(v / Math.pow(2, 1 - bias - fbits)); e = 0; }
+        }
+        // the bytes, the high one first: sign and exponent, then the fraction
+        var bytes = [], n = (ebits + fbits + 1) / 8, high = s * Math.pow(2, ebits) + e;
+        for (var i = n - 1; i >= 0; i--) {
+          var shift = 8 * i - fbits;
+          bytes.push(shift >= 0 ? Math.floor(high / Math.pow(2, shift)) & 255 : (Math.floor(high * Math.pow(2, -shift)) & 255 & ~(Math.pow(2, -shift) - 1)) | (Math.floor(f / Math.pow(2, 8 * i)) & 255 & (i === Math.floor(fbits / 8) ? Math.pow(2, -shift) - 1 : 255)));
+        }
+        return bytes;
+      }
+      _unfloat(bytes, ebits, fbits) {
+        var bias = (1 << (ebits - 1)) - 1, bits = 0, s = bytes[0] >> 7, e = 0, f = 0, n = bytes.length;
+        // the exponent: the bits after the sign; the fraction: the rest
+        for (var i = 0; i < n * 8; i++) {
+          var bit = (bytes[i >> 3] >> (7 - (i & 7))) & 1;
+          if (i >= 1 && i <= ebits) e = e * 2 + bit; else if (i > ebits) f = f * 2 + bit;
+        }
+        if (e === (1 << ebits) - 1) return f ? NaN : s ? -Infinity : Infinity;
+        var m = e === 0 ? f / Math.pow(2, fbits) * Math.pow(2, 1 - bias) : (1 + f / Math.pow(2, fbits)) * Math.pow(2, e - bias);
+        return s ? -m : m;
+      }
+      _putBytes(at, bytes, little) { var b = this.buffer._bytes, o = this.byteOffset + at, n = bytes.length; for (var i = 0; i < n; i++) b[o + i] = bytes[little ? n - 1 - i : i]; }
+      _takeBytes(at, n, little) { var b = this.buffer._bytes, o = this.byteOffset + at, out = []; for (var i = 0; i < n; i++) out.push(b[o + (little ? n - 1 - i : i)]); return out; }
+      setFloat64(at, v, little) { this._putBytes(at, this._float(+v, 11, 52), little); }
+      setFloat32(at, v, little) { this._putBytes(at, this._float(+v, 8, 23), little); }
+      getFloat64(at, little) { return this._unfloat(this._takeBytes(at, 8, little), 11, 52); }
+      getFloat32(at, little) { return this._unfloat(this._takeBytes(at, 4, little), 8, 23); }
     };
   }
 

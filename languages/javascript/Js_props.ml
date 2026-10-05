@@ -38,6 +38,10 @@ let rec proto_of (ps : Js_builtins.protos) (o : obj) : obj option =
 
 (* a property: the object's own, else up its prototypes' chain; a
  * function's prototype made when first asked for, {constructor: f} *)
+(* the mark of a prototype that is the browser's own (Node.prototype,
+ * HTMLElement.prototype...): a property of that name, not enumerated *)
+let dom_mark = "@@dom"
+
 let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
   match get_own o k with
   | Some v -> v
@@ -54,11 +58,25 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
       | Closure { func; _ }, "name" -> String (Option.value func.name ~default:"")
       | Closure { func; _ }, "length" -> Number (float_of_int (List.length func.params))
       | Host_function (name, _), "name" -> String name
-      | Host_object h, _ -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v)
+      | Host_object h, _ -> (
+          (* what the page's own class has of that name comes first (a
+           * custom element's method named as a property the browser
+           * has: Polymer's async): its prototypes, down to the
+           * browser's own, which are marked *)
+          let rec page (p : obj option) : value option =
+            match p with
+            | Some p when get_own p dom_mark = None -> ( match get_own p k with Some v -> Some v | None -> page p.proto)
+            | _ -> None
+          in
+          match page o.proto with
+          | Some v -> v
+          | None -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v))
       | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
 
 let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
   match target with
+  (* o.__proto__: its prototype (Object.getPrototypeOf, as a property) *)
+  | Object o when k = "__proto__" && get_own o k = None -> ( match proto_of ps o with Some p -> Object p | None -> Null)
   | Object { kind = Proxy (t, _); _ } -> get ps (Object t) k
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
   | String s -> (
@@ -130,6 +148,9 @@ let instance_of (ps : Js_builtins.protos) (v : value) (f : value) : bool =
 
 let rec set (target : value) (k : string) (v : value) : unit =
   match target with
+  (* o.__proto__ = p: its prototype, of any object (a browser's own
+   * too: how a polyfill makes a fragment one of its ShadowRoots) *)
+  | Object o when k = "__proto__" -> ( match v with Object p -> o.proto <- Some p | Null -> o.proto <- None | _ -> ())
   | Object { kind = Proxy (t, _); _ } -> set (Object t) k v
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot set properties of %s (setting '%s')" (to_string target) k)
   | Object ({ kind = Array a; _ } as o) -> (

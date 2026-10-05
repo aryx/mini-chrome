@@ -75,3 +75,10 @@ val set : Js_value.value -> string -> Js_value.value -> unit
 
 (* the keys a for (k in v) goes through *)
 val enumerable_keys : Js_value.value -> string list
+
+(* the name of the property that marks a prototype as the browser's own
+ * (Node.prototype, HTMLElement.prototype...): on a host object, what a
+ * page's class has of a name comes before what the browser answers,
+ * and the page's prototypes are those above the first marked one *)
+val dom_mark : string
+

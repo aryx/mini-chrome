@@ -264,6 +264,13 @@ let tests =
             {|const d = document.getElementById("d"), c = document.createComment("lit-node 0"); d.insertBefore(c, d.children[1]);
               [c.nextElementSibling.id, c.previousElementSibling.id, c.nextSibling.id, d.children[0].nextElementSibling.id, d.children[1].nextElementSibling]|}
             {|["y", "x", "y", "y", null]|};
+          check "a custom element's class takes its properties' assignments; data is not a text's here" ~html:"<x-card id=c><b>kept</b></x-card>"
+            {|class Card extends HTMLElement {}; const seen = [];
+              Object.defineProperty(Card.prototype, "endpoint", { get() { return this._e }, set(v) { this._e = v; seen.push("set " + v.url) }, configurable: true });
+              customElements.define("x-card", Card); const c = document.getElementById("c");
+              c.endpoint = { url: "/watch" }; c.data = { title: "T" }; c.id = "d";
+              [seen, c.endpoint.url, c.data.title, c.children.length, c.textContent, c.getAttribute("id"), document.createTextNode("x").data]|}
+            {|[["set /watch"], "/watch", "T", 1, "kept", "d", "x"]|};
           check "adoptedStyleSheets: a <style> of the page"
  {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}

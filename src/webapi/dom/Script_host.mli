@@ -71,3 +71,8 @@ val listening_once : t -> value list -> remove:(unit -> unit) -> unit
 (* backgroundColor, the property; background-color, the CSS (and an
  * attribute: dataset.userId is data-user-id) *)
 val kebab : string -> string
+
+(* what a script gives where a text is expected, as a text: an
+ * object's by its own toString (a "trusted" HTML or address a page
+ * wraps its strings in), anything else as the language says *)
+val text : t -> value -> string

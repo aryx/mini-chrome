@@ -595,6 +595,23 @@ and put (t : t) (target : value) (k : string) (v : value) : unit =
       match Js_props.get (protos t) target k with
       | Object { kind = Accessor (_, setter); _ } -> if setter <> Undefined then ignore (call_value t setter ~this:target [ v ])
       | _ -> Js_props.set target k v)
+  (* the browser's own object (an element): a setter of that name on
+   * its prototypes first -- the class a page gave a custom element
+   * defines its properties so (Polymer: el.data = x is a call, which
+   * draws the element again), and those the browser has are there as
+   * setters that ask the object itself (data/prelude/web.js) *)
+  | Object { kind = Host_object _; proto = Some p; _ } when k <> "__proto__" -> (
+      (* the page's prototypes only, down to the browser's own
+       * (Js_props.dom_mark): what is there asks the object anyway *)
+      let rec setter (o : obj) : value option =
+        if get_own o Js_props.dom_mark <> None then None
+        else
+          match get_own o k with
+          | Some (Object { kind = Accessor (_, s); _ }) -> Some s
+          | Some _ -> None
+          | None -> Option.bind o.proto setter
+      in
+      match setter p with Some s when s <> Undefined -> ignore (call_value t s ~this:target [ v ]) | _ -> Js_props.set target k v)
   | _ -> Js_props.set target k v
 
 (* a pattern's names bound to the parts of a value, each by [bind]: a

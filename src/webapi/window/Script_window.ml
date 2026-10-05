@@ -57,6 +57,9 @@ let install_classes (t : t) (define : string -> value -> unit) : unit =
       let c = fn name (fun _ -> Undefined) in
       (match c with Object c -> set_own c "prototype" (Object p) | _ -> ());
       set_own p "constructor" c;
+      (* the browser's own, told from a page's classes (Js_props.dom_mark) *)
+      set_own p Js_props.dom_mark (Bool true);
+      hide p Js_props.dom_mark;
       Hashtbl.replace protos name p;
       define name c)
     classes;

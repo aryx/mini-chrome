@@ -56,6 +56,7 @@ let dataset (t : t) (n : node) : value =
     }
 
 let get (t : t) (n : node) (k : string) : value option =
+  let str = Script_host.text t in
   let opt (c : node option) = match c with Some c -> wrap t c | None -> Null in
   let m (f : value list -> value) = Some (method_ k f) in
   (* a method's arguments as nodes: a string is a text *)
@@ -140,16 +141,18 @@ let get (t : t) (n : node) (k : string) : value option =
   | "getAttributeNames" -> m (fun _ -> Object (new_array (List.map (fun (a, _) -> String a) n.attributes)))
   | "getAttributeNode" -> m (fun args -> match attribute n (str (arg args 0)) with Some v -> let o = new_object () in set_own o "name" (arg args 0); set_own o "value" (String v); set_own o "specified" (Bool true); Object o | None -> Null)
   | "attributes" ->
-      Some
-        (Object
-           (new_array
-              (List.map
-                 (fun (a, v) ->
-                   let o = new_object () in
-                   set_own o "name" (String a);
-                   set_own o "value" (String v);
-                   Object o)
-                 n.attributes)))
+      (* its attributes as a list of { name, value }, which is also
+       * asked by name (a NamedNodeMap: getNamedItem) *)
+      let item (a, v) =
+        let o = new_object () in
+        List.iter (fun (k, x) -> set_own o k (String x)) [ ("name", a); ("value", v); ("nodeName", a); ("localName", a); ("nodeValue", v) ];
+        Object o
+      in
+      let list = new_array (List.map item n.attributes) in
+      let method_ k f = set_own list k (host_function k (fun ~this:_ args -> f args)); hide list k in
+      method_ "getNamedItem" (fun args -> match List.assoc_opt (String.lowercase_ascii (str (arg args 0))) n.attributes with Some v -> item (String.lowercase_ascii (str (arg args 0)), v) | None -> Null);
+      method_ "item" (fun args -> match List.nth_opt n.attributes (int_of_float (to_number (arg args 0))) with Some a -> item a | None -> Null);
+      Some (Object list)
   | "toggleAttribute" ->
       m (fun args ->
           let a = String.lowercase_ascii (str (arg args 0)) in

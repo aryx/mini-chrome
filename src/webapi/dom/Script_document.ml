@@ -40,6 +40,8 @@ let document (t : t) : value =
     Object o
   in
   let d =
+  (* what a script puts on the document, by its name *)
+  let kept : (string, value) Hashtbl.t = Hashtbl.create 8 in
   host_object
     {
       class_name = "HTMLDocument";
@@ -113,7 +115,7 @@ let document (t : t) : value =
                   let typ = str (arg args 0) and f = arg args 1 in
                   t.document_listeners <- List.filter (fun (ty, g) -> not (ty = typ && strict_equal g f)) t.document_listeners;
                   Undefined)
-          | _ -> Undefined);
+          | _ -> Option.value (Hashtbl.find_opt kept k) ~default:Undefined);
       set =
         (fun k v ->
           match (k, title ()) with
@@ -137,7 +139,8 @@ let document (t : t) : value =
           (* the sheets a script made and adopts: the prelude's to put in the page *)
           | "adoptedStyleSheets", _ -> (
               match Js_eval.global t.engine "__adopt" with Some (Object _ as f) -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ v ]) | _ -> ())
-          | _ -> ());
+          (* anything else a script puts on it is kept, as on any object *)
+          | _ -> Hashtbl.replace kept k v);
       show = (fun () -> "#document");
     }
   in
