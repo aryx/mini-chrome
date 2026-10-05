@@ -675,6 +675,17 @@
   getter(E, "contentEditable", function () { return this.getAttribute("contenteditable") || "inherit"; }, function (v) { this.setAttribute("contenteditable", v); });
   getter(E, "isContentEditable", function () { return this.getAttribute("contenteditable") === "true"; });
   getter(E, "assignedSlot", function () { return null; });
+  // a <slot>'s nodes: its host's children that name it (slot="name"),
+  // or that name none for the slot with no name
+  method(E, "assignedNodes", function () {
+    var root = this.getRootNode ? this.getRootNode() : null, host = root && root.host;
+    if (!host) return [];
+    var name = this.getAttribute("name") || "";
+    return Array.prototype.filter.call(host.childNodes, function (n) {
+      return (n.nodeType === 1 || n.nodeType === 3) && ((n.nodeType === 1 && n.getAttribute("slot")) || "") === name;
+    });
+  });
+  method(E, "assignedElements", function () { return this.assignedNodes().filter(function (n) { return n.nodeType === 1; }); });
 
   if (typeof navigator === "object") {
     var browser = {

@@ -244,6 +244,13 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- a page's comments are in the tree its scripts see (not in the one
+  styled and laid out): what an application that takes over a page
+  made on a server looks for -- Lit's <!--lit-part-->, React's <!--$-->
+  ("hydration"). MDN's components (Lit) start with no error.
+  Html_tree.parse ~comments
+- a <slot>'s assignedNodes and assignedElements; console's other
+  methods (info, debug, group, table, time...)
 - web APIs: a <style>'s sheet (insertRule, cssRules: how
   styled-components writes its rules) and document.styleSheets; an
   IntersectionObserver that says what it observes is in view (a
@@ -837,6 +844,13 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- a sticky regular expression (/y) matches at its lastIndex and moves
+  it: it was read as 0 each time, and a parser written with them never
+  advanced (Fluent's, on MDN: fourteen scripts stopped as "ran too
+  long", 100 s of them)
+- a comment's or a text's nextElementSibling and previousElementSibling
+- the bytes of an array of 16 or 32 bit integers (new
+  Uint8Array(hashes.buffer)): the numbers' bytes, not the numbers
 - regular expressions: in a class, a range whose bounds are \u
   escapes ([\u0020-\u007e]) lost its upper bound when the expression
   was made from a string (new RegExp): the BBC's page went blank two

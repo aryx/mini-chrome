@@ -70,6 +70,10 @@ val element : ?attributes:(string * string) list -> string -> node list -> eleme
 
 (* the value of an attribute: a core one; or, with [extensions], one of
  * Netscape's too *)
+(* the name of the element a comment is, in a tree that keeps them
+ * (Html_tree.parse ~comments): its one child is the comment's text *)
+val comment_name : string
+
 val attribute : ?extensions:bool -> string -> element -> string option
 
 (* a number to file an element under, in a table where it is then

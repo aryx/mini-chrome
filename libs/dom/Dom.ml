@@ -41,6 +41,8 @@ let attribute ?(extensions = false) (name : string) (e : element) : string optio
  * one near the root, a script of 300 KB written in the page *)
 let hash (e : element) : int = Hashtbl.hash (e.name, e.attributes, List.length e.children)
 
+let comment_name = "#comment"
+
 let rec find_all (name : string) (e : element) : element list =
   (if e.name = name then [ e ] else [])
   @ List.concat_map (fun n -> match n with Element c -> find_all name c | Text _ -> []) e.children

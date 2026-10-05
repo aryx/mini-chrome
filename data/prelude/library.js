@@ -231,6 +231,15 @@
     Object.defineProperty(C.prototype, "byteLength", { get: function () { return this.length * size; }, configurable: true });
     Object.defineProperty(C.prototype, "byteOffset", { get: function () { return 0; }, configurable: true });
     Object.defineProperty(C.prototype, "buffer", { get: function () {
+      // an array of 16 or 32 bit integers: its bytes as they are now,
+      // the low one first -- a copy, not the array's own memory (what
+      // a hash reads at its end: new Uint8Array(hashes.buffer))
+      if (size > 1 && !/Float/.test(name)) {
+        var wide = new ArrayBuffer(0), bytes = [];
+        for (var i = 0; i < this.length; i++) for (var k = 0, v = this[i] >>> 0; k < size; k++) bytes.push((v >>> (8 * k)) & 255);
+        wide._bytes = bytes; wide.byteLength = bytes.length;
+        return wide;
+      }
       if (!this._buffer) { var b = new ArrayBuffer(0); b._bytes = this; b.byteLength = this.length * size; Object.defineProperty(this, "_buffer", { value: b, enumerable: false, configurable: true }); }
       return this._buffer;
     }, configurable: true });
@@ -452,4 +461,12 @@
 (function () {
   if (!Symbol.unscopables) Symbol.unscopables = Symbol("Symbol.unscopables");
   Array.prototype[Symbol.unscopables] = { at: true, copyWithin: true, entries: true, fill: true, find: true, findIndex: true, findLast: true, findLastIndex: true, flat: true, flatMap: true, includes: true, keys: true, values: true };
+})();
+
+// console's other methods: said as log says them, or not at all
+(function () {
+  if (typeof console !== "object") return;
+  ["info", "debug", "trace", "dir", "table", "group", "groupCollapsed"].forEach(function (m) { if (!console[m]) console[m] = console.log; });
+  ["groupEnd", "time", "timeEnd", "timeLog", "count", "countReset", "clear", "profile", "profileEnd", "timeStamp"].forEach(function (m) { if (!console[m]) console[m] = function () {}; });
+  if (!console.assert) console.assert = function (ok) { if (!ok) console.error.apply(console, ["Assertion failed:"].concat(Array.prototype.slice.call(arguments, 1))); };
 })();

@@ -373,6 +373,18 @@ BBC reads with scripts on, and has its pictures only with them off.
 Next: that polyfill's stop, with `JS_THROWS` on the saved page
 (`/tmp/.../bbc`, to be saved again).
 
+**2026-10-05, late: MDN, and two that are not ours.** craigslist
+speaks TLS 1.2 alone and we speak 1.3 alone: a second handshake, some
+hundreds of lines, not taken. old.reddit.com sends whoever is not
+signed in to its login, curl too. MDN (web components, Lit, made on
+the server) had four kinds of errors and has none: comments kept for
+scripts (Lit finds its parts by them; React's hydration reads them
+too), a `<slot>`'s assigned nodes, a comment's next element, the
+bytes of a `Uint32Array` (Lit's digest of a template), and sticky
+regular expressions, which Fluent's parser is made of. Its article is
+still set in a narrow column, with scripts or without: a matter of
+layout, next.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

@@ -109,10 +109,12 @@ and get (t : t) (n : node) (k : string) : value =
       match n.parent with
       | None -> Null
       | Some p ->
-          let sibs = if String.ends_with ~suffix:"ElementSibling" k then elements_of p.children else p.children in
-          let sibs = if String.starts_with ~prefix:"previous" k then List.rev sibs else sibs in
-          let rec after l = match l with x :: y :: _ when x == n -> Some y | _ :: r -> after r | [] -> None in
-          opt (after sibs))
+          let sibs = if String.starts_with ~prefix:"previous" k then List.rev p.children else p.children in
+          (* what follows it; of those, the first element if one is asked
+           * (of a comment or a text too: they are not among the elements) *)
+          let rec after l = match l with x :: rest when x == n -> rest | _ :: r -> after r | [] -> [] in
+          let following = after sibs in
+          opt (List.nth_opt (if String.ends_with ~suffix:"ElementSibling" k then elements_of following else following) 0))
   | "getElementsByClassName" ->
       method_ k (fun args ->
           let wanted = List.filter (( <> ) "") (String.split_on_char ' ' (str (arg args 0))) in

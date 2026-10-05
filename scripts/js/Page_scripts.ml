@@ -27,7 +27,7 @@ let () =
             print_endline ("cookie set: " ^ c);
             jar := List.hd (String.split_on_char ';' c) :: !jar )
       in
-      let t = Browser_script.create ~log:(fun l -> print_endline ("console: " ^ l)) ~base ~cookies (Html_tree.of_string html) in
+      let t = Browser_script.create ~log:(fun l -> print_endline ("console: " ^ l)) ~base ~cookies (Html_tree.of_string ~comments:true html) in
       (* FILES=DIR: a request whose path is a file under DIR is answered
        * with it (a site's bundles saved beside its page: no network,
        * and nothing said to the site while its errors are looked for) *)

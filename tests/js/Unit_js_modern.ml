@@ -203,4 +203,16 @@ let tests =
             new RegExp("^[\\u0041-\\u005a]+$").test("ABC"), new RegExp("^[\\u0041-\\u005a]+$").test("abc"), /^[\u00e0-\u00ff]+$/.test("\u00e9"),
             /[^\u0000-\u007f]/.test("e"), /[^\u0000-\u007f]/.test("\u00e9"), /[\u0041]/.test("A"), /[a\-z]/.test("-")]|}
             "[true, true, false, true, false, true, true, true]");
+      Testo.create "the bytes of an array of 32-bit integers" (fun () ->
+          check "a hash's two numbers as eight bytes, the low one first (Lit's digest of a template)" {|var strings = ['<div class="a">', '</div>'];
+            var hashes = new Uint32Array(2).fill(5381);
+            for (var s of strings) for (var i = 0; i < s.length; i++) hashes[i % 2] = (hashes[i % 2] * 33) ^ s.charCodeAt(i);
+            Array.from(new Uint8Array(hashes.buffer))|} "[3, 185, 254, 90, 190, 124, 213, 130]");
+      Testo.create "a sticky regular expression matches at its lastIndex, and moves it" (fun () ->
+          check "a text read piece by piece (Fluent's parser)" {|var source = "# c\nhello = Hello, world\n    .title = T\n";
+            var y = /([^{}\n\r]+)/y; y.lastIndex = 12; var m = y.exec(source); var first = [m[1], y.lastIndex];
+            var nl = /[ \t\n\r]+/y; nl.lastIndex = 24; var blank = [nl.test(source), nl.lastIndex];
+            var no = / +/y; no.lastIndex = 0; var none = [no.test(source), no.lastIndex];
+            var plain = /l+/; plain.lastIndex = 7; var kept = [plain.test(source), plain.lastIndex];
+            [first, blank, none, kept]|} {|[["Hello, world", 24], [true, 29], [false, 0], [true, 7]]|});
     ]

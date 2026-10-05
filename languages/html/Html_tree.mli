@@ -95,8 +95,16 @@
    the tests' trees were compared with by hand. *)
 
 (* the tree of a page's tokens: its root is always <html>, with a
- * <head> and a <body> *)
-val parse : Html_lexer.token list -> Dom.element
+ * <head> and a <body>.
+ *
+ * [comments]: kept, each an element named Dom.comment_name ("#comment")
+ * whose one child is its text -- for a page's scripts, which read them:
+ * a page made on a server marks in comments where the application that
+ * takes it over must find its parts (React's <!--$--> and <!-- -->
+ * between two texts, Lit's <!--lit-part-->: "hydration"). Without
+ * (the default), they are left out: what is styled and laid out has
+ * none *)
+val parse : ?comments:bool -> Html_lexer.token list -> Dom.element
 
 (* Html_lexer.tokenize, then parse *)
-val of_string : string -> Dom.element
+val of_string : ?comments:bool -> string -> Dom.element

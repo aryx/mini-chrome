@@ -225,7 +225,10 @@ let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_
     (* with -v, what the page's scripts say on their console
      * (their errors too) is said on the terminal *)
     let log line = Logs.info (fun m -> m "console: %s" line) in
-    let s = Browser_script.create ~log ~seed:cfg.seed ~epoch:cfg.epoch ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies p.tree in
+    let s = Browser_script.create ~log ~seed:cfg.seed ~epoch:cfg.epoch ~base:p.url ~viewport:((cfg.settings tab).width, (cfg.settings tab).height) ~cookies
+        (* its tree with the page's comments: a script reads them (Html_tree.mli) *)
+        (Html_tree.parse ~comments:true p.tokens)
+    in
     (* its scripts of their own file fetched first (the queue's), then
      * all run in order; the page shown meanwhile, as it came *)
     let missing = List.filter (fun u -> not (List.mem_assoc u tab.sources)) (Browser_script.script_sources s) in

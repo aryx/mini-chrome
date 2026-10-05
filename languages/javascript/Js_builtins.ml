@@ -575,17 +575,21 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
       let f = this and self = arg args 0 and bound = match args with _ :: rest -> rest | [] -> [] in
       fn "bound" (fun ~this:_ more -> call f ~this:self (bound @ more)));
   let regexp_of this = match this with Object { kind = Regexp re; _ } -> re | _ -> throw "TypeError" "not a RegExp" in
-  (* exec and test: from lastIndex, and moving it, when global *)
+  (* exec and test: from lastIndex, and moving it, when global -- or
+   * sticky (y: a match at lastIndex itself, how a parser written with
+   * regular expressions reads its text piece by piece; it was read as
+   * 0 each time, and such a parser never moved) *)
   let exec this s =
     let re = regexp_of this in
     let o = match this with Object o -> o | _ -> assert false in
-    let from = if Js_regexp.global re then int_of_float (to_number (Option.value (get_own o "lastIndex") ~default:(Number 0.))) else 0 in
-    match Js_regexp.exec re s from with
+    let moves = Js_regexp.global re || Js_regexp.sticky re in
+    let from = if moves then int_of_float (to_number (Option.value (get_own o "lastIndex") ~default:(Number 0.))) else 0 in
+    match if from > String.length s then None else Js_regexp.exec re s from with
     | Some spans ->
-        (if Js_regexp.global re then match spans.(0) with Some (_, e) -> set_own o "lastIndex" (Number (float_of_int e)) | None -> ());
+        (if moves then match spans.(0) with Some (_, e) -> set_own o "lastIndex" (Number (float_of_int e)) | None -> ());
         Some spans
     | None ->
-        set_own o "lastIndex" (Number 0.);
+        if moves then set_own o "lastIndex" (Number 0.);
         None
   in
   method_ regexps "exec" (fun ~this args -> let s = to_string (arg args 0) in match exec this s with Some spans -> match_array ?re:(match this with Object { kind = Regexp re; _ } -> Some re | _ -> None) s spans | None -> Null);

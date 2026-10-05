@@ -260,6 +260,10 @@ let tests =
             {|var told = []; const o = new IntersectionObserver(es => es.forEach(e => told.push(e.target.id + ":" + e.isIntersecting)));
               o.observe(document.getElementById("i")); [told.length, typeof o.unobserve, o.takeRecords().length]|}
             {|[0, "function", 0]|};
+          check "a comment a script made: its next and previous element" ~html:"<div id=d><b id=x></b><i id=y></i></div>"
+            {|const d = document.getElementById("d"), c = document.createComment("lit-node 0"); d.insertBefore(c, d.children[1]);
+              [c.nextElementSibling.id, c.previousElementSibling.id, c.nextSibling.id, d.children[0].nextElementSibling.id, d.children[1].nextElementSibling]|}
+            {|["y", "x", "y", "y", null]|};
           check "adoptedStyleSheets: a <style> of the page"
  {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}

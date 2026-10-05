@@ -22,13 +22,16 @@ let is_text (n : node) : bool = n.name = text_name
 (* two more that are not elements: a comment (its text kept,
  * never shown), and a fragment, a parent for nodes on their way into
  * a tree (appended, its children go in its place) *)
-let comment_name = "#comment"
+let comment_name = Dom.comment_name
 let fragment_name = "#document-fragment"
 let is_element (n : node) : bool = n.name = "" || n.name.[0] <> '#'
 let make ?(text = "") ?(attributes = []) (name : string) : node =
   { name; text; attributes; children = []; parent = None; expando = []; wrapper = None; listeners = []; compiled = []; shadow = None }
 
 let rec thaw (e : Dom.element) : node =
+  (* a comment the parser kept: a node of its text *)
+  if e.name = comment_name then make comment_name ~text:(Dom.text_content e)
+  else
   let n = make e.name ~attributes:(e.attributes @ e.extensions) in
   let children =
     List.map
@@ -117,7 +120,7 @@ and inner_html (n : node) : string = String.concat "" (List.map html_of n.childr
 (* a fragment's nodes: the parser makes a whole page of it, whose head
  * holds what belongs there (a <style>) and whose body the rest *)
 let parse_fragment (s : string) : node list =
-  let page = thaw (Html_tree.of_string s) in
+  let page = thaw (Html_tree.of_string ~comments:true s) in
   List.concat_map (fun (part : node) -> part.children) page.children
 
 (*****************************************************************************)
