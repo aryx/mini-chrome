@@ -244,6 +244,18 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- YouTube's search page whole: its twenty results, the views and
+  ages, the channels' pictures, the filter chosen; the lower ones'
+  thumbnails come as the page is scrolled. MutationObserver is told
+  of a text node changed (data/prelude/web.js; the browser calls
+  __mutated): the trick by which Polymer runs its every debounced job
+  "right after this script", and Vue 2 where it finds no promise --
+  ours was told nothing, and none ran. IntersectionObserver looks at
+  where an element is (in view within a window's height; looked at
+  again twice a second while some wait): all was said to be in view,
+  and a list that asks for its next page when its end is seen grew
+  without end. A page's scripts know how far the window has scrolled
+  (scrollY, and getBoundingClientRect is from the window's top)
 - YouTube's search page looks like YouTube's: each result with its
   thumbnail and its length, the playlists and the shelf of Shorts
   among them, two minutes after it is asked. Five things, none

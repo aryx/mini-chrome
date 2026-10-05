@@ -260,6 +260,22 @@ let tests =
             {|var told = []; const o = new IntersectionObserver(es => es.forEach(e => told.push(e.target.id + ":" + e.isIntersecting)));
               o.observe(document.getElementById("i")); [told.length, typeof o.unobserve, o.takeRecords().length]|}
             {|[0, "function", 0]|};
+          (* Polymer's microtask: a text node changed, its observer told once the script has ended *)
+          (let t = Browser_script.create (Html_tree.of_string "<body></body>") in
+           Browser_script.run_scripts t;
+           let ask e = match Browser_script.eval t e with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in
+           Alcotest.(check string) "MutationObserver: not told at once" "0"
+             (ask {|var told = [], n = document.createTextNode(""); new MutationObserver(rs => told.push(rs.length + rs[0].type)).observe(n, { characterData: true });
+                    n.textContent = 1; n.textContent = 2; var other = document.createTextNode(""); other.textContent = 3; told.length|});
+           Alcotest.(check string) "told after, once, of the two changes" {|["2characterData"]|} (ask "told"));
+          (let t = Browser_script.create (Html_tree.of_string "<body><p id=p>x</p></body>") in
+           Browser_script.run_scripts t;
+           Browser_script.set_measure t (fun _ _ -> Some (0., 300., 100., 20.));
+           Browser_script.scrolled t 120.;
+           Alcotest.(check string) "the window scrolled: scrollY, and a rectangle from the window's top" "[120, 120, 180, 300]"
+             (match Browser_script.eval t {|var p = document.getElementById("p"); [scrollY, pageYOffset, p.getBoundingClientRect().top, p.offsetTop]|} with
+             | Ok v -> Js_value.display v
+             | Error e -> "error: " ^ e.message));
           check "its entry is a class, with the members a page looks for before it trusts the observer"
             {|["intersectionRatio" in IntersectionObserverEntry.prototype, "isIntersecting" in IntersectionObserverEntry.prototype, typeof new IntersectionObserver(() => 0).observe]|}
             {|[true, true, "function"]|};

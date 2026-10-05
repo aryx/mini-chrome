@@ -464,6 +464,25 @@ minutes after it is asked. Left: the items after the fourth (they
 come as the page is scrolled), the icons and the logo, the text over
 text in a result's chapters, a video's page; the time and the memory.
 
+**The results after the fourth.** YouTube's list shows four items,
+then the rest in chunks (`YtLazyListBehavior`), each chunk asked for
+through Polymer's debouncer -- whose "microtask" is a text node
+changed and a `MutationObserver` told of it. Ours was told nothing:
+by hand (`requestRenderChunk_()` asked in the saved page) one chunk
+came and no other. With the observer told (a text node's data: thirty
+lines of JavaScript, six of OCaml) the twenty items came, the counts,
+the avatars, the chosen filter -- and, live, sixty-eight items and
+nine minutes: every `IntersectionObserver` was told its element was
+in view, the list's end among them, so each next page was asked for
+as soon as the one before was drawn. The observer now looks: in view
+is within a window's height of the window, by the layout's
+rectangles and the window's scroll, which scripts did not know
+(`Browser_script.scrolled`); what waits is looked at again twice a
+second. Live: 1 min 47 as before for five times the content (5,600
+runs of script, 34 s; 60 layouts, 13 s), nothing asked for that is
+not near the window, and the lower thumbnails come when the page is
+scrolled to them.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

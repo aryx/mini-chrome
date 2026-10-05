@@ -156,7 +156,9 @@ let pdf_pages (cfg : 'msg config) (tab : t) : t =
   | _ -> tab
 
 let scrolled (cfg : 'msg config) (by : int) (tab : t) : t =
-  pdf_pages cfg { tab with scroll = max 0 (min (line_count cfg tab - cfg.visible) (tab.scroll + by)) }
+  let tab = pdf_pages cfg { tab with scroll = max 0 (min (line_count cfg tab - cfg.visible) (tab.scroll + by)) } in
+  Option.iter (fun s -> Browser_script.scrolled s (float_of_int tab.scroll *. cfg.line_height)) tab.script;
+  tab
 
 let to_fragment (cfg : 'msg config) (tab : t) : t =
   match (tab.state, tab.fragment) with

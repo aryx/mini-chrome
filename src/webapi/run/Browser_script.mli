@@ -217,6 +217,13 @@ val advance : t -> float -> unit
  * reads a size or a position, at most once between two changes *)
 val set_measure : t -> (Dom.element -> Dom.element -> (float * float * float * float) option) -> unit
 
+(* [scrolled t y]: the window shows the page from [y] down. A number
+ * kept (scrollY, and a getBoundingClientRect is from the window's
+ * top), no event: the wheel turns while a script runs, and what waits
+ * for a place to come into view looks again by itself
+ * (IntersectionObserver, data/prelude/web.js) *)
+val scrolled : t -> float -> unit
+
 val take_navigation : t -> (string * bool) option
 
 (* [popstate t url]: the browser went back or forward to [url], a

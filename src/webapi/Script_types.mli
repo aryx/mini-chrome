@@ -96,6 +96,9 @@ type t = {
    * layout of the tree as it is now -- [measure], the browser's, given
    * the frozen tree; its answers kept ([geometry]) until the tree
    * changes *)
+  (* how far down the window has scrolled the page, in its pixels:
+   * scrollY, and what a rectangle asked for is seen from *)
+  mutable scroll_y : float;
   mutable where : node -> (float * float * float * float) option;
   mutable measure : (Dom.element -> Dom.element -> (float * float * float * float) option) option;
   mutable geometry : (node -> (float * float * float * float) option) option;

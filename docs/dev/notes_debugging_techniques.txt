@@ -830,3 +830,12 @@ read the source at that line before judging the message's printing.
   time instead of 50, for what comes late.
 - "the script ran too long" in a promise: one budget for a run and
   all its jobs. A limit that guards one thing was counting another.
+- Something that should go on by itself and stops: ask the saved page
+  to do the next step by hand (the second expression of
+  Page_scripts.exe says what followed, three seconds later). One chunk
+  came and no other: the step was right, what calls it again was not
+  -- a debouncer, whose timer was a MutationObserver.
+- A fix that makes the page nine minutes: timings=on at the end said
+  323 layouts and a document of 68 results. The page did more, not
+  the browser slower: count what the document holds before blaming a
+  stage.

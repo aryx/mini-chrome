@@ -141,7 +141,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
       now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
-      more = (fun _ _ -> None); where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
+      more = (fun _ _ -> None); scroll_y = 0.; where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
   t.where <- (fun n -> !where_later t n);
@@ -355,6 +355,11 @@ let () = where_later := where
 let set_measure (t : t) (measure : Dom.element -> Dom.element -> (float * float * float * float) option) : unit =
   t.measure <- Some measure;
   t.geometry <- None
+
+let scrolled (t : t) (y : float) : unit =
+  if y <> t.scroll_y then (
+    t.scroll_y <- y;
+    List.iter (fun k -> Js_eval.define t.engine k (Number y)) [ "scrollY"; "pageYOffset" ])
 
 let click (t : t) (e : Dom.element) : bool =
   (* the left button, no key held: what a page's handler checks before

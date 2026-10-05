@@ -41,6 +41,8 @@ let position (n : node) (other : node) : float =
 
 let rect (t : t) (n : node) : value =
   let x, y, w, h = Option.value (t.where n) ~default:(0., 0., 0., 0.) in
+  (* from the window's top, not the page's *)
+  let y = y -. t.scroll_y in
   let o = new_object () in
   List.iter (fun (k, v) -> set_own o k (Number v)) [ ("x", x); ("y", y); ("top", y); ("left", x); ("right", x +. w); ("bottom", y +. h); ("width", w); ("height", h) ];
   Object o
