@@ -118,9 +118,9 @@ let then_ (t : t) (p : value) (f : value) (g : value) : value =
     ~on_error:(fun e -> if callable g then through g e else reject e);
   next
 
-let drain (t : t) : unit =
+let drain ?(each = ignore) (t : t) : unit =
   while not (Queue.is_empty t.jobs) do
-    try (Queue.pop t.jobs) () with
+    try each (); (Queue.pop t.jobs) () with
     | Throw e -> t.report e
     | (Stack_overflow | Invalid_argument _ | Failure _ | Not_found | Division_by_zero) as e -> t.report (error "InternalError" (Printexc.to_string e))
   done;

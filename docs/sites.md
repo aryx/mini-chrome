@@ -11,7 +11,7 @@ each cell a colour and, when it is not green, what is missing.
 | 🔴 | broken or missing: the page cannot be used for what it is for |
 | ⚪ | the site asks nothing of that part |
 
-**Checked on 2026-10-02** (tinybox: 2026-10-03; 9fans: 2026-10-04), each site loaded once in a window 1000 by
+**Checked on 2026-10-02** (tinybox: 2026-10-03; 9fans: 2026-10-04; YouTube: 2026-10-05), each site loaded once in a window 1000 by
 700, its scripts not run unless said (they run on the built-in pages
 and on Hacker News only: `scripts=`), and its dump looked at: the top
 of the page, what a person sees first. A colour is a judgment of that
@@ -25,9 +25,9 @@ then look at the pictures and correct the rows.
 
 | | Sites | |
 |---|---|---|
-| 🟢 | 10 of 19 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia, GitHub, 9fans on Topicbox |
-| 🟡 | 6 of 19 | DuckDuckGo, Lobsters, Berkshire Hathaway, BBC News: readable, not right; tinybox: it runs, slowly; discuss.ocaml.org: Discourse's application, drawn right, slowly |
-| 🔴 | 3 of 19 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
+| 🟢 | 10 of 20 | the web of the 1990s, the text-only sites, Hacker News, Wikipedia, GitHub, 9fans on Topicbox |
+| 🟡 | 7 of 20 | DuckDuckGo, Lobsters, Berkshire Hathaway, BBC News: readable, not right; tinybox: it runs, slowly; discuss.ocaml.org: Discourse's application, drawn right, slowly; YouTube: a search's results with their thumbnails, very slowly |
+| 🔴 | 3 of 20 | one that does not load (TLS 1.2 only), one that asks every visitor to sign in, and Google: its page shows, a search does not |
 
 By part, what holds the most sites back, the worst first:
 
@@ -66,6 +66,7 @@ Oldest web first, then by how much they ask.
 | **tinybox** (the Playground's menu and games: OCaml compiled to JavaScript by js_of_ocaml, a page that is one `<svg>` redrawn each frame) | 🟡 | 🟡 the menu answers to the keys and the mouse, a game opens and is played; five frames a second where a browser gives sixty, so a key tapped between two can be missed, and the games' sound has gaps | 🟢 | 🟢 | 🟢 a fixed svg, 100% of the window | 🟢 the Playground's own letters | 🟡 931 KB of script run with no error, slowly (170 ms a frame); no canvas (the code map's panel, bitmaps), no bytes from a request |
 | **9fans.topicbox.com** (a mailing list's archive as an application: a page of 3 KB, 600 KB of scripts of one framework, FastMail's Overture, that ask the server by JMAP and draw everything) | 🟢 | 🟢 the side bar, the groups, a group's topics, a topic's messages, as they are; a click goes there, Back comes back | 🟢 | 🟢 | 🟢 a frame of absolute boxes in the window's height, a list's rows placed by `transform` | 🟢 | 🟡 runs with no error; the list does not ask for more as it is scrolled |
 | **discuss.ocaml.org** (Discourse: Ember 7 and 4 MB of modules; to a name it does not know, a plain list for crawlers) | 🟡 | 🟡 the application as Chrome draws it: the header, the topics with avatars, categories, counts and ages; a click on a topic not tried in it; 38 s to the last picture, 12 of them the window still | 🟢 asked by a browser's name; 150 requests on kept connections | 🟢 | 🟡 1.9 MB of sheets; avatars square, not round | 🟢 | 🟡 runs with no error, thirty times slower than Chrome |
+| **YouTube** (a search's results; asked as Chrome is) | 🟡 | 🟡 the results as YouTube draws them: thumbnails with their lengths, titles, channels, playlists, the Shorts shelf, the filters; the first four items only, no icon nor logo, a video's page and playing not tried; two minutes to that picture | 🟢 130 requests; its telemetry refused (a number it wants whole) | 🟢 | 🟡 3 MB of sheets; text over text in a result's chapters | 🟢 | 🟡 Polymer and its newer components run; some 9,600 runs of script, a heap of gigabytes |
 
 `?` in a cell: could not be told, the page did not get that far.
 

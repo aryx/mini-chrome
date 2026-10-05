@@ -287,6 +287,13 @@ let tests =
           match List.filter_map (fun (f : Html_layout.fragment) -> Option.map (fun (pic : Html_layout.picture) -> (f.width, pic.height)) f.picture) (Box_tree.fragments p) with
           | [ (w, h) ] -> Alcotest.(check (list near)) "scaled to the page" [ 200.; 50. ] [ w; h ]
           | _ -> Alcotest.fail "one picture");
+      Testo.create "a picture's height in percents: of its block's when that is known" (fun () ->
+          let sizes html = List.filter_map (fun (f : Html_layout.fragment) -> Option.map (fun (pic : Html_layout.picture) -> (f.width, pic.height)) f.picture) (Box_tree.fragments (page html)) in
+          Alcotest.(check (list (pair near near))) "a block 80 high: its picture fills it" [ (200., 80.) ]
+            (sizes {|<body style="margin: 0"><div style="height: 80px"><img src=a.png style="width: 100%; height: 100%">|});
+          (* else auto, not nothing: no picture 0 high *)
+          Alcotest.(check (list (pair near near))) "a block as high as its content: no picture of no height" []
+            (List.filter (fun (_, h) -> h = 0.) (sizes {|<body style="margin: 0"><div><img src=a.png style="width: 100%; height: 100%">|})));
       Testo.create "Box_flow's worked examples: the horizontal equation, two margins one" (fun () ->
           let p = page ~width:976. {|<body style="margin: 0"><div id=d style="width: 400px; padding: 10px; border: 1px solid; margin: 0 auto">x</div><div id=a style="padding: 10px; border: 1px solid">y</div>|} in
           let ml, w, mr = Box_flow.horizontal (box "d" p).style ~cb_width:976. () in

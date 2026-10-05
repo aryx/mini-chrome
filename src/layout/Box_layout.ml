@@ -480,7 +480,10 @@ and float_item (ctx : ctx) (e : Dom.element) (s : Computed.t) : item =
  * ratio, or its own once it has come; max-width applied *)
 and picture_size (ctx : ctx) (e : Dom.element) (s : Computed.t) : (float * float) option =
   let src = Option.value (picture_src e) ~default:"" in
-  let w = size s.width ctx.width and h = size s.height 0. in
+  (* a height in percents is of the block's when that is known, else
+   * auto: the picture's own ratio (CSS 2.1 section 10.5) *)
+  let h = match (s.height, ctx.env.known_height) with Len l, k when l.pct <> 0. && (k = None || ctx.env.measuring) -> None | sz, k -> size sz (Option.value k ~default:0.) in
+  let w = size s.width ctx.width in
   let own = ctx.env.picture_size src in
   let wh =
     match (w, h, own) with

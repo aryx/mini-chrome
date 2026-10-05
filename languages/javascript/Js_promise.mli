@@ -97,8 +97,11 @@ val install :
 val make : t -> Js_value.value * (Js_value.value -> unit) * (Js_value.value -> unit)
 
 (* the jobs run, those they add too, until none is left; then the
- * rejections left unhandled reported *)
-val drain : t -> unit
+ * rejections left unhandled reported. [each] is called before each
+ * job: the engine renews its budget of steps there, a job being a run
+ * of its own (a page that renders in a thousand thens is not a loop
+ * that never ends) *)
+val drain : ?each:(unit -> unit) -> t -> unit
 
 (* [async t body]: the promise of [body]'s value, [body] run now up to
  * its first [await] (an async function's call) *)

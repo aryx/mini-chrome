@@ -69,7 +69,8 @@ let () =
       in
       timed "the scripts' first run" (fun () -> Browser_script.run_scripts ~source:(fun u -> saved (Browser_url.resolve base u)) t);
       timed "the first answers" requests;
-      for i = 1 to 50 do
+      (* five seconds of the page's time, a tenth at a turn (TURNS=n: n turns) *)
+      for i = 1 to (match Option.bind (Sys.getenv_opt "TURNS") int_of_string_opt with Some n -> n | None -> 50) do
         timed (Printf.sprintf "timers, turn %d" i) (fun () -> Browser_script.advance t 100.);
         timed (Printf.sprintf "answers, turn %d" i) requests
       done;

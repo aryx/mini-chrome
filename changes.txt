@@ -244,6 +244,22 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- YouTube's search page looks like YouTube's: each result with its
+  thumbnail and its length, the playlists and the shelf of Shorts
+  among them, two minutes after it is asked. Five things, none
+  YouTube's alone: a boolean and a symbol have every object's methods
+  ((!o).hasOwnProperty(k), a minifier's false: a component that died
+  there left what followed it empty); each promise job has its own
+  budget of steps (a page that renders in a thousand thens is not a
+  loop that never ends: the first to pass the budget took every job
+  after it); IntersectionObserverEntry is a class (without it a page
+  brings its own observer, which here saw nothing) and an element of
+  no height yet is seen by one pixel; a picture's height in percents
+  is of its block's height when that is known, else its own ratio
+  (it was 0); a line is inside what clips it down to its baseline (a
+  picture filling its box has a line a little taller, and was left
+  out). And a script's request body of bytes (a Uint8Array) is sent
+  as bytes
 - YouTube's search page shows its first results (a video's title and
   channel, drawn by YouTube's own components), two minutes and a half
   after it is asked: document.all is something (a sanitizer of

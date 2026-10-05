@@ -439,6 +439,31 @@ and a half (9,600 runs of script, 21 s of them; a heap of 3.7 GB).
 Missing: the thumbnails (none is asked for), the icons, the counts;
 and the time and the memory, which are now the matter.
 
+**The results with their pictures.** Live, the results came in one
+run and not in the next. The document as the scripts have it, written
+at each layout (`MINI_DUMP_HTML`) and drawn as a file, said why the
+screen was blank: the result's element was there, with no data.
+YouTube answers each visitor with a different mix of its experiments;
+of three copies of the page fetched a minute apart and replayed with
+no network, one failed every time: a way to hold the bug still. There
+a playlist came first (`yt-lockup-view-model`, a component of
+YouTube's newer kind), had no children, and what followed it no data.
+The throws traced (`JS_THROWS`, less the thousand its anti-robot
+machine makes on purpose: `JS_THROWS_NOT`): `(!k).hasOwnProperty is
+not a function` -- a minifier's way to write false, and our booleans
+had `toString` and `valueOf` alone. Then the thumbnails: asked for by
+an `IntersectionObserver`, which YouTube had replaced by its own
+(ours had no `IntersectionObserverEntry` to show), then fetched and
+not drawn: `height: 100%` on a picture was a height of 0, and a
+picture that fills a box that clips has a line a little taller than
+the box, left out whole. And the budget of steps, one for a run and
+all the promise jobs after it, was passed once by YouTube's chain of
+thens: every job after that one died at its first step. Each is a
+line or five; the search page is now YouTube's to the eye, two
+minutes after it is asked. Left: the items after the fourth (they
+come as the page is scrolled), the icons and the logo, the text over
+text in a result's chapters, a video's page; the time and the memory.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

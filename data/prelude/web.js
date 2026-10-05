@@ -570,13 +570,22 @@
       setTimeout(function () {
         if (self._observed.indexOf(element) < 0) return;
         var box = element.getBoundingClientRect();
-        self._callback([{ target: element, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: box, rootBounds: null, time: performance.now() }], self);
+        // a picture with no address yet has no height, and a page asks
+        // that what is seen of it have some (YouTube's thumbnails)
+        var seen = box.height > 0 ? box : { x: box.x, y: box.y, left: box.left, top: box.top, right: box.right, bottom: box.top + 1, width: box.width, height: 1 };
+        self._callback([Object.assign(new IntersectionObserverEntry(), { target: element, isIntersecting: true, intersectionRatio: 1, boundingClientRect: box, intersectionRect: seen, rootBounds: null, time: performance.now() })], self);
       }, 0);
     }
     unobserve(element) { this._observed = this._observed.filter(function (e) { return e !== element; }); }
     disconnect() { this._observed = []; }
     takeRecords() { return []; }
   };
+  // what the observer tells, as a class: a page looks for its
+  // prototype's members before it trusts the observer, and brings its
+  // own (the W3C's polyfill, which YouTube has) when they are not there
+  g.IntersectionObserverEntry = class IntersectionObserverEntry {};
+  IntersectionObserverEntry.prototype.intersectionRatio = 0;
+  IntersectionObserverEntry.prototype.isIntersecting = false;
   // Range, as a name: new Range() is what document.createRange() gives
   global("Range", function Range() { return document.createRange(); });
   // CSS: what a script asks of the style engine. supports() says no

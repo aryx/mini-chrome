@@ -1146,7 +1146,7 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   t.depth <- 0;
   let before = !running in
   running := Some t;
-  Fun.protect ~finally:(fun () -> Js_promise.drain (Option.get t.promises); running := before) @@ fun () ->
+  Fun.protect ~finally:(fun () -> Js_promise.drain ~each:(fun () -> t.steps <- t.budget) (Option.get t.promises); running := before) @@ fun () ->
   match f () with
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)

@@ -779,3 +779,54 @@ newest change.
   three regressions in twenty-four were seen in a minute.
 - -script's at(x;y) is from the window's centre, y up: a click "at the
   tab" landed in the page's middle and its log line said so.
+
+
+Session 6: a page right in one run and blank in the next (YouTube, 2026-10-05)
+===============================================================================
+
+25. What a live page holds: its document written out, and drawn as a file
+--------------------------------------------------------------------------
+A live run cannot be asked questions, and a dumped frame says only
+"blank". MINI_DUMP_HTML=file makes the browser write the document as
+the scripts have it (documentElement.outerHTML) at each layout:
+
+    MINI_DUMP_HTML=/tmp/cur.html ./bin/mini-chrome -v -dump-frame 4800 /tmp/end.png url=... profile=off
+
+Then two questions have two tools. Is the content in the document?
+grep, or python, on the file (never a long .\{300\} pattern or a
+regular expression with two stars on a 3 MB line: it does not end).
+Is it there and not drawn? Strip the scripts, add a <base href> of the
+site, serve it (mini-httpd) and open it with scripts=off: the same
+blank, now with no script and no network, is a layout bug to cut down
+to ten lines of HTML (the thumbnail: seven variants side by side in
+one page, and a script printing each getBoundingClientRect in the
+page said the box was right and the drawing wrong).
+
+26. It comes and goes because the site is not the same site
+------------------------------------------------------------
+Section 21 again, with another answer: nothing differed between our
+runs, the server's answer did (experiments by visitor). Fetch the
+page several times, replay each offline (Page_scripts.exe, FILES=):
+the one that fails, fails every time. Diff what the pages hold (the
+order of the items' kinds was enough), not the flags.
+
+27. A thousand throws on purpose
+--------------------------------
+JS_THROWS=n shows the first n values thrown; a page with an anti-robot
+machine throws the same ReferenceError a thousand times before the
+one that matters. JS_THROWS_NOT=words leaves those out;
+JS_THROWS=100000 and `sort | uniq -c` gives the dozen kinds there
+are. The one with a strange callee -- "(!k).hasOwnProperty" -- was it:
+read the source at that line before judging the message's printing.
+
+28. Other finds of that day, each in a line
+--------------------------------------------
+- An API of ours that seems not to work: ask the page what it is
+  (String(IntersectionObserver)): "function d() {...}" was the page's
+  own, put over ours because a class beside it was missing.
+- A request a server refuses: with -v, "400 URL says: ..." has the
+  answer's first words (a body sent as text that was bytes).
+- TURNS=n gives Page_scripts.exe n tenths of a second of the page's
+  time instead of 50, for what comes late.
+- "the script ran too long" in a promise: one budget for a run and
+  all its jobs. A limit that guards one thing was counting another.

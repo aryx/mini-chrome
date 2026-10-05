@@ -588,6 +588,15 @@ let retreed (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : t *
   match (tab.state, tab.script) with
   | Shown p, Some s when Browser_script.changed s ->
       let tree = Browser_script.tree s in
+      (* MINI_DUMP_HTML=file: the page as its scripts have it now, written
+       * at each layout -- what a live run holds, to look at afterwards
+       * (docs/dev/notes_debugging_techniques.txt) *)
+      (match Sys.getenv_opt "MINI_DUMP_HTML" with
+      | Some file -> (
+          match Browser_script.eval s "document.documentElement.outerHTML" with
+          | Ok v -> Out_channel.with_open_bin file (fun oc -> Out_channel.output_string oc (Js_value.to_string v))
+          | Error _ -> ())
+      | None -> ());
       let focus = Option.bind tab.focus (fun e -> Option.bind (path_to p.tree e) (at_path tree)) in
       with_pictures cfg network (measuring cfg { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus; stale = false }, Cmd.none)
   | _ -> (tab, Cmd.none)
@@ -619,6 +628,10 @@ let got_answer (cfg : 'msg config) (network : < Cap.network ; .. >) (rid : int) 
   | None -> (tab, Cmd.none)
   | Some s ->
       let tab = match result with Ok r -> logged ~status:r.status ~bytes:(String.length r.body) Fetch url tab | Error _ -> logged ~status:0 Fetch url tab in
+      (* with -v, what a server says when it refuses a script's request: the answer's first words *)
+      (match result with
+      | Ok r when r.status >= 400 -> Logs.info (fun m -> m "%d %s says: %s" r.status url (String.escaped (String.sub r.body 0 (min 300 (String.length r.body)))))
+      | _ -> ());
       Browser_script.answer s rid
         (match result with
         | Ok r -> Ok { Script_types.status = r.status; headers = r.headers; body = r.body; final = r.url }

@@ -98,13 +98,15 @@ let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
       match k with
       | "description" -> let s = to_string target in String (String.sub s 7 (String.length s - 8))
       | "toString" -> host_function k (fun ~this:_ _ -> String (to_string target))
-      | _ -> Undefined)
+      | _ -> from_chain ps ps.objects k)
   (* true.toString(), which a setting read as text asks *)
   | Bool b -> (
       match k with
       | "toString" -> host_function k (fun ~this:_ _ -> String (string_of_bool b))
       | "valueOf" -> host_function k (fun ~this:_ _ -> target)
-      | _ -> Undefined)
+      (* the rest is every object's: (!o).hasOwnProperty(k), false for
+       * any k, which a minifier writes *)
+      | _ -> from_chain ps ps.objects k)
 
 (* whether an object has a property, its own or its prototypes': k in o *)
 let rec has (ps : Js_builtins.protos) (o : obj) (k : string) : bool =

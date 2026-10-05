@@ -72,7 +72,15 @@ let tests =
           check "fib" "function fib(n) { return n < 2 ? n : fib(n - 1) + fib(n - 2) }\nfib(15)" "610";
           check "recursion without end" "function f() { return f() }\nf()" "line 1: RangeError: Maximum call stack size exceeded";
           Alcotest.(check string) "while (true)" "line 1: RangeError: the script ran too long (a loop that never ends?)"
-            (run ~budget:10_000 "while (true) {}"));
+            (run ~budget:10_000 "while (true) {}");
+          (* a job is a run of its own: thirty thens of a thousand turns each are not one loop of thirty thousand *)
+          let t = Js_eval.create () in
+          Js_eval.set_budget t 20_000;
+          ignore (Js_eval.eval t "var n = 0; for (var j = 0; j < 30; j++) Promise.resolve().then(function () { for (var i = 0; i < 1000; i++) n++ })");
+          Alcotest.(check string) "each job its budget" "30000" (match Js_eval.eval t "n" with Ok v -> Js_value.display v | Error e -> e.message));
+      Testo.create "a boolean and a symbol have every object's methods" (fun () ->
+          check "(!o).hasOwnProperty(k), a minifier's false" "var o = { a: 1 }; [(!o).hasOwnProperty('a'), typeof Symbol('s').hasOwnProperty, true.toString(), false.missing]"
+            "[false, \"function\", \"true\", undefined]");
       Testo.create "functions declared below their call" (fun () -> check "hoisted" "f()\nfunction f() { return 1 }" "1");
       Testo.create "arrays: holes, length" (fun () ->
           check "a[2] = 5" "const a = [];\na[2] = 5;\n[a.length, a[0], a[2]]" "[3, undefined, 5]";

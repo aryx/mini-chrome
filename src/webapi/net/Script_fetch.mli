@@ -84,3 +84,7 @@ val parse_json : t -> string -> value
 
 (* fetch defined *)
 val install : t -> (string -> value -> unit) -> unit
+
+(* a request's body as the bytes to send: a text as it is, an array of
+ * bytes or a buffer each byte a character *)
+val body_bytes : t -> Js_value.value -> string

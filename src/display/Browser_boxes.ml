@@ -21,7 +21,8 @@ let faded (c : Css_values.color) (shapes : shape list) : shape list = if c.a >= 
 (* the rectangle what is drawn must stay in (left, top, right,
  * bottom): a box with overflow other than visible clips what it holds
  * -- here by what is drawn, not by pixels: a rectangle is cut to it, a
- * line or a word not wholly inside is left out *)
+ * line or a word not inside is left out (a line is inside down to
+ * its baseline) *)
 type clip = float * float * float * float
 
 let everywhere : clip = (neg_infinity, neg_infinity, infinity, infinity)
@@ -185,7 +186,10 @@ let rec draw_in (clip : clip) ~(visited : string -> bool) ~(picture_of : string 
     List.filter_map
       (fun (l : Html_layout.line) ->
         let _, t, _, bottom = clip in
-        if l.top < t -. 0.5 || l.top +. l.height > bottom +. 0.5 then None
+        (* the room under the baseline may stick out: a picture stands
+         * on the baseline, and one that fills its box has a line a
+         * little taller than the box (YouTube's thumbnails) *)
+        if l.top < t -. 0.5 || Float.min l.baseline (l.top +. l.height) > bottom +. 0.5 then None
         else
           let shown = List.filter (fun (f : Html_layout.fragment) -> inside clip f.x l.top f.width 0.) l.fragments in
           (* opti: the line's place is known now (its top, its

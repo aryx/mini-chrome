@@ -107,7 +107,7 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "__host_get" (fn "__host_get" (fun args -> match arg args 0 with Object { kind = Host_object h; _ } -> h.get (str (arg args 1)) | _ -> Undefined));
   define "__host_set" (fn "__host_set" (fun args -> (match arg args 0 with Object { kind = Host_object h; _ } -> h.set (str (arg args 1)) (arg args 2) | _ -> ()); Undefined));
   define "getComputedStyle" (fn "getComputedStyle" (fun args -> computed_style (node_of t (arg args 0))));
-  List.iter (fun name -> define name (observer name)) [ "MutationObserver"; "ResizeObserver"; "IntersectionObserver"; "PerformanceObserver" ];
+  List.iter (fun name -> define name (observer name)) [ "MutationObserver"; "ResizeObserver"; "PerformanceObserver" ];
   LocalStorage.install define;
   AudioContext.install define;
   define "performance" (object_of [ ("now", fn "now" (fun _ -> Number t.now)); nothing "mark"; nothing "measure"; ("timeOrigin", Number 0.) ]);

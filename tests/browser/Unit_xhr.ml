@@ -103,6 +103,12 @@ let tests =
             "an object's, a Request's Headers, setRequestHeader's; Origin first to another site"
             [ [ ("Accept", "application/json") ]; [ ("x-requested-with", "XMLHttpRequest") ]; [ ("Accept", "text/plain") ]; [ ("Origin", "http://site.test"); ("Accept", "*/*") ] ]
             (List.map (fun (r : Script_types.request) -> r.said) (Browser_script.take_requests t)));
+      Testo.create "a body of bytes is sent as bytes" (fun () ->
+          let t = page {|fetch("log", { method: "POST", headers: { "Content-Encoding": "gzip", "Content-Type": "application/json" }, body: new Uint8Array([31, 139, 8, 0]) });
+                         const x = new XMLHttpRequest(); x.open("POST", "log2"); x.send(new Uint8Array([104, 105]).buffer);|} in
+          Alcotest.(check (list string)) "a Uint8Array to fetch, a buffer to XMLHttpRequest"
+            [ "POST http://site.test/app/log application/json \031\139\008\000"; "POST http://site.test/app/log2 text/plain;charset=UTF-8 hi" ]
+            (fst (requests t)));
       Testo.create "fetch: a POST, a 404, no answer, a method not sent" (fun () ->
           let t =
             page

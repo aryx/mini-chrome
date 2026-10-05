@@ -155,8 +155,12 @@ let contains (s : string) (sub : string) : bool =
  * components' errors and reports its own, later and elsewhere *)
 let throws_left = ref (match Option.bind (Sys.getenv_opt "JS_THROWS") int_of_string_opt with Some n -> n | None -> 0)
 
+(* JS_THROWS_NOT=words: but those that have these words (a script that
+ * throws the same thing a thousand times on purpose) *)
+let throws_not = Sys.getenv_opt "JS_THROWS_NOT"
+
 let thrown (what : unit -> string) : unit =
-  if !throws_left > 0 then (
+  if !throws_left > 0 && (match throws_not with Some w -> not (contains (what ()) w) | None -> true) then (
     decr throws_left;
     prerr_endline ("throw: " ^ what ());
     if !unwinding = 0 then unwinding := 12)
