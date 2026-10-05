@@ -6,5 +6,5 @@
 (test
  (name Test)
  (flags (:standard -open Network))
- (libraries str alcotest testo network tiny_libs.crypto) ; str: appendix B's regexp, to check Url.parse against
+ (libraries str alcotest testo network tiny_libs.crypto tiny_libs.compression) ; str: appendix B's regexp, to check Url.parse against
  (deps (glob_files tls/*.pem))) ; real certificates and chains (Unit_x509)

@@ -5,6 +5,17 @@
 # (with direction from me)
 
 ** networking (its own)
+- a cache on disk (RFC 9111): an answer its server lets be used again
+  is kept (Cache-Control's max-age and immutable, Expires; not
+  no-store, not one that varies by a request header), given back
+  without a request while it is fresh, asked about after
+  (If-None-Match, If-Modified-Since; a 304: the copy, renewed).
+  Http_cache has the rules, Browser_cache the files: one a copy in
+  ~/.cache/mini-chrome, 200 MB at most, the least recently used
+  going first; read and written on the pool's threads. Reload asks
+  the network; cache=off, profile=off: none; about:cache lists them.
+  GitHub's page the second time: 138 of its 160 answers from the
+  disk, its files' list 5 s sooner
 - a body in Brotli or Zstandard is read (Content-Encoding: br, zstd;
   tiny_libs' Brotli, with its dictionary, and Zstd, elm-playground
   after 0.3.3), and asked for: Accept-Encoding: gzip, br, zstd.
@@ -85,6 +96,18 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- OCaml 5: the pool's workers are domains (Worker_spawn, chosen by
+  dune on the compiler's version; threads under 4.14, the same
+  source), so fetching, TLS, decompression and pictures' decoding run
+  beside the window on other cores. GitHub's page with its scripts,
+  to its last picture: 25 s with 4.14, 12 s with 5.5.1 (58 s before
+  this day's work). Eight workers, were six threads
+- the wheel scrolls the page while a script runs, not at its end
+- a picture is decoded on the thread of the pool that fetched it, not
+  in a frame (GitHub's README: 4.5 s of the window's thread)
+- one layout a frame: a picture come, a tree a script changed mark
+  the tab, laid out once at the next frame, not at each (GitHub with
+  its scripts: 39 layouts in a load to 24)
 - timings=on: where the time went, by stage (html, sheets, styles,
   boxes, shapes, scripts, pictures, view, update), each with how many
   times and its own seconds, said when the program ends (Stopwatch:
@@ -788,6 +811,9 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- OCaml 5.5: Brotli's dictionary was embedded between {| and |}, where
+  that compiler reads a carriage return and a newline as a newline
+  alone: every answer in Brotli failed. Embedded escaped
 - the browser no longer hangs on a page whose listener is not a
   function: the error's message showed the value whole, an
   application's every object many times over. A value is shown five

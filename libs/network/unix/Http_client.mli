@@ -46,14 +46,17 @@ val get : ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?max_redirects:int -
  * host it goes to; Http.default_agent without *)
 
 (* the same, and the URL the redirections led to; with [post] (its
- * content type and body), the first request a POST *)
+ * content type and body), the first request a POST. With [cache], a
+ * GET goes through it (Http_cache.mli): a fresh copy answers and
+ * nothing is sent, a stale one is asked about, what comes is kept if
+ * it may be; [reload] asks about a fresh one too *)
 val fetch :
-  ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?said:(string * string) list -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (string * Http.response, string) result
+  ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?said:(string * string) list -> ?cache:Http_cache.store -> ?reload:bool -> ?max_redirects:int -> ?timeout:float -> < Cap.network ; .. > -> string -> (string * Http.response, string) result
 
 (* one request and its answer, a redirection given as it is
  * (a 301 and its Location), not followed: what [fetch] does at each
  * step (tools/curl shows them one by one) *)
-val once : ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?said:(string * string) list -> ?timeout:float -> < Cap.network ; .. > -> Url.t -> (Http.response, string) result
+val once : ?post:string * string -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?said:(string * string) list -> ?timeout:float -> ?cache:Http_cache.store -> ?reload:bool -> < Cap.network ; .. > -> Url.t -> (Http.response, string) result
 
 (* what to connect to and what to send for [url]: the host for the
  * resolver, the port, the request's bytes (a GET; a POST of [post], its

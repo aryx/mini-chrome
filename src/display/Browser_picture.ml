@@ -29,7 +29,28 @@ let decode (bytes : string) : t =
     else Broken
   with _ -> Broken
 
-let decode bytes = Stopwatch.time "pictures" (fun () -> decode bytes)
+(* opti: the pictures a thread of the pool decoded ahead ([warm], as
+ * it fetched them), kept until asked for by those very bytes (==): a
+ * picture's decoding is then not a frame's work (GitHub's page, its
+ * README's fourteen screenshots: 4.5 s of the window's thread) *)
+let ahead : (string * t) list ref = ref []
+let lock = Mutex.create ()
+
+let warm (bytes : string) : unit =
+  (* not an SVG: it is drawn with the letters' tables, the window's own *)
+  if !Mini_opti.enabled && not (Svg.sniff bytes) then (
+    let pic = decode bytes in
+    Mutex.lock lock;
+    (* a few: one not asked for (its tab closed) is let go *)
+    ahead := (bytes, pic) :: List.filteri (fun i _ -> i < 15) !ahead;
+    Mutex.unlock lock)
+
+let decode (bytes : string) : t =
+  Mutex.lock lock;
+  let found = List.find_opt (fun (b, _) -> b == bytes) !ahead in
+  ahead := List.filter (fun (b, _) -> b != bytes) !ahead;
+  Mutex.unlock lock;
+  match found with Some (_, pic) -> pic | None -> Stopwatch.time "pictures" (fun () -> decode bytes)
 
 let broken_size = 24.
 

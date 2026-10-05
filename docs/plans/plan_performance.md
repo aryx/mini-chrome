@@ -181,7 +181,7 @@ function memoized), and the view forcing only the entries it shows.
 - A risk: a shape kept holds its line's fragments alive; they are
   alive anyway, in the page's layout.
 
-### 3. One relayout a frame
+### 3. One relayout a frame (done, 2026-10-05)
 
 The answers of one `Fetch.step` given to a tab, then the tab laid out
 once: `with_arrived` and `with_sheet` only record what came, and a
@@ -191,6 +191,14 @@ when it is written. After step 2 this buys less; measure before doing it, and dr
 relayout is then 30 ms. (It is 28: what a burst of four answers costs
 is now 0.1 s. Likely dropped, unless the cascade's 270 ms run several
 times a frame: to count, with step 5.)
+
+Counted on GitHub's page with its scripts: 39 layouts in a load,
+coming two to five at the same instant (three pictures answered in
+one frame; a script's tasks as their answers come). Done as a mark
+on the tab (`stale`) set by a picture's arrival and by a script's
+task that changed the tree, and `Browser_tab.settle`, called at each
+`Tick`: 24 layouts, the last frame the same to the pixel. `opti=off`
+lays out at once, as before.
 
 ### 4. The frame at rest
 

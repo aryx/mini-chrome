@@ -173,8 +173,10 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
    |    JavaScript, pictures decoded, http:// stepped (never        |
    |    blocking), the profile's file                               |
    |                                                                |
-   |  Worker's pool: 4 threads (Fetch)                              |
-   |    an https:// fetch, whole (TCP, our TLS, HTTP), blocking     |
+   |  Worker's pool: 8 workers (Fetch) -- threads, or with OCaml 5  |
+   |  domains, a core each                                          |
+   |    an https:// fetch, whole (the cache's file, TCP, our TLS,   |
+   |    HTTP), blocking; its picture decoded                        |
    |    a host's name resolved (getaddrinfo)                        |
    |                                                                |
    |  a thread per async function stopped at an await               |
@@ -189,10 +191,11 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
   network: the events, `update`, `view`, the drawing (Cairo's, or the
   Playground's own rasterizer), and for every tab the parsing, the
   cascade, the layout, the scripts and the pictures' decoding.
-- **A pool of four threads** (`Worker`, created by `Fetch.create`;
+- **A pool of eight workers** (`Worker`, created by `Fetch.create`;
   `threads=off` removes it). An `https://` request runs whole on one of
-  them, because our TLS client blocks; so does the resolution of a
-  host's name. `http://` needs no thread: `Http_request` is a
+  them, because our TLS client blocks -- the cache's file read or
+  written there too (`Browser_cache`), and a picture decoded by the
+  job that fetched it; so does the resolution of a host's name. `http://` needs no thread: `Http_request` is a
   non-blocking state machine stepped on the main thread at each frame.
   The main thread polls the pool's jobs at each `Tick`.
 - **A thread per async function waiting** (`Js_coroutine`). A script's
@@ -203,18 +206,26 @@ What is in `libs/gui`, and what is still drawn in `Window_view`:
   while the function's body runs, and the body sleeps the rest of the
   time, so the interpreter needs no lock. One that awaits a promise
   nobody settles sleeps until the program ends.
-- **No domains, so one core.** Nothing calls `Domain.spawn`. With
-  OCaml 4.14 all threads share the runtime's lock; with OCaml 5 they
-  all live in one domain, which comes to the same: only one thread runs
-  OCaml code at a time. The pool gives concurrency (the window stays
-  alive while a request waits on the network), not parallelism. The
-  part of an `https://` fetch that computes rather than waits (the TLS
-  handshake's arithmetic, the decryption) does take the main thread's
-  time.
+- **Domains with OCaml 5, one core with 4.14.** What a worker of the
+  pool is depends on the compiler (`Worker_spawn`: dune copies one of
+  two files). With OCaml 4.14 it is a thread, and all threads share
+  the runtime's lock: one runs OCaml code at a time, so the pool gives
+  concurrency (the window stays alive while a request waits on the
+  network), not parallelism, and what computes on it (the TLS
+  handshake's arithmetic, the decryption, a picture's decoding) takes
+  the main thread's time just the same. With OCaml 5 it is a domain,
+  and those run beside the window on other cores: GitHub's page with
+  its scripts comes whole in 12 s where 4.14 takes 25. What the jobs
+  share is then behind a mutex or made before the pool
+  (`Worker_spawn.mli` lists it). The window's own work -- parsing,
+  the cascade, the layout, the scripts -- is still one thread's
+  (`docs/plans/plan_cache_and_parallelism.md`, P3 and P5).
 
 What follows from that:
 
-- A slow layout or a long script in any tab freezes the whole window.
+- A slow layout in any tab freezes the whole window. A long script
+  does not: its run is cut in slices between which the window is drawn
+  and the wheel scrolls (`Js_slice`).
 - An exception anywhere ends the program, all tabs with it (the
   zero-width picture of Hacker News did exactly that).
 - Only the shown tab's timers run (`Tick` advances its scripts alone);

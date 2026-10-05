@@ -42,6 +42,7 @@ type t = {
   pending_scripts : string list; (* the page's still to come: its scripts run once they have *)
   media : (string * string) list; (* the bytes of <video>s' and <audio>s' files, by URL: a cache *)
   media_urls : string list; (* the URLs asked for as media *)
+  stale : bool; (* a layout is owed: a picture came, a script changed the tree (settle) *)
 }
 
 type 'msg config = {
@@ -85,6 +86,7 @@ let empty ~(images : bool) : t =
     pending_scripts = [];
     media = [];
     media_urls = [];
+    stale = false;
   }
 
 (* a request logged (the network panel's): replacing the one for the
@@ -249,7 +251,9 @@ let failed (cfg : 'msg config) (tab : t) (url : string) (why : string) : t = arr
 
 (* a picture had (or not): the page laid out again with it *)
 let with_arrived (cfg : 'msg config) (tab : t) (url : string) (pic : Browser_picture.t) : t =
-  relaid cfg { tab with pictures = (url, pic) :: List.remove_assoc url tab.pictures }
+  let tab = { tab with pictures = (url, pic) :: List.remove_assoc url tab.pictures } in
+  (* opti: owed, and made once for the frame's pictures (settle) *)
+  if !Mini_opti.enabled then { tab with stale = true } else relaid cfg tab
 
 (* a style sheet had (or not: then empty): the page laid out again with
  * it -- its colours, its boxes, as a picture moves the text *)
@@ -312,7 +316,9 @@ let rec fetch_more (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, c
         let tab = logged ~status:(if pic = Browser_picture.Broken then 404 else 200) ~bytes Picture url tab in
         fetch_more cfg network (with_arrived cfg tab url pic, cmd)
       else
-        let get = Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got_picture url))) in
+        (* a picture: decoded where it is fetched *)
+        let ready = if kind_of tab url = Picture then Some (fun (r : Fetch.response) -> if r.status / 100 = 2 then Browser_picture.warm r.body) else None in
+        let get = Cmd.Msg (cfg.fetch (Fetch.get ?ready network url (cfg.got_picture url))) in
         fetch_more cfg network (logged (kind_of tab url) url { tab with in_flight = url :: tab.in_flight }, Cmd.batch [ cmd; get ]))
   | _ -> (tab, cmd)
 
@@ -350,7 +356,7 @@ let load_images cfg network tab = with_pictures cfg network ({ tab with images =
 (* Going places *)
 (*****************************************************************************)
 
-let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
+let load ?post ?reload (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
   (* a new page: a new network log *)
   let tab = { tab with scroll = 0; focus = None; queue = []; total = 0; requests = [] } in
   if starts_with "about:" url then
@@ -370,7 +376,7 @@ let load ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : strin
   else
     let tab = logged Document url { tab with state = Loading url } in
     match post with
-    | None -> (tab, Cmd.Msg (cfg.fetch (Fetch.get network url (cfg.got url))))
+    | None -> (tab, Cmd.Msg (cfg.fetch (Fetch.get ?reload network url (cfg.got url))))
     | Some (content_type, body) -> (tab, Cmd.Msg (cfg.fetch (Fetch.post network url ~content_type ~body (cfg.got url))))
 
 let entry_of (tab : t) : entry =
@@ -569,13 +575,31 @@ let rec at_path (root : Dom.element) (path : int list) : Dom.element option =
       let children = List.filter_map (fun (n : Dom.node) -> match n with Element c -> Some c | Text _ -> None) root.children in
       match List.nth_opt children i with Some c -> at_path c rest | None -> None)
 
+(* the page laid out from the tree its script changed *)
+let retreed (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : t * 'msg Cmd.t =
+  match (tab.state, tab.script) with
+  | Shown p, Some s when Browser_script.changed s ->
+      let tree = Browser_script.tree s in
+      let focus = Option.bind tab.focus (fun e -> Option.bind (path_to p.tree e) (at_path tree)) in
+      with_pictures cfg network (measuring cfg { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus; stale = false }, Cmd.none)
+  | _ -> (tab, Cmd.none)
+
+(* opti: the layout owed, made -- once a frame (the program's Tick),
+ * for all that the frame's messages changed. Before, each message
+ * laid the page out: three pictures answered in one frame, three
+ * layouts; a script's tasks as their answers came, one each. GitHub's
+ * page with its scripts: 39 layouts in its load, 24 now *)
+let settle (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : t * 'msg Cmd.t =
+  if not tab.stale then (tab, Cmd.none)
+  else
+    match (tab.state, tab.script) with
+    | Shown _, Some s when Browser_script.changed s -> retreed cfg network tab
+    | _ -> (relaid cfg { tab with stale = false }, Cmd.none)
+
 let after_task (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : t * 'msg Cmd.t =
   send_requests cfg network
-    (match (tab.state, tab.script) with
-    | Shown p, Some s when Browser_script.changed s ->
-        let tree = Browser_script.tree s in
-        let focus = Option.bind tab.focus (fun e -> Option.bind (path_to p.tree e) (at_path tree)) in
-        with_pictures cfg network (measuring cfg { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p tree); focus }, Cmd.none)
+    (match tab.script with
+    | Some s when Browser_script.changed s -> if !Mini_opti.enabled then ({ tab with stale = true }, Cmd.none) else retreed cfg network tab
     | _ -> (tab, Cmd.none))
 
 (* the answer to a request a script made (XMLHttpRequest,

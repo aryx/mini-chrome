@@ -55,8 +55,11 @@ let tests (caps : < Cap.network ; .. >) =
               Alcotest.(check string) "the jar is the blocking client's too" "you are sid=42; lang=en"
                 (match Http_client.get ~jar caps (Testutil_server.url port "/whoami") with Ok r -> r.body | Error e -> Alcotest.fail e)));
       Testo.create "the name resolved on a thread: the same responses" (fun () ->
-          let resolver = Worker.create 1 in
           Testutil_server.(with_server (respond site)) (fun port ->
+              (* after the server, which is a process forked: OCaml 5
+               * forks no more once a domain is there, and the pool's
+               * workers are domains *)
+              let resolver = Worker.create 1 in
               List.iter
                 (fun path ->
                   let url = Testutil_server.url port path in

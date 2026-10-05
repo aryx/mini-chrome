@@ -31,7 +31,9 @@
    releases it, and that is where another runs. So a job waiting on the
    network costs the frames nothing; a job computing (a JPEG decoded)
    would take the frame loop's time just the same. Parallelism is
-   OCaml 5's domains (an exercise, plan_browser_teaching.md). And in a
+   OCaml 5's domains: built with that compiler the pool's workers are
+   domains, a core each, and the same job computes beside the window
+   (Worker_spawn.mli says how the one program is both). And in a
    browser (js_of_ocaml) there are no threads at all: JavaScript's one
    thread and its event loop, the web platform doing the waiting.
 

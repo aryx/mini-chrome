@@ -22,13 +22,13 @@ let error_to_string (e : error) : string =
 type answer = (response, error) result
 
 (* the capability closed: it is stored *)
-type 'msg request = { caps : Cap.network; url : string; post : (string * string) option; said : (string * string) list option; k : answer -> 'msg }
+type 'msg request = { caps : Cap.network; url : string; post : (string * string) option; said : (string * string) list option; ready : response -> unit; reload : bool; k : answer -> 'msg }
 
-let get ?said (caps : < Cap.network ; .. >) (url : string) (k : answer -> 'msg) : 'msg request =
-  { caps = (caps :> Cap.network); url; post = None; said; k }
+let get ?said ?(ready = fun (_ : response) -> ()) ?(reload = false) (caps : < Cap.network ; .. >) (url : string) (k : answer -> 'msg) : 'msg request =
+  { caps = (caps :> Cap.network); url; post = None; said; ready; reload; k }
 
 let post ?said (caps : < Cap.network ; .. >) (url : string) ~(content_type : string) ~(body : string) (k : answer -> 'msg) : 'msg request =
-  { caps = (caps :> Cap.network); url; post = Some (content_type, body); said; k }
+  { caps = (caps :> Cap.network); url; post = Some (content_type, body); said; ready = ignore; reload = false; k }
 
 type 'msg in_flight =
   | Now of 'msg
@@ -45,17 +45,23 @@ type 'msg t = {
   jar : Cookie_jar.t;
   (* what the browser says it is to each host (User-Agent) *)
   agent : (string -> string) option;
+  (* the answers kept (Http_cache; the files: Browser_cache) *)
+  cache : Http_cache.store option;
   (* the pages' WebSockets, stepped with the requests *)
   sockets : 'msg Web_sockets.t;
 }
 
-(* six threads, a browser's six connections a host (Netscape had four): at most six names
- * resolved or https:// fetches waiting at once, the others queued *)
-let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent () : 'msg t =
-  let pool = if threads then Some (Worker.create 6) else None in
-  { in_flight = []; pool; jar; agent; sockets = Web_sockets.create ?pool () }
+(* eight workers (a browser's six connections a host, Netscape's four,
+ * and room for a picture being decoded): at most eight names resolved
+ * or https:// fetches at once, the others queued *)
+let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache () : 'msg t =
+  (* the pool's workers may be domains, reading answers at the same time *)
+  if threads && Worker_spawn.parallel then Http.ready ();
+  let pool = if threads then Some (Worker.create 8) else None in
+  { in_flight = []; pool; jar; agent; cache; sockets = Web_sockets.create ?pool () }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar
+let cache (t : 'msg t) : Http_cache.store option = t.cache
 let sockets (t : 'msg t) : 'msg Web_sockets.t = t.sockets
 
 (* https://, by Http_client over our own TLS 1.3 (Tls_client, Tls13) --
@@ -64,16 +70,24 @@ let sockets (t : 'msg t) : 'msg Web_sockets.t = t.sockets
  * the redirections, the status, the headers, the body's bytes. *)
 let is_https (url : string) : bool = String.length url >= 8 && String.lowercase_ascii (String.sub url 0 8) = "https://"
 
-let https_get ?post ?agent ?said (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
-  match Http_client.fetch ?post ~jar ?agent ?said caps url with
+let https_get ?post ?agent ?said ?cache ?reload (jar : Cookie_jar.t) (caps : Cap.network) (url : string) : answer =
+  match Http_client.fetch ?post ~jar ?agent ?said ?cache ?reload caps url with
   | Ok (url, response) -> Ok { url; status = response.status; headers = response.headers; body = response.body }
   | Error why -> Error (Network_error why)
 
 (* the blocking fetch: at once, the frame waiting, or on a thread *)
-let blocking ?post ?said (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
+let blocking ?post ?said ?reload ?(ready = ignore) (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
   match t.pool with
-  | None -> Now (k (https_get ?post ?said ?agent:t.agent t.jar caps url))
-  | Some pool -> Blocking (Worker.submit pool (fun () -> https_get ?post ?said ?agent:t.agent t.jar caps url), k)
+  | None -> Now (k (https_get ?post ?said ?agent:t.agent ?cache:t.cache ?reload t.jar caps url))
+  | Some pool ->
+      (* [ready], on the pool's thread too: what the answer's reader
+       * will need of it made there (a picture decoded), not in a frame *)
+      let fetch () =
+        let a = https_get ?post ?said ?agent:t.agent ?cache:t.cache ?reload t.jar caps url in
+        (match a with Ok r -> ( try ready r with _ -> ()) | Error _ -> ());
+        a
+      in
+      Blocking (Worker.submit pool fetch, k)
 
 (* what -v shows: each request as it starts, and its answer
  * (said when it is handed back, in step: not on a thread of the pool) *)
@@ -87,7 +101,7 @@ let perform (t : 'msg t) (r : 'msg request) : unit =
   Logs.info (fun m -> m "%s %s" (if r.post = None then "GET" else "POST") r.url);
   let k (a : answer) = said r.url a; r.k a in
   let f =
-    if is_https r.url then blocking ?post:r.post ?said:r.said t r.caps r.url k
+    if is_https r.url then blocking ?post:r.post ?said:r.said ~reload:r.reload ~ready:r.ready t r.caps r.url k
     else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool ~jar:t.jar ?agent:t.agent r.caps r.url, k)
   in
   t.in_flight <- t.in_flight @ [ f ]

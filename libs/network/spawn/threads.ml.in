@@ -8,6 +8,9 @@
  * 2 of the License, or (at your option) any later version.
  *)
 
-let () =
-  Testo.interpret_argv ~project_name:"network" (fun _env ->
-      Unit_url.tests @ Unit_urlencoded.tests @ Unit_http.tests @ Unit_http_cache.tests @ Unit_cookie.tests @ Unit_x509.tests @ Unit_tls13.tests @ Unit_websocket.tests)
+(* See Worker_spawn.mli: OCaml 4.14's way, a thread. The file is
+ * libs/network/spawn/threads.ml.in, copied by dune. *)
+
+let parallel = false
+let workers (asked : int) : int = asked
+let spawn (f : unit -> unit) : unit = ignore (Thread.create f () : Thread.t)

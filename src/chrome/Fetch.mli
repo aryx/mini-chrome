@@ -44,8 +44,11 @@ val error_to_string : error -> string
 type 'msg request
 
 (* [said]: headers of the asker's own in the request (a script's
- * Accept; Origin, its page's, when it asks another site) *)
-val get : ?said:(string * string) list -> < Cap.network ; .. > -> string -> ((response, error) result -> 'msg) -> 'msg request
+ * Accept; Origin, its page's, when it asks another site). [ready]:
+ * called with the answer where it was fetched, on a thread of the
+ * pool when there is one (https://), before the answer is given -- to
+ * make there what its reader will need (a picture decoded) *)
+val get : ?said:(string * string) list -> ?ready:(response -> unit) -> ?reload:bool -> < Cap.network ; .. > -> string -> ((response, error) result -> 'msg) -> 'msg request
 
 val post :
   ?said:(string * string) list -> < Cap.network ; .. > -> string -> content_type:string -> body:string -> ((response, error) result -> 'msg) -> 'msg request
@@ -55,7 +58,12 @@ type 'msg t
 
 (* [threads]: https:// fetched (and names resolved) on a pool of four
  * threads, Netscape's four connections; without, the frame waits *)
-val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> unit -> 'msg t
+val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?cache:Http_cache.store -> unit -> 'msg t
+
+(* [cache]: the answers kept, which an https:// GET goes through
+ * (Http_cache; none if not given), read and written on the pool's
+ * threads; a request made with [reload] asks about a fresh copy too *)
+val cache : 'msg t -> Http_cache.store option
 (* [jar], the cookies the requests say and keep (an empty one
  * if none is given): one for the whole browser *)
 (* [agent]: what the browser says it is to a host, the User-Agent of

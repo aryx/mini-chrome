@@ -38,6 +38,7 @@ make run-software      # dune exec mini-chrome-software
 ./bin/mini-firefox     #   Firefox 2004 (url=, panel=off): tools/mosaic's engine
 make loc               # lines of OCaml, and the budget's (loc-v: a library a line)
 make build-docker      # what CI runs (OCaml 4.14.4; build-docker-ocaml5 for 5.5.1)
+opam exec --switch=5.5.1 -- dune build --build-dir _build5   # the other compiler, beside (and dune runtest)
 ```
 
 One suite, or one test (Testo; each `tests/<suite>/Test.ml` is its own
@@ -56,7 +57,8 @@ several: a tab each). Program flags are `key=value` words
 their names are `flag_names` in `Window_update`, to keep up to date):
 `url=`, `css=off`, `panel=elements|network`, `search=duckduckgo`,
 `scripts=off|host1,host2`, `threads=off` (no thread: fetches wait, and a
-script's long run freezes the window), `timings=on` (where the time
+script's long run freezes the window), `cache=off` (no answer kept on
+disk), `timings=on` (where the time
 went, by stage, said at the end: `Stopwatch`), `profile=DIR|off`, `scale=N`,
 `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
 compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
@@ -96,6 +98,17 @@ on threads or not, say and keep cookies through it) and written by
 the main when the jar changed, at most every five seconds, and at the
 end. `about:cookies` shows the jar. A session's cookies are never
 written, and `profile=off` neither reads nor writes any.
+
+The answers a server lets be used again are kept on disk
+(`Http_cache`, `libs/network`: may it be kept, is it fresh, how to ask
+whether it changed; `Browser_cache`, `src/chrome`: the files, one a
+copy, named by the SHA-256 of its address, 200 MB at most, the least
+recently used going first) in `~/.cache/mini-chrome` (`XDG_CACHE_HOME`;
+`profile=DIR`: `DIR/Cache`). An `https://` GET goes through it in
+`Http_client`, on the pool's thread that makes the request, so no
+frame waits for the disk; Reload asks the network again. `cache=off`
+and `profile=off` keep none: the dumps of this file, made with
+`profile=off`, always ask the network. `about:cache` lists the copies.
 
 The Playground's own flags start with a dash. `-v` (or `-verbose`),
 `-debug` and `-quiet` set the `Logs` level, as in xix's programs: with
@@ -373,7 +386,13 @@ browser's own name, but for the sites of its table, each with its
 reason -- empty: Google was in it for a day, and why it is not is
 told there);
 `https://` is the blocking `Http_client` over our TLS, on `Worker`'s
-pool of six threads, its connections kept for the next request to the
+pool of eight workers -- threads under OCaml 4.14, domains under
+OCaml 5 (`Worker_spawn`, one of `libs/network/spawn/*.ml.in` copied
+by dune on the compiler's version): under 5 a job really runs beside
+the window, so what jobs share is behind a mutex or made before the
+pool (`Http.ready`), and no process is forked once the pool is there.
+A picture is decoded by the job that fetched it
+(`Browser_picture.warm`). Its connections are kept for the next request to the
 same host (`Keep_alive`: a pool of connections at rest; `opti=off`
 closes each). A page is shown at once, then laid out again when its
 style sheets have all come (once, not at each: `Browser_tab.with_sheet`)

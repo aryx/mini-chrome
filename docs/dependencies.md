@@ -128,6 +128,7 @@ and the JavaScript engine are OCaml.
 | the root certificates (`/etc/ssl/certs/ca-certificates.crt`, or the three other usual places) | whom TLS trusts | every https site refused |
 | `xrdb` (optional; not run on macOS, where it would start XQuartz) | the desktop's scale (`Xft.dpi`) | scale 1 |
 | `~/.config/mini-chrome/` | the profile and the cookies | defaults; nothing saved |
+| `~/.cache/mini-chrome/` | the answers kept (the HTTP cache) | every answer asked of the network |
 
 ## 6. What is not a dependency any more
 

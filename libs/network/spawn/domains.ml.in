@@ -1,0 +1,20 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Worker_spawn.mli: OCaml 5's way, a domain. The file is
+ * libs/network/spawn/domains.ml.in, copied by dune. *)
+
+let parallel = true
+
+(* a domain a core at most, one left to the window: more would make
+ * each minor collection, which stops them all, wait for a domain that
+ * has no core to run on *)
+let workers (asked : int) : int = max 1 (min asked (Domain.recommended_domain_count () - 1))
+let spawn (f : unit -> unit) : unit = ignore (Domain.spawn f : unit Domain.t)

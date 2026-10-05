@@ -37,7 +37,11 @@ val on_current : model -> (msg Browser_tab.config -> Browser_tab.t -> Browser_ta
 
 (* the shown tab goes to an address (its history kept); loads one *)
 val visit : < Cap.network ; .. > -> string -> model -> model * msg Cmd.t
-val load : < Cap.network ; .. > -> string -> model -> model * msg Cmd.t
+(* the page scrolled by the wheel's notches: the tab's scroll alone,
+ * nothing of its script's (so it can be done while a script runs) *)
+val wheeled : float -> model -> model
+
+val load : ?reload:bool -> < Cap.network ; .. > -> string -> model -> model * msg Cmd.t
 
 (* a new tab, shown, loading an address; a tab closed (the last one: a
  * new one on the home page) *)

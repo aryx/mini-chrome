@@ -104,6 +104,7 @@ type t = {
   pending_scripts : string list; (* the page's <script src>s still to come: its scripts run when none is *)
   media : (string * string) list; (* the bytes of <video>s' and <audio>s' files, by URL, "" if they could not be had: a cache *)
   media_urls : string list; (* the URLs asked for as media *)
+  stale : bool; (* a layout is owed: a picture came, a script changed the tree (settle) *)
 }
 
 (* the files of a page's <video>s and <audio>s, resolved: their src=,
@@ -147,7 +148,9 @@ val scrolled : 'msg config -> int -> t -> t
 (* laid out again: the same tree, the browser's looks changed (CSS off) *)
 val relaid : 'msg config -> t -> t
 
-val load : ?post:string * string -> 'msg config -> < Cap.network ; .. > -> string -> t -> t * 'msg Cmd.t
+(* [reload]: the page asked of the network even if the cache has a
+ * fresh copy (the Reload button) *)
+val load : ?post:string * string -> ?reload:bool -> 'msg config -> < Cap.network ; .. > -> string -> t -> t * 'msg Cmd.t
 val visit : ?post:string * string -> 'msg config -> < Cap.network ; .. > -> string -> t -> t * 'msg Cmd.t
 val back : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
 val forward : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
@@ -190,4 +193,10 @@ val form_effect : 'msg config -> < Cap.network ; .. > -> keep_focus:bool -> Brow
 (* after a script's task (a click, a key, a timer): if the tree changed,
  * the page laid out again from it, the field in focus found again in
  * it, new pictures asked for *)
+(* the layout owed to the tab made, if one is: when a picture has come
+ * or a script has changed the tree the page is not laid out at once
+ * but marked, and this is called once a frame (opti=off: at once, and
+ * this does nothing) *)
+val settle : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
+
 val after_task : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t

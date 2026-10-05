@@ -31,3 +31,15 @@
    tiny_libs.compression ; Gzip, Zstd: a body with Content-Encoding: gzip, zstd
    mini_compression ; Brotli and its dictionary: Content-Encoding: br
    tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)
+
+; a worker of the pool is a thread under OCaml 4.14, a domain under
+; OCaml 5 (Worker_spawn.mli): the same program, built by both
+(rule
+ (targets Worker_spawn.ml)
+ (enabled_if (< %{ocaml_version} 5.0))
+ (action (copy spawn/threads.ml.in %{targets})))
+
+(rule
+ (targets Worker_spawn.ml)
+ (enabled_if (>= %{ocaml_version} 5.0))
+ (action (copy spawn/domains.ml.in %{targets})))

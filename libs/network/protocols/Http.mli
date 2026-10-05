@@ -234,3 +234,9 @@ val response : int -> content_type:string -> string -> response
  * added if there is none, and "Connection: close"), the empty line,
  * the body -- what parse_response reads back *)
 val response_to_string : response -> string
+
+(* what parse_response needs that is made at first use, made now: to
+ * be called once before answers are read on several domains at the
+ * same time (OCaml 5: Worker_spawn.parallel) *)
+val ready : unit -> unit
+

@@ -20,7 +20,7 @@ let resolve = Browser_url.resolve
  * that are not a flag's name -- an address or words to search, as
  * typed in the omnibox (the Playground cuts a word at its first =: put
  * back, for an address with a query) *)
-let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js"; "timings" ]
+let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js"; "timings"; "cache" ]
 
 let first_pages (engine : string) (flags : flags) : string list =
   let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in
@@ -28,7 +28,7 @@ let first_pages (engine : string) (flags : flags) : string list =
   | [] -> [ home ]
   | urls -> urls
 
-let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
+let init (network : < Cap.network ; .. >) ?jar ?cache ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
     { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.; busy = None;
@@ -38,7 +38,7 @@ let init (network : < Cap.network ; .. >) ?jar ((profile, profile_dir) : Browser
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
-      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ~agent:Browser_agent.for_host ();
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ?cache ~agent:Browser_agent.for_host ();
       (* until the platform says (Resized, before the first frame) *)
       screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; pressed = false; fresh = []; late = []; dots = 1.; shift = false; grab = None }
   in
@@ -111,7 +111,7 @@ let menu_action (network : < Cap.network ; .. >) (menu : Browser_menu.action Gui
       ({ opened with current = m.current; selected = m.selected }, cmd)
   | Back -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
   | Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
-  | Reload -> load network (current_url m) m
+  | Reload -> load ~reload:true network (current_url m) m
   | Inspect ->
       (* the element that was under the right click, in the tools *)
       let selected = match ((current_tab m).state, page_point_at m menu.at) with Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y | _ -> None in
@@ -212,6 +212,12 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m :
           { m with dots })
       in
       let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s (1000. /. 60.); false) in
+      (* the layouts owed since the frame before, one a tab *)
+      let m, cmd =
+        List.fold_left
+          (fun (m, cmd) (t : tab) -> if t.tab.stale then (let m, c = on_tab m t.id (fun cfg tab -> Browser_tab.settle cfg network tab) in (m, Cmd.batch [ cmd; c ])) else (m, cmd))
+          (m, cmd) m.tabs
+      in
       (* the requests in flight stepped: the answers, Got and
        * Got_picture, as the next messages *)
       let answered = Fetch.step m.fetches in
@@ -221,7 +227,7 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m :
    * The system's natural scrolling, where it is the driver's (X11,
    * libinput), is in the notches already *)
   | Wheel notches when m.ctrl -> (zoomed (Browser_zoom.step (notches > 0.)) m, Cmd.none)
-  | Wheel notches -> (scrolled (-3 * int_of_float (Float.round notches)) m, Cmd.none)
+  | Wheel notches -> (wheeled notches m, Cmd.none)
   (* the pointer, from the window's dots to the program's units *)
   | Mouse_move (x, y) -> (
       let m = { m with mouse = (x /. scale_of m, y /. scale_of m) } in
@@ -286,7 +292,7 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; .. >) (msg : msg) (m :
         | None, Some "Network", _ -> (with_panel Network { m with inspecting = false }, Cmd.none)
         | None, _, Some Gui_toolbar.Back -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
         | None, _, Some Gui_toolbar.Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
-        | None, _, Some Gui_toolbar.Reload -> load network (current_url m) m
+        | None, _, Some Gui_toolbar.Reload -> load ~reload:true network (current_url m) m
         | None, _, Some Gui_toolbar.Stop -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
         | _ -> if page_point m <> None then click_page network m else (m, Cmd.none))
   (* Ctrl held (SDL's names, or the web's), and the page zoomed;

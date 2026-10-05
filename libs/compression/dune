@@ -13,15 +13,15 @@
  (libraries tiny_libs.compression)) ; Huffman
 
 ; the file embedded as a string, so the library needs no file at
-; runtime (a quoted string: the bytes as they are)
+; runtime: escaped (scripts/files_to_string_ml.ml), not between {| and
+; |} as it was -- OCaml 5.5 reads a carriage return and a newline in
+; such a string as a newline alone, and the dictionary has 110 of them
 (rule
  (targets Brotli_words.ml)
- (deps dictionary.bin)
+ (deps dictionary.bin %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
    (progn
-    (echo "(* generated from dictionary.bin by libs/compression/dune *)\n")
-    (echo "let bytes = {brotli|")
-    (cat %{deps})
-    (echo "|brotli}\n")))))
+    (run ocaml %{project_root}/scripts/files_to_string_ml.ml dictionary.bin)
+    (echo "let bytes = dictionary_bin\n")))))

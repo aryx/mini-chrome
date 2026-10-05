@@ -39,6 +39,11 @@ type t = Waiting | Arrived of Rgba_image.t | Broken
  * or does not decode *)
 val decode : string -> t
 
+(* the same picture decoded ahead, to be had by the next [decode] of
+ * these very bytes without the work: what a thread that fetched them
+ * calls, so that no frame waits for a picture's decoding *)
+val warm : string -> unit
+
 (* the size a picture that could not be had takes: the broken image's *)
 val broken_size : float
 

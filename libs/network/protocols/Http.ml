@@ -281,3 +281,15 @@ let response_to_string (r : response) : string =
   Printf.sprintf "%s %d %s\r\n" r.version r.status r.reason
   ^ String.concat "" (List.map (fun (n, v) -> n ^ ": " ^ v ^ "\r\n") headers)
   ^ "\r\n" ^ r.body
+
+(* The decompressors build some of their tables when first asked (a
+ * lazy value: Inflate's fixed codes, Zstd's three default tables),
+ * and a lazy value asked for by two domains at the same instant is an
+ * error in OCaml 5. Two small bodies decompressed here ask for each
+ * once: gzip's "aaa..." in a block of fixed codes, a Zstandard frame
+ * whose sequences use the default tables. *)
+let ready () : unit =
+  let bytes hex = String.init (String.length hex / 2) (fun i -> Char.chr (int_of_string ("0x" ^ String.sub hex (2 * i) 2))) in
+  (try ignore (Gzip.decompress (bytes "1f8b08000000000002034b4cc40e00847a02e618000000")) with _ -> ());
+  try ignore (Zstd.decompress (bytes "28b52ffd0058d50000907468652063617420646f67636174207361740200e018630a17")) with _ -> ()
+

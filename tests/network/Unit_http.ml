@@ -129,4 +129,12 @@ let tests =
             bytes;
           let r = ok (Http.parse_response bytes) in
           Alcotest.(check (pair int string)) "parsed back" (404, "<p>no") (r.status, r.body));
+      Testo.create "ready: the two bodies it decompresses are bodies" (fun () ->
+          (* the same bytes as Http.ready's: were they not read, the
+           * tables it is there to make would not be made *)
+          let bytes hex = String.init (String.length hex / 2) (fun i -> Char.chr (int_of_string ("0x" ^ String.sub hex (2 * i) 2))) in
+          Alcotest.(check string) "gzip, a block of fixed codes" (String.make 24 'a') (Gzip.decompress (bytes "1f8b08000000000002034b4cc40e00847a02e618000000"));
+          Alcotest.(check string) "Zstandard, sequences by the default tables" "the cat the cat the cat the cat the dog the dog the cat sat"
+            (Zstd.decompress (bytes "28b52ffd0058d50000907468652063617420646f67636174207361740200e018630a17"));
+          Http.ready ());
     ]

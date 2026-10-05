@@ -49,6 +49,9 @@
      element's declarations in a table rather than a list searched for
      each property. A style pass of GitHub's page: 3.0 G instructions
      to 1.3 (docs/plans/plan_performance.md, step 7).
+   - Browser_tab.settle: a layout owed by a picture's arrival or a
+     script's change of the tree, made once at the next frame rather
+     than at each. GitHub's load: 39 layouts to 24.
    - Js_scope.global: a JavaScript engine's scopes as arrays, each name
      of the program remembering its place (find_opti; the places put in
      a copy of the tree by Js_quicken, which such an engine runs

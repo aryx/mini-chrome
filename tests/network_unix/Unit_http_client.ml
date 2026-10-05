@@ -48,6 +48,18 @@ let tests (caps : < Cap.network ; .. >) =
               Alcotest.(check string) "the session's cookie gone" "you are lang=en; theme=dark" (body "/whoami");
               Alcotest.(check string) "without a jar: nobody" "nobody"
                 (match Http_client.get caps (Testutil_server.url port "/whoami") with Ok r -> r.body | Error e -> Alcotest.fail e)));
+      Testo.create "through a cache: the copy while fresh, the network on a reload" (fun () ->
+          (* an answer that is never twice the same, and may be kept a minute *)
+          let stamp _port _line = let b = Printf.sprintf "%.6f" (Unix.gettimeofday ()) in Printf.sprintf "HTTP/1.1 200 OK\r\nCache-Control: max-age=60\r\nContent-Length: %d\r\n\r\n%s" (String.length b) b in
+          Testutil_server.(with_server (respond stamp)) (fun port ->
+              let kept : (string, Http_cache.entry) Hashtbl.t = Hashtbl.create 4 in
+              let cache : Http_cache.store = { find = Hashtbl.find_opt kept; keep = (fun e -> Hashtbl.replace kept e.url e); entries = (fun ~now:_ -> []); place = "memory" } in
+              let body ?reload () = match Http_client.fetch ~cache ?reload caps (Testutil_server.url port "/now") with Ok (_, r) -> r.body | Error e -> Alcotest.fail e in
+              let first = body () in
+              Unix.sleepf 0.01;
+              Alcotest.(check string) "the second time: the copy, nothing asked" first (body ());
+              Alcotest.(check bool) "a reload asks, and keeps what comes" true (let again = body ~reload:true () in again <> first && body () = again);
+              Alcotest.(check bool) "without a cache: asked each time" true ((match Http_client.get caps (Testutil_server.url port "/now") with Ok r -> r.body | Error e -> Alcotest.fail e) <> body ())));
       Testo.create "a 404 is an answer, given back" (fun () ->
           Testutil_server.(with_server (respond site)) (fun port ->
               match Http_client.get caps (Testutil_server.url port "/nothing") with

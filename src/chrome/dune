@@ -14,5 +14,6 @@
    logs ; -v: the files and URLs opened
    tiny_libs.core
    lang_json ; the profile's file
+   unix str tiny_libs.crypto ; Browser_cache: a file's time, a copy's head, its name a SHA-256
    mini_gui ; Gui_menu, the right click's menu
    lang_html browser_layout browser_url browser_display browser_www browser_webapi browser_viewers))

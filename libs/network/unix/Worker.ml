@@ -36,8 +36,9 @@ let rec work (pool : t) : unit =
 
 let create (n : int) : t =
   let pool = { mutex = Mutex.create (); queued = Condition.create (); queue = Queue.create () } in
-  for _ = 1 to n do
-    ignore (Thread.create work pool : Thread.t)
+  (* threads, or OCaml 5's domains: Worker_spawn *)
+  for _ = 1 to Worker_spawn.workers n do
+    Worker_spawn.spawn (fun () -> work pool)
   done;
   pool
 

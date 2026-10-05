@@ -180,9 +180,9 @@ let save_cookies (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string opt
 let result : (Window_model.model * Window_model.msg Cmd.t) option ref = ref None
 let queued : Window_model.msg list ref = ref []
 
-let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(desktop : float) ~(window : int * int) =
+let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(cache : Http_cache.store option) ~(desktop : float) ~(window : int * int) =
   {
-    Playground.init = Window_update.init caps ~jar profile ~desktop ~window;
+    Playground.init = Window_update.init caps ~jar ?cache profile ~desktop ~window;
     update =
       (fun msg m ->
         let done_ (msg : Window_model.msg) ((m : Window_model.model), cmd) =
@@ -195,7 +195,8 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
         (* a message's work is a run that may be long, a page's script
          * in it (Js_slice): when a slice of it is over the window is
          * drawn, saying so, and the run goes on at the next tick. What
-         * comes meanwhile -- a key, an answer -- waits for its end *)
+         * comes meanwhile -- a key, an answer -- waits for its end,
+         * but the wheel *)
         match (m.busy, msg) with
         | None, _ ->
             if Js_slice.run (fun () -> result := Some (Stopwatch.time "update" (fun () -> Window_update.update caps msg m))) then done_ msg (Option.get !result)
@@ -207,6 +208,12 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
               queued := [];
               done_ msg ({ m with busy = None }, Cmd.batch (cmd :: List.map (fun q -> Cmd.Msg q) waiting)))
             else ({ m with time }, Cmd.none)
+        (* the wheel: the page shown scrolled now -- a tab's scroll is
+         * nothing of the script's --, and again at the run's end, on
+         * the model the run gives *)
+        | Some _, Wheel notches when not m.ctrl ->
+            queued := msg :: !queued;
+            (Window_tabs.wheeled notches m, Cmd.none)
         | Some _, other ->
             queued := other :: !queued;
             (m, Cmd.none));
@@ -287,6 +294,15 @@ let main = Program.main __MODULE__ (fun () ->
       (* the window closed (the Playground exits), -dump-frame's
        * frame written: what changed in the last second is saved *)
       let jar = cookies_of caps profile_dir in
+      (* the answers kept on disk (Browser_cache): beside a profile
+       * given, else in the user's cache; none with profile=off or
+       * cache=off *)
+      let cache =
+        match (List.assoc_opt "cache" flags, List.assoc_opt "profile" flags) with
+        | Some "off", _ | _, Some "off" -> None
+        | _, Some dir -> Some (Browser_cache.store caps ~dir:(Filename.concat dir "Cache") ())
+        | _, None -> Option.map (fun dir -> Browser_cache.store caps ~dir ()) (Browser_cache.default_dir caps)
+      in
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
           save_cookies caps ~now:true profile_dir jar;
@@ -295,4 +311,4 @@ let main = Program.main __MODULE__ (fun () ->
        * is not drawn again (Window_view.view gives it back when the
        * window has nothing new to show) *)
       Playground_platform.run_app ~flags
-        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~desktop ~window)))
+        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~cache ~desktop ~window)))

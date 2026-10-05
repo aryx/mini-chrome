@@ -44,6 +44,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
       (fun name ->
         match name with
         (* the jar as a page, made when asked for *)
+        | "cache" -> Some (Browser_cache.page ~now:(Unix.gettimeofday ()) (Fetch.cache m.fetches), "text/html; charset=utf-8")
         | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
     got = (fun url r -> Got (id, url, r));
@@ -95,6 +96,8 @@ let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -
 
 let on_current m f = on_tab m m.current f
 let scrolled (by : int) (m : model) : model = fst (on_current m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))
+(* the wheel's notches as lines: three a notch, a positive one up the page *)
+let wheeled (notches : float) (m : model) : model = scrolled (-3 * int_of_float (Float.round notches)) m
 let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) - 2)
 
 (* every tab's page laid out again (the window resized, a site
@@ -147,7 +150,7 @@ let scrollbar (m : model) : Gui_scrollbar.t =
     offset = float_of_int tab.scroll }
 
 let visit network url m = on_current { m with omnibox = None; selected = None } (fun cfg tab -> Browser_tab.visit cfg network url tab)
-let load network url m = on_current m (fun cfg tab -> Browser_tab.load cfg network url tab)
+let load ?reload network url m = on_current m (fun cfg tab -> Browser_tab.load ?reload cfg network url tab)
 
 (* a new tab, shown, loading [url] *)
 let open_tab (network : < Cap.network ; .. >) (url : string) (m : model) : model * msg Cmd.t =

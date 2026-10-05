@@ -59,11 +59,37 @@ let get_once ?post ?jar ?agent ?said ?timeout (caps : < Cap.network ; .. >) (url
   Option.iter (fun jar -> Cookie_jar.received jar url response.headers) jar;
   Ok response
 
+(* the same through the cache (Http_cache.mli), for a GET: a fresh
+ * copy is the answer and nothing is sent; one that is not is asked
+ * about (a 304: the copy, renewed); what comes whole is kept if it
+ * may be. [reload]: the copy asked about even if fresh *)
+let get_once ?post ?jar ?agent ?(said = []) ?timeout ?(cache : Http_cache.store option) ?(reload = false) (caps : < Cap.network ; .. >) (url : Url.t) :
+    (Http.response, string) result =
+  match (cache, post) with
+  | Some cache, None -> (
+      let address = Url.to_string url and now = Unix.gettimeofday () in
+      let keep (r : Http.response) = if Http_cache.storable r then cache.keep { url = address; stored = now; response = r } in
+      match cache.find address with
+      | Some copy when Http_cache.fresh ~now copy && not reload -> Ok copy.response
+      | Some copy when Http_cache.validators copy <> [] -> (
+          let* r = get_once ?jar ?agent ~said:(said @ Http_cache.validators copy) ?timeout caps url in
+          match r.status with
+          | 304 ->
+              let copy = Http_cache.revalidated ~now copy r in
+              cache.keep copy;
+              Ok copy.response
+          | _ -> keep r; Ok r)
+      | _ ->
+          let* r = get_once ?jar ?agent ~said ?timeout caps url in
+          keep r;
+          Ok r)
+  | _ -> get_once ?post ?jar ?agent ~said ?timeout caps url
+
 let once = get_once
 
-let fetch ?post ?jar ?agent ?said ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >) (s : string) : (string * Http.response, string) result =
+let fetch ?post ?jar ?agent ?said ?cache ?reload ?(max_redirects = 5) ?timeout (caps : < Cap.network ; .. >) (s : string) : (string * Http.response, string) result =
   let rec follow ?post (url : Url.t) (left : int) =
-    let* (response : Http.response) = get_once ?post ?jar ?agent ?said ?timeout caps url in
+    let* (response : Http.response) = get_once ?post ?jar ?agent ?said ?cache ?reload ?timeout caps url in
     match (Http.is_redirect response.status, Http.header "Location" response.headers) with
     | true, Some location ->
         if left = 0 then Error (Printf.sprintf "%s: too many redirections" s)

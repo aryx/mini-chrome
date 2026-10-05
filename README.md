@@ -99,6 +99,17 @@ make test
 `./configure --software` leaves Cairo out altogether, as it does by
 itself when Cairo is not found.
 
+It builds with OCaml 4.14 and with OCaml 5, and **OCaml 5 is the one
+to use**: the same source, but there the pool that fetches, decrypts,
+decompresses and decodes pictures is made of domains, which run
+beside the window on the machine's other cores, where 4.14's threads
+take turns on one. GitHub's repository page with its scripts on comes
+whole in 12 s with OCaml 5.5.1 and in 25 with 4.14.
+
+```bash
+opam switch create 5.5.1 && eval $(opam env --switch=5.5.1)
+```
+
 Working on both repositories side by side, install elm-playground's
 packages from its checkout into your switch instead (again whenever
 mini-chrome should see a change there), then build here:
@@ -130,6 +141,7 @@ program's flags are `key=value` words:
 | `search=duckduckgo` | where the omnibox sends words |
 | `profile=DIR`, `profile=off` | another profile's directory, or none read or written |
 | `scale=N` | everything drawn N times bigger (the desktop's scale without) |
+| `cache=off` | no answer kept on disk, nor read from it (`about:cache` shows what is) |
 | `threads=off` | no thread: a fetch waits, a script's long run freezes the window |
 | `timings=on` | where the time went, by stage, said when the program ends (`Stopwatch`) |
 | `opti=off` | the simple code, where an optimized one replaced it |
