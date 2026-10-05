@@ -352,6 +352,11 @@
   getter(D, "contentType", function () { return "text/html"; });
   getter(D, "dir", function () { return ""; });
   getter(D, "scrollingElement", function () { return this.documentElement; });
+  // document.all (Internet Explorer 4's, 1997: every element of the
+  // page): kept by the standard as a thing no page should use, and
+  // still compared with -- "x === document.all" must not be true of
+  // an x that is undefined, which it is if there is no such thing
+  getter(D, "all", function () { return this.querySelectorAll("*"); });
   getter(D, "fullscreenEnabled", function () { return false; });
   // CSSStyleSheet made by a script (Constructable Stylesheets, Chrome
   // 73, 2019): a sheet with no element, given its text by replaceSync

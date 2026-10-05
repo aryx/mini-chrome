@@ -271,6 +271,7 @@ let tests =
               c.endpoint = { url: "/watch" }; c.data = { title: "T" }; c.id = "d";
               [seen, c.endpoint.url, c.data.title, c.children.length, c.textContent, c.getAttribute("id"), document.createTextNode("x").data]|}
             {|[["set /watch"], "/watch", "T", 1, "kept", "d", "x"]|};
+          check "document.all is something: undefined is not it" ~html:"<p>x</p>" {|[undefined === document.all, document.all.length > 2]|} "[false, true]";
           check "adoptedStyleSheets: a <style> of the page"
  {|const s = new CSSStyleSheet(); s.replaceSync("p { color: red }"); document.adoptedStyleSheets = [s];
               [document.adoptedStyleSheets.length, document.querySelector("style[data-adopted]").textContent.trim()]|}

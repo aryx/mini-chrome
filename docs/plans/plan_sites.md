@@ -425,6 +425,20 @@ and the masthead's search field is drawn by YouTube itself; the
 search page does not fill its results yet, and no error says why:
 the next stretch.
 
+**2026-10-06, later: a search's results.** The search page built its
+results in the document (seen in the saved copy: `ytd-search`, three
+`ytd-video-renderer`) and showed none: their container had `hidden`.
+A trace of who sets it (a line in the host's setter, for that
+element): one assignment, of the string "zClosurez" -- the
+placeholder Closure's sanitizer (polymer-resin) gives for what it
+does not trust. Its test is `value || value === document.all`, and
+with no `document.all` an undefined value *was* it. `document.all`
+defined: the page built by the scripts, drawn as a file, shows the
+videos' titles and channels; live, the first comes after two minutes
+and a half (9,600 runs of script, 21 s of them; a heap of 3.7 GB).
+Missing: the thumbnails (none is asked for), the icons, the counts;
+and the time and the memory, which are now the matter.
+
 ## Cost
 
 The budget has 3,868 lines left of 40,000 (2026-10-05). Step 1 is 300 to 600

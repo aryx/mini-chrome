@@ -244,6 +244,12 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
+- YouTube's search page shows its first results (a video's title and
+  channel, drawn by YouTube's own components), two minutes and a half
+  after it is asked: document.all is something (a sanitizer of
+  YouTube's compares every value with it, and undefined was "it":
+  every value not given was replaced by its placeholder, "zClosurez",
+  which hid the results)
 - YouTube's application starts: its masthead is drawn by its own
   components (Polymer), where the server's grey skeleton stayed. What
   it took, each a thing of the platform: a custom element's class
