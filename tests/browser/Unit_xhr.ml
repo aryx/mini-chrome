@@ -80,6 +80,7 @@ let tests =
               {|async function load() {
                   const r = await fetch("items.json");
                   seen.push([r.ok, r.status, r.headers.get("content-type")]);
+                  seen.push([r.headers.entries().next().value.join(": "), [...r.headers.keys()].length == [...r.headers].length, typeof r.headers.values]);
                   const items = await r.json();
                   document.getElementById("out").textContent = items.join(" ");
                   return items.length }
@@ -89,7 +90,7 @@ let tests =
           Alcotest.(check (list string)) "queued" [ "GET http://site.test/app/items.json" ] urls;
           Alcotest.(check bool) "the page not changed yet" false (Browser_script.changed t);
           Browser_script.answer t (List.hd rids) (ok {|["a", "b"]|});
-          Alcotest.(check string) "the function went on from its await, to its end" {|["the script goes on", [true, 200, "application/json"], "done 2"]|} (value t "seen");
+          Alcotest.(check string) "the function went on from its await, to its end" {|["the script goes on", [true, 200, "application/json"], ["content-type: application/json", true, "function"], "done 2"]|} (value t "seen");
           Alcotest.(check (pair bool string)) "and changed the page: to be laid out again" (true, "a b") (Browser_script.changed t, value t {|document.getElementById("out").textContent|}));
       Testo.create "a script's request headers: its own, not the browser's" (fun () ->
           let t =

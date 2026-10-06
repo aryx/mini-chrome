@@ -58,6 +58,20 @@
   global("NodeList", function NodeList() {});
   global("HTMLCollection", function HTMLCollection() {});
 
+  // window.postMessage (HTML5's cross-document messaging, 2008): a
+  // message for a window, told to its "message" listeners in a task
+  // of its own. Here a page can only post to itself -- which is how a
+  // library gets a task sooner than a timer's, and how two parts of
+  // one page that share nothing else talk.
+  window.postMessage = function (data, options, transfer) {
+    var ports = Array.isArray(transfer) ? transfer : (options && Array.isArray(options.transfer) ? options.transfer : []);
+    setTimeout(function () {
+      var e = new Event("message");
+      e.data = data; e.origin = location.origin; e.source = window; e.ports = ports; e.lastEventId = "";
+      window.dispatchEvent(e);
+    }, 0);
+  };
+
   // MessageChannel (HTML5's channel messaging): two ports, what is
   // posted on one given to the other's onmessage in a task of its own.
   // Frameworks use it as a timer that is not held back (a scheduler's

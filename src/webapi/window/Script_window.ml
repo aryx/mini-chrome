@@ -159,7 +159,19 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool true)); ("escape", fn "escape" (fun args -> arg args 0)) ]);
   (* new Image(): an <img> in no tree *)
   define "Image" (fn "Image" (fun _ -> wrap t (make "img")));
-  let global k = Option.value (Js_eval.global t.engine k) ~default:Undefined in
+  (* JS_MISSING=1: each name asked of the window that it has not, said
+   * once -- what a page looks for and this browser lacks (a page that
+   * waits without an error: docs/dev/notes_debugging_techniques.txt) *)
+  let missing : (string, unit) Hashtbl.t option = if Sys.getenv_opt "JS_MISSING" <> None then Some (Hashtbl.create 64) else None in
+  let global k =
+    match (Js_eval.global t.engine k, missing) with
+    | Some v, _ -> v
+    | None, Some seen when not (Hashtbl.mem seen k) ->
+        Hashtbl.add seen k ();
+        prerr_endline ("missing: window." ^ k);
+        Undefined
+    | None, _ -> Undefined
+  in
   (* what window has of its own, as globals: in a browser the global
    * object is the window, so innerWidth alone is window.innerWidth,
    * and addEventListener(...) is the window's. Its listeners are the

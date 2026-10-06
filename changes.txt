@@ -552,6 +552,26 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- window.postMessage: a message a page posts to its own window is
+  told to its "message" listeners, in a task of its own
+  (data/prelude/web.js; it did nothing). Gmail's sync layer starts
+  its work that way: with no message ever told, the application had
+  no error, no request refused, and waited for ever behind its
+  loading screen. Found with JS_MISSING=1 (what a page asks of the
+  window and does not find, said once) and a page that lists which
+  of a browser's callbacks come
+- a property that is an attribute not written is the empty text on
+  the elements that have it (a <meta>'s name, a link's rel and
+  target, a picture's alt...): it was undefined, and Google's API
+  library, which reads meta.name.toLowerCase() of every <meta> of
+  the page, stopped at the first one without a name -- in Gmail, the
+  one that says the page's charset
+- a fetch's answer has headers that can be gone through:
+  entries(), keys(), values() and for-of, as a Headers has (it had
+  get, has and forEach alone). Gmail's own XMLHttpRequest, made over
+  fetch, reads every header of an answer with entries(): its first
+  request for the mailbox was answered, and the application stopped
+  there
 - window.screen is a Screen and can be listened to; OffscreenCanvas,
   over the same canvas not drawn yet as a <canvas>'s
   (data/prelude/web.js); outerHTML and innerHTML write a <style>'s
@@ -1230,6 +1250,10 @@
 - bin/ symlink to _build/install/default/bin: ./bin/mini-chrome
 
 ** test infra
+- MINI_DUMP_ANSWERS=DIR: the browser writes each answer given to a
+  page's scripts (DIR/_seq/<md5 of the address>-<n>, in order), and
+  Page_scripts.exe gives them back with no network: a signed-in
+  session, the mailbox's answers with it, run a second time offline
 - scripts/js/Page_scripts.exe, the page replayed with no network:
   VIEW=WxH, NOW=1 and SEED=n give it the window's size, the real
   clock and a seed as the browser's tab does; OK=regexp answers 200

@@ -192,6 +192,15 @@ let get (t : t) (n : node) (k : string) : value option =
       | None, "type", "input" -> Some (String "text")
       | None, "type", "button" -> Some (String "submit")
       | None, "type", ("select" | "textarea") -> Some (String (if n.name = "select" then "select-one" else "textarea"))
+      (* not written: the empty text, on the elements that have the
+       * property (a <meta> with no name: Google's library reads
+       * meta.name.toLowerCase() of each) *)
+      | None, "name", ("meta" | "input" | "select" | "textarea" | "button" | "form" | "iframe" | "a" | "img" | "map" | "object" | "param" | "slot" | "output" | "fieldset") -> Some (String "")
+      | None, ("rel" | "target"), ("a" | "area" | "link" | "form" | "base") -> Some (String "")
+      | None, "alt", ("img" | "area" | "input") -> Some (String "")
+      | None, "media", ("link" | "style" | "source" | "meta") -> Some (String "")
+      | None, "placeholder", ("input" | "textarea") -> Some (String "")
+      | None, "htmlFor", ("label" | "output") -> Some (String "")
       | None, _, _ -> None)
   | k when List.mem_assoc k reflected_flags -> Some (Bool (attribute n (List.assoc k reflected_flags) <> None))
   (* its box, in a layout of the page as it is now (Script_types' where) *)

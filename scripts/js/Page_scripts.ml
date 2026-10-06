@@ -36,9 +36,25 @@ let () =
       (* FILES=DIR: a request whose path is a file under DIR is answered
        * with it (a site's bundles saved beside its page: no network,
        * and nothing said to the site while its errors are looked for) *)
+      (* DIR/_seq/<md5 of the address less its query>-<n>: the nth
+       * answer to that address, as the browser wrote them in a live run
+       * (MINI_DUMP_ANSWERS) -- for the requests whose parameters are
+       * not the same twice (a request's number, a time) *)
+      let asked : (string, int) Hashtbl.t = Hashtbl.create 16 in
+      let in_order (dir : string) (url : string) : string option =
+        let key = Digest.to_hex (Digest.string (List.hd (String.split_on_char '?' url))) in
+        let n = 1 + Option.value (Hashtbl.find_opt asked key) ~default:0 in
+        let file = Filename.concat (Filename.concat dir "_seq") (Printf.sprintf "%s-%d" key n) in
+        if Sys.file_exists file then (
+          Hashtbl.replace asked key n;
+          Some (In_channel.with_open_bin file In_channel.input_all))
+        else None
+      in
+      let found = ref None in
       let saved ?(post = "") (url : string) : string option =
         match Sys.getenv_opt "FILES" with
         | None -> None
+        | Some dir when (match in_order dir url with Some body -> (found := Some body; true) | None -> false) -> !found
         (* a POST: by the request and what it sent (DIR/_post/<md5 of
          * the address, a newline, the body>), as recorded there *)
         | Some dir when post <> "" ->

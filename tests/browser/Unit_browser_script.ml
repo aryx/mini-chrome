@@ -220,6 +220,14 @@ let tests =
       Testo.create "screen is a Screen, the language's own members do not show" (fun () ->
           let t = page "<body><script>var n = 0; for (var k in Array.prototype) n++; for (var k in Math) n++;\nvar said = [screen instanceof Screen, typeof screen.addEventListener, n, Object.keys(new Error(\"x\")).length, typeof new OffscreenCanvas(2, 2).getContext(\"2d\")]</script>" in
           Alcotest.(check string) "what a page asks to know its browser was not tampered with" "[true, \"function\", 0, 0, \"object\"]" (value t "said"));
+      Testo.create "a property of an attribute not written: the empty text" (fun () ->
+          let t = page "<head><meta charset=utf-8><meta name=viewport content=x></head><body><a id=a>x</a><img id=i><div id=d></div><script>var m = document.getElementsByTagName(\"meta\");\nvar said = [m[0].name, m[1].name.toLowerCase(), document.getElementById(\"a\").rel, document.getElementById(\"i\").alt, typeof document.getElementById(\"d\").name]</script>" in
+          Alcotest.(check string) "a meta's name, a link's rel, a picture's alt; a div has no name" "[\"\", \"viewport\", \"\", \"\", \"undefined\"]" (value t "said"));
+      Testo.create "window.postMessage to oneself: a message event, in a task of its own" (fun () ->
+          let t = page "<body><script>var said = [];\nwindow.addEventListener(\"message\", e => said.push(e.data + \" \" + (e.source === window) + \" \" + typeof e.origin));\nwindow.postMessage(\"hello\", \"*\"); said.push(\"posted\")</script>" in
+          Alcotest.(check string) "not told yet" "[\"posted\"]" (value t "said");
+          Browser_script.advance t 10.;
+          Alcotest.(check string) "told after the script" "[\"posted\", \"hello true string\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

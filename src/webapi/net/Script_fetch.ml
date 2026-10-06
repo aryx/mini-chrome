@@ -106,6 +106,12 @@ let response (t : t) (a : answer) : value =
   set_own o "statusText" (String (Http.reason a.status));
   set_own o "url" (String a.final);
   set_own o "redirected" (Bool false);
+  (* gone through as a Headers is: Gmail's fetch reads an answer's with entries() *)
+  let listed (f : string * string -> value) = fn "entries" (fun _ -> Js_builtins.iterator (List.map (fun (k, v) -> f (String.lowercase_ascii k, v)) (List.sort compare a.headers))) in
+  set_own headers "entries" (listed (fun (k, v) -> Object (Js_value.new_array [ String k; String v ])));
+  set_own headers "@@iterator" (listed (fun (k, v) -> Object (Js_value.new_array [ String k; String v ])));
+  set_own headers "keys" (listed (fun (k, _) -> String k));
+  set_own headers "values" (listed (fun (_, v) -> String v));
   set_own o "headers" (Object headers);
   set_own o "text" (fn "text" (fun _ -> resolved t (fun () -> String a.body)));
   set_own o "json" (fn "json" (fun _ -> resolved t (fun () -> parse_json t a.body)));

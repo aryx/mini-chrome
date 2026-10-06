@@ -50,6 +50,36 @@ log, read the paths, not the addresses' parameters: an account's name
 is in them. Their Cookies file is a password: its names and sites may
 be listed, never its values, and it is never used to ask the network.
 
+A whole signed-in session, to run a second time with no network: the
+page, and every answer its scripts were given (the mailbox's, which
+no curl can ask for). The person runs, on their machine:
+
+  mkdir -p /tmp/gm2 && chmod 700 /tmp/gm2
+  export MINI_DUMP_PAGE=/tmp/gm2/page.html
+  export MINI_DUMP_ANSWERS=/tmp/gm2
+  ./bin/mini-chrome -v mail.google.com 2> /tmp/gmail.log     # a minute, then Ctrl+Q
+  unset MINI_DUMP_PAGE MINI_DUMP_ANSWERS
+
+MINI_DUMP_ANSWERS=DIR writes each answer to a script's request (fetch,
+XMLHttpRequest, a script a script inserts) as DIR/_seq/<md5 of the
+address less its query>-<n>, the nth answer to that address: the
+parameters of such a request are never the same twice (a request's
+number, a time), so the replay goes by the address and the order.
+Then
+
+  FILES=/tmp/gm2 OK='jserror\|logstreamz' TURNS=60 JS_THROWS=40 \
+     Page_scripts.exe /tmp/gm2/page.html https://mail.google.com/mail/u/0/ 2>&1 | head -c 2000000
+
+gives them back in that order (a file of _seq first, then the files by
+their path). Short lines for the person to paste: a long one wraps in
+their terminal and the variable ends up on a line of its own. The
+directory holds their mail: theirs alone to read (700), never left
+elsewhere, read for its shape and its errors, deleted when done.
+
+Before that, read the log they already have. A run that stops with no
+error and no request refused is waiting for something that never
+answers (section 41).
+
 What the live page holds at each layout, scripts' changes included:
 
   MINI_DUMP_HTML=/tmp/cur.html ./bin/mini-chrome ...        # then scripts stripped, served, scripts=off
@@ -1089,3 +1119,83 @@ JS_STACK or JS_THROWS on a page not yet known; cut it where it is
 made:
 
   ... Page_scripts.exe page.html URL 2>&1 | head -c 2000000 > out.txt
+
+Session 9: Gmail live, an error a run
+=====================================
+
+41. One run of the person's, one error: read the log between two requests
+-------------------------------------------------------------------------
+Each live run of Gmail (October 2026) went one step further and
+stopped on one line of the console; the log's order said where:
+
+  200 .../mail/u/0/ (78 bytes)              the mailbox's first answer
+  console: Uncaught (in promise) TypeError: this.oa.entries is not a function
+
+  200 .../cb=gapi.loaded_1                  Google's API library
+  console: Uncaught TypeError: Cannot read properties of undefined (reading 'toLowerCase') (line 14)
+
+The error right after an answer is in the code that reads that
+answer; right after a script, in that script. grep the minified name
+with its dot in the saved bundles (this.oa.entries: one place, a
+fetch's headers gone through with entries()). For the second, the
+message named a property and the stack a line; the first match was
+the wrong one (dp[0].toLowerCase(), a frozen array that was fine):
+
+  - put a console.log in a copy of the saved file, before the
+    suspect, and replay: nothing printed, so not that one (keep the
+    original beside, put it back);
+  - try the suspect alone in a small page: it worked;
+  - then read every toLowerCase of the line the stack names, not the
+    first: meta.name.toLowerCase(), a <meta> with no name.
+
+A grep for a short mark ("DP ") in a replay's output also matches the
+requests' addresses, 1,800 characters of letters each: mark with
+something no address has ("@@DP"), or grep "^console: ".
+
+When the log has no error left and nothing refused, the application
+is waiting: for a service the browser does not have (indexedDB,
+navigator.locks, a frame's own page) or an answer read otherwise than
+it was sent. Then record the session (the kit, MINI_DUMP_ANSWERS) and
+look at it offline.
+
+42. A page that waits, with no error: its own trace, then which callbacks come
+-----------------------------------------------------------------------------
+Gmail, recorded (the kit), replayed: no error, no request refused, a
+loading screen for ever. Three steps found it in an hour.
+
+(1) The application traces itself; make it say so. Its bundles are
+full of named stages, x.begin("createMasthead") ... .end() and, for
+what ends later, x.Dd("getSapiMailRoot"). In a COPY of the recording
+(cp -r, mode 700; never the person's files), rewrite them with a
+regexp so each says its name on the console:
+
+  .begin("N")      ->  .begin((console.log("@@SPAN N"),"N"))
+  recv.Dd("N")     ->  __T(recv.Dd("N"),"N")     where __T wraps the
+                       span's end() to say "@@END N"
+
+and replay, then list what started and never ended:
+
+  never ended: getSapiSharedRoot, getSapiMailRoot, labelsThenable,
+               viewManager.navigate, createView ...
+
+The first of the list is the root; the rest wait for it. (Any big
+application has such names: grep 'begin("' and '"[a-z]+[A-Z][a-zA-Z]+"'.)
+
+(2) What it asks and does not find: JS_MISSING=1 (Script_window) says
+once each name read on the window that is not there. Most are probes
+(chrome, external, gadgets); read the list for services: IDBKeyRange,
+trustedTypes, PerformanceResourceTiming.
+
+(3) Which of a browser's callbacks come here: a page of fifteen lines
+that asks for each -- a timer, a promise's job, requestIdleCallback,
+requestAnimationFrame, a MessageChannel's port (onmessage, and a
+listener), window.postMessage to itself, a ResizeObserver, an image's
+load, an iframe's, a link's -- pushes a word in a list when called,
+and prints the list after three seconds. The words missing are the
+suspects, in a minute:
+
+  micro | idle | port x | port-listener y | timeout | raf
+        (no "window z": window.postMessage did nothing)
+
+That was the one. A page that waits is waiting for a callback: before
+reading its code, check that every way a browser calls back does.
