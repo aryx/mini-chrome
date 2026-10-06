@@ -198,7 +198,12 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Super_call args ->
       let hidden x = match lookup s x with Some b -> b.value | None -> Undefined in
       (match (call_value t (hidden "%super") ~this (eval_list t s this args), this) with
-      | Object made, Object self when made != self -> List.iter (fun k -> set_own self k (Option.get (get_own made k))) (all_keys made)
+      | Object made, Object self when made != self ->
+          List.iter
+            (fun k ->
+              set_own self k (Option.get (get_own made k));
+              if not (shows made k) then hide self k)
+            (all_keys made)
       | _ -> ());
       ignore (call_value t (hidden "%init") ~this []);
       Undefined
@@ -1127,6 +1132,24 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   define "globalThis" (host_object { class_name = "global"; get = (fun k -> match Js_scope.own globals k with Some b -> b.value | None -> Undefined); set = define; show = (fun () -> "[object global]") });
   (* the rest of the library, in the language itself *)
   (try ignore (run_in_run t (Lazy.force prelude)) with Throw v -> log ("data/prelude/library.js: " ^ display v));
+  (* what the language itself has does not show: for (k in
+   * Array.prototype) goes through nothing, Object.keys(Math) is empty
+   * (a method a page adds there shows, as it does in a browser: how a
+   * site tells its page was tampered with -- Gmail's reports it) *)
+  let hide_all (o : obj) = List.iter (hide o) (all_keys o) in
+  List.iter
+    (fun name ->
+      match Js_scope.own globals name with
+      | Some { value = Object o; _ } -> (
+          hide_all o;
+          match get_own o "prototype" with Some (Object p) -> hide_all p | _ -> ())
+      | _ -> ())
+    [ "Object"; "Array"; "String"; "Function"; "Number"; "Boolean"; "Symbol"; "BigInt"; "Promise"; "Map"; "Set"; "WeakMap"; "WeakSet"; "WeakRef"; "Date"; "RegExp"; "Error";
+      "TypeError"; "RangeError"; "SyntaxError"; "ReferenceError"; "EvalError"; "URIError"; "AggregateError"; "ArrayBuffer"; "DataView"; "Int8Array"; "Uint8Array";
+      "Uint8ClampedArray"; "Int16Array"; "Uint16Array"; "Int32Array"; "Uint32Array"; "Float32Array"; "Float64Array"; "Proxy"; "Reflect"; "Math"; "JSON"; "Intl"; "Iterator" ];
+  (match t.protos with
+  | Some ps -> List.iter hide_all [ ps.strings; ps.arrays; ps.objects; ps.functions; ps.regexps; ps.numbers ]
+  | None -> ());
   Js_promise.drain (Option.get t.promises);
   t.steps <- t.budget;
   t

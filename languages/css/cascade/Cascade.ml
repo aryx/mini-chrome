@@ -395,6 +395,8 @@ let cascade_keyed ?(visited = fun _ -> false) (m : media) (sheets : sheet list) 
     (Dom.element -> (string * component list) list) * (Dom.element -> Dom.node list) * (Dom.element -> key option) =
   let index, memo = if !Mini_opti.enabled then (fun (i, memo) -> (i, Some memo)) (index_opti m sheets) else (index_simple m sheets, None) in
   let table : (int, Dom.element * (string * component list) list) Hashtbl.t = Hashtbl.create 1024 in
+  (* where the sheets' animations end (Css_animation): read when an element has one that stays there *)
+  let ends = lazy (Css_animation.ends ~media:(media_matches m) (List.map (fun (s : sheet) -> s.rules) sheets)) in
   let key_table : (int, Dom.element * key) Hashtbl.t = Hashtbl.create (if memo = None then 1 else 1024) in
   (* the elements that have a ::before or an ::after: their children with those *)
   let kids : (int, Dom.element * Dom.node list) Hashtbl.t = Hashtbl.create 64 in
@@ -419,7 +421,7 @@ let cascade_keyed ?(visited = fun _ -> false) (m : media) (sheets : sheet list) 
           let keyed = List.concat_map (fun en -> List.map (fun (d : declaration) -> (((if d.important then en.layer_important else en.layer_normal), en.specificity, en.order), d)) en.declarations) rules in
           let sorted = List.stable_sort (fun (a, _) (b, _) -> compare a b) keyed in
           let winning = List.fold_left (fun acc (_, (d : declaration)) -> (d.name, d.value) :: List.remove_assoc d.name acc) [] sorted in
-          Option.map (fun text -> (text, List.rev (List.remove_assoc "content" winning))) (Option.bind (List.assoc_opt "content" winning) (content_text e))
+          Option.map (fun text -> (text, Css_animation.ended ends (List.rev (List.remove_assoc "content" winning)))) (Option.bind (List.assoc_opt "content" winning) (content_text e))
     in
     (* each declaration with its sort key; style= an author's rule above
      * any selector *)
@@ -450,6 +452,7 @@ let cascade_keyed ?(visited = fun _ -> false) (m : media) (sheets : sheet list) 
         (fun acc (_, (d : declaration)) -> if Hashtbl.mem seen d.name then acc else (Hashtbl.add seen d.name (); (d.name, d.value) :: acc))
         [] (List.rev sorted)
     in
+    let winning = Css_animation.ended ends winning in
     { k_name = e.name; k_attributes = e.attributes; k_extensions = e.extensions; k_winning = winning; k_before = pseudo "before"; k_after = pseudo "after" }
   in
   (* [key]: the element's, of its ancestry, its place and itself *)

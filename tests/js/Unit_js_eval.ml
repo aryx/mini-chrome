@@ -41,6 +41,12 @@ let tests =
           value "-0x8000000000000000" "-9223372036854776000";
           value "[0xff, 0XdeadBEEF, 0b101, 0o17, 0x100000000]" "[255, 3735928559, 5, 15, 4294967296]";
           value "[2 ** 53 + 2, 2 ** 64, 1e20, 123456789012345680000]" "[9007199254740994, 18446744073709552000, 100000000000000000000, 123456789012345680000]");
+      Testo.create "what the language has does not show: for-in, Object.keys" (fun () ->
+          check "no built-in member in a for-in" "var n = 0; for (var k in Array.prototype) n++; for (var k in Object.prototype) n++; for (var k in Math) n++; for (var k in new Map) n++; n" "0";
+          value "[Object.keys(Array.prototype).length, Object.keys(new Error('x')).length, JSON.stringify(new TypeError('t'))]" "[0, 0, \"{}\"]";
+          check "what a page adds shows" "Array.prototype.mine = 1; var a = Object.keys(Array.prototype); delete Array.prototype.mine; a" "[\"mine\"]";
+          check "an error's fields through super()" "class E2 extends Error { constructor(m) { super(m); this.code = 3 } }; [Object.keys(new E2('m')), new E2('m').message]" "[[\"code\"], \"m\"]";
+          check "a Map's methods" "var m = new Map([[1, 2]]); m.mine = 4; [Object.keys(m), m.get(1), m.size]" "[[\"mine\"], 2, 1]");
       Testo.create "the coercions: Wat" (fun () ->
           value "1 + 2" "3";
           value "\"1\" + 2" "\"12\"";

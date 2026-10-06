@@ -270,6 +270,9 @@ let collection ~(call : value -> this:value -> value list -> value) ~(items : va
     (* what a for-of and a spread go through: a Map's pairs, a Set's values *)
     set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Js_builtins.iterator (if map then List.map pair (st.all ()) else List.map fst (st.all ()))));
     set_own o "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this:_ _ -> Number (float_of_int (st.count ()))), Undefined) });
+    (* its methods are its own here (the standard has them on the
+     * prototype): they do not show, as there *)
+    List.iter (hide o) (all_keys o);
     (* new Map([[k, v], ...]), new Set([v, ...]) *)
     (match arg args 0 with
     | Undefined | Null -> ()

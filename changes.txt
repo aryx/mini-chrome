@@ -279,6 +279,15 @@
 
 ** Features
 *** the sites
+- Gmail, while it loads and under it: the loading screen is the
+  real one (the envelope, the red bar, "Google Workspace": it was a
+  blank page with one line of help), and the application's frame
+  behind it is drawn -- the menu, the logo, the search, the settings,
+  the account's picture, the side panel's four applications -- where
+  there was a grey page. Four things, each told in its place below:
+  an animation shown at its end, z-index and the order positioned
+  boxes are drawn in, a heading that ended a heading too far up, and
+  what a page asks to know its browser was not tampered with
 - Gmail's application starts: its scripts, which ran for minutes and
   were given up on, are done in four seconds, and the page it builds
   has its banner, its search box and its tabs -- the mail itself is
@@ -416,6 +425,14 @@
   a <noscript>'s content left out of a page whose scripts run
 
 *** JavaScript, the language
+- what the language has does not show: for (k in Array.prototype),
+  Object.keys(Math), a Map's methods, an error's name, message and
+  stack are none of them listed (the built-in objects' members are
+  hidden once the engine is made, Js_eval.create; a member a page
+  adds there shows). They all did: Gmail counts Array.prototype's
+  enumerable members to know whether its page was tampered with, and
+  reported that it was; JSON.stringify(new Error("x")) is {} now, and
+  a console says "Error: x"
 - a function declared in a block -- a try's, an if's -- is also a var
   of the function the block is in, given the function when the block
   is entered (ECMAScript's Annex B.3.3, the browsers' way from before
@@ -535,6 +552,11 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- window.screen is a Screen and can be listened to; OffscreenCanvas,
+  over the same canvas not drawn yet as a <canvas>'s
+  (data/prelude/web.js); outerHTML and innerHTML write a <style>'s
+  and a <script>'s text as it is, with no entity ("a > b" was
+  "a &gt; b": a sheet read back from it lost its child selectors)
 - form.submit() (and requestSubmit()): a form a script sends itself,
   with no submit event, its fields as the script's tree has them;
   the tab goes there, by GET or POST (Browser_script.take_submission).
@@ -698,6 +720,26 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- z-index, and the order positioned boxes are drawn in
+  (Box_layout.layout; Computed's z_index): every positioned box, the
+  relative ones too, after the flow, by z-index and among equals in
+  the document's order, as CSS 2.1's appendix E has them; a box with
+  a z-index takes what is positioned inside it along. Before, the
+  absolute and fixed boxes alone were drawn last, in the page's
+  order: a cover with z-index: 1000 was under a fixed box written
+  after it, and a page's relative content under its own fixed
+  background. A relative box an ancestor clips (overflow: hidden)
+  stays drawn in the flow, where the clip is known
+- an animation is shown at its end (Css_animation, new, in
+  languages/css/cascade): an element whose animation fills forwards
+  has the declarations of its @keyframes' last step, a ::before and
+  an ::after too. The film is not played; but what a page reveals
+  with one -- its content at opacity: 0, an animation to bring it in
+  -- is there
+- a heading ends the heading it is written right in, not one further
+  up the tree (Html_tree): an <h1> holding a <header> holding a form
+  with an <h2> -- Gmail's -- had its header cut in two at the <h2>,
+  the search field and the account's buttons thrown out of it
 - tables: table-layout: fixed (the first row's cells say the columns,
   those that say nothing share the rest: Table_layout.fixed) and
   border-spacing
@@ -977,6 +1019,8 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- the budget is 50,000 lines (it was 40,000, and 38,203 of them
+  were used)
 - the languages' modules in subfolders, each language one library
   still (include_subdirs): languages/javascript is parsing/, values/,
   eval/ and library/ (nineteen modules were in one folder),
@@ -1024,6 +1068,10 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- console.log of a Map (or of any object with a getter made by the
+  engine) never returned: an accessor was written by asking for its
+  value as text, which went round. Said "[Getter]" now, and a Map
+  shows what a page put on it
 - 0x7fffffffffffffff is that number, not -1 (Js_lexer: a hexadecimal,
   octal or binary number is read digit by digit as a float; OCaml's
   int_of_string wraps past 62 bits). Closure's Long.fromNumber asks
@@ -1182,6 +1230,14 @@
 - bin/ symlink to _build/install/default/bin: ./bin/mini-chrome
 
 ** test infra
+- scripts/js/Page_scripts.exe, the page replayed with no network:
+  VIEW=WxH, NOW=1 and SEED=n give it the window's size, the real
+  clock and a seed as the browser's tab does; OK=regexp answers 200
+  and empty to a site's own logs and error reports (which failed, and
+  were reported in turn); DUMP=file writes the page the scripts
+  built, to open with scripts=off; and an address too long to be a
+  file's name (Gmail's modules: 1,800 characters) is read from
+  DIR/_long/<md5 of the address>
 - the tests of what was copied: tests/html, css, js, layout and
   browser (188)
 - Dockerfile and docker.yml Github Actions CI check (OCaml 4.14.4 and

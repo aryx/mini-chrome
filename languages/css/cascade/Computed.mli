@@ -43,9 +43,10 @@
    here as children of theirs: [styles_all] gives each element's
    children with them, for the layout to go through.
 
-   Not computed: the properties layout does not use yet (shadows,
-   animations, a transform but for its translation: a rotation, a
-   scale); content's counters and quotes. *)
+   Not computed: the properties layout does not use yet (shadows, a
+   transform but for its translation: a rotation, a scale; an
+   animation but for its end, which the cascade gives:
+   Css_animation); content's counters and quotes. *)
 
 (* the custom properties (--x) an element has, its own and its
  * ancestors', by name: a sheet of the 2020s declares hundreds on the
@@ -85,6 +86,7 @@ type align = Start | End | Center | Stretch | Space_between | Space_around | Spa
 type t = {
   display : display;
   position : position;
+  z_index : int option; (* z-index: its place in the drawing's order among the positioned boxes; None for auto *)
   float : side; (* Side_left, Side_right or Side_none *)
   clear : side;
   (* transform: its translation (translate, translateX, translateY,

@@ -814,8 +814,56 @@ let layout (metrics : Html_layout.metrics) ?(picture_size = fun _ -> None) ?(kid
   (* the root is its own formatting context: its floats inside it *)
   let s = { s with overflow_hidden = true } in
   let page, _ = layout_block env (ref []) root s ~cb_x:0. ~cb_width:(fst viewport) ~y:0. ~marker:None () in
-  (* the positioned boxes, wherever they were written, after the flow *)
-  let rec gather (b : box) : box list = List.concat_map (fun (l, _) -> l :: gather l) b.lifted @ List.concat_map gather b.children in
-  let positioned = gather page in
+  (* the positioned boxes, wherever they were written, after the flow.
+   * Before: the absolute and fixed ones, in the page's order
+   *   let rec gather b = List.concat_map (fun (l, _) -> l :: gather l) b.lifted @ List.concat_map gather b.children in
+   * now as CSS 2.1's appendix E has them: every positioned box, the
+   * relative ones too, by z-index (auto is 0) and among equals in the
+   * document's order -- a relative box written after a fixed one is
+   * over it (Gmail's page over its fixed background), a z-index of
+   * 1000 over all (its loading screen). A box with a z-index is a
+   * stacking context: what is positioned inside goes with it, at its
+   * place. A relative box that an ancestor clips stays in the flow,
+   * drawn there, where the clip is known (the body's overflow is the
+   * window's: no clip) *)
+  let places : (int, Dom.element * int) Hashtbl.t = Hashtbl.create 256 and count = ref 0 in
+  let rec number (e : Dom.element) =
+    incr count;
+    Hashtbl.add places (Dom.hash e) (e, !count);
+    List.iter (fun (n : Dom.node) -> match n with Element c -> number c | Text _ -> ()) (kids e)
+  in
+  let place (b : box) ~(default : int) : int =
+    match b.element with Some e -> Option.value (List.assq_opt e (Hashtbl.find_all places (Dom.hash e))) ~default | None -> default
+  in
+  let rec split ~(within : int option) ~(clipped : bool) ~(at : int) (b : box) : box * ((int * int) * box) list =
+    let lifted_out (l : box) =
+      let z = match within with Some z -> z | None -> Option.value l.style.z_index ~default:0 in
+      let at = place l ~default:at in
+      let l, inner = split ~within:(if within = None && l.style.z_index = None then None else Some z) ~clipped:l.style.overflow_hidden ~at l in
+      ((z, at), l) :: inner
+    in
+    let out = ref [ List.concat_map (fun (l, _) -> lifted_out l) b.lifted ] in
+    let children =
+      List.filter_map
+        (fun (c : box) ->
+          if (c.style.position = Relative || c.style.position = Sticky) && c.element <> None && not clipped then (
+            out := lifted_out c :: !out;
+            None)
+          else
+            let c, inner = split ~within ~clipped:(clipped || (c.style.overflow_hidden && match c.element with Some e -> e.name <> "body" && e.name <> "html" | None -> false)) ~at:(place c ~default:at) c in
+            out := inner :: !out;
+            Some c)
+        b.children
+    in
+    ({ b with children }, List.concat (List.rev !out))
+  in
+  let rec positioned_in (b : box) = b.lifted <> [] || List.exists (fun (c : box) -> c.style.position <> Static || positioned_in c) b.children in
+  let page, positioned =
+    if not (positioned_in page) then (page, [])
+    else (
+      number root;
+      let page, out = split ~within:None ~clipped:false ~at:0 page in
+      (page, List.map snd (List.stable_sort (fun (a, _) (b, _) -> compare a b) out)))
+  in
   let bottom = List.fold_left (fun m (b : box) -> Float.max m (b.y +. b.height)) page.height positioned in
   { page with height = bottom; children = page.children @ positioned }

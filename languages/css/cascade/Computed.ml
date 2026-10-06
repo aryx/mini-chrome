@@ -44,6 +44,7 @@ type align = Start | End | Center | Stretch | Space_between | Space_around | Spa
 type t = {
   display : display;
   position : position;
+  z_index : int option; (* z-index: its place in the drawing's order among the positioned boxes; None for auto *)
   float : side;
   clear : side;
   (* transform: its translation (translate, translateX, translateY,
@@ -110,6 +111,7 @@ let initial : t =
   {
     display = Inline;
     position = Static;
+    z_index = None;
     float = Side_none;
     clear = Side_none;
     translate = None;
@@ -447,6 +449,7 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
       (match get "display" with
       | Some v -> ( match display_of (String.lowercase_ascii (to_string (V.parts v |> List.filteri (fun i _ -> i = 0)))) with Some d -> d | None -> Inline)
       | None -> Inline);
+    z_index = Option.bind (get "z-index") (fun v -> int_of_string_opt (String.trim (to_string v)));
     position =
       (match word "position" with Some "relative" -> Relative | Some "absolute" -> Absolute | Some "fixed" -> Fixed | Some "sticky" -> Sticky | _ -> Static);
     float = (match word "float" with Some "left" -> Side_left | Some "right" -> Side_right | _ -> Side_none);

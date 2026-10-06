@@ -258,7 +258,12 @@ words and floats, a block being laid out): `Box_tree` (a box read),
 `Box_inline` (words set on lines beside floats), `Box_flow` (a block's
 width, margins and content), and `Box_layout` itself, the recursion
 over the page's tree (blocks, flex, shrink-to-fit, positioned boxes,
-tables) that cannot be cut. `Box_layout.mli` tells the whole. A grid
+tables) that cannot be cut. `Box_layout.mli` tells the whole, the drawing's order too: the
+positioned boxes (the relative ones as well) come after the flow, by
+z-index then the document's order (`Box_layout.layout`'s end). An
+animation is not played but shown at its end (`Css_animation`, called
+by the cascade: an element whose animation fills forwards has its
+@keyframes' last step). A grid
 container is beside it, not in it: `Box_grid` lays the items out with
 `Grid_layout`'s numbers (the cells, the tracks' sizes; pure arithmetic,
 as `Flex_layout` and `Table_layout`) and `Css_grid`'s values
@@ -510,8 +515,9 @@ the same console).
 
 ## The budget
 
-The browser is to stay under 40,000 lines of OCaml (30,000 until its
-own decoders of pictures, video, sound and compression were in it): `languages/`,
+The browser is to stay under 50,000 lines of OCaml (30,000 until its
+own decoders of pictures, video, sound and compression were in it,
+40,000 until October 2026): `languages/`,
 `libs/` and `src/`, their `.mli` files, comments and blank lines
 included; not `tests/`, `scripts/` nor `tools/`, and not the opening
 comment of an `.mli` (the module's documentation, where it teaches:

@@ -47,6 +47,14 @@
   // (NodeList.prototype.isPrototypeOf(x)); the lists themselves are arrays
   // the class of window.screen, as a name a page tests against
   global("Screen", function Screen() {});
+  // and window.screen is one, which can be listened to (its "change":
+  // never said here), as an EventTarget is
+  if (typeof screen === "object" && screen) {
+    Object.setPrototypeOf(screen, Screen.prototype);
+    Screen.prototype.addEventListener = Screen.prototype.removeEventListener = function () {};
+    Screen.prototype.dispatchEvent = function () { return true; };
+    if (screen.colorDepth === undefined) { screen.colorDepth = screen.pixelDepth = 24; screen.availLeft = screen.availTop = 0; }
+  }
   global("NodeList", function NodeList() {});
   global("HTMLCollection", function HTMLCollection() {});
 
@@ -556,6 +564,13 @@
     return context;
   });
   method(E, "toDataURL", function () { return "data:,"; });
+  // a canvas of no page (a worker's, a picture made aside): the same
+  // one, not drawn either
+  global("OffscreenCanvas", function OffscreenCanvas(width, height) {
+    var canvas = document.createElement("canvas");
+    this.width = width; this.height = height;
+    this.getContext = function () { var c = canvas.getContext.apply(canvas, arguments); c.canvas = this; return c; };
+  });
   global("ImageData", function ImageData(data, width, height) {
     if (typeof data === "number") { this.width = data; this.height = width; this.data = new Uint8ClampedArray(4 * data * width); }
     else { this.data = data; this.width = width; this.height = height; }

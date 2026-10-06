@@ -115,7 +115,12 @@ let rec html_of (n : node) : string =
     let attrs = String.concat "" (List.map (fun (k, v) -> Printf.sprintf " %s=\"%s\"" k (escape ~quote:true v)) n.attributes) in
     Printf.sprintf "<%s%s>%s%s" n.name attrs (inner_html n) (if Dtd.is_void n.name then "" else "</" ^ n.name ^ ">")
 
-and inner_html (n : node) : string = String.concat "" (List.map html_of n.children)
+(* a <style>'s and a <script>'s text is written as it is ("a > b",
+ * "x && y"): the parser reads it so, with no entity *)
+and inner_html (n : node) : string =
+  match n.name with
+  | "style" | "script" -> String.concat "" (List.map (fun (c : node) -> if is_text c then c.text else html_of c) n.children)
+  | _ -> String.concat "" (List.map html_of n.children)
 
 (* a fragment's nodes: the parser makes a whole page of it, whose head
  * holds what belongs there (a <style>) and whose body the rest *)

@@ -27,7 +27,12 @@ let () =
             print_endline ("cookie set: " ^ c);
             jar := List.hd (String.split_on_char ';' c) :: !jar )
       in
-      let t = Browser_script.create ~log:(fun l -> print_endline ("console: " ^ l)) ~base ~cookies (Html_tree.of_string ~comments:true html) in
+      (* VIEW=WxH: the window's size, as the browser's tab gives it;
+       * NOW=1: the clock's real time, not the tests' fixed one *)
+      let viewport = Option.bind (Sys.getenv_opt "VIEW") (fun v -> try Some (Scanf.sscanf v "%fx%f" (fun w h -> (w, h))) with _ -> None) in
+      let epoch = if Sys.getenv_opt "NOW" <> None then Some (Unix.gettimeofday () *. 1000.) else None in
+      let seed = Option.map int_of_string (Sys.getenv_opt "SEED") in
+      let t = Browser_script.create ?seed ?epoch ?viewport ~log:(fun l -> print_endline ("console: " ^ l)) ~base ~cookies (Html_tree.of_string ~comments:true html) in
       (* FILES=DIR: a request whose path is a file under DIR is answered
        * with it (a site's bundles saved beside its page: no network,
        * and nothing said to the site while its errors are looked for) *)
@@ -42,7 +47,13 @@ let () =
         | Some dir ->
             let path = match Str.bounded_split (Str.regexp "://[^/]*/") url 2 with [ _; p ] -> List.hd (String.split_on_char '?' p) | _ -> "" in
             let file = Filename.concat dir path in
-            if path <> "" && Sys.file_exists file && not (Sys.is_directory file) then Some (In_channel.with_open_bin file In_channel.input_all) else None
+            (* an address too long to be a file's name (Gmail's modules:
+             * 1800 characters): DIR/_long/<md5 of the address less its query> *)
+            let long = Filename.concat (Filename.concat dir "_long") (Digest.to_hex (Digest.string (List.hd (String.split_on_char '?' url)))) in
+            let read f = Some (In_channel.with_open_bin f In_channel.input_all) in
+            if Sys.file_exists long then read long
+            else if path <> "" && (try Sys.file_exists file && not (Sys.is_directory file) with Sys_error _ -> false) then read file
+            else None
       in
       let requests () =
         List.iter
@@ -52,6 +63,12 @@ let () =
                 Printf.printf "request: %s %s (saved, %d bytes)\n" r.meth r.url (String.length body);
                 (* as a CDN answers: any origin may read it *)
                 Browser_script.answer t r.rid (Ok { status = 200; headers = [ ("Access-Control-Allow-Origin", "*") ]; body; final = r.url })
+            (* OK=regexp: a request whose address has it is answered 200
+             * and empty (a site's own logs and error reports, which fail
+             * here and are then reported in turn, without end) *)
+            | None when (match Sys.getenv_opt "OK" with Some re -> (try ignore (Str.search_forward (Str.regexp re) r.url 0); true with Not_found -> false) | None -> false) ->
+                Printf.printf "request: %s %s (said OK)\n" r.meth (List.hd (String.split_on_char '?' r.url));
+                Browser_script.answer t r.rid (Ok { status = 200; headers = [ ("Access-Control-Allow-Origin", "*") ]; body = ""; final = r.url })
             | None ->
                 Printf.printf "request: %s %s%s\n" r.meth r.url (match r.post with Some (_, body) when Sys.getenv_opt "BODIES" <> None -> "\n  " ^ body | _ -> "");
                 Browser_script.answer t r.rid (Error "no network here"))
@@ -88,5 +105,14 @@ let () =
           say second
       | _ :: ask :: _ -> Printf.printf "%s = %s\n" ask (match Browser_script.eval t ask with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message)
       | _ -> ());
+      (* DUMP=file: the page as its scripts left it, written (to open
+       * with scripts=off and see what they built) *)
+      (match Sys.getenv_opt "DUMP" with
+      | Some file -> (
+          match Browser_script.eval t "document.documentElement.outerHTML" with
+          | Ok (String html) -> Out_channel.with_open_bin file (fun oc -> Out_channel.output_string oc html)
+          | Ok v -> Out_channel.with_open_bin file (fun oc -> Out_channel.output_string oc (Js_value.to_string v))
+          | Error _ -> ())
+      | None -> ());
       Printf.printf "the page %s by its scripts\n" (if Browser_script.changed t then "was changed" else "was not changed")
   | [] -> prerr_endline "usage: Page_scripts.exe page.html [address]"

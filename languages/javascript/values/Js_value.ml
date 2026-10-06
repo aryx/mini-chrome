@@ -190,6 +190,8 @@ let error (name : string) (message : string) : value =
   (* where it was thrown is not kept: a text all the same, which a
    * library cuts (e.stack.trim()) *)
   set_own o "stack" (String (name ^ ": " ^ message ^ "\n    at <anonymous>"));
+  (* none of the three shows: JSON.stringify(new Error("x")) is {} *)
+  o.hidden <- [ "name"; "message"; "stack" ];
   hide o "stack";
   Object o
 
@@ -371,6 +373,10 @@ let display (v : value) : string =
      * all the others, each many times *)
     | Object { kind = Array _ | Plain; _ } when List.length seen >= 5 -> "..."
     | Object ({ kind = Array _; _ } as o) -> "[" ^ String.concat ", " (List.map (go ~top:false (o :: seen)) (array_items o)) ^ "]"
+    | Object { kind = Accessor _; _ } -> "[Getter]"
+    (* an error, whose fields do not show: as a console says it *)
+    | Object ({ kind = Plain; hidden = _ :: _; _ } as o) when (match (get_own o "name", get_own o "message") with Some (String _), Some (String _) -> not (shows o "message") | _ -> false) ->
+        to_string v
     | Object ({ kind = Plain; _ } as o) ->
         (* not a symbol's key ("@@...": a Map's iterator, a promise's state) *)
         let shown = List.filter (fun k -> not (String.length k >= 2 && String.sub k 0 2 = "@@")) (keys o) in

@@ -214,6 +214,12 @@ let tests =
                var said = [typeof w, w === f.contentWindow, w.parent === window, f.contentDocument === w.document, typeof document.body.contentWindow]</script>"
           in
           Alcotest.(check string) "one window a frame, with a document; no other element has one" "[\"object\", true, true, true, \"undefined\"]" (value t "said"));
+      Testo.create "outerHTML: a style's text as written, a paragraph's with entities" (fun () ->
+          let t = page "<body><script>var s = document.createElement(\"style\"); s.textContent = \"a > b { color: red }\"; var p = document.createElement(\"p\"); p.textContent = \"1 < 2 && 3\";\nvar said = [s.outerHTML, p.outerHTML]</script>" in
+          Alcotest.(check string) "no entity in a style" "[\"<style>a > b { color: red }</style>\", \"<p>1 &lt; 2 &amp;&amp; 3</p>\"]" (value t "said"));
+      Testo.create "screen is a Screen, the language's own members do not show" (fun () ->
+          let t = page "<body><script>var n = 0; for (var k in Array.prototype) n++; for (var k in Math) n++;\nvar said = [screen instanceof Screen, typeof screen.addEventListener, n, Object.keys(new Error(\"x\")).length, typeof new OffscreenCanvas(2, 2).getContext(\"2d\")]</script>" in
+          Alcotest.(check string) "what a page asks to know its browser was not tampered with" "[true, \"function\", 0, 0, \"object\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

@@ -1021,3 +1021,71 @@ node, side by side, one line each --
 A replay that only asks the network for more (a module whose address
 is too long to be a file's name, a POST for the mailbox) is at its
 end: the next step is the person's, live.
+
+Session 8: what a page built, looked at with no network (Gmail's frame)
+=======================================================================
+
+37. See what the scripts built: DUMP, then scripts=off
+------------------------------------------------------
+The replay (Page_scripts.exe) has no window. To look at the page its
+scripts left:
+
+  DUMP=view/built.html OK='jserror\|logstreamz' FILES=. TURNS=30 \
+     Page_scripts.exe page.html URL
+  bin/mini-httpd view &
+  SDL_VIDEODRIVER=dummy ... bin/mini-chrome -size 1400x900 \
+     -dump-frame 300 view/built.png url=http://127.0.0.1:8000/built.html \
+     scripts=off profile=off scale=1
+
+Two traps, both met. (1) scripts=off shows the page's <noscript>, and
+Gmail's has a <style> in it that hides the loading screen: take the
+<noscript>s out of the dump first (re.sub), or the picture is of
+another page. (2) The replay has no layout: a script that measures
+(offsetWidth) is told 0, and builds its narrow version -- Gmail's
+search field became a button. What the picture shows of sizes chosen
+by a script is not the browser's.
+
+OK=regexp answers 200 and empty to the requests it matches: a site's
+logs and error reports, which fail offline and are then reported in
+turn, hiding the one error that matters.
+
+38. Which rule, which element: halve it, a picture each time
+------------------------------------------------------------
+"With the big sheet the logo is gone." Do not read 4.5 MB of CSS:
+write the question as a function of a picture and halve.
+
+  shown(html): write b.html, dump a frame, open the PNG (python3-pil),
+               is there a red pixel where the logo is?
+
+  - the sheet's top-level rules in halves (cut at depth 0 of the
+    braces): 27,000 rules are 15 pictures;
+  - or the page's parts: each <style> left out in turn, each child of
+    the body alone with the thing that vanishes.
+
+Here the sheet was innocent ("all: True" -- always run the two ends
+first) and one child of the body guilty: the application's root,
+whose fixed background layers were drawn over a cover with
+z-index: 1000. Name the script anything but bisect.py: PIL imports
+Python's own.
+
+39. Where things were laid out: a probe in the page
+---------------------------------------------------
+Take the scripts out of the dump and put one in that prints the tree
+with getBoundingClientRect, run the real browser with -v:
+
+  d(e): console.log(indent + tag.classes + " [x,y wxh]"); children...
+  bin/mini-chrome -v ... url=.../probe.html | grep console:
+
+"row kids 2" where the markup had four: the picture's mess was not
+the layout's but the parser's (an <h2> closing an <h1> three levels
+up). Count the children before reading any CSS.
+
+40. A replay's output is not always small
+-----------------------------------------
+JS_STACK on a page whose script recurses until the stack is full
+(BBC's) wrote 4.7 GB to a file in ten minutes: a stack printed at
+each of a hundred million throws. Never "> out.txt" a run with
+JS_STACK or JS_THROWS on a page not yet known; cut it where it is
+made:
+
+  ... Page_scripts.exe page.html URL 2>&1 | head -c 2000000 > out.txt

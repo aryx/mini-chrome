@@ -161,8 +161,17 @@
 
    Not done: rowspan=,
    bottom and right of an absolute box whose top and left are auto,
-   fixed boxes staying on screen, z-index (the page's order is the
-   drawing's), flex's order and baseline alignment.
+   fixed boxes staying on screen, flex's order and baseline alignment.
+
+   **The drawing's order.** The page's box has, after its flow, every
+   positioned box (absolute, fixed, and the relative ones, taken out of
+   where they were written -- their place is theirs already), sorted by
+   z-index and, among equals, by the document's order: CSS 2.1's
+   appendix E, less its finer layers (floats over blocks, negative
+   z-index under the flow -- here first of the positioned). A box with
+   a z-index is a stacking context: what is positioned inside is drawn
+   with it. A relative box under an ancestor that clips stays in the
+   flow: lifted, it would be drawn whole.
 
    Worked example (the tests'), a character as wide as its size, the
    root's font 10 (line-height normal: 12), a page 200 wide:

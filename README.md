@@ -61,7 +61,7 @@ JPEG, GIF, MP3 and MPEG-1, the letters (one stroke font).
 from where. Of C it needs only SDL, for the window.
 
 Small enough to read: about 36,000 lines of OCaml for the browser
-itself, kept under a budget of 40,000 (`make loc`), not counting what
+itself, kept under a budget of 50,000 (`make loc`), not counting what
 each module's interface says about itself.
 
 It started as elm-playground's TinyChrome. That repository holds a

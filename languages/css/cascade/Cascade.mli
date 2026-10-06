@@ -39,7 +39,10 @@
    TinyChrome's 976 pixels, and Wikipedia's rules for phones sleep.
    @supports is taken as true for what the query names (a browser that
    reads CSS3 syntax), @import's sheets are the caller's to fetch, and
-   the rest of the at-rules (@font-face, @keyframes...) are skipped.
+   the rest of the at-rules (@font-face...) are skipped -- but
+   @keyframes, of which the last step is kept: an element whose
+   animation stays at its end is given that step's declarations
+   (Css_animation).
 
    **The index.** Trying every rule on every element is rules times
    elements: Wikipedia's 1,391 rules on an article's ten thousand

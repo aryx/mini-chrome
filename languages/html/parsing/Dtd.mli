@@ -35,7 +35,8 @@
                    p   by a block (address blockquote center dir div dl
                        form h1-h6 hr menu ol p pre table ul, and li dt dd)
                    li  by li;  dt, dd by dt or dd;  option by option
-                   h1-h6 by h1-h6 (a heading holds no heading)
+                   h1-h6 by h1-h6 (a heading holds no heading -- the
+                       one it is written right in: Html_tree)
                    tr by tr;  td, th by td, th or tr
      stops x y   looking down the stack for what x closes, y stops the
                  search: an li in a nested list does not end the outer

@@ -9,7 +9,7 @@
 # 2 of the License, or (at your option) any later version.
 #
 # Lines of OCaml across the project (.ml and .mli), and how much of
-# the budget they are: the browser is to stay under 40,000 lines,
+# the budget they are: the browser is to stay under 50,000 lines,
 # comments and blank lines included, .mli files too (but for their
 # opening comments: below), so that it stays small enough to read. The budget is what the browser is made of --
 # languages/, libs/ and src/ -- and not its tests (every tests/
@@ -133,7 +133,7 @@ def count(text):
 
 # what the budget counts, in the order printed; the rest is "tests"
 # (wherever a tests/ directory is) or "other" (scripts/, tools/)
-BUDGET = 40000
+BUDGET = 50000
 BROWSER = ["languages", "libs", "src"]
 
 

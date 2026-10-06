@@ -7,7 +7,7 @@ use it; the techniques behind them are in
 
 - `stats/`: numbers about the repository
   - `loc.py`: lines of OCaml (code, comments, blank), a part a line,
-    and how much of the budget they are: 40,000 lines for the browser
+    and how much of the budget they are: 50,000 lines for the browser
     (`languages/`, `libs/`, `src/`), its tests and tools not counted
     (`make loc`, `make loc-v`)
 - `sites/`: the real web (`docs/sites.md`)

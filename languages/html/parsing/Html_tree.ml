@@ -123,7 +123,12 @@ let start_tag ?(self_closing = false) (t : t) (tag : tag) : unit =
   | _ ->
       start_body t;
       (* 1. what x closes, nearest first, as long as some is found *)
-      while pop_to t ~found:(Dtd.closes name) ~stop:(Dtd.stops name) do () done;
+      let heading x = String.length x = 2 && x.[0] = 'h' && x.[1] >= '1' && x.[1] <= '6' in
+      while pop_to t ~found:(fun y -> Dtd.closes name y && not (heading name && heading y)) ~stop:(Dtd.stops name) do () done;
+      (* a heading ends the heading it is written right in (<h1>a<h2>b),
+       * not one further up: Gmail's <h1> holds a <header>, and in it a
+       * form with an <h2> -- which tore the header in two *)
+      (match t.stack with e :: rest when heading name && heading e.name -> t.stack <- rest | _ -> ());
       (* 2. and 3. *)
       insert t tag;
       t.skip_newline <- List.mem name [ "pre"; "listing"; "textarea" ]

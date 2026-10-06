@@ -65,7 +65,9 @@ let tests =
           check "p by p" "<p>a<p>b" [ "p"; "  \"a\""; "p"; "  \"b\"" ];
           check "p by a block" "<p>a<ul><li>b</ul>" [ "p"; "  \"a\""; "ul"; "  li"; "    \"b\"" ];
           check "dt and dd" "<dl><dt>a<dd>b<dt>c</dl>" [ "dl"; "  dt"; "    \"a\""; "  dd"; "    \"b\""; "  dt"; "    \"c\"" ];
-          check "a heading by a heading" "<h1>a<h2>b" [ "h1"; "  \"a\""; "h2"; "  \"b\"" ]);
+          check "a heading by a heading" "<h1>a<h2>b" [ "h1"; "  \"a\""; "h2"; "  \"b\"" ];
+          check "the heading it is written right in, not one further up (Gmail's header)" "<h1><header><form><h2>Search</h2><input></form><div>right</div></header></h1>"
+            [ "h1"; "  header"; "    form"; "      h2"; "        \"Search\""; "      input"; "    div"; "      \"right\"" ]);
       Testo.create "the search stops: nested lists, a blockquote, a cell" (fun () ->
           check "an inner li does not end the outer one" "<ul><li>a<ul><li>b</ul><li>c</ul>"
             [ "ul"; "  li"; "    \"a\""; "    ul"; "      li"; "        \"b\""; "  li"; "    \"c\"" ];

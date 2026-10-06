@@ -348,6 +348,14 @@ let tests =
           let again = box "again" p in
           Alcotest.(check string) "over the link, under the hidden menu: the link" "link" (at 20. 8.);
           Alcotest.(check string) "what the menu holds that is seen" "again" (at (again.x +. 10.) (again.y +. 5.)));
+      Testo.create "z-index: the positioned boxes' order, the page's among equals" (fun () ->
+          let css = "div { position: absolute; top: 0; left: 0; width: 50px; height: 50px } #cover { z-index: 1000 } #under { z-index: -1 } #ctx { z-index: 5 } #deep { z-index: 9999 }" in
+          let p = page ~css {|<div id=under></div><div id=cover></div><div id=late></div><div id=ctx><div id=deep></div></div><div id=last style="position: fixed"></div>|} in
+          let id (b : Box_types.box) = Option.bind b.element (Dom.attribute "id") in
+          Alcotest.(check (list string)) "drawn in this order: the last is on top; a box in a stacking context goes with it"
+            [ "under"; "late"; "last"; "ctx"; "deep"; "cover" ] (List.filter_map id p.children);
+          let at x y = match Hit.element_at (Box_tree.as_html_layout p) ~x ~y with Some e -> Option.value (Dom.attribute "id" e) ~default:e.name | None -> "none" in
+          Alcotest.(check string) "and the one on top is the one under the pointer" "cover" (at 10. 10.));
       Testo.create "the link an element is in, by the tree" (fun () ->
           let root = Html_tree.of_string {|<body><a href=tab><div><span id=in>Issues</span></div></a><p id=out>no</p><a><b id=named>x</b></a></body>|} in
           let rec find id (e : Dom.element) = if Dom.attribute "id" e = Some id then Some e else List.find_map (fun (n : Dom.node) -> match n with Element c -> find id c | Text _ -> None) e.children in
