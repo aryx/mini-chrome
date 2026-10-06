@@ -8,12 +8,20 @@
 
   // EventTarget made by a page itself (new EventTarget(), a class that
   // extends it): listeners kept on the object, told in order. An
-  // element's own are the browser's (Script_host), found before these.
+  // element's own are the browser's (Script_host), found before these
+  // -- and reached through these too, when a library calls the
+  // prototype's method on an element
+  // (EventTarget.prototype.dispatchEvent.call(el, e): Polymer keeps
+  // the "native" methods so; the event went to a list of no listener,
+  // and a dialog waiting to be told its animation was over waited).
   (function () {
     var P = g.EventTarget && g.EventTarget.prototype;
     if (!P) return;
+    // the browser's own method of that name, if this is one of its objects
+    function own(o, name) { var f = typeof __host_get === "function" ? __host_get(o, name) : undefined; return typeof f === "function" ? f : null; }
     function listeners(o, type) { var all = o.__listeners || (o.__listeners = {}); return all[type] || (all[type] = []); }
     Object.defineProperty(P, "addEventListener", { value: function (type, f, options) {
+      var h = own(this, "addEventListener"); if (h) return h.apply(this, arguments);
       var l = listeners(this, type), self = this;
       if (!f || l.some(function (e) { return e.f === f; })) return;
       l.push({ f: f, once: !!(options && options.once) });
@@ -21,9 +29,11 @@
       if (signal) signal.addEventListener("abort", function () { self.removeEventListener(type, f); });
     }, writable: true, configurable: true });
     Object.defineProperty(P, "removeEventListener", { value: function (type, f) {
+      var h = own(this, "removeEventListener"); if (h) return h.apply(this, arguments);
       var all = this.__listeners; if (all && all[type]) all[type] = all[type].filter(function (e) { return e.f !== f; });
     }, writable: true, configurable: true });
     Object.defineProperty(P, "dispatchEvent", { value: function (event) {
+      var h = own(this, "dispatchEvent"); if (h) return h.apply(this, arguments);
       var self = this; try { event.target = this; event.currentTarget = this; } catch (e) {}
       listeners(this, event.type).slice().forEach(function (e) {
         if (e.once) self.removeEventListener(event.type, e.f);

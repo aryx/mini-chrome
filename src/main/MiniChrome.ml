@@ -214,6 +214,24 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
         | Some _, Wheel notches when not m.ctrl ->
             queued := msg :: !queued;
             (Window_tabs.wheeled notches m, Cmd.none)
+        (* the pointer: where it is now is the model's at once (the
+         * menu opens there), and of the moves that wait only the last
+         * is kept -- each is told to the page's scripts when its turn
+         * comes, and a hand crossing the window during a long run left
+         * a hundred of them to go through after it *)
+        | Some _, Mouse_move (x, y) ->
+            (queued := match !queued with Mouse_move _ :: rest -> msg :: rest | q -> msg :: q);
+            ({ m with mouse = (x /. Window_layout.scale_of m, y /. Window_layout.scale_of m) }, Cmd.none)
+        (* the right click's menu is the browser's, nothing of the
+         * script's: opened now, and again at the run's end. A click in
+         * it on a helper program's item runs the program now (the menu
+         * then is not to open again); any other click waits *)
+        | Some _, Right_click ->
+            queued := msg :: !queued;
+            Window_update.update caps msg m
+        | Some _, Click when (match Option.bind m.menu (fun menu -> Gui_menu.chosen menu m.mouse) with Some (Browser_menu.Open_with _) -> true | _ -> false) ->
+            (queued := let rec drop = function Window_model.Right_click :: rest -> rest | x :: rest -> x :: drop rest | [] -> [] in drop !queued);
+            Window_update.update caps msg m
         | Some _, other ->
             queued := other :: !queued;
             (m, Cmd.none));

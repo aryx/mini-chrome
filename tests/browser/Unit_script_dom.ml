@@ -302,6 +302,13 @@ let tests =
            Browser_script.advance t 10.;
            Alcotest.(check string) "ended a moment later: all who waited told, once" {|["finished", "on,listener,promise"]|}
              (ask {|a.finish(); [a.playState, ends.sort().join().replace("listener,on", "on,listener")]|}));
+          check "EventTarget.prototype's methods called on an element are the element's" ~html:"<div id=d></div>"
+            {|var d = document.getElementById("d"), n = 0, f = () => n++;
+              d.addEventListener("go", f); EventTarget.prototype.dispatchEvent.call(d, new Event("go"));
+              EventTarget.prototype.addEventListener.call(d, "go", () => n += 10); d.dispatchEvent(new Event("go"));
+              EventTarget.prototype.removeEventListener.call(d, "go", f); d.dispatchEvent(new Event("go"));
+              var t = new EventTarget(), m = 0; t.addEventListener("x", () => m++); t.dispatchEvent(new Event("x")); [n, m]|}
+            "[22, 1]";
           check "an event's path: its target, what it is in, the document, the window" ~html:"<div id=d><p id=p><b id=b>x</b></p></div>"
             {|var seen; document.getElementById("d").addEventListener("go", e => { seen = e.composedPath().map(n => n.id || n.nodeName || "window").join(" ") + " / " + (e.path.indexOf(e.currentTarget)) });
               document.getElementById("b").dispatchEvent(new Event("go", { bubbles: true })); seen|}
