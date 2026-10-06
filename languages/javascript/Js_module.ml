@@ -77,7 +77,7 @@ let parse (text : string) : (A.program, Js_parse.error) result =
  * pool), for the [parse] of that very text that follows to find it
  * read: GitHub's 119 modules, 4.9 MB, are 1.3 s of the window's
  * thread otherwise *)
-let ahead (text : string) : unit = if !Mini_opti.enabled && known text = None then keep text (Js_parse.parse text)
+let ahead (text : string) : unit = if !Mini_opti.enabled && known text = None then keep text (Js_parse.parse ~aside:true text)
 
 (* and a script that is not a module finds its text read the same way *)
 let () = Js_eval.read_ahead := fun text -> if !Mini_opti.enabled then Option.map snd (known text) else None

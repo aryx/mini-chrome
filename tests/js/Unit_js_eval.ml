@@ -92,6 +92,26 @@ let tests =
           check "given to a function of the script, returned, thrown, kept by a closure"
             (grown ^ "function id(x) { return x } function len() { return arguments[0].length } var keep = (function (z) { return function () { return z.length } })(s + s); var caught; try { throw s + '!' } catch (e) { caught = e.length } [id(s + s).length, len(s + 'q'), keep(), caught, [s + s].map(function (x) { return x + x })[0].length]")
             "[6000, 3001, 6000, 3001, 12000]");
+      Testo.create "a run's slices are its own: a text read beside it ends none, and nothing is waited for that is not paused" (fun () ->
+          let length = !Js_slice.length in
+          Fun.protect ~finally:(fun () -> Js_slice.length := length) (fun () ->
+              (* every breath would end a slice *)
+              Js_slice.length := 0.;
+              let big = String.concat "\n" (List.init 5000 (fun i -> Printf.sprintf "var v%d = %d;" i i)) in
+              (* a run during which another thread reads a long text, as a worker of the pool does *)
+              let read = ref false in
+              let whole =
+                Js_slice.run (fun () ->
+                    let beside = Thread.create (fun () -> read := (match Js_parse.parse ~aside:true big with Ok p -> List.length p = 5000 | Error _ -> false)) () in
+                    Thread.join beside)
+              in
+              Alcotest.(check (pair bool bool)) "the text read, the run whole: in one slice" (true, true) (!read, whole);
+              (* and the same text read by the run itself is read in slices *)
+              let slices = ref 1 in
+              if not (Js_slice.run (fun () -> ignore (Js_parse.parse big))) then while not (Js_slice.continue ()) do incr slices done;
+              Alcotest.(check bool) "the run's own reading: more than one slice" true (!slices > 1);
+              (* told to go on when no run is paused: an answer, not a wait for ever *)
+              Alcotest.(check bool) "continue with nothing paused comes back" false (Js_slice.continue ())));
       Testo.create "a boolean and a symbol have every object's methods" (fun () ->
           check "(!o).hasOwnProperty(k), a minifier's false" "var o = { a: 1 }; [(!o).hasOwnProperty('a'), typeof Symbol('s').hasOwnProperty, true.toString(), false.missing]"
             "[false, \"function\", \"true\", undefined]");

@@ -958,6 +958,17 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- the window frozen for good, now and then, on a page of many
+  scripts (GitHub: a load in fifteen; every thread asleep). The
+  parser takes breaths (Js_slice: a long text read lets the window be
+  drawn), and since scripts are read ahead on the pool's workers a
+  worker's breath ended a slice of the window's run -- a run that was
+  not its own, never stopped, and that ended unseen; the window then
+  told it to go on and waited for ever. A text read aside takes no
+  breath (Js_parse.parse ~aside), and continue starts nothing if
+  nothing is paused. Caught by loading the page in a loop under gdb
+  until it hung: the window's thread in Js_slice.wait, the scripts'
+  in Js_slice.work, on the same condition
 - a sticky regular expression (/y) matches at its lastIndex and moves
   it: it was read as 0 each time, and a parser written with them never
   advanced (Fluent's, on MDN: fourteen scripts stopped as "ran too

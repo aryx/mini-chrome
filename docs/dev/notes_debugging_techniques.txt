@@ -875,3 +875,46 @@ A hot function says where, not why. A counter put in it for one run
 searched for was "*", 5,285 times; the strings joined were four,
 grown a character at a time. Keep the file's original beside
 (cp to the scratch directory) to put it back whole.
+
+
+Session 7: a hang once in fifteen loads (2026-10-06)
+====================================================
+
+31. Catch it under gdb, in a loop
+---------------------------------
+A program found hung cannot be asked anything (no ptrace on a process
+that is not gdb's child). /proc says a little -- each thread's wchan
+(futex_wait_queue for all: locks, not the network), its CPU time (4 s
+in twelve minutes) -- and SIGTERM does nothing to it (kill -9). So the
+page is loaded again and again, each time under gdb:
+
+    printf 'set pagination off\nhandle SIGINT stop nopass\nrun\nthread apply all bt 30\nkill\n' > cmds
+    setsid gdb -q -batch -x cmds --args PROGRAM ... -dump-frame 1500 out.png url=... < /dev/null > run_$i.txt 2>&1 &
+
+and a watchdog beside it sends kill -INT to the program when the run
+is four times longer than it should be (by the clock: a hung program
+still ticks, and one that waits for its last frame does little more).
+A run that ends is thrown away. The tenth hung.
+
+32. Reading stacks that stop at the runtime
+-------------------------------------------
+OCaml's frames did not unwind ("<signal handler called>", then ??).
+Two things were enough. The arguments of pthread_cond_wait: the
+window's thread and one other waited on the same condition and the
+same mutex (the addresses), so they were partners of one hand-over.
+And the first address after the runtime's frames, given to gdb on the
+same binary:
+
+    gdb -batch -ex starti -ex 'info symbol 0xaaaaaafd21d0' --args PROGRAM
+
+"camlJs_slice.wait + 56", and for the other "camlJs_slice.work + 104":
+the window waiting for a run to end, the runs' thread waiting for a
+run to make. Each believed the other busy; the code said how (who
+else calls breath: grep -- the parser, now run on other threads).
+
+33. What made it possible
+-------------------------
+A function that was the run's thread's by convention (breath) and was
+called through a library (the parser) that was then moved to another
+thread. When code moves to a worker, grep what it calls for the
+program's hand-overs and globals, not only for what it writes.

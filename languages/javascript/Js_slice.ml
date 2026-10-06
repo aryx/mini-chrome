@@ -68,9 +68,12 @@ let run (f : unit -> unit) : bool =
 
 let continue () : bool =
   Mutex.lock lock;
-  turn := Running;
-  started := Unix.gettimeofday ();
-  Condition.broadcast changed;
+  (* only a run that is paused goes on: one that ended meanwhile is
+   * said ended, not waited for (it would be for ever) *)
+  if !turn = Paused then (
+    turn := Running;
+    started := Unix.gettimeofday ();
+    Condition.broadcast changed);
   wait ()
 
 let breath () : unit =

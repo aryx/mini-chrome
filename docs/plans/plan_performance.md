@@ -542,6 +542,6 @@ by one or two from run to run, the styles' ratio does not.
 
 A run of the first series hung (GitHub, the binary of before these
 changes: 4 s of CPU in twelve minutes, every thread in a futex, the
-window's too). The second time this was seen; no stack could be had
-(no ptrace on a process not ours to trace). To catch: the same run
-under gdb from the start.
+window's too). Found the same day: a worker of the pool reading a
+script ahead took the parser's breaths, which are the window's run's
+(`Js_slice.mli`; docs/dev/notes_debugging_techniques.txt, session 7).

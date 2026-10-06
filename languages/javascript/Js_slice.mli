@@ -34,6 +34,16 @@
    The script itself sees nothing of it: no other code of the page
    runs between its slices, as the rule says.
 
+   A slice is the run's own to end: [breath] must be called by the
+   run's thread (or an async function's it resumed), never by a
+   thread working beside it. One that did -- a worker of the pool
+   reading a script ahead, the parser taking its breaths -- ended a
+   slice of a run that was not its own; the run, never stopped,
+   reached its end unseen, and the window, told to go on with a run
+   that was no more, waited for it for ever (a load of GitHub in
+   fifteen). Hence [Js_parse.parse ~aside], and [continue], which
+   starts nothing if nothing is paused.
+
    A coroutine, then, as Js_coroutine's are (an async function stopped
    at an await), with one more partner: the thread that takes the
    breath may be an async function's own, deep in a run; it is that

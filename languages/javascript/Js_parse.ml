@@ -19,6 +19,7 @@ exception Error of error
 type t = {
   tokens : Js_lexer.token array;
   mutable pos : int;
+  aside : bool; (* read beside the window's run, on another thread: no slice of that run is its own to end *)
   (* in a for's first part: "in" is the for's, not an operator *)
   mutable no_in : bool;
   (* in an async function's body: "await" is the operator, not a name *)
@@ -241,7 +242,7 @@ and body_in : 'a. t -> async:bool -> generator:bool -> (unit -> 'a) -> 'a =
 and template_values (p : t) (t : Js_lexer.token) (expressions : Js_lexer.token list list) : expr list =
   List.map
     (fun (tokens : Js_lexer.token list) ->
-      let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; no_in = false; in_async = p.in_async; in_generator = p.in_generator } in
+      let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; aside = p.aside; no_in = false; in_async = p.in_async; in_generator = p.in_generator } in
       let e = expression inner 0 in
       if (peek inner).kind <> Eof then unexpected inner "'}'";
       e)
@@ -586,8 +587,12 @@ and declarations (p : t) : (pattern * expr option) list =
   go []
 
 and statement (p : t) : stmt =
-  (* a bundle of megabytes is seconds to read: the window drawn meanwhile (Js_slice) *)
-  Js_slice.breath ();
+  (* a bundle of megabytes is seconds to read: the window drawn
+   * meanwhile (Js_slice) -- if this is the window's run. A text read
+   * aside (a worker of the pool: Js_module.ahead) must not: it would
+   * end a slice of a run that is another thread's, which then ends
+   * unseen, and the window waits for it for ever *)
+  if not p.aside then Js_slice.breath ();
   let t = peek p in
   let line = t.line in
   let s stmt = { line; stmt } in
@@ -870,15 +875,15 @@ and for_parts (p : t) (init : stmt option) : statement =
 (* Entry points *)
 (*****************************************************************************)
 
-let with_tokens (text : string) (f : t -> 'a) : ('a, error) result =
+let with_tokens ?(aside = false) (text : string) (f : t -> 'a) : ('a, error) result =
   match Js_lexer.tokenize text with
   | exception Js_lexer.Error (line, message) -> Error { line; message }
   | tokens -> (
-      let p = { tokens = Array.of_list tokens; pos = 0; no_in = false; in_async = false; in_generator = false } in
+      let p = { tokens = Array.of_list tokens; pos = 0; aside; no_in = false; in_async = false; in_generator = false } in
       match f p with x -> Ok x | exception Error e -> Error e)
 
-let parse (text : string) : (program, error) result =
-  with_tokens text (fun p ->
+let parse ?aside (text : string) : (program, error) result =
+  with_tokens ?aside text (fun p ->
       let rec go acc = if (peek p).kind = Eof then List.rev acc else go (statement p :: acc) in
       go [])
 

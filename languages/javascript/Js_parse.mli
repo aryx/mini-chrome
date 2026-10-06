@@ -189,8 +189,11 @@
 (* a mistake: its line and what was expected *)
 type error = { line : int; message : string }
 
-(* the program, or its first mistake (Js_lexer's included) *)
-val parse : string -> (Js_ast.program, error) result
+(* the program, or its first mistake (Js_lexer's included). A long
+ * text lets the window be drawn as it is read (Js_slice.breath) --
+ * but not one read [aside], by a thread that is not the window's run
+ * (a worker of the pool reading ahead): a slice is the run's to end *)
+val parse : ?aside:bool -> string -> (Js_ast.program, error) result
 
 (* one expression alone (the tests', and a console's) *)
 val parse_expression : string -> (Js_ast.expr, error) result
