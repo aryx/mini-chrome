@@ -103,7 +103,7 @@ let match_array ?re (s : string) (spans : (int * int) option array) : value =
       List.iter (fun (name, i) -> set_own groups name (List.nth texts i)) names;
       set_own a "groups" (Object groups)
   | _ -> set_own a "groups" Undefined);
-  set_own a "index" (Number (float_of_int (match spans.(0) with Some (i, _) -> i | None -> 0)));
+  set_own a "index" (Number (float_of_int (match spans.(0) with Some (i, _) -> Js_utf16.unit_of s i | None -> 0)));
   set_own a "input" (String s);
   Object a
 
@@ -115,7 +115,9 @@ let all_matches (re : Js_regexp.t) (s : string) : (int * int) option array list 
     else
       match Js_regexp.exec re s from with
       | Some spans -> (
-          match spans.(0) with Some (a, b) -> go (if b = a then b + 1 else b) (spans :: acc) | None -> List.rev acc)
+          (* an empty match: on by one character, not into the middle of its bytes *)
+          let rec next i = if i < String.length s && Char.code s.[i] land 0xC0 = 0x80 then next (i + 1) else i in
+          match spans.(0) with Some (a, b) -> go (if b = a then next (b + 1) else b) (spans :: acc) | None -> List.rev acc)
       | None -> List.rev acc
   in
   go 0 []
@@ -162,60 +164,67 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
         compile (Buffer.contents b) ""
   in
   let def name f = set_own o name (fn name (fun ~this args -> f (this_string this) args)) in
-  def "toUpperCase" (fun s _ -> String (String.uppercase_ascii s));
-  def "toLowerCase" (fun s _ -> String (String.lowercase_ascii s));
+  (* a string is counted in UTF-16's units, and kept in UTF-8's bytes
+   * (Js_utf16): an index a script gives is made a byte's ([byte]), one
+   * it is given a unit's ([units]); for ASCII both are the same *)
+  let len = Js_utf16.length and cut = Js_utf16.sub and byte = Js_utf16.byte_of in
+  let units s i = if i < 0 then i else Js_utf16.unit_of s i in
+  def "toUpperCase" (fun s _ -> String (Js_utf16.recased ~upper:true s));
+  def "toLowerCase" (fun s _ -> String (Js_utf16.recased ~upper:false s));
   def "slice" (fun s args ->
-      let n = String.length s in
+      let n = len s in
       let a = relative (int_arg args 0 ~default:0) n and b = relative (int_arg args 1 ~default:n) n in
-      String (if b > a then String.sub s a (b - a) else ""));
+      String (if b > a then cut s a b else ""));
   def "substring" (fun s args ->
-      let n = String.length s in
+      let n = len s in
       let clamp i = max 0 (min i n) in
       let a = clamp (int_arg args 0 ~default:0) and b = clamp (int_arg args 1 ~default:n) in
       let a, b = (min a b, max a b) in
-      String (String.sub s a (b - a)));
+      String (cut s a b));
   def "charAt" (fun s args ->
       let i = int_arg args 0 ~default:0 in
-      String (if i >= 0 && i < String.length s then String.make 1 s.[i] else ""));
-  def "indexOf" (fun s args -> Number (float_of_int (index_of s (to_string (arg args 0)) (int_arg args 1 ~default:0))));
+      String (if i >= 0 && i < len s then cut s i (i + 1) else ""));
+  def "indexOf" (fun s args -> Number (float_of_int (units s (index_of s (to_string (arg args 0)) (byte s (int_arg args 1 ~default:0))))));
   def "includes" (fun s args -> Bool (index_of s (to_string (arg args 0)) 0 >= 0));
   def "startsWith" (fun s args -> Bool (String.starts_with ~prefix:(to_string (arg args 0)) s));
   def "endsWith" (fun s args -> Bool (String.ends_with ~suffix:(to_string (arg args 0)) s));
+  (* split(sep, limit): the first [limit] pieces *)
+  let limited args (pieces : value list) : value = match arg args 1 with Undefined -> array pieces | n -> array (List.filteri (fun i _ -> i < int_of_float (to_number n)) pieces) in
   def "split" (fun s args ->
       match arg args 0 with
       | Undefined -> array [ String s ]
       | sep ->
           let sep = to_string sep in
-          if sep = "" then array (List.init (String.length s) (fun i -> String (String.make 1 s.[i])))
+          if sep = "" then limited args (List.init (len s) (fun i -> String (cut s i (i + 1))))
           else
             let rec go from acc =
               match index_of s sep from with
               | -1 -> List.rev (String (String.sub s from (String.length s - from)) :: acc)
               | i -> go (i + String.length sep) (String (String.sub s from (i - from)) :: acc)
             in
-            array (go 0 []));
+            limited args (go 0 []));
   def "trim" (fun s _ -> String (String.trim s));
   def "repeat" (fun s args ->
       let n = int_arg args 0 ~default:0 in
       if n < 0 then throw "RangeError" "Invalid count value" else String (String.concat "" (List.init n (fun _ -> s))));
   def "padStart" (fun s args ->
       let n = int_arg args 0 ~default:0 and pad = match arg args 1 with Undefined -> " " | v -> to_string v in
-      let missing = n - String.length s in
+      let missing = n - len s in
       if missing <= 0 || pad = "" then String s
-      else String (String.sub (String.concat "" (List.init missing (fun _ -> pad))) 0 missing ^ s));
+      else String (cut (String.concat "" (List.init missing (fun _ -> pad))) 0 missing ^ s));
   def "concat" (fun s args -> String (String.concat "" (s :: List.map to_string args)));
   def "lastIndexOf" (fun s args ->
       let needle = to_string (arg args 0) in
       let rec go i = if i < 0 then -1 else if i + String.length needle <= String.length s && String.sub s i (String.length needle) = needle then i else go (i - 1) in
-      Number (float_of_int (go (String.length s - String.length needle))));
+      Number (float_of_int (units s (go (String.length s - String.length needle)))));
   def "charCodeAt" (fun s args ->
       let i = int_arg args 0 ~default:0 in
-      Number (if i >= 0 && i < String.length s then float_of_int (Char.code s.[i]) else Float.nan));
+      Number (match Js_utf16.unit s i with -1 -> Float.nan | u -> float_of_int u));
   def "substr" (fun s args ->
-      let n = String.length s in
+      let n = len s in
       let a = relative (int_arg args 0 ~default:0) n in
-      let len = max 0 (min (int_arg args 1 ~default:(n - a)) (n - a)) in
-      String (String.sub s a len));
+      let count = max 0 (min (int_arg args 1 ~default:(n - a)) (n - a)) in
+      String (cut s a (a + count)));
   def "trimStart" (fun s _ -> let t = String.trim s in if t = "" then String "" else String (String.sub s (index_of s t 0) (String.length s - index_of s t 0)));
   def "toString" (fun s _ -> String s);
   (* with a regular expression, or a string as one *)
@@ -230,7 +239,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
         | ms -> array (List.map (fun spans -> match spans.(0) with Some (a, b) -> String (String.sub s a (b - a)) | None -> Undefined) ms)
       else match Js_regexp.exec re s 0 with Some spans -> match_array ~re s spans | None -> Null);
   def "search" (fun s args ->
-      match Js_regexp.exec (expression (arg args 0)) s 0 with Some spans -> ( match spans.(0) with Some (a, _) -> Number (float_of_int a) | None -> Number (-1.)) | None -> Number (-1.));
+      match Js_regexp.exec (expression (arg args 0)) s 0 with Some spans -> ( match spans.(0) with Some (a, _) -> Number (float_of_int (units s a)) | None -> Number (-1.)) | None -> Number (-1.));
   def "replace" (fun s args ->
       let re = pattern (arg args 0) in
       let ms = if Js_regexp.global re then all_matches re s else Option.to_list (Js_regexp.exec re s 0) in
@@ -244,7 +253,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
                 (match arg args 1 with
                 | Object { kind = Closure _ | Host_function _; _ } as f ->
                     let groups = List.tl (Array.to_list (Array.map (function Some (x, y) -> String (String.sub s x (y - x)) | None -> Undefined) spans)) in
-                    Buffer.add_string b (to_string (call f ~this:Undefined ((String (String.sub s a (e - a)) :: groups) @ [ Number (float_of_int a); String s ])))
+                    Buffer.add_string b (to_string (call f ~this:Undefined ((String (String.sub s a (e - a)) :: groups) @ [ Number (float_of_int (units s a)); String s ])))
                 | v -> Buffer.add_string b (expand ~re (to_string v) s spans));
                 e
             | None -> from)
@@ -270,7 +279,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
                    | _ -> (acc, from))
                  ([], 0) (all_matches re s)
              in
-             array (List.rev (String (String.sub s last (String.length s - last)) :: pieces))
+             limited args (List.rev (String (String.sub s last (String.length s - last)) :: pieces))
          | _ -> ( match split with Object { kind = Host_function (_, f); _ } -> f ~this args | _ -> Undefined)));
   ignore regexps;
   o
@@ -283,7 +292,7 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
  * indices (a jQuery object, a proxy of an array, a string's letters) *)
 let like_array ~(get : value -> string -> value) (v : value) : value list =
   match v with
-  | Object { kind = Array _; _ } | String _ | Undefined | Null -> ( match v with Object a -> array_items a | String s -> List.init (String.length s) (fun i -> String (String.make 1 s.[i])) | _ -> [])
+  | Object { kind = Array _; _ } | String _ | Undefined | Null -> ( match v with Object a -> array_items a | String s -> List.init (Js_utf16.length s) (fun i -> String (Js_utf16.sub s i (i + 1))) | _ -> [])
   | v ->
       let n = match get v "length" with Number n when n > 0. && n < 1e7 -> int_of_float n | _ -> 0 in
       List.init n (fun i -> get v (string_of_int i))
@@ -613,10 +622,11 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
     let re = regexp_of this in
     let o = match this with Object o -> o | _ -> assert false in
     let moves = Js_regexp.global re || Js_regexp.sticky re in
+    (* lastIndex is a script's: in units (Js_utf16), the engine's in bytes *)
     let from = if moves then int_of_float (to_number (Option.value (get_own o "lastIndex") ~default:(Number 0.))) else 0 in
-    match if from > String.length s then None else Js_regexp.exec re s from with
+    match if from > Js_utf16.length s then None else Js_regexp.exec re s (Js_utf16.byte_of s from) with
     | Some spans ->
-        (if moves then match spans.(0) with Some (_, e) -> set_own o "lastIndex" (Number (float_of_int e)) | None -> ());
+        (if moves then match spans.(0) with Some (_, e) -> set_own o "lastIndex" (Number (float_of_int (Js_utf16.unit_of s e))) | None -> ());
         Some spans
     | None ->
         if moves then set_own o "lastIndex" (Number 0.);
@@ -644,7 +654,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
    * it back: data/prelude/library.js). Number(5) alone is the value *)
   let boxed (this : value) (v : value) : value = (match this with Object ({ kind = Plain; _ } as o) -> set_own o "@@primitive" v | _ -> ()); v in
   constructor "String" (fun ~this args -> boxed this (String (match args with [] -> "" | v :: _ -> to_string v))) strings
-    [ ("fromCharCode", fn "fromCharCode" (fun ~this:_ args -> String (String.concat "" (List.map (fun v -> String.make 1 (Char.chr (int_of_float (to_number v) land 255))) args)))) ];
+    [ ("fromCharCode", fn "fromCharCode" (fun ~this:_ args -> String (Js_utf16.of_units (List.map (fun v -> (match to_number v with n when Float.is_finite n -> int_of_float n | _ -> 0) land 0xFFFF) args)))) ];
   constructor "Number" (fun ~this args -> boxed this (Number (match args with [] -> 0. | v :: _ -> to_number v))) numbers [];
   (* new Function("a", "b", "return a + b"): its last argument
    * the body, those before its parameters; a function of the global

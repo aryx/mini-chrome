@@ -81,11 +81,12 @@ let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
   | Object { kind = Proxy (t, _); _ } -> get ps (Object t) k
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
   (* a rope's length is known; anything else of it is of its text *)
-  | Rope r -> if k = "length" then Number (float_of_int r.size) else get ps (String (flatten r)) k
+  | Rope r -> if k = "length" then Number (float_of_int r.units) else get ps (String (flatten r)) k
   | String s -> (
       match (k, index_of_key k) with
-      | "length", _ -> Number (float_of_int (String.length s))
-      | _, Some i -> if i < String.length s then String (String.make 1 s.[i]) else Undefined
+      (* in UTF-16's units, as a script counts (Js_utf16) *)
+      | "length", _ -> Number (float_of_int (Js_utf16.length s))
+      | _, Some i -> if i < Js_utf16.length s then String (Js_utf16.sub s i (i + 1)) else Undefined
       | _ -> from_chain ps ps.strings k)
   | Object ({ kind = Array a; _ } as o) -> (
       match (k, index_of_key k) with
@@ -138,7 +139,7 @@ let enumerable_keys (v : value) : string list =
   | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ chain o []
   | Object { kind = Host_object _; _ } -> []
   | Object o -> chain o []
-  | String s -> List.init (String.length s) string_of_int
+  | String s -> List.init (Js_utf16.length s) string_of_int
   | _ -> []
 
 (* whether F's prototype is in v's chain: v instanceof F *)

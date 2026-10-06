@@ -10,7 +10,7 @@
 
 (* See Js_regexp.mli *)
 
-type item = Range of char * char | Class of char (* d w s D W S *)
+type item = Range of int * int (* two code points *) | Class of char (* d w s D W S *)
 
 type node =
   | Char of char
@@ -58,12 +58,7 @@ let parse (p : string) : node list list * int * (string * int) list =
   in
   (* \x: a class, or the character it stands for *)
   (* the code point of a character's UTF-8 bytes (its first one or two; beyond: large) *)
-  let code_point (s : string) : int =
-    match String.length s with
-    | 1 -> Char.code s.[0]
-    | 2 -> ((Char.code s.[0] land 0x1f) lsl 6) lor (Char.code s.[1] land 0x3f)
-    | _ -> 0x800
-  in
+  let code_point (s : string) : int = snd (Js_utf16.decode s 0) in
   let escape () : [ `Class of char | `Char of char | `Chars of string | `Boundary of bool | `Node of node ] =
     if !pos >= n then raise (Bad "\\ at the end of the pattern");
     match next () with
@@ -182,10 +177,17 @@ let parse (p : string) : node list list * int * (string * int) list =
         match escape () with
         | `Class c -> [ Set (false, [ Class c ]) ]
         | `Char c -> [ Char c ]
-        | `Chars s -> List.init (String.length s) (fun i -> Char s.[i])
+        | `Chars s -> chars s
         | `Boundary b -> [ Boundary b ]
         | `Node nd -> [ nd ])
+    (* a character beyond ASCII: all its bytes, one thing (é+ is é, é, é: not é's last byte again) *)
+    | c when c >= '\x80' ->
+        let bytes, _ = Js_utf16.decode p (!pos - 1) in
+        pos := !pos + bytes - 1;
+        chars (String.sub p (!pos - bytes) bytes)
     | c -> [ Char c ]
+  and chars (s : string) : node list =
+    if String.length s = 1 then [ Char s.[0] ] else [ Group (None, [ List.init (String.length s) (fun i -> Char s.[i]) ]) ]
   and set () : node =
     let negated = if peek () = Some '^' then (incr pos; true) else false in
     let rec items acc first =
@@ -206,30 +208,32 @@ let parse (p : string) : node list list * int * (string * int) list =
                 (* in a set, \1 is the character of that code *)
                 | `Node (Backref g) -> `C (Char.chr (g land 255))
                 | `Node _ -> `C 'k')
+            (* a character beyond ASCII written as itself: its code point, all its bytes read *)
+            | c when c >= '\x80' ->
+                let bytes, cp = Js_utf16.decode p (!pos - 1) in
+                pos := !pos + bytes - 1;
+                `U cp
             | c -> `C c
           in
-          (* a bound is a byte, or the code point a \u escape names *)
+          (* a bound is a code point: a set is of characters (a text is
+           * UTF-8, read a character at a time: Js_utf16) *)
           let code = function `C c -> Char.code c | `U cp -> cp in
-          (* the bytes between two bounds. A text is matched byte by
-           * byte, in UTF-8: up to U+007F a code point is its byte;
-           * above, a bound that an escape named stands for every byte
-           * of a character beyond ASCII (\u0080-\u00ff, "any Latin-1
-           * letter", then takes any such character: more than it
-           * says, never less) *)
-          let range lo hi =
-            match (lo, hi) with
-            | `C a, `C b -> [ Range (a, b) ]
-            | _ ->
-                let a = code lo and b = code hi in
-                (if a < 0x80 then [ Range (Char.chr a, Char.chr (min b 0x7f)) ] else []) @ if b >= 0x80 then [ Range ('\x80', '\xff') ] else []
-          in
+          let range lo hi = [ Range (code lo, code hi) ] in
           (match lo with
           | `Item it -> items (it :: acc) false
           | (`C _ | `U _) as lo ->
               if peek () = Some '-' && !pos + 1 < n && p.[!pos + 1] <> ']' then (
                 incr pos;
                 (* the upper bound: an escape too ("\u0020-\u007e" lost its, read as "-") *)
-                let hi = match next () with '\\' -> ( match escape () with `Char c -> `C c | `Chars s -> `U (code_point s) | _ -> `C '-') | c -> `C c in
+                let hi =
+                  match next () with
+                  | '\\' -> ( match escape () with `Char c -> `C c | `Chars s -> `U (code_point s) | _ -> `C '-')
+                  | c when c >= '\x80' ->
+                      let bytes, cp = Js_utf16.decode p (!pos - 1) in
+                      pos := !pos + bytes - 1;
+                      `U cp
+                  | c -> `C c
+                in
                 items (List.rev_append (range lo hi) acc) false)
               else items (List.rev_append (range lo lo) acc) false)
     in
@@ -272,14 +276,19 @@ let sticky (re : t) = re.sticky
 let is_word (c : char) : bool = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c = '_'
 let is_space (c : char) : bool = c = ' ' || c = '\t' || c = '\n' || c = '\r' || c = '\012' || c = '\011'
 
-let class_has (c : char) (x : char) : bool =
+(* a class and a code point: beyond ASCII no digit and no letter of a
+ * word, and the spaces Unicode has (no-break, the en and em ones, the
+ * line's and paragraph's separators, the byte-order mark) *)
+let class_has (c : char) (cp : int) : bool =
+  let ascii f = cp < 0x80 && f (Char.chr cp) in
+  let space = ascii is_space || cp = 0xA0 || cp = 0x1680 || (cp >= 0x2000 && cp <= 0x200A) || cp = 0x2028 || cp = 0x2029 || cp = 0x202F || cp = 0x205F || cp = 0x3000 || cp = 0xFEFF in
   match c with
-  | 'd' -> x >= '0' && x <= '9'
-  | 'D' -> not (x >= '0' && x <= '9')
-  | 'w' -> is_word x
-  | 'W' -> not (is_word x)
-  | 's' -> is_space x
-  | _ -> not (is_space x)
+  | 'd' -> ascii (fun x -> x >= '0' && x <= '9')
+  | 'D' -> not (ascii (fun x -> x >= '0' && x <= '9'))
+  | 'w' -> ascii is_word
+  | 'W' -> not (ascii is_word)
+  | 's' -> space
+  | _ -> not space
 
 (* at most this many steps per exec: {|(a*)*b|} on a long string stops *)
 let budget = 1_000_000
@@ -295,7 +304,9 @@ let exec (re : t) (s : string) (from : int) : (int * int) option array option =
       (fun it ->
         match it with
         | Class c -> class_has c x
-        | Range (lo, hi) -> (x >= lo && x <= hi) || (re.ignore_case && ((lower x >= lower lo && lower x <= lower hi) || (Char.uppercase_ascii x >= lo && Char.uppercase_ascii x <= hi))))
+        | Range (lo, hi) ->
+            (x >= lo && x <= hi)
+            || (re.ignore_case && x < 0x80 && (let other = Char.code (if x >= 97 && x <= 122 then Char.uppercase_ascii (Char.chr x) else lower (Char.chr x)) in other >= lo && other <= hi)))
       items
   in
   let rec seq (nodes : node list) (i : int) (k : int -> bool) : bool =
@@ -307,12 +318,15 @@ let exec (re : t) (s : string) (from : int) : (int * int) option array option =
     else
       match nd with
       | Char c -> i < len && same s.[i] c && k (i + 1)
-      | Any ->
-          (* with u, a whole character: its first byte and those that
-           * continue it (10xxxxxx) *)
-          let rec past j = if re.unicode && j < len && Char.code s.[j] land 0xC0 = 0x80 then past (j + 1) else j in
-          i < len && (re.dot_all || s.[i] <> '\n') && k (past (i + 1))
-      | Set (negated, items) -> i < len && in_set items s.[i] <> negated && k (i + 1)
+      (* a whole character, all its bytes: a set is of characters, and
+       * a dot takes one (a pair of halves as one, where the standard
+       * without u has two: nobody means half an emoji) *)
+      | Any -> i < len && (re.dot_all || s.[i] <> '\n') && k (i + fst (Js_utf16.decode s i))
+      | Set (negated, items) ->
+          i < len
+          &&
+          let bytes, cp = Js_utf16.decode s i in
+          in_set items cp <> negated && k (i + bytes)
       | Start -> (i = 0 || (re.multiline && s.[i - 1] = '\n')) && k i
       | End -> (i = len || (re.multiline && s.[i] = '\n')) && k i
       | Boundary b ->

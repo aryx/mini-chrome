@@ -11,7 +11,7 @@
 (* See Js_value.mli *)
 
 type value = Undefined | Null | Bool of bool | Number of float | String of string | Rope of rope | Symbol of string | Object of obj
-and rope = { mutable pieces : pieces; size : int }
+and rope = { mutable pieces : pieces; size : int; units : int }
 and pieces = Flat of string | Cat of rope * rope
 and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option; mutable lookup : lookup option; mutable hidden : string list; (* its properties by their key, when they are many (Js_value's find) *)
 }
@@ -102,12 +102,15 @@ let rope_from = 1024
 let join (a : value) (b : value) : value =
   let size = function String s -> String.length s | Rope r -> r.size | _ -> 0 in
   let n = size a + size b in
-  let piece = function String s -> { pieces = Flat s; size = String.length s } | Rope r -> r | _ -> { pieces = Flat ""; size = 0 } in
+  let piece = function String s -> { pieces = Flat s; size = String.length s; units = Js_utf16.length s } | Rope r -> r | _ -> { pieces = Flat ""; size = 0; units = 0 } in
   if n < rope_from || not !Mini_opti.enabled then
-    String ((match flat a with String s -> s | _ -> "") ^ match flat b with String s -> s | _ -> "")
+    (* (two halves of a pair that meet are their character: Js_utf16) *)
+    String (Js_utf16.seam (match flat a with String s -> s | _ -> "") (match flat b with String s -> s | _ -> ""))
   else if size a = 0 then b
   else if size b = 0 then a
-  else Rope { pieces = Cat (piece a, piece b); size = n }
+  else
+    let a = piece a and b = piece b in
+    Rope { pieces = Cat (a, b); size = n; units = a.units + b.units }
 
 let new_array (vs : value list) : obj =
   (* an item is no rope: what is kept is a String *)

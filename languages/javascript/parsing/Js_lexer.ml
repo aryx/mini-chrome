@@ -315,11 +315,11 @@ let tokenize (s : string) : token list =
       else
         match s.[j] with
         | '`' ->
-            strings := Buffer.contents b :: !strings;
+            strings := Js_utf16.joined (Buffer.contents b) :: !strings;
             j + 1
         | '\\' when j + 1 < n -> text (escape b j)
         | '$' when j + 1 < n && s.[j + 1] = '{' ->
-            strings := Buffer.contents b :: !strings;
+            strings := Js_utf16.joined (Buffer.contents b) :: !strings;
             Buffer.clear b;
             (* the tokens so far set aside, the expression's gathered *)
             let outer = !tokens and outer_newline = !newline in
@@ -354,7 +354,8 @@ let tokenize (s : string) : token list =
     in
     let at = !line in
     let j = go (i + 1) in
-    emit (String (Buffer.contents b)) at;
+    (* "\\uD83D\\uDE00", two escapes: one character (Js_utf16) *)
+    emit (String (Js_utf16.joined (Buffer.contents b))) at;
     j
   in
   ignore (go 0);

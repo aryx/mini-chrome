@@ -21,7 +21,7 @@ let own_keys (v : value) : string list =
   match (match v with Object o -> Object (target o) | v -> v) with
   | Object ({ kind = Array a; _ } as o) -> List.init a.length string_of_int @ List.filter (fun k -> not (is_symbol k)) (keys o)
   | Object o -> List.filter (fun k -> not (is_symbol k)) (keys o)
-  | String s -> List.init (String.length s) string_of_int
+  | String s -> List.init (Js_utf16.length s) string_of_int
   | _ -> []
 
 (* all of them, those that do not show too *)
@@ -36,7 +36,7 @@ let own_names (v : value) : string list =
 let own (v : value) (k : string) : value =
   match ((match v with Object o -> Object (target o) | v -> v), int_of_string_opt k) with
   | Object { kind = Array a; _ }, Some i when i >= 0 && i < a.length -> a.elements.(i)
-  | String s, Some i when i >= 0 && i < String.length s -> String (String.make 1 s.[i])
+  | String s, Some i when i >= 0 && i < Js_utf16.length s -> String (Js_utf16.sub s i (i + 1))
   | Object o, _ -> Option.value (get_own o k) ~default:Undefined
   | _ -> Undefined
 

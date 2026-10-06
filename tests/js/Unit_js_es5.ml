@@ -73,8 +73,8 @@ let tests =
           check "a named group, and it again" {|var m = /(?<year>\d{4})-(?<month>\d\d)/.exec('on 2026-10-02'); [m[1], m[2], /(?<q>['"]).*?\k<q>/.test('"x"')]|}
             {|["2026", "10", true]|};
           check "s: the dot takes a newline" {|[/a.b/.test('a\nb'), /a.b/s.test('a\nb')]|} "[false, true]";
-          check "u: the dot is a character, not a byte of one (example.com's /./gu)"
-            {|['hé!'.match(/./gu).length, 'hé!'.match(/./g).length, 'hé'.replace(/./gu, '<$&>') === '<h><é>']|} "[3, 4, true]";
+          check "the dot is a character, not a byte of one, with u or without (example.com's /./gu)"
+            {|['hé!'.match(/./gu).length, 'hé!'.match(/./g).length, 'hé'.replace(/./gu, '<$&>') === '<h><é>']|} "[3, 3, true]";
           check "u: any code point" {|/\u{1F600}/u.test('a \u{1F600}')|} "true";
           check "y: at the position, not after it" {|[/b/y.test('ab'), /a/y.test('ab')]|} "[false, true]";
           check "what cannot be read says so" {|/(?<n/|} "line 1: SyntaxError: Invalid regular expression: /(?<n/: a group's name never closed");

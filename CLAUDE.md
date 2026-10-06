@@ -294,6 +294,15 @@ is `parsing/` (`Css_syntax`, `Selectors`, `Css_values`, `Css_grid`,
 in the folder it is of; what dune generates (`Js_prelude`, `Ua_sheet`)
 stays beside the `dune` file.
 
+A string of the language is counted in UTF-16's code units and kept
+in UTF-8's bytes, the browser's text everywhere else: `Js_utf16`
+(`languages/javascript/values`) is the translation, and anything of a
+string that a script sees as a number -- a length, an index, a
+character's code -- goes through it (`Js_utf16.length`, `unit`,
+`sub`, `byte_of`, `unit_of`), never `String.length` or `s.[i]`; the
+regular expressions work on bytes inside, a character at a time, and
+their indices are converted at the door (`Js_builtins`).
+
 JavaScript is cut in three. `languages/javascript` is the language
 alone (values, functions, promises; an async function's body is a
 thread, `Js_coroutine`): nothing in it knows of a page, and nothing

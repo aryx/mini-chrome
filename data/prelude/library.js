@@ -78,16 +78,28 @@
   });
   def(S, "trimEnd", function () { return this.replace(/\s+$/, ""); });
   def(S, "trimRight", S.trimEnd);
-  // a string here is its bytes, UTF-8: a code point is 1 to 4 of them
+  // a string is UTF-16's units (Js_utf16): a character beyond the
+  // first 65,536 is two of them, a high half then a low one
   def(S, "codePointAt", function (i) {
-    var b = this.charCodeAt(i || 0);
-    if (!(b >= 0xc0)) return b;
-    var more = b >= 0xf0 ? 3 : b >= 0xe0 ? 2 : 1, c = b & (0x3f >> more);
-    for (var k = 1; k <= more; k++) c = (c << 6) | (this.charCodeAt(i + k) & 0x3f);
-    return c;
+    i = i || 0;
+    var hi = this.charCodeAt(i);
+    if (hi !== hi) return undefined;
+    if (hi < 0xd800 || hi > 0xdbff) return hi;
+    var lo = this.charCodeAt(i + 1);
+    return lo >= 0xdc00 && lo <= 0xdfff ? 0x10000 + ((hi - 0xd800) << 10) + (lo - 0xdc00) : hi;
   });
   def(S, "normalize", function () { return String(this); });
-  def(S, "localeCompare", function (other) { var s = String(this); other = String(other); return s < other ? -1 : s > other ? 1 : 0; });
+  // as a dictionary has them, nearly: a letter's accent and its case
+  // count only between two words otherwise the same (é before f, not
+  // after z as its number would put it)
+  var plain = { "à": "a", "á": "a", "â": "a", "ã": "a", "ä": "a", "å": "a", "ç": "c", "è": "e", "é": "e", "ê": "e", "ë": "e", "ì": "i", "í": "i", "î": "i", "ï": "i", "ñ": "n",
+    "ò": "o", "ó": "o", "ô": "o", "õ": "o", "ö": "o", "ø": "o", "ù": "u", "ú": "u", "û": "u", "ü": "u", "ý": "y", "ÿ": "y", "ß": "ss", "æ": "ae", "œ": "oe" };
+  function folded(s) { return s.toLowerCase().replace(/[\u00c0-\u017f]/g, function (c) { c = c.toLowerCase(); return plain[c] || c; }); }
+  def(S, "localeCompare", function (other) {
+    var s = String(this); other = String(other);
+    var a = folded(s), b = folded(other);
+    return a < b ? -1 : a > b ? 1 : s < other ? -1 : s > other ? 1 : 0;
+  });
   def(S, "toLocaleLowerCase", S.toLowerCase);
   def(S, "toLocaleUpperCase", S.toUpperCase);
   def(S, "matchAll", function (re) {
@@ -96,16 +108,16 @@
     return all[Symbol.iterator]();
   });
   def(String, "fromCodePoint", function () {
-    var s = "";
+    var units = [];
     for (var i = 0; i < arguments.length; i++) {
-      var c = arguments[i];
-      s += c < 0x80 ? String.fromCharCode(c)
-        : c < 0x800 ? String.fromCharCode(0xc0 | (c >> 6), 0x80 | (c & 0x3f))
-        : c < 0x10000 ? String.fromCharCode(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f))
-        : String.fromCharCode(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 0x3f), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+      var c = Number(arguments[i]);
+      if (!(c >= 0 && c <= 0x10ffff) || c !== Math.floor(c)) throw new RangeError("Invalid code point " + arguments[i]);
+      if (c < 0x10000) units.push(c);
+      else { c -= 0x10000; units.push(0xd800 + (c >> 10), 0xdc00 + (c & 0x3ff)); }
     }
-    return s;
+    return String.fromCharCode.apply(null, units);
   });
+
   def(String, "raw", function (strings) {
     var raw = strings.raw || strings, s = "";
     for (var i = 0; i < raw.length; i++) s += raw[i] + (i + 1 < raw.length && i + 1 < arguments.length ? arguments[i + 1] : "");

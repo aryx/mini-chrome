@@ -463,7 +463,8 @@ and iterate (t : t) (v : value) (f : value -> bool) : unit =
       let rec from i = if i < n && f (get t v (string_of_int i)) then from (i + 1) in
       from 0
   | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> each (array_items o)
-  | String str -> each (List.init (String.length str) (fun i -> String (String.make 1 str.[i])))
+  (* a string's characters, a pair of halves as one (for-of, a spread, Array.from) *)
+  | String str -> each (List.map (fun cp -> String (Js_utf16.of_code_point cp)) (Js_utf16.code_points str))
   | Rope r -> iterate t (String (flatten r)) f
   | Object _ -> (
       match get t v "@@iterator" with

@@ -82,7 +82,7 @@ type value =
   | Symbol of string
   | Object of obj
 
-and rope = { mutable pieces : pieces; size : int (* its length *) }
+and rope = { mutable pieces : pieces; size : int; (* its bytes *) units : int (* its length, as a script counts it: Js_utf16 *) }
 and pieces = Flat of string | Cat of rope * rope
 
 and obj = {

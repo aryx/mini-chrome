@@ -228,6 +228,14 @@ let tests =
           Alcotest.(check string) "not told yet" "[\"posted\"]" (value t "said");
           Browser_script.advance t 10.;
           Alcotest.(check string) "told after the script" "[\"posted\", \"hello true string\"]" (value t "said"));
+      Testo.create "text and bytes: TextEncoder, TextDecoder, atob and btoa" (fun () ->
+          let t =
+            page
+              "<body><p id=p>é😀</p><script>var said = [Array.from(new TextEncoder().encode(\"é€😀\")).join(\" \"), new TextDecoder().decode(new Uint8Array([195, 169, 226, 130, 172, 240, 159, 152, 128])) === \"é€😀\",\n\
+               btoa(String.fromCharCode(0, 200, 255)), atob(\"AMj/\").charCodeAt(1), atob(\"AMj/\").length, document.getElementById(\"p\").textContent.length]</script>"
+          in
+          Alcotest.(check string) "UTF-8's bytes of a text; a byte a character in a binary string; a page's text in units"
+            "[\"195 169 226 130 172 240 159 152 128\", true, \"AMj/\", 200, 3, 3]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

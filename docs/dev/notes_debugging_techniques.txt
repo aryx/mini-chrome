@@ -1199,3 +1199,31 @@ suspects, in a minute:
 
 That was the one. A page that waits is waiting for a callback: before
 reading its code, check that every way a browser calls back does.
+
+43. The same error at every call: look for the one before, that was caught
+-------------------------------------------------------------------------
+Gmail's list was empty and the replay threw, six times, "Cannot read
+properties of undefined (reading 'Ka')" at
+
+  if ((Scj(), Qcj).Ka(b)) ...          Scj = function () { Scj = noop; Qcj = Rcj() }
+
+a value made once, on its first use (the code Closure and J2CL write
+for a class's static initializer): the function replaces itself with
+nothing BEFORE it computes. So if the computation throws the first
+time -- and somebody above catches it -- every later use finds the
+initializer gone and the value never made: the error seen is the
+second, and the cause is in the first, which was silent. Print around
+it in a copy of the bundle:
+
+  Scj = function () { Scj = noop; console.log("@@INIT start");
+          try { Qcj = Rcj() } catch (e) { console.log("@@INIT threw " + e); throw e } }
+
+  @@INIT threw Error: Sa        <- a precondition: the table is not in order
+
+then read what Rcj computes with: charCodeAt of "0٠۰...".
+One line in mini-node and in node, side by side (section 36):
+
+  "٠".length, "٠".charCodeAt(0)       ours: 2 217    node: 1 1632
+
+A check of a library on its own tables is a test of the language for
+free: when one fails, believe it.

@@ -279,6 +279,13 @@
 
 ** Features
 *** the sites
+- Gmail lists the mail: the fifteen rows of the first page are
+  built, where the middle of the window said "No new mail!". The
+  cause was the language's strings, counted in bytes (below): when
+  it starts, Gmail makes a table of the digit zero of thirty-seven
+  scripts with charCodeAt and checks that it is in order; here it
+  was not, the check threw, and the comparator that sorts the labels
+  -- made from that table -- failed at each use after
 - Gmail, while it loads and under it: the loading screen is the
   real one (the envelope, the red bar, "Google Workspace": it was a
   blank page with one line of help), and the application's frame
@@ -425,6 +432,31 @@
   a <noscript>'s content left out of a page whose scripts run
 
 *** JavaScript, the language
+- a string is counted in UTF-16's code units, as the language says,
+  over the UTF-8 bytes it is kept in (Js_utf16, new, in
+  languages/javascript/values): length, s[i], charCodeAt, charAt,
+  slice, substring, substr, indexOf, lastIndexOf, split, padStart,
+  at, a regular expression's index and lastIndex, a replacement's
+  offset. "é".length was 2 and "é".charCodeAt(0) 195; they are 1 and
+  233. A character beyond the first 65,536 is two units, a pair of
+  halves: String.fromCharCode and the "\ud83d\ude00" of a literal
+  or of JSON make the character, halves that meet by + too, and one
+  cut in two by slice keeps its half (as its three bytes: WTF-8).
+  for-of, a spread and Array.from go through a string's characters.
+  An ASCII string takes the path it took (a unit is a byte); for
+  another, a table from unit to byte is made once and kept for the
+  last strings used, so a loop over one stays linear: 200,000
+  charCodeAt on a text of accents in 0.1 s
+- a regular expression matches characters, not bytes: a set compares
+  code points ([\u0660-\u0669], [éà], [^\x00-\x7f] were "any
+  byte beyond ASCII"), the dot and a set take a whole character, a
+  character beyond ASCII is one thing to repeat (é+ repeated é's last
+  byte), and \s has Unicode's spaces (the no-break one)
+- toUpperCase and toLowerCase beyond ASCII: Latin's accented
+  letters, Greek, Cyrillic (the alphabets whose two cases are a step
+  apart; each letter checked against Node's); localeCompare puts é
+  between e and f, an accent counting only between two words
+  otherwise the same; split(sep, limit)
 - what the language has does not show: for (k in Array.prototype),
   Object.keys(Math), a Map's methods, an error's name, message and
   stack are none of them listed (the built-in objects' members are
@@ -552,6 +584,9 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- TextEncoder and TextDecoder really encode and decode UTF-8 (a
+  string was its bytes already, and they copied them); atob gives a
+  binary string, a character a byte, as everywhere
 - window.postMessage: a message a page posts to its own window is
   told to its "message" listeners, in a task of its own
   (data/prelude/web.js; it did nothing). Gmail's sync layer starts

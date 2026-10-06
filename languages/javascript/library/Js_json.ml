@@ -51,7 +51,7 @@ let parse (s : string) : value =
         | c -> Buffer.add_char b c; incr pos; go ()
     in
     go ();
-    Buffer.contents b
+    Js_utf16.joined (Buffer.contents b)
   in
   let number () : value =
     let start = !pos in

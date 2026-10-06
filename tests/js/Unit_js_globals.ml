@@ -57,7 +57,7 @@ let tests =
           check "a WeakMap, by the object" {|var w = new WeakMap(), o = {}; w.set(o, 'x'); [w.get(o), w.has({})]|} {|["x", false]|};
           check "a Map from a Map" {|new Map(new Map([[1, 2]])).get(1)|} "2");
       Testo.create "a mistake of the engine's own is the script's error, not the program's end" (fun () ->
-          check "half a surrogate pair, in a string and a pattern" {|['\ud800'.length, /[\ud800-\udfff]/.test('a')]|} "[3, false]");
+          check "half a surrogate pair, in a string and a pattern" {|['\ud800'.length, /[\ud800-\udfff]/.test('a')]|} "[1, false]");
       Testo.create "Proxy and Reflect" (fun () ->
           check "the worked example: get and set seen" {|
             const seen = [];
