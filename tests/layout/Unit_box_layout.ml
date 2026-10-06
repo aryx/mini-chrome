@@ -297,6 +297,14 @@ let tests =
           (* an icon: an svg that fills a box of 24 *)
           Alcotest.(check (list (pair near near))) "an svg the same: its block's height, else its viewBox's ratio" [ (24., 24.); (200., 200.) ]
             (sizes {|<body style="margin: 0"><div style="width: 24px; height: 24px"><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div><div><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div>|}));
+      Testo.create "what sticks out of its box is under the pointer still: a float in a row of no height" (fun () ->
+          (* a row whose columns are floats is 0 high; a line is 12 *)
+          let p = page ~width:600. {|<body style="margin:0"><div id=row><div id=col style="float:left;width:100%"><a id=link href=x>go</a> <span id=word>there</span></div></div>|} in
+          let h = Box_tree.as_html_layout p in
+          let at x y = match Hit.element_at h ~x ~y with Some e -> Option.value (Dom.attribute "id" e) ~default:e.name | None -> "none" in
+          Alcotest.(check near) "the row, of no height" 0. (box "row" p).height;
+          Alcotest.(check (list string)) "the link, the word beside it, the float's own room" [ "link"; "word"; "col" ] [ at 5. 6.; at 40. 6.; at 300. 6. ];
+          Alcotest.(check (option string)) "and the link's address" (Some "x") (Hit.link_at h ~x:5. ~y:6.));
       Testo.create "a flex item's height in percents, in a column as tall as it holds: its own" (fun () ->
           (* a line is 12 high: the item is not 0 high, and what follows is under it *)
           let p = page {|<body style="margin:0"><div id=col style="display:flex; flex-direction:column"><div id=item style="height:100%">a<br>b</div></div><p id=after style="margin:0">c</p>|} in

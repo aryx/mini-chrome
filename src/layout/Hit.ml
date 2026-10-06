@@ -31,8 +31,13 @@ let on_top (b : Html_layout.box) : Html_layout.box list = List.rev b.children
  * an empty block): what is under it is what the pointer is on *)
 let hollow (b : Html_layout.box) : bool = b.children = [] && b.lines = [] && b.floats = []
 
+(* A box is gone into whether the point is in it or not: what it holds
+ * may stick out of it -- a float out of the block it is written in (a
+ * row of floated columns is a box of no height: a cookie dialog's
+ * buttons could not be clicked), a positioned box out of its place.
+ * Its own lines are tried by their own tops, its own box by [inside]. *)
 let rec link_at (b : Html_layout.box) ~(x : float) ~(y : float) : string option =
-  if y < b.y || y > b.y +. b.height then None
+  if b.children = [] && (y < b.y || y > b.y +. b.height) then None
   else
     let in_lines =
       List.find_map
@@ -42,7 +47,7 @@ let rec link_at (b : Html_layout.box) ~(x : float) ~(y : float) : string option 
     match in_lines with Some _ -> in_lines | None -> List.find_map (fun c -> link_at c ~x ~y) (on_top b)
 
 let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layout.fragment option =
-  if y < b.y || y > b.y +. b.height then None
+  if b.children = [] && (y < b.y || y > b.y +. b.height) then None
   else
     let in_lines =
       List.find_map
@@ -71,7 +76,7 @@ let rec element_at (b : Html_layout.box) ~(x : float) ~(y : float) : Dom.element
     let top = match f.picture with Some p -> f.baseline -. p.height | None -> f.baseline -. f.look.size in
     x >= f.x && x <= f.x +. f.width && y >= top && y <= f.baseline +. (0.3 *. f.look.size)
   in
-  if not (inside b) && b.floats = [] then None
+  if (not (inside b)) && b.floats = [] && b.children = [] then None
   else
     match List.find_opt on b.floats with
     | Some f -> Some f.element

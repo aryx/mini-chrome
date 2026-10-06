@@ -565,6 +565,7 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
       match this with
       | Object ({ kind = Host_object h; _ } as o) -> Bool (get_own o k <> None || h.get (own_query ^ k) = Bool true)
       | Object o -> Bool (get_own o k <> None)
+      | Undefined | Null -> throw "TypeError" "Cannot convert undefined or null to object"
       | _ -> Bool false);
   (* Object.prototype.toString.call(x): "[object Array]", how a script
    * asked what a value was before Array.isArray; an object's own
@@ -703,6 +704,9 @@ let install ~(call : value -> this:value -> value list -> value) ~(get : value -
       ("getPrototypeOf",
        fn "getPrototypeOf" (fun ~this:_ args ->
            match arg args 0 with
+           (* of nothing: an error, not nothing -- a loop that goes up a
+            * chain of prototypes ends there (it went round for ever on null) *)
+           | Undefined | Null -> throw "TypeError" "Cannot convert undefined or null to object"
            | Object { proto = Some p; _ } -> Object p
            | Object { kind = Array _; _ } -> Object arrays
            | Object { kind = Closure _ | Host_function _; _ } -> Object functions

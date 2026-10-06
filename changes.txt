@@ -1009,6 +1009,20 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- what sticks out of its box is under the pointer still (Hit: a box is
+  gone into whether the point is in it or not): a float out of the
+  block it is written in was not -- a row of floated columns is a box
+  of no height, and nothing in it could be clicked. A cookie dialog's
+  buttons (OneTrust's, on nobelprize.org and many sites)
+- Object.getPrototypeOf(null) and hasOwnProperty.call(null, k) are
+  errors, as the standard has them (they answered null and false): a
+  loop that goes up a chain of prototypes while "typeof o is object"
+  counts on the error to end, and went round for ever on null. A
+  monitoring script (New Relic's) held nobelprize.org's page, and its
+  cookie dialog, for as long as the limit let it: 46 s to 0.2
+- a script's loop that calls no function lets the window be drawn
+  too (a breath offered every few thousand steps, not at calls only):
+  the window froze, the wheel with it, while such a loop turned
 - a long style sheet no more ends the program in a bus error:
   Css_syntax's components and rules_of_block made a call a token and
   a call a rule, and Discourse's sheet of 1.2 MB (discuss.ocaml.org)

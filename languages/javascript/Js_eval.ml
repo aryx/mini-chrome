@@ -126,6 +126,10 @@ let rec describe (e : A.expr) : string =
 let tick (t : t) : unit =
   t.steps <- t.steps - 1;
   if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)";
+  (* a loop that calls no function takes no breath by itself: one is
+   * offered every few thousand steps (the window froze, the wheel
+   * too, for as long as such a loop turned) *)
+  if t.steps land 0x1FFF = 0 then Js_slice.breath_now ();
   (* and by the clock, looked at every million steps: a page's run is
    * allowed long (an application's start), not for ever *)
   if t.steps land 0xFFFFF = 0 && Unix.gettimeofday () > t.deadline then throw "RangeError" "the script ran too long (a loop that never ends?)"

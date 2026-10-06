@@ -122,6 +122,12 @@ let tests =
             "[(function (p) { { function p() {} } return typeof p })(7), (function () { function o() { return 'outer' } (function () { { function o() { return 'inner' } } })(); return o() })()]"
             {|["number", "outer"]|};
           check "escape and unescape, 1995's" "[escape('a b&c=d/e@f'), unescape('a%20b%26c%u0041')]" {|["a%20b%26c%3Dd/e@f", "a b&cA"]|});
+      Testo.create "the end of a chain of prototypes: null, then an error" (fun () ->
+          check "going up until the property is found, or the chain's end throws (a monitoring script's loop)"
+            "function up(o, k) { var n = 0; try { for (; 'object' == typeof o && !Object.prototype.hasOwnProperty.call(o, k); n++) o = Object.getPrototypeOf(o) } catch (e) { return e.name + ' after ' + n } return n } [up({ a: 1 }, 'a'), up(Object.create({ b: 1 }), 'b'), up({}, 'nowhere')]"
+            {|[0, 1, "TypeError after 2"]|};
+          check "getPrototypeOf(null) and (undefined) are errors" "[null, undefined].map(function (v) { try { return Object.getPrototypeOf(v) } catch (e) { return e.name } })"
+            {|["TypeError", "TypeError"]|});
       Testo.create "a boolean and a symbol have every object's methods" (fun () ->
           check "(!o).hasOwnProperty(k), a minifier's false" "var o = { a: 1 }; [(!o).hasOwnProperty('a'), typeof Symbol('s').hasOwnProperty, true.toString(), false.missing]"
             "[false, \"function\", \"true\", undefined]");

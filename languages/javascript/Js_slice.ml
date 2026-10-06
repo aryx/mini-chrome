@@ -76,12 +76,19 @@ let continue () : bool =
     Condition.broadcast changed);
   wait ()
 
-let breath () : unit =
+(* the slice ended if its time is up, the clock looked at now *)
+let rec breath_now () : unit =
+  if !turn = Running && Unix.gettimeofday () -. !started > !length then pause ()
+
+and breath () : unit =
   if !turn = Running then (
     incr calls;
-    if !calls land 1023 = 0 && Unix.gettimeofday () -. !started > !length then (
-      Mutex.lock lock;
-      turn := Paused;
-      Condition.broadcast changed;
-      while !turn = Paused do Condition.wait changed lock done;
-      Mutex.unlock lock))
+    if !calls land 1023 = 0 && Unix.gettimeofday () -. !started > !length then pause ())
+
+(* the turn given to the window, and waited for back *)
+and pause () : unit =
+  Mutex.lock lock;
+  turn := Paused;
+  Condition.broadcast changed;
+  while !turn = Paused do Condition.wait changed lock done;
+  Mutex.unlock lock

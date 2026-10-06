@@ -73,3 +73,8 @@ val continue : unit -> bool
 (* the evaluator's: a slice is over if its time is, and the run waits
  * for [continue]. Nothing, outside a [run] *)
 val breath : unit -> unit
+
+(* the same, the clock looked at now and not one call in a thousand:
+ * for the evaluator's count of steps, so that a loop that calls
+ * nothing (while (x) i++) lets the window be drawn too *)
+val breath_now : unit -> unit
