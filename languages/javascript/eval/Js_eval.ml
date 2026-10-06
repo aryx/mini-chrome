@@ -56,6 +56,9 @@ let watch_check (where : string) : unit =
   | _ -> ()
 
 (* how many more calls to say, as an error leaves them (JS_STACK) *)
+(* __trace(n): how many calls are still to be said *)
+let tracing = ref 0
+
 let unwinding = Js_value.unwinding
 
 (* generator.return(v): the body left from its yield, its finally
@@ -741,6 +744,14 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
         if Sys.getenv_opt "JS_STACK" <> None then prerr_endline (Printf.sprintf "the stack is full in %s, line %d" (Option.value c.func.name ~default:"(a function with no name)") t.line);
         if Sys.getenv_opt "JS_STACK" <> None then unwinding := 40;
         throw "RangeError" "Maximum call stack size exceeded");
+      (* __trace(n), called by a script (a console's line, a replay's
+       * expression): the next n calls said, each with where its function
+       * is written -- what a handler does when it does nothing *)
+      if !tracing > 0 then (
+        decr tracing;
+        prerr_endline (Printf.sprintf "call: %s%s, line %d%s" (String.make (min 40 t.depth) ' ') (Option.value c.func.name ~default:"(no name)")
+            (match c.func.body with st :: _ -> st.line | [] -> 0)
+            (match args with [] -> "" | a :: _ -> " (" ^ (let d = display a in if String.length d > 60 then String.sub d 0 60 ^ "..." else d) ^ (if List.length args > 1 then ", ..." else "") ^ ")")));
       t.depth <- t.depth + 1;
       (* a long run lets the window draw (Js_slice) *)
       Js_slice.breath ();
@@ -1100,6 +1111,7 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   (* what a script's function gives back to OCaml is no rope either *)
   let call f ~this args = flat (call_value t f ~this args) in
   let define x v = declare globals x ~constant:false v in
+  define "__trace" (host_function "__trace" (fun ~this:_ args -> tracing := (match args with Number n :: _ -> int_of_float n | _ -> 0); Undefined));
   define "__watch"
     (host_function "__watch" (fun ~this:_ args ->
          (match args with
@@ -1170,6 +1182,10 @@ let () =
           let ask (k : string) (args : value list) : value option =
             match get t v k with
             | Object { kind = Closure _; _ } as f -> ( match call_value t f ~this:v args with Object _ -> None | p -> Some p)
+            (* a host's object with a toString of its own (a window's
+             * selection, which is its text: "" + getSelection()) *)
+            | Object { kind = Host_function _; _ } as f when (match v with Object o -> get_own o k <> None | _ -> false) -> (
+                match call_value t f ~this:v args with Object _ -> None | p -> Some p)
             | _ -> None
           in
           match ask "@@toPrimitive" [ String hint ] with

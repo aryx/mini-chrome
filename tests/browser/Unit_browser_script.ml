@@ -236,6 +236,9 @@ let tests =
           in
           Alcotest.(check string) "UTF-8's bytes of a text; a byte a character in a binary string; a page's text in units"
             "[\"195 169 226 130 172 240 159 152 128\", true, \"AMj/\", 200, 3, 3]" (value t "said"));
+      Testo.create "the page's selection is none, and its text empty" (fun () ->
+          let t = page "<body><script>var s = getSelection(); var said = [String(s), \"\" + s, s.isCollapsed, s.rangeCount, s.type]</script>" in
+          Alcotest.(check string) "what a page asks before it takes a click for one" "[\"\", \"\", true, 0, \"None\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

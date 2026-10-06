@@ -185,9 +185,15 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
       let i = int_arg args 0 ~default:0 in
       String (if i >= 0 && i < len s then cut s i (i + 1) else ""));
   def "indexOf" (fun s args -> Number (float_of_int (units s (index_of s (to_string (arg args 0)) (byte s (int_arg args 1 ~default:0))))));
-  def "includes" (fun s args -> Bool (index_of s (to_string (arg args 0)) 0 >= 0));
-  def "startsWith" (fun s args -> Bool (String.starts_with ~prefix:(to_string (arg args 0)) s));
-  def "endsWith" (fun s args -> Bool (String.ends_with ~suffix:(to_string (arg args 0)) s));
+  (* each from a position, its second argument: includes(x, from),
+   * startsWith(x, at), endsWith(x, upto) *)
+  def "includes" (fun s args -> Bool (index_of s (to_string (arg args 0)) (byte s (int_arg args 1 ~default:0)) >= 0));
+  def "startsWith" (fun s args ->
+      let prefix = to_string (arg args 0) and at = byte s (max 0 (int_arg args 1 ~default:0)) in
+      Bool (at + String.length prefix <= String.length s && String.sub s at (String.length prefix) = prefix));
+  def "endsWith" (fun s args ->
+      let suffix = to_string (arg args 0) and upto = byte s (max 0 (int_arg args 1 ~default:max_int)) in
+      Bool (upto >= String.length suffix && String.sub s (upto - String.length suffix) (String.length suffix) = suffix));
   (* split(sep, limit): the first [limit] pieces *)
   let limited args (pieces : value list) : value = match arg args 1 with Undefined -> array pieces | n -> array (List.filteri (fun i _ -> i < int_of_float (to_number n)) pieces) in
   def "split" (fun s args ->
@@ -216,7 +222,9 @@ let string_methods ~(call : value -> this:value -> value list -> value) ~(regexp
   def "lastIndexOf" (fun s args ->
       let needle = to_string (arg args 0) in
       let rec go i = if i < 0 then -1 else if i + String.length needle <= String.length s && String.sub s i (String.length needle) = needle then i else go (i - 1) in
-      Number (float_of_int (units s (go (String.length s - String.length needle)))));
+      (* from its second argument backwards (s.lastIndexOf(p, 0) == 0: "starts with p", as Closure writes it) *)
+      let from = match arg args 1 with Undefined -> max_int | v -> ( match to_number v with n when Float.is_nan n -> max_int | n -> byte s (max 0 (int_of_float n))) in
+      Number (float_of_int (units s (go (min from (String.length s - String.length needle))))));
   def "charCodeAt" (fun s args ->
       let i = int_arg args 0 ~default:0 in
       Number (match Js_utf16.unit s i with -1 -> Float.nan | u -> float_of_int u));
@@ -374,13 +382,23 @@ let array_methods ~(call : value -> this:value -> value list -> value) ~(get : v
   def "join" (fun arr _ args ->
       let sep = match arg args 0 with Undefined -> "," | v -> to_string v in
       String (String.concat sep (List.map (fun v -> match v with Undefined | Null -> "" | v -> to_string v) (array_items arr))));
-  let find_index arr v = let rec go i l = match l with [] -> -1 | x :: r -> if strict_equal x v then i else go (i + 1) r in go 0 (array_items arr) in
-  def "indexOf" (fun arr _ args -> Number (float_of_int (find_index arr (arg args 0))));
-  def "includes" (fun arr _ args -> Bool (find_index arr (arg args 0) >= 0));
+  (* from a position, the second argument (a negative one: from the end) *)
+  let find_index ?(same = strict_equal) arr v from =
+    let items = array_items arr in
+    let from = if from < 0 then max 0 (List.length items + from) else from in
+    let rec go i l = match l with [] -> -1 | x :: r -> if i >= from && same x v then i else go (i + 1) r in
+    go 0 items
+  in
+  def "indexOf" (fun arr _ args -> Number (float_of_int (find_index arr (arg args 0) (int_arg args 1 ~default:0))));
+  (* includes finds NaN, which is equal to nothing *)
+  let same_zero a b = strict_equal a b || (match (a, b) with Number x, Number y -> Float.is_nan x && Float.is_nan y | _ -> false) in
+  def "includes" (fun arr _ args -> Bool (find_index ~same:same_zero arr (arg args 0) (int_arg args 1 ~default:0) >= 0));
   def "lastIndexOf" (fun arr _ args ->
-      let v = arg args 0 in
-      let rec go i l = match l with [] -> -1 | x :: r -> if strict_equal x v then i else go (i - 1) r in
-      Number (float_of_int (go (List.length (array_items arr) - 1) (List.rev (array_items arr)))));
+      let v = arg args 0 and items = array_items arr in
+      let n = List.length items in
+      let from = match arg args 1 with Undefined -> n - 1 | f -> ( match int_of_float (to_number f) with f when f < 0 -> n + f | f -> min f (n - 1)) in
+      let rec go i l = match l with [] -> -1 | x :: r -> if i <= from && strict_equal x v then i else go (i - 1) r in
+      Number (float_of_int (go (n - 1) (List.rev items))));
   (* splice(start, count, items...): the removed, the items put in their place *)
   def "splice" (fun arr items args ->
       let all = array_items arr in

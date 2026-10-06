@@ -151,7 +151,15 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   state ~replace:true "replaceState";
   define "history" history;
   define "screen" (object_of [ ("width", Number (fst viewport)); ("height", Number (snd viewport)); ("availWidth", Number (fst viewport)); ("availHeight", Number (snd viewport)) ]);
-  define "getSelection" (fn "getSelection" (fun _ -> object_of [ ("rangeCount", Number 0.); nothing "removeAllRanges"; nothing "addRange"; ("toString", fn "toString" (fun _ -> String "")) ]));
+  (* the page's selection, as a script sees it: none (the browser's own
+   * selection of a page's text is not told to its scripts). A page
+   * asks it before it takes a click for one: Gmail opens no mail
+   * while "" + getSelection() is not empty *)
+  define "getSelection"
+    (fn "getSelection" (fun _ ->
+         object_of
+           [ ("rangeCount", Number 0.); ("isCollapsed", Bool true); ("type", String "None"); ("anchorNode", Null); ("focusNode", Null); ("anchorOffset", Number 0.); ("focusOffset", Number 0.);
+             nothing "removeAllRanges"; nothing "addRange"; nothing "collapse"; nothing "empty"; nothing "selectAllChildren"; nothing "removeRange"; ("toString", fn "toString" (fun _ -> String "")) ]));
   (* CSS.supports says yes: an application asks it to tell an old
    * browser from one of its year (aspect-ratio, subgrid, relative
    * colours: Discourse's check), and stops if not; what we do not

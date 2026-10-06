@@ -1123,6 +1123,18 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- the second argument of a search is its starting position, and was
+  ignored by eight methods: a string's lastIndexOf, includes,
+  startsWith and endsWith, an array's indexOf, lastIndexOf and
+  includes (which also finds NaN now). Closure writes "s starts with
+  p" as s.lastIndexOf(p, 0) == 0: with the argument ignored it was
+  true only when p was nowhere else in s, and Gmail, which names a
+  row "r#thread-f:...", never knew a row had been clicked
+- the page's selection is none and its text empty: "" +
+  getSelection() was "[object Object]" (an object of the host's with
+  a toString of its own is asked it, as a script's is), which a page
+  reads as "some text is selected" -- and does not take the click
+  for one
 - console.log of a Map (or of any object with a getter made by the
   engine) never returned: an accessor was written by asking for its
   value as text, which went round. Said "[Getter]" now, and a Map
@@ -1285,6 +1297,10 @@
 - bin/ symlink to _build/install/default/bin: ./bin/mini-chrome
 
 ** test infra
+- two more switches for a page that does nothing: JS_EVENTS="click
+  mousedown" says each element on an event's way that listens for
+  it, and __trace(n), called from a replay's expression, says the
+  next n calls with the line each function is written at
 - MINI_DUMP_ANSWERS=DIR: the browser writes each answer given to a
   page's scripts (DIR/_seq/<md5 of the address>-<n>, in order), and
   Page_scripts.exe gives them back with no network: a signed-in

@@ -129,11 +129,22 @@ let dispatch_event ?(nested = false) (t : t) (target : node option) (event : val
     | Some n when not (flag "cancelBubble") ->
         (* el.onclick = f, else onclick="..." *)
         let on = match List.assoc_opt ("on" ^ typ) n.expando with Some (Object _ as f) -> Some f | _ -> attribute_handler ~nested t n typ in
+        (* JS_EVENTS="click mousedown": each element on the event's way that
+         * listens for it, said (who hears a click, when nothing happens) *)
+        (match Sys.getenv_opt "JS_EVENTS" with
+        | Some types when List.mem typ (String.split_on_char ' ' types) ->
+            let heard = List.length (List.filter (fun (ty, _) -> ty = typ) n.listeners) + if on = None then 0 else 1 in
+            if heard > 0 then prerr_endline (Printf.sprintf "event: %s heard by <%s class=%S> (%d)" typ n.name (Option.value (attribute n "class") ~default:"") heard)
+        | _ -> ());
         handle (wrap t n) n.listeners ~remove:(fun f -> n.listeners <- List.filter (fun (ty, g) -> not (ty = typ && g == f)) n.listeners) on;
         if flag "bubbles" then up n.parent
     | _ -> ()
   in
   up target;
+  (match Sys.getenv_opt "JS_EVENTS" with
+  | Some types when List.mem typ (String.split_on_char ' ' types) ->
+      prerr_endline (Printf.sprintf "event: %s at the document and the window: %d listeners%s" typ (List.length (List.filter (fun (ty, _) -> ty = typ) t.document_listeners)) (if flag "cancelBubble" then " (stopped before)" else ""))
+  | _ -> ());
   if (target = None || flag "bubbles") && not (flag "cancelBubble") then
     handle document t.document_listeners ~remove:(fun f -> t.document_listeners <- List.filter (fun (ty, g) -> not (ty = typ && g == f)) t.document_listeners) None;
   flag "defaultPrevented"
