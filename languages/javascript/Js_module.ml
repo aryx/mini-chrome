@@ -79,6 +79,9 @@ let parse (text : string) : (A.program, Js_parse.error) result =
  * thread otherwise *)
 let ahead (text : string) : unit = if !Mini_opti.enabled && known text = None then keep text (Js_parse.parse text)
 
+(* and a script that is not a module finds its text read the same way *)
+let () = Js_eval.read_ahead := fun text -> if !Mini_opti.enabled then Option.map snd (known text) else None
+
 let specifiers (text : string) : string list = match parse text with Ok program -> named program | Error _ -> []
 
 (* the names a declaration declares *)

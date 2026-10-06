@@ -467,3 +467,46 @@ the optimized one does, before and after):
 | `Window_view.view` | a new list of shapes and a frame drawn, sixty times a second | the list of the frame before for the same model: the platform draws nothing | a frame at rest 12-72 ms | 0.3 ms |
 | `Stroke_text.glyph` | a letter its pen's strokes, ten to twenty shapes | one picture made once (`Glyph_picture`) | a frame of about:chrome drawn 74 ms | 8 ms |
 | `Selectors.has_word`, `Cascade.key`, `Computed.compute` | a class's words listed at each selector tried; rules with no id, class or name tried on every element; declarations searched as a list | the attribute's text scanned; those rules under an attribute's name or a `:where()`'s class; a table | a style pass of GitHub's page 3.0 G instructions | 1.3 G |
+
+## YouTube's search page (2026-10-05)
+
+"It takes a long time to get a working page." First what long was:
+the dumps waited for a frame number, and their "1 min 47" was mostly
+that. With a time on each line of `-v` (OCaml 5.5.1):
+
+| | before | after |
+|---|---|---|
+| the page's HTML | 0.9 s | |
+| its 10 MB of script had | 3.2 s | 5.3 s, read |
+| the first results asked for (their thumbnails) | 19.4 s | 14.8 s |
+| the last | 48.9 s | 41.4 s |
+| scripts, in all | 34.7 s | 24.4 s |
+| parsing on the window's thread | 4.2 s | 0.8 s |
+
+No perf here, and gdb cannot attach: gdb started with the program, a
+loop of `kill -INT` four times a second, `bt 14` and `continue` at
+each (docs/dev/notes_debugging_techniques.txt). Of 196 samples of the
+page replayed with no network, 105 were in the collector; attributed
+to the OCaml function above it:
+
+- 41: `^`, from JavaScript's `+` on strings. Counted: 100,000 appends
+  to four strings of 60 KB, a character each (the anti-robot code's
+  base64), 1.5 GB copied, each copy allocated in the major heap. Left:
+  a string that can be appended to is a rope, and `String of string`
+  is matched all over the engine.
+- 35: `Script_dom.freeze` and `beside`, a selector's search. Counted
+  by selector: one, `*`, 5,285 times, 6.4 million elements copied --
+  our own registry of custom elements at each element connected and
+  each class defined. Answered now without a copy (`select_opti`).
+- the rest is the engine running.
+
+Then the parse of a script that is not a module, moved to the worker
+that fetched it (`Js_eval.read_ahead`). Under OCaml 5 it runs beside
+the window; nothing else was waiting, so the first results come no
+sooner for it -- the page is just not frozen meanwhile.
+
+What the 15 s to the first results are now: 5 s the script fetched and
+read, 6 s its first run, 2.4 s waiting for one answer of YouTube's
+(`GenerateIT`, its attestation), 1 s the results drawn. And after: 61
+layouts, 12 s of styles. Next, by what the samples say: the strings,
+the styles of a tree that changed little, and the engine itself.

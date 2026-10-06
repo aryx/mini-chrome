@@ -122,6 +122,11 @@ val error_of : t -> Js_value.value -> error
  * console prints after a line typed *)
 val run : t -> Js_ast.program -> (Js_value.value, error) result
 
+(* a text's program if it was read already, elsewhere (Js_module's
+ * memo, filled by [Js_module.ahead] where the text was fetched):
+ * [eval] asks before it parses *)
+val read_ahead : (string -> (Js_ast.program, Js_parse.error) result option) ref
+
 (* parse, then run *)
 val eval : t -> string -> (Js_value.value, error) result
 

@@ -48,6 +48,14 @@ let tests caps =
           let page = Browser_helpers.opened caps rule ~url:"http://x.org/paper.ps" "%!PS-Adobe-3.0" in
           let has sub = Str.string_match (Str.regexp (".*" ^ Str.quote sub)) page 0 in
           Alcotest.(check bool) ("the tab told: " ^ page) true (has "Opened with <b>true</b>" && has "paper.ps");
+          (* the rules that need no writing, the person's before them; a program not on the machine is no rule *)
+          let own : Browser_helpers.t = [ { site = Some "youtube.com/watch"; kind = None; run = [ "sh"; "%u" ] }; { site = Some "x.org"; kind = None; run = [ "mini-chrome-no-such-program" ] } ] in
+          let video = "https://www.youtube.com/watch?v=abc" in
+          Alcotest.(check (option string)) "the person's rule first" (Some "sh") (Option.map Browser_helpers.name (Browser_helpers.for_url (Browser_helpers.table caps own) video));
+          Alcotest.(check bool) "the default: a video of YouTube's to mpv" true
+            (List.for_all (fun (r : Browser_helpers.rule) -> r.run = [ "mpv"; "%u" ] && r.kind = None) Browser_helpers.defaults
+            && Option.map Browser_helpers.name (Browser_helpers.for_url Browser_helpers.defaults video) = Some "mpv");
+          Alcotest.(check bool) "a program that is not there: no rule" true (Browser_helpers.for_url (Browser_helpers.table caps own) "http://x.org/" = None);
           Alcotest.(check bool) "a program that does not exist is an error, not a crash" true
             (match Browser_helpers.launch caps [ "mini-chrome-no-such-program" ] with Error _ -> true | Ok () -> false));
       Testo.create "the omnibox: clicked, its text selected; the keys, a drag, a double click, copy and paste" (fun () ->

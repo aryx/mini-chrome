@@ -208,6 +208,18 @@ let matches_opti (selector : string) (n : node) : bool =
   List.exists (fun (r : Css.rule) -> Css.matches r.selector ancestors e) rules
 
 let select_opti (selector : string) ~(within : node) : node list =
+  (* opti: "*" is every element under it, and needs no tree frozen to
+   * say so. A page's components ask it at each one they connect, and
+   * our registry of custom elements does (data/prelude/web.js): 5,285
+   * times for YouTube's search page, 6.4 million elements copied:
+   * its scripts replayed went from 36 s to 29 (OCaml 5.5; 45 to 30
+   * with 4.14) *)
+  if String.trim selector = "*" then
+    (* as the search below goes: through elements, and what is not one (a shadow root) is not entered but from the top *)
+    let rec under (n : node) : node list = List.concat_map (fun c -> if is_element c then c :: under c else []) n.children in
+    let rec from (n : node) : node list = if is_element n then n :: under n else List.concat_map from n.children in
+    if is_element within then under within else List.concat_map from within.children
+  else
   let rules = rules_of selector in
   let found = ref [] in
   let rec beside ~(own : bool) (ancestors : Dom.element list) (n : node) (e : Dom.element) =

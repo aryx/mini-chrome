@@ -56,4 +56,4 @@ val init :
  * it (the main's, which saves them: Browser_cookies); an empty one if
  * none is given *)
 
-val update : < Cap.network ; Cap.open_out ; Cap.exec ; .. > -> msg -> model -> model * msg Cmd.t
+val update : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. > -> msg -> model -> model * msg Cmd.t

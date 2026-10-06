@@ -69,6 +69,28 @@ let name (r : rule) : string = match r.run with program :: _ -> Filename.basenam
 let command (r : rule) ~(url : string) ~(file : string option) : string list =
   List.map (function "%u" -> url | "%f" -> Option.value file ~default:url | word -> word) r.run
 
+(* the rules that need no writing: a film of YouTube's to mpv, asked
+ * for by the menu (by a type, a program would run with no click: those
+ * are the person's to write) *)
+let defaults : t =
+  List.map (fun site -> { site = Some site; kind = None; run = [ "mpv"; "%u" ] }) [ "youtube.com/watch"; "youtube.com/shorts/"; "youtu.be/" ]
+
+(* is the program there: a path that is a file, or a name in one of PATH's directories *)
+let found : (string, bool) Hashtbl.t = Hashtbl.create 8
+
+let installed (caps : < Cap.env ; .. >) (program : string) : bool =
+  match Hashtbl.find_opt found program with
+  | Some b -> b
+  | None ->
+      let path = match CapSys.getenv caps "PATH" with p -> p | exception Not_found -> "" in
+      let is_file f = Sys.file_exists f && not (Sys.is_directory f) in
+      let b = if String.contains program '/' then is_file program else List.exists (fun dir -> dir <> "" && is_file (Filename.concat dir program)) (String.split_on_char ':' path) in
+      Hashtbl.replace found program b;
+      b
+
+let table (caps : < Cap.env ; .. >) (own : t) : t =
+  List.filter (fun r -> match r.run with program :: _ -> installed caps program | [] -> false) (own @ defaults)
+
 (*****************************************************************************)
 (* Running one *)
 (*****************************************************************************)

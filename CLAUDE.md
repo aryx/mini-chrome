@@ -98,8 +98,13 @@ form). A rule for a site (`{"site": "youtube.com/watch", "run":
 ["mpv", "%u"]}`) puts "Open with mpv" in the right click's menu, on
 the page and on a link to it; a rule for a content type (`{"type":
 "application/postscript", "run": ["gv", "%f"]}`) has a page of that
-type written to a file and the program run on it. Only a program
-named there is ever run, by `Cap.exec`, without a fork of ours
+type written to a file and the program run on it. After the person's
+rules come the built-in ones (`Browser_helpers.defaults`: a YouTube
+video's address to mpv -- by an address only, which runs on a click
+of the menu; a rule by a type runs with no click and stays the
+person's to write), and a rule whose program is not on the machine is
+no rule (`table`, with `Cap.env` for PATH). Only a program named in
+one of the two is ever run, by `Cap.exec`, without a fork of ours
 (`Unix.create_process`: OCaml 5's domains) and not waited for.
 
 The cookies with a date are beside it, in `Cookies` (JSON too,

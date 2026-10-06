@@ -96,6 +96,18 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- YouTube's search, first results after 15 s where it was 19, all of
+  them after 41 where it was 49 (OCaml 5.5.1). Sampled (gdb started
+  with the program and interrupted four times a second: half the
+  samples in the collector), then counted: querySelectorAll("*") was
+  asked 5,285 times, each a copy of the tree it searches -- 6.4
+  million elements -- mostly by our own registry of custom elements;
+  it is now the elements under it, nothing copied. And a script that
+  is not a module is parsed where it was fetched, as modules were
+  (Js_eval.read_ahead): 3.2 s of the window's thread to 0.8. Found
+  and left: strings built a character at a time by the site's
+  anti-robot code (100,000 appends, 1.5 GB copied: a seventh of the
+  scripts' time, and a rope's worth of change to the engine)
 - OCaml 5: the pool's workers are domains (Worker_spawn, chosen by
   dune on the compiler's version; threads under 4.14, the same
   source), so fetching, TLS, decompression and pictures' decoding run
@@ -254,7 +266,9 @@
   such a page written to a file and the program run on it, the tab
   saying so. Only a program named there is run (Cap.exec), each
   argument its own, started without a fork (OCaml 5's domains) and
-  not waited for. mini-httpd says a .ps file is PostScript
+  not waited for. mini-httpd says a .ps file is PostScript. One rule
+  needs no writing: a YouTube video's address to mpv, when mpv is
+  installed; the profile's rules come before it
 - A custom element is told of an attribute it observes set or
   removed later (attributeChangedCallback, from setAttribute and
   removeAttribute; not inside a <template>'s content, which a browser

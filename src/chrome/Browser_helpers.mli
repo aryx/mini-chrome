@@ -16,8 +16,9 @@
  * the page, and the browsers since have taken nearly every kind in:
  * what is left of the table is the dialog "open with".
  *
- * Here the table is the person's, in the profile's Preferences, and
- * empty until they write it:
+ * Here the table has one rule of its own -- a video of YouTube's to
+ * mpv, if mpv is there ([defaults]) -- and before it the person's, in
+ * the profile's Preferences:
  *
  *   "helpers": [
  *     { "site": "youtube.com/watch", "run": ["mpv", "%u"] },
@@ -69,6 +70,16 @@ type t = rule list
 (* the "helpers" of a Preferences, and back; what is not a rule is skipped *)
 val of_json : Json.t -> t
 val to_json : t -> Json.t
+
+(* the rules that need no writing: a YouTube video's address to mpv.
+ * By an address only -- those run when the menu's item is chosen; a
+ * rule by a type runs with no click, and is the person's to write *)
+val defaults : t
+
+(* [table caps own]: the person's rules, then [defaults], less those
+ * whose program is not on this machine (a path, or a name in PATH's
+ * directories; looked for once) *)
+val table : < Cap.env ; .. > -> t -> t
 
 (* the first rule for this address; for this content type (its
  * parameters, "; charset=...", not looked at) *)

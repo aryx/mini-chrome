@@ -322,7 +322,13 @@ let rec fetch_more (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, c
         fetch_more cfg network (with_arrived cfg tab url pic, cmd)
       else
         (* a picture: decoded where it is fetched *)
-        let ready = if kind_of tab url = Picture then Some (fun (r : Fetch.response) -> if r.status / 100 = 2 then Browser_picture.warm r.body) else None in
+        (* and a script read (parsed) there too *)
+        let ready =
+          match kind_of tab url with
+          | Picture -> Some (fun (r : Fetch.response) -> if r.status / 100 = 2 then Browser_picture.warm r.body)
+          | Script -> Some (fun (r : Fetch.response) -> if r.status / 100 = 2 then Js_module.ahead r.body)
+          | _ -> None
+        in
         let get = Cmd.Msg (cfg.fetch (Fetch.get ?ready network url (cfg.got_picture url))) in
         fetch_more cfg network (logged (kind_of tab url) url { tab with in_flight = url :: tab.in_flight }, Cmd.batch [ cmd; get ]))
   | _ -> (tab, cmd)

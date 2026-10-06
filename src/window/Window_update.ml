@@ -165,7 +165,7 @@ let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) opt
   | _ -> None
 
 (* a message: for the page's scripts, then for the browser *)
-let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
   (* a page that is a program (a game, the Playground's own web
    * platform) is told first; then the browser does its own, unless a
@@ -192,7 +192,7 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg : msg)
  * most taps. So a key, or the button, let go before the page has run a
  * frame since it went down is kept ([late]) and told right after that
  * frame, which is this Tick's (the page's timers run on it) *)
-and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   match msg with
   | Key_up k when List.mem (String.lowercase_ascii k) m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
   | Mouse_up when List.mem "mouse" m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
@@ -202,7 +202,7 @@ and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg : msg) (
       (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) late))
   | _ -> step caps msg m
 
-and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
   (* the menu is over a page that stays as it is: closed by what
    * moves the page, and by Escape *)
@@ -217,7 +217,7 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg 
         match r with
         | Ok ({ headers; body; _ } as answer) -> (
             let kind = List.find_map (fun (name, value) -> if String.lowercase_ascii name = "content-type" then Some value else None) headers in
-            match Option.bind kind (Browser_helpers.for_type m.profile.helpers) with
+            match Option.bind kind (Browser_helpers.for_type (Browser_helpers.table caps m.profile.helpers)) with
             | Some rule ->
                 let headers = ("Content-Type", "text/html; charset=utf-8") :: List.filter (fun (name, _) -> String.lowercase_ascii name <> "content-type") headers in
                 Ok { answer with headers; body = Browser_helpers.opened caps rule ~url body }
@@ -292,7 +292,7 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; .. >) (msg 
           let link = Option.map (resolve p.url) (hovered m) in
           (* the helper program for the link, or for the page *)
           let target = Option.value link ~default:p.url in
-          let helper = Option.map (fun r -> (Browser_helpers.name r, Browser_helpers.command r ~url:target ~file:None)) (Browser_helpers.for_url m.profile.helpers target) in
+          let helper = Option.map (fun r -> (Browser_helpers.name r, Browser_helpers.command r ~url:target ~file:None)) (Browser_helpers.for_url (Browser_helpers.table caps m.profile.helpers) target) in
           let items = Browser_menu.items ?helper ~link ~back:(tab.history.behind <> []) ~forward:(tab.history.ahead <> []) () in
           ({ m with menu = Some (Gui_menu.opened ~screen:m.screen ~at:m.mouse items); omnibox = None }, Cmd.none)
       | _ -> ({ m with menu = None }, Cmd.none))

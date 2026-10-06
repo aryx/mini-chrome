@@ -1194,8 +1194,14 @@ let exec_module (t : t) (s : scope) (program : A.program) : unit =
 
 let call_in_run = call_value
 
+(* opti: a text already read, where it was fetched (Js_module.ahead,
+ * which sets this: a worker of the pool reads a script's megabytes
+ * while the window's thread does something else). YouTube's 10 MB:
+ * 3.2 s of parsing on the window's thread became 0.8 *)
+let read_ahead : (string -> (A.program, Js_parse.error) result option) ref = ref (fun _ -> None)
+
 let eval (t : t) (text : string) : (value, error) result =
-  match Stopwatch.time "parse" (fun () -> Js_parse.parse text) with
+  match (match !read_ahead text with Some r -> r | None -> Stopwatch.time "parse" (fun () -> Js_parse.parse text)) with
   | Ok program -> run t program
   | Error e -> Error { line = e.line; message = "SyntaxError: " ^ e.message }
 

@@ -852,3 +852,26 @@ read the source at that line before judging the message's printing.
 - A request refused: try it once with curl under another browser's
   name before blaming ours. 403 for both is the server's reason, not
   the client's.
+
+29. A sampling profiler out of gdb and kill
+-------------------------------------------
+No perf, and gdb -p is refused (ptrace). gdb started with the program
+can still be interrupted from outside:
+
+    (printf 'set pagination off\nhandle SIGINT stop nopass\nrun\n'; for i in $(seq 260); do echo 'bt 14'; echo continue; done) > cmds
+    setsid gdb -q -batch -x cmds --args PROGRAM ARGS < /dev/null > gdb.txt 2>&1 &
+    p=$(pgrep -x PROGRAM-15-CHARS); while kill -INT $p; do sleep 0.25; done
+
+(setsid and < /dev/null, or gdb in the background stops at once; "run"
+with no redirection.) Each "#0" in gdb.txt is a sample. Count the
+innermost frames; then, since half were the collector's, the first
+frame that is OCaml's (caml[A-Z]...) and the two above it: who was
+allocating. Two lines of that list were 40% of the time.
+
+30. Then count, do not guess
+----------------------------
+A hot function says where, not why. A counter put in it for one run
+(a table by argument, printed at_exit; taken out after): the selector
+searched for was "*", 5,285 times; the strings joined were four,
+grown a character at a time. Keep the file's original beside
+(cp to the scratch directory) to put it back whole.

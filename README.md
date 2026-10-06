@@ -186,8 +186,11 @@ profile (`~/.config/mini-chrome/Preferences`, JSON).
 
 What the browser does not show itself can be given to a program of
 yours, as Mosaic gave PostScript to ghostview: its "helper
-applications". They are written by hand in the profile's
-`Preferences`, and none is there until you do:
+applications". One needs no writing: a right click on a YouTube
+video's page, or on a link to one, offers "Open with mpv" when mpv is
+installed. Others, and other programs for the same, are written by
+hand in the profile's `Preferences`, and come before the built-in
+one:
 
 ```json
 {

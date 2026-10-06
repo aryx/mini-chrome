@@ -137,14 +137,16 @@ let tests =
               JSON.stringify([document.querySelectorAll("li").length, a.querySelectorAll(":scope > ul > li").length, a.querySelectorAll("li:first-child")[0].textContent,
                 a.querySelectorAll("li:last-child")[0].textContent, a.querySelector(".x") === null, document.querySelectorAll(".x").length,
                 s.matches("div.x li span"), s.matches("ul > span"), s.closest("li").textContent, s.closest(".y").id, s.matches("li:nth-child(2) > span"),
-                a.querySelectorAll("li + li").length, document.querySelectorAll("div p, body > p").length])|}
+                a.querySelectorAll("li + li").length, document.querySelectorAll("div p, body > p").length,
+                a.querySelectorAll("*").length, document.querySelectorAll(" * ").length, Array.from(a.querySelectorAll("*")).map(e => e.tagName).join(""),
+                document.createDocumentFragment().querySelectorAll("*").length])|}
           in
           let ask opti =
             let before = !Mini_opti.enabled in
             Mini_opti.enabled := opti;
             Fun.protect ~finally:(fun () -> Mini_opti.enabled := before) (fun () -> run ~html asks)
           in
-          Alcotest.(check string) "what they find" {|[3,3,"1","3",true,2,true,false,"2in","a",true,2,1]|} (ask true);
+          Alcotest.(check string) "what they find" {|[3,3,"1","3",true,2,true,false,"2in","a",true,2,1,5,9,"ULLILISPANLI",0]|} (ask true);
           Alcotest.(check string) "the same, the simple way" (ask true) (ask false));
       Testo.create "Event_loop, the worked example: a task, its microtasks, then the next task" (fun () ->
           let t = Browser_script.create ~base:"http://site.test/" (Html_tree.of_string "<body></body>") in
