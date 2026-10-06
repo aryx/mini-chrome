@@ -279,6 +279,16 @@
 
 ** Features
 *** the sites
+- Gmail's application starts: its scripts, which ran for minutes and
+  were given up on, are done in four seconds, and the page it builds
+  has its banner, its search box and its tabs -- the mail itself is
+  the next step. Three things stood in the way, each a line of the
+  standard we had wrong (see the bug fixes: a number past OCaml's
+  int, document.readyState) or did not have: an <iframe>'s
+  contentWindow and contentDocument, an empty page's window
+  (data/prelude/web.js; a frame's own page is not loaded), on which
+  Gmail listens for "resize" -- the old trick to be told that the
+  text's size changed
 - YouTube's search page whole: its twenty results, the views and
   ages, the channels' pictures, the filter chosen; the lower ones'
   thumbnails come as the page is scrolled. MutationObserver is told
@@ -1009,6 +1019,20 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- 0x7fffffffffffffff is that number, not -1 (Js_lexer: a hexadecimal,
+  octal or binary number is read digit by digit as a float; OCaml's
+  int_of_string wraps past 62 bits). Closure's Long.fromNumber asks
+  "a >= 0x7fffffffffffffff": every number was the largest there is,
+  and a division of two of them went round until the clock stopped
+  it -- Gmail's first minutes. And an integer past 2^53 is written as
+  JavaScript writes it, 9223372036854776000 (its shortest digits,
+  then zeros), not ...775808
+- document.readyState is "loading" while the page's scripts are read,
+  "interactive" at DOMContentLoaded, "complete" at load, and
+  "readystatechange" is said at each (it was "complete" from the
+  start): a script that asks whether the page is all there before
+  waiting for what is to come -- Gmail's, for the data a later script
+  brings -- was told there was nothing to wait for
 - what sticks out of its box is under the pointer still (Hit: a box is
   gone into whether the point is in it or not): a float out of the
   block it is written in was not -- a row of floated columns is a box

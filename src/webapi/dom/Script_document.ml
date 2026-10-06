@@ -102,7 +102,7 @@ let document (t : t) : value =
           (* "a=1; b=2", the browser's for this page *)
           | "cookie" -> String (fst t.cookies ())
           | "referrer" -> String ""
-          | "readyState" -> String "complete"
+          | "readyState" -> String t.ready
           | "defaultView" -> Option.value (Js_eval.global t.engine "window") ~default:Undefined
           | "createTextNode" -> method_ k (fun args -> wrap t (make text_name ~text:(str (arg args 0))))
           | "addEventListener" ->

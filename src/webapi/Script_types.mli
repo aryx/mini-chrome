@@ -113,4 +113,7 @@ type t = {
   (* the prototypes of the host objects, by kind ("element", "text",
    * "comment", "fragment"): HTMLElement.prototype... (Script_window) *)
   mutable protos : (string * obj) list;
+  (* document.readyState: "loading" while the page's scripts run,
+   * "interactive" at DOMContentLoaded, "complete" at load *)
+  mutable ready : string;
 }

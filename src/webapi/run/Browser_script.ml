@@ -173,7 +173,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
       now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; submission = None; current_script = None; cookies;
-      more = (fun _ _ -> None); scroll_y = 0.; where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
+      more = (fun _ _ -> None); scroll_y = 0.; where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = []; ready = "loading" }
   in
   t.more <- Script_element.get t;
   t.where <- (fun n -> !where_later t n);
@@ -320,11 +320,16 @@ let run_scripts ?(source = fun (_ : string) -> None) (t : t) : unit =
     (List.filter (fun e -> e.name = "script" && is_module e) (elements t.root));
   run_modules t;
   (* then the document is loaded: its listeners told *)
+  (* (a page asks document.readyState whether its scripts are still
+   * being read: Gmail's gives up on the data of a script yet to come
+   * if told "complete" too soon) *)
+  let tell typ = List.iter (fun (ty, f) -> if ty = typ then ignore (run_handler t f ~this:Undefined Undefined)) t.document_listeners in
   List.iter
-    (fun typ ->
-      let listeners = List.filter (fun (ty, _) -> ty = typ) t.document_listeners in
-      List.iter (fun (_, f) -> ignore (run_handler t f ~this:Undefined Undefined)) listeners)
-    [ "DOMContentLoaded"; "load" ];
+    (fun (state, typ) ->
+      t.ready <- state;
+      tell "readystatechange";
+      tell typ)
+    [ ("interactive", "DOMContentLoaded"); ("complete", "load") ];
   (* and window.onload = f, the way of 1996, which a program compiled by
    * js_of_ocaml still starts on *)
   match Js_eval.global t.engine "onload" with

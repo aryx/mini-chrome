@@ -231,7 +231,14 @@ let tokenize (s : string) : token list =
       while !j < n && (is_digit s.[!j] || (Char.lowercase_ascii s.[!j] >= 'a' && Char.lowercase_ascii s.[!j] <= 'f')) do
         incr j
       done;
-      emit (Number (float_of_int (int_of_string (sub i !j)))) !line;
+      (* digit by digit, as a float: 0x7fffffffffffffff (the largest
+       * of a 64-bit integer, in Closure's Long) is past OCaml's int,
+       * which would read it as -1 *)
+      let base = match Char.lowercase_ascii s.[i + 1] with 'x' -> 16. | 'o' -> 8. | _ -> 2. in
+      let digit c = float_of_int (if is_digit c then Char.code c - 48 else Char.code (Char.lowercase_ascii c) - 87) in
+      let value = ref 0. in
+      String.iter (fun c -> value := (!value *. base) +. digit c) (sub (i + 2) !j);
+      emit (Number !value) !line;
       if !j < n && s.[!j] = 'n' then incr j;
       !j)
     else

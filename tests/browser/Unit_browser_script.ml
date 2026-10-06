@@ -196,6 +196,24 @@ let tests =
           let t = page "<script>document.addEventListener(\"DOMContentLoaded\", () => alert(\"ready\"));\nalert(\"first\")</script>" in
           Alcotest.(check (list string)) "queued in order" [ "first"; "ready" ] (Browser_script.take_alerts t);
           Alcotest.(check (list string)) "taken" [] (Browser_script.take_alerts t));
+      Testo.create "document.readyState: loading, interactive, complete" (fun () ->
+          let t =
+            page
+              "<script>var said = [document.readyState];\n\
+               document.addEventListener(\"readystatechange\", () => said.push(\"change \" + document.readyState));\n\
+               document.addEventListener(\"DOMContentLoaded\", () => said.push(\"DOMContentLoaded \" + document.readyState));\n\
+               window.addEventListener(\"load\", () => said.push(\"load \" + document.readyState))</script>"
+          in
+          Alcotest.(check string) "a script being read is told loading: what it waits for is yet to come"
+            "[\"loading\", \"change interactive\", \"DOMContentLoaded interactive\", \"change complete\", \"load complete\"]" (value t "said"));
+      Testo.create "an iframe's window: an empty page's" (fun () ->
+          let t =
+            page
+              "<body><script>var f = document.createElement(\"iframe\"); document.body.appendChild(f);\n\
+               var w = f.contentWindow; w.addEventListener(\"resize\", function () {}); w.document.open(); w.document.close();\n\
+               var said = [typeof w, w === f.contentWindow, w.parent === window, f.contentDocument === w.document, typeof document.body.contentWindow]</script>"
+          in
+          Alcotest.(check string) "one window a frame, with a document; no other element has one" "[\"object\", true, true, true, \"undefined\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

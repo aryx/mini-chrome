@@ -690,6 +690,25 @@
     return this.__content;
   });
 
+  // An <iframe>'s window. A frame's page is not loaded here; what a
+  // script is given is the window of an empty one (about:blank's): a
+  // document it can write in, listeners that are never called. Gmail
+  // makes a hidden frame for the "resize" of its window alone -- the
+  // old trick to be told that the size of the text changed.
+  getter(E, "contentWindow", function () {
+    if (this.localName !== "iframe") return undefined;
+    if (!this.__frame) {
+      var d = document.implementation.createHTMLDocument("");
+      d.open = d.close = d.write = function () {};
+      var nothing = function () {};
+      this.__frame = { document: d, parent: window, top: window, frameElement: this, location: { href: "about:blank" },
+        addEventListener: nothing, removeEventListener: nothing, dispatchEvent: function () { return true; }, postMessage: nothing, focus: nothing, blur: nothing, close: nothing };
+      this.__frame.self = this.__frame.window = this.__frame;
+    }
+    return this.__frame;
+  });
+  getter(E, "contentDocument", function () { return this.localName === "iframe" ? this.contentWindow.document : undefined; });
+
   // Custom elements: a name with a dash given a class
   // (customElements.define("user-card", class extends HTMLElement {})).
   // An element of that name is *upgraded*: the class's prototype made

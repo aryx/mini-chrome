@@ -33,6 +33,14 @@ let tests =
       Testo.create "a let per iteration" (fun () ->
           check "for (let i ...): each function its own i" "const fs = [];\nfor (let i = 0; i < 3; i++) fs.push(() => i);\nfs.map(f => f())"
             "[0, 1, 2]");
+      Testo.create "a number past OCaml's int: 0x7fffffffffffffff" (fun () ->
+          (* Closure's Long.fromNumber asks a >= 0x7fffffffffffffff: read
+           * as -1, every number was the largest, and a division never ended *)
+          value "0x7fffffffffffffff > 1e18" "true";
+          value "0x7fffffffffffffff" "9223372036854776000";
+          value "-0x8000000000000000" "-9223372036854776000";
+          value "[0xff, 0XdeadBEEF, 0b101, 0o17, 0x100000000]" "[255, 3735928559, 5, 15, 4294967296]";
+          value "[2 ** 53 + 2, 2 ** 64, 1e20, 123456789012345680000]" "[9007199254740994, 18446744073709552000, 100000000000000000000, 123456789012345680000]");
       Testo.create "the coercions: Wat" (fun () ->
           value "1 + 2" "3";
           value "\"1\" + 2" "\"12\"";

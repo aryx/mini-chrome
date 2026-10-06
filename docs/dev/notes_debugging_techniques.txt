@@ -979,3 +979,45 @@ A function that was the run's thread's by convention (breath) and was
 called through a library (the parser) that was then moved to another
 thread. When code moves to a worker, grep what it calls for the
 program's hand-overs and globals, not only for what it writes.
+
+34. An error named by a code: read the page's own text for it
+-------------------------------------------------------------
+Gmail (October 2026) ended on "Uncaught (in promise) ... ka`w43KIf`1":
+a minified site's error is a code and its arguments joined by "`".
+grep the code with its backquote in the bundles AND in the page (the
+inline scripts: python, s.find, a thousand characters around) -- it
+was in the page: Error("ka`"+key+"`"+state), raised for a datum not
+there when the document was "complete". The key was in the page too
+(_GM_setData({"w43KIf": ...)), in a script that had run: so the state
+was wrong, not the datum.
+
+35. Cut the page at the script that should have worked
+------------------------------------------------------
+To ask a question of a page at one moment of its reading, cut it
+there and replay the head alone -- seconds, not minutes, and nothing
+of the rest in the way:
+
+  python3: open('cut.html','w').write(s[:s.find('</script>', at)+9])
+  FILES=. Page_scripts.exe cut.html URL 'typeof _GM_setData' \
+     '_GM_getData("k").then(x => console.log("ok"), e => console.log(e.message))'
+
+It still failed, on five scripts instead of sixteen: rh() asked
+document.readyState, we said "complete" while scripts were being read.
+Beware the question asked after the load: it tests the page's state
+then, not when its scripts ran (my first try set a datum after the
+load and "reproduced" a failure that was the page's right answer).
+
+36. A loop that never ends in arithmetic: compare the primitives
+----------------------------------------------------------------
+The call counter (section "the kit") gave the hot functions; their
+text was Closure's 64-bit Long (fromNumber, div, multiply). No need to
+understand the division: print what it stands on in mini-node and in
+node, side by side, one line each --
+
+  ./bin/mini-node -e 'console.log(0x7fffffffffffffff, 1e21|0, -1>>>0, ...)'
+  node -e '...the same...'
+
+-- and read the first column that differs: 0x7fffffffffffffff was -1.
+A replay that only asks the network for more (a module whose address
+is too long to be a file's name, a POST for the mailbox) is at its
+end: the next step is the person's, live.

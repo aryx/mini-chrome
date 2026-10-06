@@ -151,10 +151,15 @@ let number_to_string (f : float) : string =
   (* an integer a float holds exactly: written as one (no printf: a
    * program that draws writes ten thousand a frame) *)
   else if Float.is_integer f && Float.abs f < 9007199254740992. then string_of_int (Float.to_int f)
-  else if Float.is_integer f && Float.abs f < 1e21 then Printf.sprintf "%.0f" f
   else
     let shortest = List.find (fun p -> float_of_string (Printf.sprintf "%.*g" p f) = f) [ 15; 16; 17 ] in
-    Printf.sprintf "%.*g" shortest f
+    if Float.is_integer f && Float.abs f < 1e21 then (
+      (* an integer past 2^53: the shortest digits that say it, then
+       * zeros (9223372036854776000, not ...775808) *)
+      let all = Printf.sprintf "%.0f" f in
+      let sign = if f < 0. then 1 else 0 in
+      String.mapi (fun i c -> if i - sign >= shortest then '0' else c) (Printf.sprintf "%.*e" (shortest - 1) f |> fun e -> String.concat "" (String.split_on_char '.' (List.hd (String.split_on_char 'e' e))) ^ String.make (max 0 (String.length all - shortest - sign)) '0'))
+    else Printf.sprintf "%.*g" shortest f
 
 (*****************************************************************************)
 (* Printing *)
