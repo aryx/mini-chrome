@@ -557,7 +557,11 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   (`Testutil_server`), so nothing needs the Internet; its TLS tests use
   a local `openssl s_server`.
 - `changes.txt` (org-mode) is the changelog, updated with each feature
-  in its own commit or alongside it.
+  in its own commit or alongside it. Its Features are in subsections
+  (`***`: the sites, JavaScript the language, the web's APIs, HTML
+  CSS and the layout, pictures video sound documents, the window and
+  its chrome, the program's shape): a new entry goes at the top of
+  the one it is of.
 - Comments mentioning `appkits/browser/...`, `engine/...`,
   `src/browser/...`, `apps/internet/`, `TinyMosaic`/`TinyNetscape`/
   `TinyFirefox` refer to elm-playground's tree, not this one. The

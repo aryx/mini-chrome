@@ -81,6 +81,13 @@ val label : control -> string
 (* the page's forms; controls outside any form are no form's *)
 val forms : Dom.element -> form list
 
+(* [submitting root e]: a click on [e] is on a <button> that sends its
+ * form (the button [e] is or is in, of type submit or of none, not
+ * disabled, in a <form>): that form and the button. A <button>'s
+ * content is the page's to draw, so it is no [control]; its name and
+ * value are sent with the form as a submit <input>'s are *)
+val submitting : Dom.element -> Dom.element -> (form * Dom.element) option
+
 (* the form a control is in, if any (==) *)
 val form_of : form list -> Dom.element -> form option
 

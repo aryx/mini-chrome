@@ -297,6 +297,15 @@ let tests =
           (* an icon: an svg that fills a box of 24 *)
           Alcotest.(check (list (pair near near))) "an svg the same: its block's height, else its viewBox's ratio" [ (24., 24.); (200., 200.) ]
             (sizes {|<body style="margin: 0"><div style="width: 24px; height: 24px"><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div><div><svg viewBox="0 0 24 24" style="width: 100%; height: 100%"></svg></div>|}));
+      Testo.create "a flex item's height in percents, in a column as tall as it holds: its own" (fun () ->
+          (* a line is 12 high: the item is not 0 high, and what follows is under it *)
+          let p = page {|<body style="margin:0"><div id=col style="display:flex; flex-direction:column"><div id=item style="height:100%">a<br>b</div></div><p id=after style="margin:0">c</p>|} in
+          Alcotest.(check (list near)) "the item, two lines high" [ 0.; 0.; 200.; 24. ] (geometry (box "item" p));
+          Alcotest.(check near) "the column as tall" 24. (box "col" p).height;
+          Alcotest.(check near) "what follows, under" 24. (box "after" p).y;
+          (* a column of a height: the percents are of it *)
+          let q = page {|<body style="margin:0"><div style="display:flex; flex-direction:column; height:60px"><div id=item style="height:50%">a</div></div>|} in
+          Alcotest.(check near) "half of 60" 30. (box "item" q).height);
       Testo.create "Box_flow's worked examples: the horizontal equation, two margins one" (fun () ->
           let p = page ~width:976. {|<body style="margin: 0"><div id=d style="width: 400px; padding: 10px; border: 1px solid; margin: 0 auto">x</div><div id=a style="padding: 10px; border: 1px solid">y</div>|} in
           let ml, w, mr = Box_flow.horizontal (box "d" p).style ~cb_width:976. () in

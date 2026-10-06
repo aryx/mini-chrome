@@ -96,6 +96,11 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- the registry of custom elements asks the browser for the elements of
+  a name when a class is defined (__named), where it listed every
+  element of the page in JavaScript to ask each its name: YouTube's
+  search page defines 1,103 classes -- 800,000 elements listed. Its
+  scripts replayed: 21 s to 20
 - styles kept from one styling of a page to the next (Cascade's
   memo, Computed's on top). A page whose scripts change its tree is
   styled again whole, and nearly all of it is as it was: each element
@@ -273,37 +278,7 @@
   load_timeline.sh (the real program's load in time)
 
 ** Features
-- helper applications, as Mosaic had (Browser_helpers): programs of
-  the person's, written in the profile's Preferences ("helpers"),
-  given what the browser does not show. A rule for a site
-  ({"site": "youtube.com/watch", "run": ["mpv", "%u"]}) adds "Open
-  with mpv" to the right click's menu, on the page and on a link to
-  it: a YouTube video plays in mpv's window. A rule for a content
-  type ({"type": "application/postscript", "run": ["gv", "%f"]}) has
-  such a page written to a file and the program run on it, the tab
-  saying so. Only a program named there is run (Cap.exec), each
-  argument its own, started without a fork (OCaml 5's domains) and
-  not waited for. mini-httpd says a .ps file is PostScript. One rule
-  needs no writing: a YouTube video's address to mpv, when mpv is
-  installed; the profile's rules come before it
-- A custom element is told of an attribute it observes set or
-  removed later (attributeChangedCallback, from setAttribute and
-  removeAttribute; not inside a <template>'s content, which a browser
-  keeps in a document of its own). YouTube starts a video's page by
-  removing disable-upgrade from its application: the page now builds
-  -- the player's frame and controls, the related videos with their
-  thumbnails -- and says, in YouTube's words, that this browser
-  cannot play the video (no MediaSource; the plain file it then asks
-  for is refused, 403, to any asker)
-- YouTube's icons: an inline <svg>'s height in percents is of its
-  block's (it was 0: every icon a flat line); a path's arc may have
-  its two flags glued to what follows ("a9 9 0 105.6 16", a
-  minifier's: the magnifier was a blot); and a property a script put
-  on an element before its class was defined is its own
-  (hasOwnProperty says so, it comes before the class's accessor, and
-  delete takes it away): what Polymer looks for at an element's
-  upgrade to take the values its parent gave it early -- the
-  masthead's icons had lost theirs
+*** the sites
 - YouTube's search page whole: its twenty results, the views and
   ages, the channels' pictures, the filter chosen; the lower ones'
   thumbnails come as the page is scrolled. MutationObserver is told
@@ -348,33 +323,15 @@
   (getNamedItem); a DataView's floats; what a script puts on document
   kept; an object given where a text is expected, by its toString
   (trusted HTML). youtube.com is asked as Chrome is (Browser_agent)
-- the DOM's members are on its prototypes too (Node.prototype's
-  firstChild, Element.prototype's querySelector...: thin accessors
-  that ask the element), for the code that takes them from there --
-  Shady DOM, which YouTube runs in every browser. A property defined
-  on window with a getter and a setter is set through it, one defined
-  with a value is the global; new Array(3)'s places not given are
-  skipped by map and forEach; CDATASection, ProcessingInstruction,
-  Range, WheelEvent and fifteen other events as names. YouTube's
-  application goes from its first line to building its page (1,233
-  elements; it then stops in its own registry of services)
-- a page's comments are in the tree its scripts see (not in the one
-  styled and laid out): what an application that takes over a page
-  made on a server looks for -- Lit's <!--lit-part-->, React's <!--$-->
-  ("hydration"). MDN's components (Lit) start with no error.
-  Html_tree.parse ~comments
-- a <slot>'s assignedNodes and assignedElements; console's other
-  methods (info, debug, group, table, time...)
-- web APIs: a <style>'s sheet (insertRule, cssRules: how
-  styled-components writes its rules) and document.styleSheets; an
-  IntersectionObserver that says what it observes is in view (a
-  page's lazy pictures come); a picture come tells its <img> (load,
-  error; complete, naturalWidth, naturalHeight); the CSS global;
-  Symbol.unscopables
-- every site's scripts run, not those of a few named sites: the
-  omnibox's "JS" is the browser's switch, a click turning them off
-  and on for all (the page loaded again); scripts=off, scripts=on,
-  scripts=host1,host2
+- YouTube's icons: an inline <svg>'s height in percents is of its
+  block's (it was 0: every icon a flat line); a path's arc may have
+  its two flags glued to what follows ("a9 9 0 105.6 16", a
+  minifier's: the magnifier was a blot); and a property a script put
+  on an element before its class was defined is its own
+  (hasOwnProperty says so, it comes before the class's accessor, and
+  delete takes it away): what Polymer looks for at an element's
+  upgrade to take the values its parent gave it early -- the
+  masthead's icons had lost theirs
 - github.com's scripts run by default: the server's page shows in the
   first second and the scripts fill it (each file's last commit, the
   counts, the files' tree beside a file, the issues' list). A
@@ -383,75 +340,11 @@
   its methods (firstChild, nextSibling, parentNode, previousNode...,
   with filters that skip or reject): a file's page and the issues'
   list stopped on it
-- which program this is, said in the window: at the end of the tab
-  strip the compiler and the pool ("OCaml 5.5.1, 8 domains", "OCaml
-  4.14.2, 8 threads"), and about:version, after Chrome's (the
-  compiler, the workers, the program and its command line, where the
-  profile and the cache are)
 - GitHub with its scripts (scripts=github.com): React takes the page
   the server made and keeps it, and what the scripts ask for comes --
   each file's last commit and its date, the branch's latest commit,
   the counts of branches and tags. 45 s to its last picture: not on
   by default
-- a script's request headers are sent (fetch's headers, a Request's,
-  XMLHttpRequest.setRequestHeader), but those that are the browser's
-  to say (Host, Cookie, Origin, User-Agent...): GitHub's answers in
-  JSON are a 406 without the script's Accept
-- tables: table-layout: fixed (the first row's cells say the columns,
-  those that say nothing share the rest: Table_layout.fixed) and
-  border-spacing
-- JavaScript: properties that are not enumerated (a class's methods, a
-  function's prototype, what Object.defineProperty makes without
-  enumerable: Object.keys and for-in skip them, getOwnPropertyNames
-  does not); a rest in an assigned pattern (({ a, ...rest } = v));
-  Object.create's second argument; a typed array's slice, subarray,
-  map and filter give its kind; an error's stack
-- web APIs: an element is of its tag's class (a instanceof
-  HTMLAnchorElement, which Primer's links check); new EventTarget()
-  and classes that extend it; a listener's { signal }; Request;
-  CSSStyleSheet and document.adoptedStyleSheets (a <style> a sheet)
-- the window stays alive while a page's script runs long: a message's
-  work is made on a thread that takes turns with the window's
-  (Js_slice: a quarter of a second each, never both at once), the
-  status line says "Running the page's scripts... 7 s", and what comes
-  meanwhile (a key, an answer) waits for the run's end. threads=off:
-  as before
-- history: Back and Forward through the addresses a page gave itself
-  (history.pushState) tell the page (popstate) and load nothing; every
-  address pushed is an entry. Leaving 9fans by Back works: it went
-  back to 9fans itself, loaded again
-- a click on a link an application takes for its own stays in the
-  application (Discourse's topics: the JSON asked, the topic drawn,
-  the address changed): the click says its button and keys held, and
-  finds the link under a row's empty box
-- JavaScript: #x in o; el.classList gone through (for-of, spread, an
-  index); :scope in a script's selector; NodeList, HTMLCollection
-- a script can ask where things are: offsetHeight, offsetTop,
-  getBoundingClientRect and their kin answer from a layout of the page
-  as it is at that moment (they answered 0), made once between two
-  changes of the tree -- a browser's "forced layout"
-  (Browser_script.set_measure, Browser_page.where). 9fans' topics show
-  all their messages: it loads those in view, and asked which were
-- ::before and ::after (CSS 2.1's generated content): a box of their
-  own with the text of content: (strings, attr(x)), made by the
-  cascade and laid out as children (Cascade.cascade_all,
-  Computed.styles_all; a card on about:chrome). A category's coloured
-  square, a tab's line, quotation marks, a list's separators
-- layout: an absolute box written in an inline-block, a float, a flex
-  item or a table's cell is where that box ends up (each box keeps
-  the positioned boxes written in it, and they move with it: it was
-  placed before its parent was); white-space: pre-wrap wraps (a
-  mail's text); a box placed by its bottom in a block whose height
-  its content gives; a table row's
-  own borders (the lines of a list); rgb(...) in a border shorthand is
-  its colour (it was taken for a width, and the border black)
-- an <svg> that is a <use> of a <symbol> of the page's sprite is drawn
-  (Discourse's icons, and most sites' of the 2020s)
-- while a page's scripts are fetched, it is shown without its
-  <noscript> parts, whose pictures were fetched for nothing
-- JavaScript: new.target; Reflect.construct; a typed array is of its
-  kind (instanceof Uint8Array), has a buffer other views share and a
-  byteLength; :target and other states known to a selector
 - discuss.ocaml.org is Discourse's application, as in Chrome: the
   logo, Sign Up and Log In, Latest / Hot / Categories, the topics with
   their avatars, counts and ages -- Ember 7 and Discourse's 4 MB of
@@ -464,19 +357,10 @@
   {...spread} through a proxy and through getters; MessageChannel;
   matchMedia answering for the window's size; Map, Set and WeakMap
   hashed (they were lists)
-- JavaScript, what a framework of the 2020s is written in -- found
-  bringing up Discourse (Ember 7, 4 MB of modules: discuss.ocaml.org
-  as Chrome gets it), which now starts and renders its first
-  templates: a regular expression after an if's head or a block's
-  end; async#name and async *name members; super in a static method;
-  a class's methods all defined before its static blocks run; named
-  groups (m.groups.year, $<year>); a proxied array iterated through
-  its traps; Object.getPrototypeOf and isPrototypeOf through a proxy;
-  defineProperty keeping what its descriptor does not say;
-  true.toString(); a module at a data: address
-- URL is a class (data/prelude/web.js): its parts can be written
-  (u.pathname = ..., u.searchParams.append(...)) and its href follows;
-  canParse, toJSON. CSS.supports says yes
+- a click on a link an application takes for its own stays in the
+  application (Discourse's topics: the JSON asked, the topic drawn,
+  the address changed): the click says its button and keys held, and
+  finds the link under a row's empty box
 - 9fans.topicbox.com's pages are drawn as they are: the side bar, the
   groups, a group's topics with their authors, dates and counts.
   What it took: heights known before the content (a height in
@@ -495,22 +379,6 @@
   comes back); a listener that is an object is called by its
   handleEvent, its class's too; a click finds the box drawn on top
   where two are at a point (a positioned side bar over the frame)
-- a progressive JPEG is drawn (most of the web's photographs: it was
-  a red slash, the picture that could not be read). The decoder is
-  the Playground's (Jpeg_progressive, elm-playground after 0.3.6):
-  JPEG is not the web's own
-- web components: shadow trees and custom elements. A host's shadow
-  tree is drawn in its children's place, the children where its
-  <slot>s are (libs/dom/Shadow_tree: distribute, and composed for a
-  <template shadowrootmode> written in the page, with no script);
-  attachShadow and shadowRoot for scripts, whose querySelector does
-  not go into a shadow tree; customElements.define, an element
-  upgraded when its class is defined, when a script makes it and when
-  it enters the page, its constructor, attributeChangedCallback and
-  connectedCallback (data/prelude/web.js, the browser telling it of
-  an element made and of one entering the page); a <template>'s
-  content. Not done: a shadow tree's style kept to it, :host, events
-  retargeted, new MyElement(). A card on about:chrome
 - 9fans.topicbox.com's application starts and draws its menu and its
   news (docs/plans/plan_sites.md): location.href of a site with no
   path ends with /; an XMLHttpRequest's upload has
@@ -518,129 +386,54 @@
   getElementsByTagName; SVGAnimatedString and NodeFilter are names;
   the page's root has the window's size (clientWidth: how a site
   decides it is on a phone)
-- about:chrome opens with the sites the plan is about, each a link
-- CSS: logical properties (margin-block-start, padding-inline,
-  border-inline-end, inset-block, inline-size, border-start-end-radius
-  and the others): the physical ones they are in a text left to right
-  and top to bottom, translated before the cascade (Css_logical).
-  GitHub's sheets have 1,600 such declarations
-- a key tapped, or the button clicked, between two frames of a page
-  that is a program is not lost: the page is told at once that it
-  went down, and that it went up only after it has run a frame since
-  (Window_update.update, over the plain step): a game that reads the
-  keys held at each of its frames sees it held once, however long its
-  frames are
-- AudioContext (the Web Audio API's least: a context, its clock, a
-  buffer of samples, its source started at a time): the sound of the
-  Playground's games in the browser, TinyMissileCommand's among them.
-  The class in JavaScript (data/prelude/web.js) over two functions of
-  the browser's (AudioContext.ml: the clock, the samples handed over);
-  Audio_queue mixes what scripts scheduled with what the players play.
-  No graph of nodes (gain, oscillator), no decodeAudioData
-- a page that is a program: the Playground's own menu, tinybox
-  (https://aryx.github.io/ocaml-elm-playground/tinybox.html, OCaml
-  compiled to JavaScript by js_of_ocaml), runs in the browser that is
-  drawn by the Playground, and so do its games: Enter on TinyInvaders
-  opens it, the arrows and space play it (docs/plans/plan_tinybox.md;
-  docs/screenshots/tinybox.png, invaders.png). What it took:
-  window.onload called; requestAnimationFrame's function given the
-  time; the window's keys, pointer and wheel told to the scripts that
-  listen for them (Browser_script.window_event, from Window_update:
-  keydown, keyup, mousemove, mousedown, mouseup, wheel), the keys by
-  the web's names; an svg's createSVGPoint and getScreenCTM; an inline
-  <svg> made of the Playground's shapes drawn as those shapes, its
-  texts and pictures with them (Svg_shapes), not as a picture of it;
-  a positioned svg (position: fixed, 100% of the window) laid out as
-  a picture; an svg's <image href> fetched; aryx.github.io's scripts
-  allowed. Not there: a canvas (a stand-in that draws nothing: the
-  code map's panel is empty, and bitmaps), an answer as bytes (a
-  request with responseType arraybuffer fails at once), sound
+- Google's search is left alone: the name of an old Opera Mini got
+  plain results by one path and a 403 by another, so the browser says
+  its own name to google.com again (Browser_agent's table is empty,
+  the mechanism and the story stay). The omnibox's searches were
+  never Google's: Wikipedia's, or DuckDuckGo's
+- a Google search works: the browser says it is an old Opera Mini to
+  google.com (Browser_agent: a name by host, each with why), which is
+  then sent results as plain HTML where a browser it does not know
+  gets a script to run. A request's User-Agent can be given
+  (Http.get ?agent, through Http_client, Http_request and Fetch;
+  mini-curl -A). A form's control that is a block or a flex item is
+  laid out and can be clicked; a hidden input is never shown
+- GitHub, BBC News: the pages laid out as theirs. Media Queries Level
+  4's ranges (@media (width >= 48rem), (400px <= width <= 800px));
+  @layer's rules read; a grid item between lines (grid-column: 1 /
+  span 4, 1 / -1, span 2; grid-row; grid-area's four lines:
+  Css_grid.line, Grid_layout.along); <details> folded until opened;
+  a <noscript>'s content left out of a page whose scripts run
+
+*** JavaScript, the language
+- JavaScript: properties that are not enumerated (a class's methods, a
+  function's prototype, what Object.defineProperty makes without
+  enumerable: Object.keys and for-in skip them, getOwnPropertyNames
+  does not); a rest in an assigned pattern (({ a, ...rest } = v));
+  Object.create's second argument; a typed array's slice, subarray,
+  map and filter give its kind; an error's stack
+- JavaScript: #x in o; el.classList gone through (for-of, spread, an
+  index); :scope in a script's selector; NodeList, HTMLCollection
+- JavaScript: new.target; Reflect.construct; a typed array is of its
+  kind (instanceof Uint8Array), has a buffer other views share and a
+  byteLength; :target and other states known to a selector
+- JavaScript, what a framework of the 2020s is written in -- found
+  bringing up Discourse (Ember 7, 4 MB of modules: discuss.ocaml.org
+  as Chrome gets it), which now starts and renders its first
+  templates: a regular expression after an if's head or a block's
+  end; async#name and async *name members; super in a static method;
+  a class's methods all defined before its static blocks run; named
+  groups (m.groups.year, $<year>); a proxied array iterated through
+  its traps; Object.getPrototypeOf and isPrototypeOf through a proxy;
+  defineProperty keeping what its descriptor does not say;
+  true.toString(); a module at a data: address
 - JavaScript: 0o17 and 0b101 (ES2015's octal and binary numbers);
   subarray and set on a typed array
-- the omnibox is a module of its own (src/chrome/Omnibox: its keys,
-  clicks and drags, what is typed made an address or a search, its
-  drawing), and its text can be selected and edited as a line of text
-  usually is (Gui_field: a caret and an anchor): a first click selects
-  it all, then a click puts the caret, a drag selects, a double click
-  selects all; the arrows, Home and End move the caret, with Shift
-  they select; typing, Backspace and Delete replace the selection;
-  Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, to and from the desktop's
-  clipboard (Gui_clipboard, which the main gives the platform's:
-  Playground_platform.clipboard, new in elm-playground)
-- the mouse's cursor follows what is under it, as Chrome's: a hand
-  over a link, the I-beam over the omnibox and a page's text field,
-  the arrow elsewhere (Window_layout.cursor_of; given to the platform
-  by the main after each message: Playground_platform.set_cursor, new
-  in elm-playground)
-- a PDF viewer: a PDF file opens in a tab, its pages one under the
-  other, drawn as they scroll into view (Pdf_viewer; about:pdf is a
-  sample). libs/pdf: the file (objects, the table of objects as text
-  or as a stream, packed objects, a file with no table; Flate with
-  predictors, LZW, ASCII85, hexadecimal, run lengths), a page's
-  operators (paths filled and stroked, clips, colours in the device,
-  profile, palette and spot spaces, transparency, pictures with
-  masks and JPEG, forms, axial and radial gradients), text in the
-  four kinds of font. libs/fonts: TrueType, CFF (Type 2 charstrings)
-  and Type 1 (its two ciphers, flex, accents) read to outlines; Type 3
-  fonts run as content. A font not in the file is drawn with our
-  stroke font at the standard widths. The flag pdf= turns each
-  refinement off (pdf=strokes: our letters; pdf=plain: the simple
-  path). Seven files of pdfTeX, cairo, Chrome and LibreOffice are
-  drawn near poppler's pictures (tests/pdf); of 149 PDF files found
-  on the machine it was written on, all are drawn
-- about:tube shows every kind of media the browser plays: the clip
-  also as MPEG-1 alone (our encoder); a section of sounds, an <audio>
-  each -- two chirps as Opus (its file, a WebM), Vorbis, MP3, MP2,
-  blips as a WAV, and a tune as a MIDI file, a tracker's module, ABC
-  and solfege. A module plays in a page (rendered whole by its
-  player: Media.module_sound). A test opens every file of the page
-- Opus (libs/audio/opus), where it is CELT -- music, and what a file made
-  for a page holds: Opus (a packet's first byte and its one to 48
-  frames, OpusHead), Celt (a frame: the bands' energies, the
-  allocation computed and not sent, each band's shape as pulses
-  counted and numbered, splits, folding, two channels as mid and
-  side, short blocks and the anti-collapse, the inverse MDCT with
-  its short overlap, the pitch post-filter), Range_decoder. An .opus
-  file and a WebM's Opus track play (Media). Five files of libopus's
-  encoder decode to libopus's samples, a rounding apart. SILK and
-  hybrid frames are silence of their length. Mdct: the transform of
-  Vorbis and Opus in one module, its Fourier transform of any size
-- the budget is 40,000 lines (it was 30,000): the browser now has
-  its own decoders of pictures, video, sound and compression
-- a WebM's sound: its Vorbis track played with its picture (Webm: a
-  sound track's rate, channels and its three headers, Xiph-laced;
-  Media gives them to Vorbis). A WebM of sound alone and an .ogg file
-  are sounds, for <audio>. about:tube's first clip has its sound.
-- sound, the web's (libs/audio): Vorbis decoded (Vorbis: the
-  codebooks sent in the stream, floor 1, the three residues, two
-  channels uncoupled, the MDCT by a Fourier transform, windows
-  overlapped) and an Ogg file's pages cut into packets (Ogg). A
-  copy of elm-playground's, written there the same day, to diverge.
-  Four files of libvorbis's and ffmpeg's encoders decode to
-  libvorbis's samples, a rounding apart (tests/audio)
-- <video> plays a WebM file: its VP8 by libs/video, the frames
-  decoded as the player asks for them (Media: a Movie over
-  Vp8_video), without sound (Vorbis and Opus are not decoded);
-  about:tube's first clip is one. A media file that does not decode
-  is now an error said, for every format (the exception was not
-  caught), and about:tube-0 is no page, not a crash
-- video, the web's (libs/video): a WebM
-  file's frames found (Webm: EBML, Matroska's tracks, clusters and
-  blocks) and VP8's decoded whole (Vp8_video: the frames predicted
-  from the last, golden and altref frames, the modes from the
-  neighbours' vectors, split macroblocks, quarter pixels by the
-  six-tap filter, the loop filter by reference and mode), over the
-  still picture's parts (libs/images' Vp8). Every frame of seven
-  clips made by libvpx is ffmpeg's decoder's, to the byte
-  (tests/video). A still or a frame of filter level 0 is no longer
-  filtered (it was, by what its deltas added)
 - ES modules: import and export in the language (Js_module: a
   module's own scope, live bindings, circles, every form of export,
   import(), import.meta.url), and in a page: <script type=module>,
   its graph fetched then run (Script_modules), the page's import map,
   <script nomodule> skipped. GitHub's 107 modules load and run
-- a script a script inserts in the page is fetched and run, its load
-  told: how a site's loader brings the rest of its code (Wikipedia's)
 - the library a script of today expects, written in JavaScript and
   run before any script (data/prelude/library.js, web.js): what
   ES2016 to ES2024 added to Array, String, Object, Math, Number and
@@ -657,78 +450,6 @@
   10n; a name with a \u escape; Math's sin, cos, exp, log...;
   Object.prototype.toString's tags; el.src = and el.href =;
   classList.replace; style.setProperty
-- <details> opens and closes on a click on its <summary>
-  (Browser_details), with or without scripts; a card on about:chrome
-- WebSocket: new WebSocket(url) for a page's scripts (src/dom's
-  WebSocket: readyState, send, close, the open, message, error and
-  close events), ws:// and wss://. The script asks, the program does:
-  Web_sockets (in the Fetch.t) keeps the connections, each made on a
-  thread then stepped every frame (libs/network's Websocket_client,
-  over Websocket, the protocol, from elm-playground: the handshake
-  with the page's Origin, masked frames, fragments, ping, the closing
-  handshake). mini-httpd answers a WebSocket with an echo. Tried on
-  it and on wss://echo.websocket.org over our TLS
-- PNG is the browser's own too, copied from elm-playground to be
-  told here: Png in libs/images (now wrapped, as libs/network: the
-  Playground links its own Png), with PngSuite
-- Brotli is the browser's own: Brotli, Brotli_dictionary and the
-  dictionary (in the binary) in a new libs/compression, copied from
-  elm-playground to be told here. Needs elm-playground after 0.3.4,
-  where Brotli is a library apart from compression
-  (tiny_libs.compression_brotli)
-- SVG is the browser's own: Svg, copied from elm-playground's
-  graphics/images/svg into libs/images beside WebP (a format born of
-  the web, to grow with what a browser has), its interface telling
-  PostScript's model, PGML and VML, the ten years of plug-ins, canvas
-  and icon fonts; tiny_libs.graphics_svg is no longer linked. A file
-  is read by Xml, and Svg draws a Dom.element, an <svg> of a page or
-  a file's alike (Svg.node and Browser_boxes' conversion are gone)
-- XML has its own reader, languages/xml (Xml, out of elm-playground's
-  Svg: text kept, CDATA, a DOCTYPE's own declarations skipped;
-  forgiving), read into a Dom as HTML is, its interface telling SGML,
-  the draconian rule, JSON
-- one tree for the languages: Dom moved from languages/html to a
-  library of its own, libs/dom, under them; CSS, which matches on it,
-  no longer depends on the HTML library
-- WebP pictures (libs/images, a decoder of our own, in mini-chrome
-  and not with elm-playground's GIF, PNG and JPEG: the format was
-  born of the web): the file's chunks (Webp), the lossless format
-  with its prefix codes, copies, colour cache and four transforms
-  (Vp8l; the prefix codes are tiny_libs' Huffman), the lossy one, a
-  key frame of the VP8 video codec -- the boolean decoder, the
-  guesses from neighbours, the coefficients, the loop filter -- (Vp8,
-  RFC 6386, its tables taken from the RFC's text), a lossy picture's
-  alpha, an animation's first frame. Every pixel is libwebp's
-  (tests/images: 16 files and what libwebp reads from each). BBC
-  News has its pictures; about:chrome a card of one picture in each
-  format read
-- Google's search is left alone: the name of an old Opera Mini got
-  plain results by one path and a 403 by another, so the browser says
-  its own name to google.com again (Browser_agent's table is empty,
-  the mechanism and the story stay). The omnibox's searches were
-  never Google's: Wikipedia's, or DuckDuckGo's
-- text beyond ASCII (Glyph_unicode): a letter with a mark is its
-  Hershey letter and the mark's strokes, above a small letter or a
-  capital, below, or across -- Latin-1 and Latin Extended-A, the
-  languages of Western and Central Europe, Turkish; the ligatures æ œ
-  ß; the curly quotes, dashes, the ellipsis, the no-break and
-  zero-width spaces; some signs drawn (° · • € £ ¥ ¢ ¡ ¿ the arrows,
-  ✓). The rest is still "?": its .mli says what all of Unicode asks
-  of a browser. An ASCII letter's glyph costs 0.013 microseconds
-  where it cost 0.010. Wikipedia in French reads
-- a Google search works: the browser says it is an old Opera Mini to
-  google.com (Browser_agent: a name by host, each with why), which is
-  then sent results as plain HTML where a browser it does not know
-  gets a script to run. A request's User-Agent can be given
-  (Http.get ?agent, through Http_client, Http_request and Fetch;
-  mini-curl -A). A form's control that is a block or a flex item is
-  laid out and can be clicked; a hidden input is never shown
-- GitHub, BBC News: the pages laid out as theirs. Media Queries Level
-  4's ranges (@media (width >= 48rem), (400px <= width <= 800px));
-  @layer's rules read; a grid item between lines (grid-column: 1 /
-  span 4, 1 / -1, span 2; grid-row; grid-area's four lines:
-  Css_grid.line, Grid_layout.along); <details> folded until opened;
-  a <noscript>'s content left out of a page whose scripts run
 - JavaScript, what the sites' own scripts are written in: tagged
   templates (tag`a${x}`), generators (function*, yield, yield*, a
   method *m: a coroutine a yield at a time) and the iteration
@@ -738,21 +459,6 @@
   ??=, a class's static { }, a class with no name that extends, eval,
   names and spaces beyond ASCII, in inside a for's first part. All of
   BBC News' fifty script files parse and load
-- a script sends the page elsewhere: location.href = url, assign,
-  replace, reload (Browser_script.take_navigation, followed by the
-  tab). URLSearchParams (Script_url), document.currentScript,
-  DOMParser. The console shows a string of any alphabet as it is
-- a script asks the network and gets its answer: XMLHttpRequest (its
-  own module: open, send, readyState, onload, onerror,
-  readystatechange, responseText, response, getResponseHeader) and
-  fetch (Script_fetch: a promise of a response; ok, status, headers,
-  text(), json()), GET and POST. The tab sends a script's requests and
-  gives each answer back by its number (Got_answer), a task of the
-  page's, which is then laid out again. An answer of another origin is
-  the script's only if it allows it (Access-Control-Allow-Origin: the
-  one check of CORS here). JSON.parse (Js_json), DOMParser, a host
-  constructor's prototype (instanceof). With -v, the page's console
-  on the terminal. htmx swaps in what its server sends
 - JavaScript, what libraries need to work and not only load: an
   array's methods on what is only like an array (a jQuery object: a
   copy worked on, written back), Array.from of the same and of what
@@ -764,26 +470,6 @@
   jQuery, Underscore, Vue and Alpine work when used: the nine
   libraries of the survey do, and jQuery, Vue and Alpine on one page
   in the browser itself
-- the DOM libraries ask for (src/dom): an element's members since the
-  first DOM (Script_element: matches, closest, contains, append,
-  prepend, before, after, replaceWith, cloneNode, dataset,
-  hasAttribute, attributes, compareDocumentPosition, the properties
-  that are attributes), comments and fragments, selectors in a tree
-  not in the page; events of a script's own (Script_events: new
-  Event, new CustomEvent, createEvent, dispatchEvent, click(), once,
-  handleEvent; an event bubbles only if it says so); the document as
-  a node (Script_document); window's globals (Script_window: the
-  classes Node, Element, HTMLElement... for instanceof and their
-  prototypes, getComputedStyle, localStorage, MutationObserver,
-  matchMedia, history, performance, requestAnimationFrame), window
-  the global object. A host object falls through to its prototype.
-  JavaScript: a regular expression's source and flags, typed arrays
-  (as arrays), an assignment's target read before its value.
-  Js_survey uses each library in a page: jQuery, Vue, Alpine and
-  htmx now load; htmx, Preact, Mithril and React work
-- src/dom: what a page's scripts see (Script_types, Script_dom,
-  Script_host, Browser_script), out of src/www: the language in
-  languages/javascript, JavaScript in a browser in a directory of its own
 - JavaScript: promises (Js_promise: new Promise, then, catch, finally,
   Promise.resolve, reject, all, allSettled, race, any; a thenable
   followed; queueMicrotask) and their jobs, run after each script,
@@ -822,11 +508,6 @@
   key), getters and setters. Js_eval's properties and operators in
   modules of their own (Js_props, Js_operators). Ten of the twelve
   real scripts now parse (docs/sites.md)
-- a field inside an inline-block can be clicked and typed into (Hit:
-  the inline-block's room on its line hid what it holds): Google's
-  search box. A search there then goes through its consent page (a
-  form posted, its cookie kept) and stops: the results ask for
-  JavaScript
 - JavaScript, the rest of the language of 1999: the comma operator,
   the bits (& | ^ ~ << >> >>> and their assignments), ** and ??, in
   and for (k in o), delete and void, do-while, switch, labels (break
@@ -834,10 +515,360 @@
   conditional's sides may be assignments. Of twelve real scripts
   (scripts/js/Js_survey), jQuery, Mithril, Underscore and Wikipedia's
   now parse, and Preact runs
+
+*** the web's APIs: the DOM, the window, the network a script asks
+- A custom element is told of an attribute it observes set or
+  removed later (attributeChangedCallback, from setAttribute and
+  removeAttribute; not inside a <template>'s content, which a browser
+  keeps in a document of its own). YouTube starts a video's page by
+  removing disable-upgrade from its application: the page now builds
+  -- the player's frame and controls, the related videos with their
+  thumbnails -- and says, in YouTube's words, that this browser
+  cannot play the video (no MediaSource; the plain file it then asks
+  for is refused, 403, to any asker)
+- the DOM's members are on its prototypes too (Node.prototype's
+  firstChild, Element.prototype's querySelector...: thin accessors
+  that ask the element), for the code that takes them from there --
+  Shady DOM, which YouTube runs in every browser. A property defined
+  on window with a getter and a setter is set through it, one defined
+  with a value is the global; new Array(3)'s places not given are
+  skipped by map and forEach; CDATASection, ProcessingInstruction,
+  Range, WheelEvent and fifteen other events as names. YouTube's
+  application goes from its first line to building its page (1,233
+  elements; it then stops in its own registry of services)
+- a page's comments are in the tree its scripts see (not in the one
+  styled and laid out): what an application that takes over a page
+  made on a server looks for -- Lit's <!--lit-part-->, React's <!--$-->
+  ("hydration"). MDN's components (Lit) start with no error.
+  Html_tree.parse ~comments
+- a <slot>'s assignedNodes and assignedElements; console's other
+  methods (info, debug, group, table, time...)
+- web APIs: a <style>'s sheet (insertRule, cssRules: how
+  styled-components writes its rules) and document.styleSheets; an
+  IntersectionObserver that says what it observes is in view (a
+  page's lazy pictures come); a picture come tells its <img> (load,
+  error; complete, naturalWidth, naturalHeight); the CSS global;
+  Symbol.unscopables
+- a script's request headers are sent (fetch's headers, a Request's,
+  XMLHttpRequest.setRequestHeader), but those that are the browser's
+  to say (Host, Cookie, Origin, User-Agent...): GitHub's answers in
+  JSON are a 406 without the script's Accept
+- web APIs: an element is of its tag's class (a instanceof
+  HTMLAnchorElement, which Primer's links check); new EventTarget()
+  and classes that extend it; a listener's { signal }; Request;
+  CSSStyleSheet and document.adoptedStyleSheets (a <style> a sheet)
+- history: Back and Forward through the addresses a page gave itself
+  (history.pushState) tell the page (popstate) and load nothing; every
+  address pushed is an entry. Leaving 9fans by Back works: it went
+  back to 9fans itself, loaded again
+- a script can ask where things are: offsetHeight, offsetTop,
+  getBoundingClientRect and their kin answer from a layout of the page
+  as it is at that moment (they answered 0), made once between two
+  changes of the tree -- a browser's "forced layout"
+  (Browser_script.set_measure, Browser_page.where). 9fans' topics show
+  all their messages: it loads those in view, and asked which were
+- URL is a class (data/prelude/web.js): its parts can be written
+  (u.pathname = ..., u.searchParams.append(...)) and its href follows;
+  canParse, toJSON. CSS.supports says yes
+- web components: shadow trees and custom elements. A host's shadow
+  tree is drawn in its children's place, the children where its
+  <slot>s are (libs/dom/Shadow_tree: distribute, and composed for a
+  <template shadowrootmode> written in the page, with no script);
+  attachShadow and shadowRoot for scripts, whose querySelector does
+  not go into a shadow tree; customElements.define, an element
+  upgraded when its class is defined, when a script makes it and when
+  it enters the page, its constructor, attributeChangedCallback and
+  connectedCallback (data/prelude/web.js, the browser telling it of
+  an element made and of one entering the page); a <template>'s
+  content. Not done: a shadow tree's style kept to it, :host, events
+  retargeted, new MyElement(). A card on about:chrome
+- a key tapped, or the button clicked, between two frames of a page
+  that is a program is not lost: the page is told at once that it
+  went down, and that it went up only after it has run a frame since
+  (Window_update.update, over the plain step): a game that reads the
+  keys held at each of its frames sees it held once, however long its
+  frames are
+- AudioContext (the Web Audio API's least: a context, its clock, a
+  buffer of samples, its source started at a time): the sound of the
+  Playground's games in the browser, TinyMissileCommand's among them.
+  The class in JavaScript (data/prelude/web.js) over two functions of
+  the browser's (AudioContext.ml: the clock, the samples handed over);
+  Audio_queue mixes what scripts scheduled with what the players play.
+  No graph of nodes (gain, oscillator), no decodeAudioData
+- a page that is a program: the Playground's own menu, tinybox
+  (https://aryx.github.io/ocaml-elm-playground/tinybox.html, OCaml
+  compiled to JavaScript by js_of_ocaml), runs in the browser that is
+  drawn by the Playground, and so do its games: Enter on TinyInvaders
+  opens it, the arrows and space play it (docs/plans/plan_tinybox.md;
+  docs/screenshots/tinybox.png, invaders.png). What it took:
+  window.onload called; requestAnimationFrame's function given the
+  time; the window's keys, pointer and wheel told to the scripts that
+  listen for them (Browser_script.window_event, from Window_update:
+  keydown, keyup, mousemove, mousedown, mouseup, wheel), the keys by
+  the web's names; an svg's createSVGPoint and getScreenCTM; an inline
+  <svg> made of the Playground's shapes drawn as those shapes, its
+  texts and pictures with them (Svg_shapes), not as a picture of it;
+  a positioned svg (position: fixed, 100% of the window) laid out as
+  a picture; an svg's <image href> fetched; aryx.github.io's scripts
+  allowed. Not there: a canvas (a stand-in that draws nothing: the
+  code map's panel is empty, and bitmaps), an answer as bytes (a
+  request with responseType arraybuffer fails at once), sound
+- a script a script inserts in the page is fetched and run, its load
+  told: how a site's loader brings the rest of its code (Wikipedia's)
+- WebSocket: new WebSocket(url) for a page's scripts (src/dom's
+  WebSocket: readyState, send, close, the open, message, error and
+  close events), ws:// and wss://. The script asks, the program does:
+  Web_sockets (in the Fetch.t) keeps the connections, each made on a
+  thread then stepped every frame (libs/network's Websocket_client,
+  over Websocket, the protocol, from elm-playground: the handshake
+  with the page's Origin, masked frames, fragments, ping, the closing
+  handshake). mini-httpd answers a WebSocket with an echo. Tried on
+  it and on wss://echo.websocket.org over our TLS
+- a script sends the page elsewhere: location.href = url, assign,
+  replace, reload (Browser_script.take_navigation, followed by the
+  tab). URLSearchParams (Script_url), document.currentScript,
+  DOMParser. The console shows a string of any alphabet as it is
+- a script asks the network and gets its answer: XMLHttpRequest (its
+  own module: open, send, readyState, onload, onerror,
+  readystatechange, responseText, response, getResponseHeader) and
+  fetch (Script_fetch: a promise of a response; ok, status, headers,
+  text(), json()), GET and POST. The tab sends a script's requests and
+  gives each answer back by its number (Got_answer), a task of the
+  page's, which is then laid out again. An answer of another origin is
+  the script's only if it allows it (Access-Control-Allow-Origin: the
+  one check of CORS here). JSON.parse (Js_json), DOMParser, a host
+  constructor's prototype (instanceof). With -v, the page's console
+  on the terminal. htmx swaps in what its server sends
+- the DOM libraries ask for (src/dom): an element's members since the
+  first DOM (Script_element: matches, closest, contains, append,
+  prepend, before, after, replaceWith, cloneNode, dataset,
+  hasAttribute, attributes, compareDocumentPosition, the properties
+  that are attributes), comments and fragments, selectors in a tree
+  not in the page; events of a script's own (Script_events: new
+  Event, new CustomEvent, createEvent, dispatchEvent, click(), once,
+  handleEvent; an event bubbles only if it says so); the document as
+  a node (Script_document); window's globals (Script_window: the
+  classes Node, Element, HTMLElement... for instanceof and their
+  prototypes, getComputedStyle, localStorage, MutationObserver,
+  matchMedia, history, performance, requestAnimationFrame), window
+  the global object. A host object falls through to its prototype.
+  JavaScript: a regular expression's source and flags, typed arrays
+  (as arrays), an assignment's target read before its value.
+  Js_survey uses each library in a page: jQuery, Vue, Alpine and
+  htmx now load; htmx, Preact, Mithril and React work
+- src/dom: what a page's scripts see (Script_types, Script_dom,
+  Script_host, Browser_script), out of src/www: the language in
+  languages/javascript, JavaScript in a browser in a directory of its own
+
+*** HTML, CSS and the layout
+- tables: table-layout: fixed (the first row's cells say the columns,
+  those that say nothing share the rest: Table_layout.fixed) and
+  border-spacing
+- ::before and ::after (CSS 2.1's generated content): a box of their
+  own with the text of content: (strings, attr(x)), made by the
+  cascade and laid out as children (Cascade.cascade_all,
+  Computed.styles_all; a card on about:chrome). A category's coloured
+  square, a tab's line, quotation marks, a list's separators
+- layout: an absolute box written in an inline-block, a float, a flex
+  item or a table's cell is where that box ends up (each box keeps
+  the positioned boxes written in it, and they move with it: it was
+  placed before its parent was); white-space: pre-wrap wraps (a
+  mail's text); a box placed by its bottom in a block whose height
+  its content gives; a table row's
+  own borders (the lines of a list); rgb(...) in a border shorthand is
+  its colour (it was taken for a width, and the border black)
+- an <svg> that is a <use> of a <symbol> of the page's sprite is drawn
+  (Discourse's icons, and most sites' of the 2020s)
+- CSS: logical properties (margin-block-start, padding-inline,
+  border-inline-end, inset-block, inline-size, border-start-end-radius
+  and the others): the physical ones they are in a text left to right
+  and top to bottom, translated before the cascade (Css_logical).
+  GitHub's sheets have 1,600 such declarations
+- <details> opens and closes on a click on its <summary>
+  (Browser_details), with or without scripts; a card on about:chrome
+- text beyond ASCII (Glyph_unicode): a letter with a mark is its
+  Hershey letter and the mark's strokes, above a small letter or a
+  capital, below, or across -- Latin-1 and Latin Extended-A, the
+  languages of Western and Central Europe, Turkish; the ligatures æ œ
+  ß; the curly quotes, dashes, the ellipsis, the no-break and
+  zero-width spaces; some signs drawn (° · • € £ ¥ ¢ ¡ ¿ the arrows,
+  ✓). The rest is still "?": its .mli says what all of Unicode asks
+  of a browser. An ASCII letter's glyph costs 0.013 microseconds
+  where it cost 0.010. Wikipedia in French reads
+- a field inside an inline-block can be clicked and typed into (Hit:
+  the inline-block's room on its line hid what it holds): Google's
+  search box. A search there then goes through its consent page (a
+  form posted, its cookie kept) and stops: the results ask for
+  JavaScript
 - a link of several words is underlined whole, the spaces between its
   words too, as browsers draw it: one line a run of words
   (Browser_draw.decorations), where each letter drew its own piece and
   a space had none; a <s>'s line through, the same
+- CSS grid: display: grid, grid-template-columns and -rows (lengths,
+  fr, min-content, max-content, auto, minmax(), repeat()),
+  grid-template-areas and grid-area (a name, or row / column), the
+  shorthand grid-template, the gaps, the other children in the next
+  free cell; align-items and align-self down an area; place-content
+  (align-content, justify-content). Wikipedia's contents are beside
+  its article, not above it, and its article 948 wide; example.com's
+  text is in the middle of the window. Css_grid (the values),
+  Grid_layout (the arithmetic), Box_grid (the items laid out);
+  about:chrome has its card
+- the page's letters drawn with a round pen (Stroke_text: a dot at
+  each point of a stroke): zoomed, the square corners of the segments
+  stuck out of every joint, spikes on the bold most of all
+- CSS's vh and a media query's height are the window's: the height of
+  the part showing the page (less with the panel open), not a constant
+  768; the pages laid out again when the panel opens or closes. A page
+  exactly as high as that part (a body of min-height: 100vh,
+  example.com's) has no scrollbar
+- CSS's light-dark(a, b): a, the browser being a light one
+  (example.com's grey)
+
+*** pictures, video, sound, documents
+- a progressive JPEG is drawn (most of the web's photographs: it was
+  a red slash, the picture that could not be read). The decoder is
+  the Playground's (Jpeg_progressive, elm-playground after 0.3.6):
+  JPEG is not the web's own
+- a PDF viewer: a PDF file opens in a tab, its pages one under the
+  other, drawn as they scroll into view (Pdf_viewer; about:pdf is a
+  sample). libs/pdf: the file (objects, the table of objects as text
+  or as a stream, packed objects, a file with no table; Flate with
+  predictors, LZW, ASCII85, hexadecimal, run lengths), a page's
+  operators (paths filled and stroked, clips, colours in the device,
+  profile, palette and spot spaces, transparency, pictures with
+  masks and JPEG, forms, axial and radial gradients), text in the
+  four kinds of font. libs/fonts: TrueType, CFF (Type 2 charstrings)
+  and Type 1 (its two ciphers, flex, accents) read to outlines; Type 3
+  fonts run as content. A font not in the file is drawn with our
+  stroke font at the standard widths. The flag pdf= turns each
+  refinement off (pdf=strokes: our letters; pdf=plain: the simple
+  path). Seven files of pdfTeX, cairo, Chrome and LibreOffice are
+  drawn near poppler's pictures (tests/pdf); of 149 PDF files found
+  on the machine it was written on, all are drawn
+- about:tube shows every kind of media the browser plays: the clip
+  also as MPEG-1 alone (our encoder); a section of sounds, an <audio>
+  each -- two chirps as Opus (its file, a WebM), Vorbis, MP3, MP2,
+  blips as a WAV, and a tune as a MIDI file, a tracker's module, ABC
+  and solfege. A module plays in a page (rendered whole by its
+  player: Media.module_sound). A test opens every file of the page
+- Opus (libs/audio/opus), where it is CELT -- music, and what a file made
+  for a page holds: Opus (a packet's first byte and its one to 48
+  frames, OpusHead), Celt (a frame: the bands' energies, the
+  allocation computed and not sent, each band's shape as pulses
+  counted and numbered, splits, folding, two channels as mid and
+  side, short blocks and the anti-collapse, the inverse MDCT with
+  its short overlap, the pitch post-filter), Range_decoder. An .opus
+  file and a WebM's Opus track play (Media). Five files of libopus's
+  encoder decode to libopus's samples, a rounding apart. SILK and
+  hybrid frames are silence of their length. Mdct: the transform of
+  Vorbis and Opus in one module, its Fourier transform of any size
+- a WebM's sound: its Vorbis track played with its picture (Webm: a
+  sound track's rate, channels and its three headers, Xiph-laced;
+  Media gives them to Vorbis). A WebM of sound alone and an .ogg file
+  are sounds, for <audio>. about:tube's first clip has its sound.
+- sound, the web's (libs/audio): Vorbis decoded (Vorbis: the
+  codebooks sent in the stream, floor 1, the three residues, two
+  channels uncoupled, the MDCT by a Fourier transform, windows
+  overlapped) and an Ogg file's pages cut into packets (Ogg). A
+  copy of elm-playground's, written there the same day, to diverge.
+  Four files of libvorbis's and ffmpeg's encoders decode to
+  libvorbis's samples, a rounding apart (tests/audio)
+- <video> plays a WebM file: its VP8 by libs/video, the frames
+  decoded as the player asks for them (Media: a Movie over
+  Vp8_video), without sound (Vorbis and Opus are not decoded);
+  about:tube's first clip is one. A media file that does not decode
+  is now an error said, for every format (the exception was not
+  caught), and about:tube-0 is no page, not a crash
+- video, the web's (libs/video): a WebM
+  file's frames found (Webm: EBML, Matroska's tracks, clusters and
+  blocks) and VP8's decoded whole (Vp8_video: the frames predicted
+  from the last, golden and altref frames, the modes from the
+  neighbours' vectors, split macroblocks, quarter pixels by the
+  six-tap filter, the loop filter by reference and mode), over the
+  still picture's parts (libs/images' Vp8). Every frame of seven
+  clips made by libvpx is ffmpeg's decoder's, to the byte
+  (tests/video). A still or a frame of filter level 0 is no longer
+  filtered (it was, by what its deltas added)
+- PNG is the browser's own too, copied from elm-playground to be
+  told here: Png in libs/images (now wrapped, as libs/network: the
+  Playground links its own Png), with PngSuite
+- Brotli is the browser's own: Brotli, Brotli_dictionary and the
+  dictionary (in the binary) in a new libs/compression, copied from
+  elm-playground to be told here. Needs elm-playground after 0.3.4,
+  where Brotli is a library apart from compression
+  (tiny_libs.compression_brotli)
+- SVG is the browser's own: Svg, copied from elm-playground's
+  graphics/images/svg into libs/images beside WebP (a format born of
+  the web, to grow with what a browser has), its interface telling
+  PostScript's model, PGML and VML, the ten years of plug-ins, canvas
+  and icon fonts; tiny_libs.graphics_svg is no longer linked. A file
+  is read by Xml, and Svg draws a Dom.element, an <svg> of a page or
+  a file's alike (Svg.node and Browser_boxes' conversion are gone)
+- XML has its own reader, languages/xml (Xml, out of elm-playground's
+  Svg: text kept, CDATA, a DOCTYPE's own declarations skipped;
+  forgiving), read into a Dom as HTML is, its interface telling SGML,
+  the draconian rule, JSON
+- WebP pictures (libs/images, a decoder of our own, in mini-chrome
+  and not with elm-playground's GIF, PNG and JPEG: the format was
+  born of the web): the file's chunks (Webp), the lossless format
+  with its prefix codes, copies, colour cache and four transforms
+  (Vp8l; the prefix codes are tiny_libs' Huffman), the lossy one, a
+  key frame of the VP8 video codec -- the boolean decoder, the
+  guesses from neighbours, the coefficients, the loop filter -- (Vp8,
+  RFC 6386, its tables taken from the RFC's text), a lossy picture's
+  alpha, an animation's first frame. Every pixel is libwebp's
+  (tests/images: 16 files and what libwebp reads from each). BBC
+  News has its pictures; about:chrome a card of one picture in each
+  format read
+
+*** the window and its chrome
+- helper applications, as Mosaic had (Browser_helpers): programs of
+  the person's, written in the profile's Preferences ("helpers"),
+  given what the browser does not show. A rule for a site
+  ({"site": "youtube.com/watch", "run": ["mpv", "%u"]}) adds "Open
+  with mpv" to the right click's menu, on the page and on a link to
+  it: a YouTube video plays in mpv's window. A rule for a content
+  type ({"type": "application/postscript", "run": ["gv", "%f"]}) has
+  such a page written to a file and the program run on it, the tab
+  saying so. Only a program named there is run (Cap.exec), each
+  argument its own, started without a fork (OCaml 5's domains) and
+  not waited for. mini-httpd says a .ps file is PostScript. One rule
+  needs no writing: a YouTube video's address to mpv, when mpv is
+  installed; the profile's rules come before it
+- every site's scripts run, not those of a few named sites: the
+  omnibox's "JS" is the browser's switch, a click turning them off
+  and on for all (the page loaded again); scripts=off, scripts=on,
+  scripts=host1,host2
+- which program this is, said in the window: at the end of the tab
+  strip the compiler and the pool ("OCaml 5.5.1, 8 domains", "OCaml
+  4.14.2, 8 threads"), and about:version, after Chrome's (the
+  compiler, the workers, the program and its command line, where the
+  profile and the cache are)
+- the window stays alive while a page's script runs long: a message's
+  work is made on a thread that takes turns with the window's
+  (Js_slice: a quarter of a second each, never both at once), the
+  status line says "Running the page's scripts... 7 s", and what comes
+  meanwhile (a key, an answer) waits for the run's end. threads=off:
+  as before
+- while a page's scripts are fetched, it is shown without its
+  <noscript> parts, whose pictures were fetched for nothing
+- about:chrome opens with the sites the plan is about, each a link
+- the omnibox is a module of its own (src/chrome/Omnibox: its keys,
+  clicks and drags, what is typed made an address or a search, its
+  drawing), and its text can be selected and edited as a line of text
+  usually is (Gui_field: a caret and an anchor): a first click selects
+  it all, then a click puts the caret, a drag selects, a double click
+  selects all; the arrows, Home and End move the caret, with Shift
+  they select; typing, Backspace and Delete replace the selection;
+  Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V, to and from the desktop's
+  clipboard (Gui_clipboard, which the main gives the platform's:
+  Playground_platform.clipboard, new in elm-playground)
+- the mouse's cursor follows what is under it, as Chrome's: a hand
+  over a link, the I-beam over the omnibox and a page's text field,
+  the arrow elsewhere (Window_layout.cursor_of; given to the platform
+  by the main after each message: Playground_platform.set_cursor, new
+  in elm-playground)
 - the built-in site is MiniChrome's own: its pages no longer speak as
   the teaching browsers they came from (TinyMosaic, TinyNetscape,
   TinyFirefox), but as pages of the web's ages, each written as its
@@ -850,24 +881,6 @@
   parser, CSS, a JavaScript engine, HTTP and TLS, pictures and
   video), and has a JavaScript card: a sentence written by its
   script, tiles made and toggled by clicks
-- CSS grid: display: grid, grid-template-columns and -rows (lengths,
-  fr, min-content, max-content, auto, minmax(), repeat()),
-  grid-template-areas and grid-area (a name, or row / column), the
-  shorthand grid-template, the gaps, the other children in the next
-  free cell; align-items and align-self down an area; place-content
-  (align-content, justify-content). Wikipedia's contents are beside
-  its article, not above it, and its article 948 wide; example.com's
-  text is in the middle of the window. Css_grid (the values),
-  Grid_layout (the arithmetic), Box_grid (the items laid out);
-  about:chrome has its card
-- everything TinyChrome had in elm-playground 0.3.0: HTML read as
-  the WHATWG's tokenizer and tree builder do, CSS's cascade (@media,
-  var(), calc(), the attributes' hints) and computed styles, CSS 2.1's
-  box model (floats, inline-blocks, positioning, tables, lists) and
-  flexbox, SVG pictures, PNG/GIF/JPEG, a small JavaScript (ES5 core)
-  and its DOM, <video> and <audio> (MPEG-1 and MP2, MP3, AVI, FLC,
-  Y4M, GIF), tabs, the omnibox (an address, or words searched on
-  Wikipedia or DuckDuckGo), developer tools (Elements, Network)
 - the built-in site: about:chrome, the earlier browsers' pages, and
   about:tube, a video site of our own (its clips in Tube_clips,
   from TinyMediaPlayer's Our_media)
@@ -883,9 +896,6 @@
   500%); the whole page, laid out at the window's width divided by the
   zoom and drawn scaled; a zoom is its site's (every page and tab of
   that host) and shows in the omnibox
-- the page's letters drawn with a round pen (Stroke_text: a dot at
-  each point of a stroke): zoomed, the square corners of the segments
-  stuck out of every joint, spikes on the bold most of all
 - everything drawn at a scale, a browser's device scale factor: the
   desktop's by default (Gui_scale: xrdb's Xft.dpi, 2 where GNOME scales
   a screen of many dots twice -- SDL does not follow it, and the
@@ -901,13 +911,6 @@
 - a scrollbar at the right of a page longer than the window, over its
   edge (Gui_scrollbar, libs/gui): its thumb dragged, its track clicked
   above or below for a page up or down
-- CSS's vh and a media query's height are the window's: the height of
-  the part showing the page (less with the panel open), not a constant
-  768; the pages laid out again when the panel opens or closes. A page
-  exactly as high as that part (a body of min-height: 100vh,
-  example.com's) has no scrollbar
-- CSS's light-dark(a, b): a, the browser being a light one
-  (example.com's grey)
 - the command line's words that are not flags are pages to open, a tab
   each: mini-chrome news.ycombinator.com (an address, or words searched)
 - libs/gui: Gui_field, the omnibox's text while it is typed into (a
@@ -916,6 +919,34 @@
   on a link, Open link in new tab (behind the tab shown) and Inspect;
   elsewhere Back, Forward, Reload and Inspect (the developer tools on
   the element under the pointer); kept inside the window near its edges
+- the profile (Browser_profile), what is kept from one run to the
+  next: ~/.config/mini-chrome/Preferences, JSON as Chrome's, for now
+  the window's size (it opens as it was left) and each site's zoom,
+  written a second after one changes and when the program ends; profile=DIR for another directory, profile=off for
+  none; a file that is not JSON is reported and left alone.
+  The first files the program reads and writes, by Cap.open_in and
+  Cap.open_out (and Cap.env for the directory) handed down from
+  Cap.main, as Cap.network is for sockets
+- -v (or -verbose): each file and URL opened said on the terminal, by
+  Logs.info -- the profile's file read and written, the TLS roots'
+  file, each request (GET or POST) and its answer (status, bytes, a
+  redirection), a built-in page; -debug and -quiet as well (the
+  Playground's flags, the names of xix's programs)
+
+*** the program's shape
+- the budget is 40,000 lines (it was 30,000): the browser now has
+  its own decoders of pictures, video, sound and compression
+- one tree for the languages: Dom moved from languages/html to a
+  library of its own, libs/dom, under them; CSS, which matches on it,
+  no longer depends on the HTML library
+- everything TinyChrome had in elm-playground 0.3.0: HTML read as
+  the WHATWG's tokenizer and tree builder do, CSS's cascade (@media,
+  var(), calc(), the attributes' hints) and computed styles, CSS 2.1's
+  box model (floats, inline-blocks, positioning, tables, lists) and
+  flexbox, SVG pictures, PNG/GIF/JPEG, a small JavaScript (ES5 core)
+  and its DOM, <video> and <audio> (MPEG-1 and MP2, MP3, AVI, FLC,
+  Y4M, GIF), tabs, the omnibox (an address, or words searched on
+  Wikipedia or DuckDuckGo), developer tools (Elements, Network)
 - libs/gui: the pieces of the chrome that know nothing of a browser,
   as values a Model-View-Update program keeps and draws: Gui_menu (a
   menu opened at a point: its place, its shapes, the item under a
@@ -941,23 +972,29 @@
   libs/gui and their style among the four of elm-playground's
   notes_gui.md, the one process and its pool of four threads next to
   Chrome's processes, the capabilities, what is kept between runs
-- the profile (Browser_profile), what is kept from one run to the
-  next: ~/.config/mini-chrome/Preferences, JSON as Chrome's, for now
-  the window's size (it opens as it was left) and each site's zoom,
-  written a second after one changes and when the program ends; profile=DIR for another directory, profile=off for
-  none; a file that is not JSON is reported and left alone.
-  The first files the program reads and writes, by Cap.open_in and
-  Cap.open_out (and Cap.env for the directory) handed down from
-  Cap.main, as Cap.network is for sockets
-- -v (or -verbose): each file and URL opened said on the terminal, by
-  Logs.info -- the profile's file read and written, the TLS roots'
-  file, each request (GET or POST) and its answer (status, bytes, a
-  redirection), a built-in page; -debug and -quiet as well (the
-  Playground's flags, the names of xix's programs)
 - languages/json: JSON read (elm-playground's Json, over our
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- an event of the browser's own making (a click, a key) is an Event
+  (instanceof), and every event has its path: composedPath(), and
+  Chrome's older event.path -- the target, what it is in, the
+  document, the window. Polymer asks both of a click on a dialog's
+  button to know it confirms; el.animate tells its end (finished,
+  onfinish, "finish"), which a dialog that fades away waits for.
+  YouTube's "turn history on?" could not be answered
+- a click on a <button> of a form sends the form (the button it is on
+  or in, of type submit or of none; its own name and value with the
+  fields): only an <input type=submit> did. Google's page of cookie
+  settings (consent.youtube.com, where YouTube's first page sends a
+  visitor) could not be confirmed
+- opacity between 0 and 1 makes a box's own colour that much fainter
+  (it was 0 or nothing): a dialog's backdrop, black at 0.6, was a
+  black page
+- a flex item's height in percents, in a column that is as tall as
+  what it holds, is the item's own (it was 0: the percents of a
+  height not known). YouTube's first page, which for a visitor not
+  signed in is one card ("your history is off"), was an empty frame
 - the window frozen for good, now and then, on a page of many
   scripts (GitHub: a load in fifteen; every thread asleep). The
   parser takes breaths (Js_slice: a long text read lets the window be

@@ -280,7 +280,17 @@ and flex_children (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
         Array.map
           (fun (_, (cs : Computed.t), (b : box), _, _) ->
             let (mt, mb), _, (ab, aa) = chrome cs in
-            let base = match (cs.flex_basis, size cs.height 0.) with Len l, _ when l.pct = 0. -> l.px | _, Some h -> h | _ -> b.height in
+            (* a height in percents is of the container's when that is
+             * known; else auto, the item's own (YouTube's one card of
+             * its first page, height: 100% in a column as tall as it
+             * holds, was 0 high) *)
+            let said =
+              match (cs.height, env.known_height) with
+              | Len l, Some h when l.pct <> 0. && not measuring -> Some (Css_values.resolve l h)
+              | Len l, _ when l.pct <> 0. -> None
+              | h, _ -> size h 0.
+            in
+            let base = match (cs.flex_basis, said) with Len l, _ when l.pct = 0. -> l.px | _, Some h -> h | _ -> b.height in
             { Flex_layout.base = mt +. base +. mb; grow = cs.flex_grow; shrink = cs.flex_shrink;
               min_size = (if cs.overflow_hidden then 0. else mt +. b.height +. mb); max_size = infinity;
               auto_before = ab; auto_after = aa })

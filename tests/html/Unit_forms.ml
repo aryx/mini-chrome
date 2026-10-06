@@ -37,6 +37,23 @@ let tests =
           Alcotest.check fields "by Return in the field: no button"
             [ ("q", "caf\xC3\xA9 au lait"); ("lang", "fr") ]
             (Forms.submission f ~value:(initial f) ~submitter:None));
+      Testo.create "a <button> sends its form: a click on it, or in it" (fun () ->
+          let root =
+            Html_tree.of_string
+              {|<form action=/save method=post><input type=hidden name=gl value=IT><button name=set value=on><div><span id=in>Confirm</span></div></button><button type=button><span id=plain>More</span></button><button disabled><span id=off>No</span></button></form><button><span id=out>Alone</span></button>|}
+          in
+          let rec find id (e : Dom.element) =
+            if Dom.attribute "id" e = Some id then Some e else List.find_map (fun (n : Dom.node) -> match n with Dom.Element c -> find id c | Text _ -> None) e.children
+          in
+          let on id = Forms.submitting root (Option.get (find id root)) in
+          (match on "in" with
+          | Some (f, b) ->
+              Alcotest.(check (pair string bool)) "the form it is in" ("/save", true) (f.action, f.post);
+              Alcotest.check fields "the hidden field, then the button's own name and value" [ ("gl", "IT"); ("set", "on") ]
+                (Forms.submission f ~value:(initial f) ~submitter:(Some b))
+          | None -> Alcotest.fail "a click in the button sends the form");
+          Alcotest.(check (list bool)) "not a type=button, a disabled one, one in no form" [ true; true; true ]
+            (List.map (fun id -> on id = None) [ "plain"; "off"; "out" ]));
       Testo.create "checkboxes and radios: only the checked" (fun () ->
           let f =
             form_of

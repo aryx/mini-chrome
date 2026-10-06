@@ -30,6 +30,11 @@ type outcome =
  * body *)
 val submission : Browser_page.t -> Forms.form -> submitter:Dom.element option -> string * (string * string) option
 
+(* a form sent: where to go, by GET or POST, with its controls' values
+ * as they are now; [submitter], the button that sent it (a <button>
+ * of the page's: Forms.submitting) *)
+val submit : Browser_page.t -> Forms.form -> submitter:Dom.element option -> outcome
+
 (* a click on a control *)
 val click : Browser_page.t -> Dom.element -> outcome
 

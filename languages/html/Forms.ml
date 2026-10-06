@@ -83,9 +83,32 @@ let forms (root : Dom.element) : form list =
 let form_of (forms : form list) (e : Dom.element) : form option =
   List.find_opt (fun f -> List.exists (fun c -> c.element == e) f.controls) forms
 
+(* a click on [e]: the <button> it is, or is in, if that button sends
+ * its form (type=submit, or no type: HTML's default) -- the form and
+ * the button. A <button> is not a control drawn by the browser as an
+ * <input> is (its content is the page's, styled by the page), but a
+ * click on it submits all the same *)
+let submitting (root : Dom.element) (e : Dom.element) : (form * Dom.element) option =
+  (* [e] and its ancestors, the nearest first *)
+  let rec path (x : Dom.element) (above : Dom.element list) : Dom.element list option =
+    if x == e then Some (x :: above)
+    else List.find_map (fun (n : Dom.node) -> match n with Dom.Element c -> path c (x :: above) | Text _ -> None) x.children
+  in
+  let rec button (chain : Dom.element list) =
+    match chain with
+    | [] -> None
+    | b :: up when b.name = "button" -> (
+        match (lower (Dom.attribute "type" b), has "disabled" b, List.find_opt (fun (f : Dom.element) -> f.name = "form") up) with
+        | (None | Some "submit"), false, Some f ->
+            Some ({ action = Option.value (Dom.attribute "action" f) ~default:""; post = lower (Dom.attribute "method" f) = Some "post"; controls = controls_in f }, b)
+        | _ -> None)
+    | _ :: up -> button up
+  in
+  Option.bind (path root []) button
+
 let submission (f : form) ~(value : Dom.element -> value) ~(submitter : Dom.element option) : (string * string) list =
-  f.controls
-  |> List.filter_map (fun c ->
+  List.filter_map
+    (fun c ->
          match c.name with
          | None -> None
          | Some name -> (
@@ -99,3 +122,9 @@ let submission (f : form) ~(value : Dom.element -> value) ~(submitter : Dom.elem
              | Submit -> (
                  match submitter with Some s when s == c.element -> Some (name, v.text) | _ -> None)
              | Reset | Button -> None))
+    f.controls
+  (* a <button>'s own name and value, after the controls' *)
+  @
+  match submitter with
+  | Some b when b.name = "button" -> ( match Dom.attribute "name" b with Some n -> [ (n, Option.value (Dom.attribute "value" b) ~default:"") ] | None -> [])
+  | _ -> []

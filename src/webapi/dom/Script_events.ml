@@ -37,13 +37,16 @@ let fill (o : obj) ~(bubbles : bool) (typ : string) (fields : (string * value) l
   set "stopImmediatePropagation" (fn "stopImmediatePropagation" (fun _ -> set "cancelBubble" (Bool true); set immediate (Bool true); Undefined));
   set "composedPath" (fn "composedPath" (fun _ -> Object (new_array [])))
 
-let make ?(bubbles = false) (typ : string) (fields : (string * value) list) : value =
-  let o = new_object () in
-  fill o ~bubbles typ fields;
-  Object o
-
 (* the prototype every event has: Event.prototype, once [install]ed *)
 let proto : obj option ref = ref None
+
+(* an event of the browser's own making (a click, a key, a load): an
+ * Event as one a script makes is -- a library asks "instanceof Event"
+ * before it reads one (Polymer, of the click that closes a dialog) *)
+let make ?(bubbles = false) (typ : string) (fields : (string * value) list) : value =
+  let o = { (new_object ()) with proto = !proto } in
+  fill o ~bubbles typ fields;
+  Object o
 
 let install (define : string -> value -> unit) : unit =
   let event_proto = new_object () in

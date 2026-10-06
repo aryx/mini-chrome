@@ -106,6 +106,10 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
           match (control, link, (current_tab m).state) with
           | Some e, _, Shown p -> form network ~keep_focus:false (Browser_forms.click p e) m
           | _, Some href, Shown p -> visit network (resolve p.url href) m
+          (* a <button> of a form: the form sent *)
+          | None, None, Shown p when Option.bind element (Forms.submitting p.tree) <> None ->
+              let f, button = Option.get (Option.bind element (Forms.submitting p.tree)) in
+              form network ~keep_focus:false (Browser_forms.submit p f ~submitter:(Some button)) m
           | _ ->
               (* a <details>'s summary: opened or closed; else the field
                * typed into gives up the keys *)

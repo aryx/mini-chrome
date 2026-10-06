@@ -94,6 +94,22 @@ let dispatch_event ?(nested = false) (t : t) (target : node option) (event : val
   let flag = Script_events.flag event in
   let document = Js_eval.global t.engine "document" |> Option.value ~default:Undefined in
   set_own ev "target" (match target with Some n -> wrap t n | None -> document);
+  (* its path: the target, what it is in, the document, the window --
+   * composedPath(), and Chrome's older event.path. A component asks
+   * it to know which of its parts was clicked (a dialog's button that
+   * confirms: Polymer's; with no path YouTube's dialog stayed open) *)
+  (let made = ref None in
+   let path () =
+     match !made with
+     | Some p -> p
+     | None ->
+         let rec chain (n : node option) = match n with Some n -> wrap t n :: chain n.parent | None -> [] in
+         let p = Object (new_array (chain target @ [ document ] @ Option.to_list (Js_eval.global t.engine "window"))) in
+         made := Some p;
+         p
+   in
+   set_own ev "composedPath" (host_function "composedPath" (fun ~this:_ _ -> path ()));
+   if target <> None then set_own ev "path" (path ()));
   let prevent () = set_own ev "defaultPrevented" (Bool true) in
   let handle this (listeners : (string * value) list) ~(remove : value -> unit) (extra : value option) =
     set_own ev "currentTarget" this;

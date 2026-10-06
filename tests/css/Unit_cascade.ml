@@ -88,6 +88,12 @@ let tests =
           Alcotest.(check bool) "the same records the second time" true
             (List.for_all2 (fun (name, _, a) (_, _, b) -> a == b || String.starts_with ~prefix:"::" name) again (all_styles ~opti:true sheet (List.hd pages)));
           Alcotest.(check bool) "but a ::before, which has no key" true (List.exists (fun (name, _, _) -> name = "::before") again));
+      Testo.create "opacity: a box's own colour fainter; 0 hides, 1 and nothing said leave it" (fun () ->
+          let alpha css = (style css {|<div id=d>x</div>|} "d").background.a in
+          Alcotest.(check near) "black at 0.6, through a variable's fallback" 0.6 (alpha "#d { background-color: #000; opacity: var(--none, .6) }");
+          Alcotest.(check near) "half of a colour already half there" 0.25 (alpha "#d { background-color: rgba(0, 0, 0, 0.5); opacity: 0.5 }");
+          Alcotest.(check near) "opacity 1: as it is" 1. (alpha "#d { background-color: #000; opacity: 1 }");
+          Alcotest.(check bool) "opacity 0: not seen" false (style "#d { background-color: #000; opacity: 0 }" {|<div id=d>x</div>|} "d").visible);
       Testo.create "the worked example: the cascade's order" (fun () ->
           Alcotest.check color "green: !important beats a higher specificity" (0, 128, 0)
             (rgb (style "p { color: black } .x { color: green !important } #a { color: red }" "<p id=a class=x>" "a").color);

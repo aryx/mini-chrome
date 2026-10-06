@@ -497,7 +497,14 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
     table_fixed = word "table-layout" = Some "fixed";
     border_spacing = (match get "border-spacing" with Some v -> ( match V.parts v with c :: _ -> Option.map (fun l -> V.resolve l 0.) (V.length ctx c) | [] -> None) | None -> None);
     color;
-    background = prop "background-color" ~inh:V.transparent ~init:V.transparent (fun v -> V.color ~current:color v);
+    background =
+      (let c = prop "background-color" ~inh:V.transparent ~init:V.transparent (fun v -> V.color ~current:color v) in
+       (* opacity between 0 and 1: the box's own colour that much fainter
+        * (what is in it is drawn as it is: a dialog's backdrop, black at
+        * 0.6, was a black page) *)
+       match Option.bind (get "opacity") (fun v -> float_of_string_opt (String.trim (to_string v))) with
+       | Some o when o > 0. && o < 1. -> { c with a = c.a *. o }
+       | _ -> c);
     background_image = (match get "background-image" with Some v -> List.find_map url_of (V.parts v) | None -> None);
     mask_image =
       (match get "mask-image" with

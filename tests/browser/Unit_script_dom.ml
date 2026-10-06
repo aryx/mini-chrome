@@ -285,6 +285,27 @@ let tests =
                 set icon(v) { this._icon = v + "!"; } get icon() { return this._icon; } }
               customElements.define("x-a", XA); [before, a.icon, a.hasOwnProperty("icon")]|}
             {|[[true, false, false], "menu!", false]|};
+          (* a click of the browser's own is an Event *)
+          (let root = Html_tree.of_string "<body><b id=b>x</b></body>" in
+           let t = Browser_script.create root in
+           Browser_script.run_scripts t;
+           ignore (Browser_script.eval t {|var was; document.addEventListener("click", e => { was = [e instanceof Event, e.composedPath().length > 2, e.path[0].id] })|});
+           let rec find (e : Dom.element) = if Dom.attribute "id" e = Some "b" then Some e else List.find_map (fun (n : Dom.node) -> match n with Dom.Element c -> find c | Text _ -> None) e.children in
+           ignore (Browser_script.click t (Option.get (find (Browser_script.tree t))));
+           Alcotest.(check string) "the browser's click: an Event, with its path" {|[true, true, "b"]|}
+             (match Browser_script.eval t "was" with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message));
+          (let t = Browser_script.create (Html_tree.of_string "<body><b id=b>x</b></body>") in
+           Browser_script.run_scripts t;
+           let ask e = match Browser_script.eval t e with Ok v -> Js_value.display v | Error e -> "error: " ^ e.message in
+           Alcotest.(check string) "el.animate: running, and not ended at once" {|["running", 0]|}
+             (ask {|var ends = []; var a = document.getElementById("b").animate([{ opacity: 1 }, { opacity: 0 }], 200); a.onfinish = () => ends.push("on"); a.addEventListener("finish", () => ends.push("listener")); a.finished.then(() => ends.push("promise")); [a.playState, ends.length]|});
+           Browser_script.advance t 10.;
+           Alcotest.(check string) "ended a moment later: all who waited told, once" {|["finished", "on,listener,promise"]|}
+             (ask {|a.finish(); [a.playState, ends.sort().join().replace("listener,on", "on,listener")]|}));
+          check "an event's path: its target, what it is in, the document, the window" ~html:"<div id=d><p id=p><b id=b>x</b></p></div>"
+            {|var seen; document.getElementById("d").addEventListener("go", e => { seen = e.composedPath().map(n => n.id || n.nodeName || "window").join(" ") + " / " + (e.path.indexOf(e.currentTarget)) });
+              document.getElementById("b").dispatchEvent(new Event("go", { bubbles: true })); seen|}
+            "b p d BODY HTML #document window / 2";
           check "a custom element told of an attribute it observes, set and removed later" ~html:"<x-b id=b held></x-b>"
             {|var told = []; class XB extends HTMLElement { static get observedAttributes() { return ["held", "size"]; } attributeChangedCallback(n, o, v) { told.push(n + ":" + o + ">" + v); } }
               customElements.define("x-b", XB); var b = document.getElementById("b");

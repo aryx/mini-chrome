@@ -482,8 +482,35 @@
   method(E, "isEqualNode", function (other) { return !!other && this.outerHTML === other.outerHTML; });
   method(E, "checkVisibility", function () { return true; });
   method(E, "getAnimations", function () { return []; });
-  method(E, "animate", function () {
-    return { finished: Promise.resolve(), ready: Promise.resolve(), playState: "finished", onfinish: null, cancel: nothing, finish: nothing, play: nothing, pause: nothing, addEventListener: nothing, removeEventListener: nothing };
+  // el.animate(keyframes, timing) (Web Animations, Chrome 36, 2014):
+  // an animation here is over as soon as it starts -- the element is
+  // where its own style has it, which is where an animation that
+  // keeps nothing ends -- and says so a moment later: its finished
+  // promise, onfinish, its "finish" listeners. A dialog that fades
+  // away waits for that to take itself out (Polymer's; YouTube's
+  // stayed on the page). It has every member the W3C's polyfill looks
+  // for, which then leaves it alone.
+  method(E, "animate", function (keyframes, timing) {
+    var listeners = [], done = false, settle;
+    var a = {
+      id: "", effect: null, timeline: null, currentTime: 0, startTime: 0, playbackRate: 1, playState: "running", pending: false, onfinish: null, oncancel: null,
+      ready: Promise.resolve(),
+      play: nothing, pause: nothing, reverse: nothing, updatePlaybackRate: nothing, commitStyles: nothing, persist: nothing,
+      addEventListener: function (type, f) { if (type === "finish") listeners.push(f); },
+      removeEventListener: function (type, f) { listeners = listeners.filter(function (g) { return g !== f; }); },
+      cancel: function () { done = true; a.playState = "idle"; },
+      finish: function () {
+        if (done) return;
+        done = true; a.playState = "finished";
+        var e = new Event("finish"); e.currentTime = a.currentTime;
+        settle(a);
+        if (typeof a.onfinish === "function") a.onfinish(e);
+        listeners.slice().forEach(function (f) { f.call(a, e); });
+      }
+    };
+    a.finished = new Promise(function (resolve) { settle = resolve; });
+    setTimeout(a.finish, 0);
+    return a;
   });
   method(E, "requestFullscreen", function () { return Promise.reject(new TypeError("fullscreen is not supported")); });
   method(E, "setPointerCapture", nothing);
@@ -689,7 +716,10 @@
       define: function (name, C) {
         if (classes[name]) throw new DOMException("the name \"" + name + "\" has already been used with this registry", "NotSupportedError");
         classes[name] = C;
-        under(document.documentElement).forEach(function (el) { if (el.localName === name) upgrade(el); });
+        // those of that name now in the page: asked of the browser,
+        // which has them without a list of all the others. Simply:
+        //   under(document.documentElement).forEach(function (el) { if (el.localName === name) upgrade(el); });
+        __named(name).forEach(upgrade);
         (waiting[name] || []).forEach(function (resolve) { resolve(C); });
         delete waiting[name];
       },
