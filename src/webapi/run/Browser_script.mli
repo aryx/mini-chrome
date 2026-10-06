@@ -232,6 +232,10 @@ val value_now : t -> Dom.element -> string option
 
 val take_navigation : t -> (string * bool) option
 
+(* a form a script sent itself (form.submit()), taken: the address, and
+ * a POST's content type and body *)
+val take_submission : t -> (string * (string * string) option) option
+
 (* [popstate t url]: the browser went back or forward to [url], a
  * state of this same document: location is that address, and the
  * window's popstate listeners are told *)

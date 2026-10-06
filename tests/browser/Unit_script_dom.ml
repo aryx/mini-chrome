@@ -320,6 +320,17 @@ let tests =
            Alcotest.(check bool) "told, not prevented" false (Browser_script.submit t (get "f"));
            Alcotest.(check (option string)) "the field's value as the script left it" (Some "token-submit-true") (Browser_script.value_now t (get "bg"));
            Alcotest.(check bool) "the other form's is prevented" true (Browser_script.submit t (get "g")));
+          (* form.submit(): a form a script sends itself, its fields as the script left them *)
+          (let t = Browser_script.create ~base:"https://x.org/signin/wait?a=1" (Html_tree.of_string {|<body><form id=f action=/signin/next method=post><input type=hidden name=token value=old><input type=hidden name=TL value="a b"></form><form id=g action="go?x=1#top"><input name=q value=cats></form></body>|}) in
+           Browser_script.run_scripts t;
+           ignore (Browser_script.eval t {|var f = document.getElementById("f"); f.elements; f.querySelector("[name=token]").value = "new"; f.submit()|});
+           Alcotest.(check (option (pair string (option (pair string string))))) "a POST: the action resolved, the fields encoded"
+             (Some ("https://x.org/signin/next", Some ("application/x-www-form-urlencoded", "token=new&TL=a+b")))
+             (Browser_script.take_submission t);
+           Alcotest.(check bool) "taken once" true (Browser_script.take_submission t = None);
+           ignore (Browser_script.eval t {|document.getElementById("g").submit()|});
+           Alcotest.(check (option (pair string (option (pair string string))))) "a GET: the fields in the place of the action's query" (Some ("https://x.org/signin/go?q=cats", None))
+             (Browser_script.take_submission t));
           check "an event's path: its target, what it is in, the document, the window" ~html:"<div id=d><p id=p><b id=b>x</b></p></div>"
             {|var seen; document.getElementById("d").addEventListener("go", e => { seen = e.composedPath().map(n => n.id || n.nodeName || "window").join(" ") + " / " + (e.path.indexOf(e.currentTarget)) });
               document.getElementById("b").dispatchEvent(new Event("go", { bubbles: true })); seen|}

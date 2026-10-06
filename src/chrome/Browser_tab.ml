@@ -443,12 +443,17 @@ let send_requests (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       in
       (* its WebSockets' asks, handed to the program as they are *)
       let cmd = match Browser_script.take_socket_asks s with [] -> cmd | asks -> Cmd.batch (cmd :: List.map (fun a -> Cmd.Msg (cfg.socket a)) asks) in
-      match navigation with
-      | Some (url, replace) ->
+      match (Browser_script.take_submission s, navigation) with
+      (* a form a script sent *)
+      | Some (url, post), _ ->
+          Logs.info (fun m -> m "a script sends a form to %s" url);
+          let tab, go = visit ?post cfg network url tab in
+          (tab, Cmd.batch [ cmd; go ])
+      | None, Some (url, replace) ->
           Logs.info (fun m -> m "a script goes to %s" url);
           let tab, go = if replace then load cfg network url tab else visit cfg network url tab in
           (tab, Cmd.batch [ cmd; go ])
-      | None -> (tab, cmd))
+      | None, None -> (tab, cmd))
   | None -> (tab, cmd)
 
 let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (tab : t) : t * 'msg Cmd.t =

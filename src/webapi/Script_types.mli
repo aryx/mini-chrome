@@ -75,6 +75,9 @@ type t = {
   (* where a script sent the page (location.href = ..., location.replace):
    * the address, and whether it takes the page's place in the history *)
   mutable navigation : (string * bool) option;
+  (* a form a script sent itself (form.submit()): where to, and a POST's
+   * content type and body *)
+  mutable submission : (string * (string * string) option) option;
   (* the <script> element whose script is running: document.currentScript,
    * how a loader finds where its own file came from *)
   mutable current_script : node option;

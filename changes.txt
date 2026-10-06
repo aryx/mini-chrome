@@ -517,6 +517,11 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- form.submit() (and requestSubmit()): a form a script sends itself,
+  with no submit event, its fields as the script's tree has them;
+  the tab goes there, by GET or POST (Browser_script.take_submission).
+  Google's sign-in, waiting for a phone to say yes, goes on that way
+  when it has: it stayed on "check your phone"
 - a form about to be sent is told to the page's scripts: its submit
   event, bubbling, which a script may prevent, and after which the
   form goes with its hidden fields as the scripts left them. Google's

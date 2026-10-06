@@ -156,7 +156,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
-      now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; current_script = None; cookies;
+      now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; submission = None; current_script = None; cookies;
       more = (fun _ _ -> None); scroll_y = 0.; where = (fun _ -> None); measure = None; geometry = None; dispatch = (fun _ _ -> false); inserted = (fun _ -> ()); exempt = []; once = []; protos = [] }
   in
   t.more <- Script_element.get t;
@@ -501,6 +501,11 @@ let take_navigation (t : t) : (string * bool) option =
   let n = t.navigation in
   t.navigation <- None;
   n
+
+let take_submission (t : t) : (string * (string * string) option) option =
+  let s = t.submission in
+  t.submission <- None;
+  s
 
 let take_alerts (t : t) : string list =
   let a = List.rev t.alerts in

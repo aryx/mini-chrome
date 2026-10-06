@@ -83,6 +83,24 @@ let get (t : t) (n : node) (k : string) : value option =
   | "cloneNode" -> m (fun args -> wrap t (clone ~deep:(truthy (arg args 0)) n))
   (* its shadow tree (Shadow_tree.mli): attached, empty, and then filled
    * as any node is; the root's host and mode are said by the prelude *)
+  (* form.submit(): the form sent by a script, with no submit event (it
+   * is the script's own doing) -- how a page goes on by itself when
+   * what it waited for has come (Google's sign-in, told that the phone
+   * said yes). Its fields as the script's tree has them; requestSubmit()
+   * the same here *)
+  | ("submit" | "requestSubmit") when n.name = "form" ->
+      m (fun _ ->
+          (match Forms.forms (Script_dom.freeze n) with
+          | f :: _ ->
+              let initial (e : Dom.element) = match Forms.control e with Some c -> c.initial | None -> { Forms.text = ""; checked = false; selected = 0 } in
+              let fields = Urlencoded.encode (Forms.submission f ~value:initial ~submitter:None) in
+              let action = Browser_url.resolve t.base (if f.action = "" then t.base else f.action) in
+              t.submission <-
+                Some
+                  (if f.post then (action, Some ("application/x-www-form-urlencoded", fields))
+                   else (fst (Browser_url.split_query (fst (Browser_url.split_fragment action))) ^ "?" ^ fields, None))
+          | [] -> ());
+          Undefined)
   | "attachShadow" ->
       m (fun _ ->
           attach_shadow n [];
