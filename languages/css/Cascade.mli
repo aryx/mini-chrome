@@ -108,6 +108,32 @@ val cascade :
 val cascade_all :
   ?visited:(string -> bool) -> media -> sheet list -> Dom.element -> (Dom.element -> (string * Css_syntax.component list) list) * (Dom.element -> Dom.node list)
 
+(* modern:
+ * A browser does not style a page again whole when a script changes
+ * it: it marks what a change can reach ("invalidation": Blink's
+ * invalidation sets say which descendants a class added may restyle)
+ * and shares one style between elements that cannot differ (WebKit's
+ * and Servo's "style sharing cache"). The memo below is the second
+ * idea alone, which needs no account of what changed: the tree is
+ * walked whole, and what is as it was is found, not computed. *)
+
+(* opti: the same, and each element's key -- two hashes of all a
+ * selector can read of it: its name and attributes, whether it is
+ * empty, its place among its siblings (those before it, whether it is
+ * the last) and the same of every ancestor. What was found for a key
+ * is kept with the sheets' index and found again at the next styling
+ * of a tree that changed little, no rule tried; the key is given for
+ * what is computed from the declarations to be kept the same way
+ * (Computed). None with opti=off, and for a ::before or an ::after *)
+type key = int * int
+
+val cascade_keyed :
+  ?visited:(string -> bool) ->
+  media ->
+  sheet list ->
+  Dom.element ->
+  (Dom.element -> (string * Css_syntax.component list) list) * (Dom.element -> Dom.node list) * (Dom.element -> key option)
+
 val find_element : (int, Dom.element * 'a) Hashtbl.t -> Dom.element -> 'a option
 
 (* the style rules of the sheets that count for [media], their @media

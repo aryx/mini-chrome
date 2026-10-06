@@ -16,6 +16,7 @@ open Js_value
  * one, an object its primitive (ECMA-262 5.1, 11.9.3) *)
 let rec loose_equal (a : value) (b : value) : bool =
   match (a, b) with
+  | Rope _, _ | _, Rope _ -> loose_equal (flat a) (flat b)
   | (Undefined | Null), (Undefined | Null) -> true
   | (Undefined | Null), _ | _, (Undefined | Null) -> false
   | Number _, Number _ | String _, String _ | Bool _, Bool _ | Object _, Object _ | Symbol _, _ | _, Symbol _ -> strict_equal a b
@@ -39,7 +40,10 @@ let arithmetic_simple (op : string) (a : value) (b : value) : value =
   match op with
   | "+" -> (
       match (to_primitive a, to_primitive b) with
-      | (String _ as x), y | x, (String _ as y) -> String (to_string x ^ to_string y)
+      (* a long text is a rope, not a copy of the two (Js_value.join) *)
+      | ((String _ | Rope _) as x), ((String _ | Rope _) as y) -> join x y
+      | ((String _ | Rope _) as x), y -> join x (String (to_string y))
+      | x, ((String _ | Rope _) as y) -> join (String (to_string x)) y
       | x, y -> Number (to_number x +. to_number y))
   | "-" -> Number (to_number a -. to_number b)
   | "*" -> Number (to_number a *. to_number b)
@@ -58,7 +62,7 @@ let arithmetic_simple (op : string) (a : value) (b : value) : value =
       Number (Int64.to_float (Int64.logand (Int64.of_int32 (Int32.shift_right_logical (to_int32 a) (Int32.to_int (to_int32 b) land 31))) 0xFFFFFFFFL))
   | "<" | ">" | "<=" | ">=" -> (
       let cmp =
-        match (to_primitive a, to_primitive b) with
+        match (flat (to_primitive a), flat (to_primitive b)) with
         | String x, String y -> Some (compare x y)
         | x, y ->
             let x = to_number x and y = to_number y in

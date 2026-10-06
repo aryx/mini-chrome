@@ -78,6 +78,20 @@ let tests =
           Js_eval.set_budget t 20_000;
           ignore (Js_eval.eval t "var n = 0; for (var j = 0; j < 30; j++) Promise.resolve().then(function () { for (var i = 0; i < 1000; i++) n++ })");
           Alcotest.(check string) "each job its budget" "30000" (match Js_eval.eval t "n" with Ok v -> Js_value.display v | Error e -> e.message));
+      Testo.create "a long string grown by additions (a rope inside): a string to every eye" (fun () ->
+          let grown = "var s = ''; for (var i = 0; i < 3000; i++) s += String.fromCharCode(97 + i % 26); var t = 'x' + s + 'y'; var o = { k: s }, a = [s, t];" in
+          check "its length, a character, its type, what it equals"
+            (grown ^ "[s.length, t.length, s.charAt(2999), typeof s, s === o.k, s == o.k, s != t, t === 'x' + o.k + 'y', a[1].slice(0, 3), s ? 1 : 0]")
+            {|[3000, 3002, "j", "string", true, true, true, true, "xab", 1]|};
+          check "compared, iterated, a key, in JSON, in a template, a number"
+            (grown ^ "var m = new Map([[s, 7]]), n = '1' + '0'.repeat(1500); [s < t, t < s, [...s].length, m.get(o.k), JSON.stringify({ s: s }).length, `${s}!`.length, (s + 1).length, n - 1 > 1e300, s.indexOf('xyz'), s.split('a').length, ({ [s]: 1 })[o.k]]")
+            "[true, false, 3000, 7, 3008, 3001, 3001, true, 23, 117, 1]";
+          check "the same string added to twice is two strings; one added to in a property and an array too"
+            (grown ^ "var p = s + '1', q = s + '2'; var h = { v: '' }, l = ['']; for (var i = 0; i < 2000; i++) { h.v += 'ab'; l[0] += 'c' } [p.slice(-1), q.slice(-1), p.length, s.length, h.v.length, l[0].length, h.v.slice(-2)]")
+            {|["1", "2", 3001, 3000, 4000, 2000, "ab"]|};
+          check "given to a function of the script, returned, thrown, kept by a closure"
+            (grown ^ "function id(x) { return x } function len() { return arguments[0].length } var keep = (function (z) { return function () { return z.length } })(s + s); var caught; try { throw s + '!' } catch (e) { caught = e.length } [id(s + s).length, len(s + 'q'), keep(), caught, [s + s].map(function (x) { return x + x })[0].length]")
+            "[6000, 3001, 6000, 3001, 12000]");
       Testo.create "a boolean and a symbol have every object's methods" (fun () ->
           check "(!o).hasOwnProperty(k), a minifier's false" "var o = { a: 1 }; [(!o).hasOwnProperty('a'), typeof Symbol('s').hasOwnProperty, true.toString(), false.missing]"
             "[false, \"function\", \"true\", undefined]");

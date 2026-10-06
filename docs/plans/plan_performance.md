@@ -510,3 +510,38 @@ read, 6 s its first run, 2.4 s waiting for one answer of YouTube's
 (`GenerateIT`, its attestation), 1 s the results drawn. And after: 61
 layouts, 12 s of styles. Next, by what the samples say: the strings,
 the styles of a tree that changed little, and the engine itself.
+
+## Styles kept between stylings, and ropes (2026-10-06)
+
+The two things the samples above named. Five sites, each loaded once
+by the program before and after (OCaml 5.5.1, `timings=on`; "busy" is
+the time in the program's spans, not the wall's):
+
+| | busy | scripts | stylings | styles | heap |
+|---|---|---|---|---|---|
+| Wikipedia, an article | 6.9 s to 4.3 | 0.7 s to 0.6 | 23 | 3.6 s to 1.8 | 278 MB to 264 |
+| GitHub, a repository | 20.5 s to 17.3 | 6.2 s to 6.1 | 24 | 7.2 s to 3.3 | 733 MB to 738 |
+| Discourse, the topics | 45.9 s to 40.7 | 20.6 s to 19.8 | 46 | 5.6 s to 1.5 | 1,056 MB to 994 |
+| YouTube, a search | 50.6 s to 30.0 | 28.4 s to 17.9 | 67 | 14.1 s to 4.0 | 3,763 MB to 1,704 |
+| YouTube, a video | 180.2 s to 107.3 | 90.4 s to 77.0 | 225 | 73.9 s to 16.6 | 5,413 MB to 2,805 |
+
+**The styles** (`Cascade.cascade_keyed`, whose comment tells it whole;
+`Computed`'s memo on top): an element's key is two hashes of all a
+selector can read of it, and what the rules gave for a key is found
+again at the next styling. Between a half and a quarter of the time
+is left: the first styling, the walk, what did change.
+
+**Ropes** (`Js_value.join`): a long string made by `+` is its two
+pieces until it is read. Only YouTube had the loop that needs it (its
+attestation's strings, a character at a time), and there a third of
+the scripts' time went, with half the heap: those copies were each an
+allocation in the major heap.
+
+One run each, on a network: the scripts' and the boxes' seconds move
+by one or two from run to run, the styles' ratio does not.
+
+A run of the first series hung (GitHub, the binary of before these
+changes: 4 s of CPU in twelve minutes, every thread in a futex, the
+window's too). The second time this was seen; no stack could be had
+(no ptrace on a process not ours to trace). To catch: the same run
+under gdb from the start.

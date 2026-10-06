@@ -80,6 +80,8 @@ let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
   | Object o when k = "__proto__" && get_own o k = None -> ( match proto_of ps o with Some p -> Object p | None -> Null)
   | Object { kind = Proxy (t, _); _ } -> get ps (Object t) k
   | Undefined | Null -> throw "TypeError" (Printf.sprintf "Cannot read properties of %s (reading '%s')" (to_string target) k)
+  (* a rope's length is known; anything else of it is of its text *)
+  | Rope r -> if k = "length" then Number (float_of_int r.size) else get ps (String (flatten r)) k
   | String s -> (
       match (k, index_of_key k) with
       | "length", _ -> Number (float_of_int (String.length s))
@@ -150,6 +152,8 @@ let instance_of (ps : Js_builtins.protos) (v : value) (f : value) : bool =
   | _ -> false
 
 let rec set (target : value) (k : string) (v : value) : unit =
+  (* what is kept is a String, never a rope *)
+  let v = flat v in
   match target with
   (* o.__proto__ = p: its prototype, of any object (a browser's own
    * too: how a polyfill makes a fragment one of its ShadowRoots) *)
@@ -178,4 +182,4 @@ let rec set (target : value) (k : string) (v : value) : unit =
   | Object { kind = Host_object h; _ } -> h.set k v
   | Object o -> set_own o k v
   (* a property of a primitive: lost, as JavaScript loses it *)
-  | Bool _ | Number _ | String _ | Symbol _ -> ()
+  | Bool _ | Number _ | String _ | Rope _ | Symbol _ -> ()

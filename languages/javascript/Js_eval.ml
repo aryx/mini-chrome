@@ -177,6 +177,7 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
                   List.iter (fun k -> set_own o k (get t (Object src) k)) ks
               | Object src -> List.iter (fun k -> set_own o k (get t (Object src) k)) (keys src)
               | String str -> String.iteri (fun i c -> set_own o (string_of_int i) (String (String.make 1 c))) str
+              | Rope r -> String.iteri (fun i c -> set_own o (string_of_int i) (String (String.make 1 c))) (flatten r)
               | _ -> ()))
         props;
       Object o
@@ -449,6 +450,7 @@ and iterate (t : t) (v : value) (f : value -> bool) : unit =
       from 0
   | Object ({ kind = Array _ | Proxy _; _ } as o) when (match (Js_value.target o).kind with Array _ -> true | _ -> false) -> each (array_items o)
   | String str -> each (List.init (String.length str) (fun i -> String (String.make 1 str.[i])))
+  | Rope r -> iterate t (String (flatten r)) f
   | Object _ -> (
       match get t v "@@iterator" with
       | Object { kind = Closure _ | Host_function _; _ } as make -> (
@@ -560,7 +562,7 @@ and put_item_opti (t : t) (o : value) (k : value) (v : value) : unit =
   match (o, k) with
   | Object { kind = Array a; _ }, Number f ->
       let i = Float.to_int f in
-      if i >= 0 && i < a.length && Float.of_int i = f then a.elements.(i) <- v else put_item_simple t o k v
+      if i >= 0 && i < a.length && Float.of_int i = f then a.elements.(i) <- flat v else put_item_simple t o k v
   | _ -> put_item_simple t o k v
 
 and item (t : t) (o : value) (k : value) : value = if !Mini_opti.enabled then item_opti t o k else item_simple t o k
@@ -711,7 +713,10 @@ and assign (t : t) (s : scope) (this : value) (target : A.expr) (v : value) : un
 
 and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value =
   match fn with
-  | Object { kind = Host_function (_, f); _ } -> f ~this args
+  (* OCaml's functions are given Strings, never ropes *)
+  | Object { kind = Host_function (_, f); _ } ->
+      let rope = function Rope _ -> true | _ -> false in
+      f ~this:(flat this) (if List.exists rope args then List.map flat args else args)
   (* a proxy of a function: its handler's apply(target, this, arguments) *)
   | Object { kind = Proxy (tg, h); _ } -> (
       match trap t h "apply" with Some f -> call_value t f ~this:(Object h) [ Object tg; this; Object (new_array args) ] | None -> call_value t (Object tg) ~this args)
@@ -1069,7 +1074,8 @@ let prelude : A.program Lazy.t =
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = Js_scope.global () in
   let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None; global_this = A.place () } in
-  let call f ~this args = call_value t f ~this args in
+  (* what a script's function gives back to OCaml is no rope either *)
+  let call f ~this args = flat (call_value t f ~this args) in
   let define x v = declare globals x ~constant:false v in
   define "__watch"
     (host_function "__watch" (fun ~this:_ args ->
@@ -1192,7 +1198,7 @@ let exec_module (t : t) (s : scope) (program : A.program) : unit =
   | Return _ -> throw "SyntaxError" "Illegal return statement"
   | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"
 
-let call_in_run = call_value
+let call_in_run (t : t) (f : value) ~(this : value) (args : value list) : value = flat (call_value t f ~this args)
 
 (* opti: a text already read, where it was fetched (Js_module.ahead,
  * which sets this: a worker of the pool reads a script's megabytes

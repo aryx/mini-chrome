@@ -36,6 +36,26 @@
    pages of this repository are ASCII where it matters; counting code
    points is an exercise.
 
+   A long string made by [+] is a **rope**: the two pieces, kept as
+   they are, and written end to end only when the text is first read.
+   A script that builds a text by adding to it -- s += c, ten thousand
+   times -- would otherwise copy all it has at each addition, the
+   square of the text's length in all.
+
+   cs-history:
+   Ropes are Boehm, Atkinson and Plass's, of Xerox PARC's Cedar: a
+   string as a tree of pieces, so that joining two is one small node
+   whatever their lengths ("Ropes: an Alternative to Strings",
+   Software: Practice and Experience, 1995).
+
+   modern:
+   Every JavaScript engine has them, for this very loop: V8's
+   ConsString, SpiderMonkey's JSRope, flattened in place the first
+   time the characters are asked for. Here a rope is kept out of
+   OCaml's sight rather than taught to all of it: it lives in a
+   script's variables, and whatever is stored in an object or given
+   to a function of ours is made a String first ([flat]).
+
    **Conversions**, JavaScript's, which convert rather than refuse:
    [to_string], [to_number], [truthy] (false, 0, NaN, "", null and
    undefined are false; everything else, "0" and [] included, true), and
@@ -49,11 +69,21 @@ type value =
   | Bool of bool
   | Number of float
   | String of string
+  (* a long string not yet written out: two pieces joined by +, put end
+   * to end when it is first read ([flatten]). It lives where a script
+   * keeps what it is computing -- a variable, an argument of a
+   * function of the script -- and is made a String wherever a value is
+   * stored or given to OCaml ([flat]): a property, an array, a host
+   * function. So only the evaluator meets one *)
+  | Rope of rope
   (* a symbol (ES2015): a unique value, usable as a property's
    * key. What it holds is that key, "@@7:description" or a well-known
    * one's, "@@iterator": a string no script writes *)
   | Symbol of string
   | Object of obj
+
+and rope = { mutable pieces : pieces; size : int (* its length *) }
+and pieces = Flat of string | Cat of rope * rope
 
 and obj = {
   id : int; (* for printing cycles and for tests; identity is (==) *)
@@ -177,6 +207,14 @@ val unwinding : int ref
 
 (*****************************************************************************)
 (* {1 Conversions} *)
+(* a rope's text, written out once; a value that is a rope as the
+ * String it is; and two strings (or ropes) joined: a String when
+ * short, else a rope -- a text grown by adding to it is then not
+ * copied at each addition *)
+val flatten : rope -> string
+val flat : value -> value
+val join : value -> value -> value
+
 (*****************************************************************************)
 
 val typeof : value -> string

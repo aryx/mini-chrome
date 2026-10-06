@@ -31,9 +31,63 @@ let right (_, b, _, _) = b
 let left (_, _, _, d) = d
 let query s = Cascade.media_matches media (Css_syntax.components_of s)
 
+(* every element's declarations and style, in the tree's order: by the
+ * simple way, or the fast one, whose memos stay from call to call *)
+let all_styles ~(opti : bool) (sheet : Cascade.sheet) (html : string) =
+  let before = !Mini_opti.enabled in
+  Mini_opti.enabled := opti;
+  Fun.protect ~finally:(fun () -> Mini_opti.enabled := before) (fun () ->
+      let root = Html_tree.of_string html in
+      (* the sheets styles_all gives the cascade: one index, one memo *)
+      let declared, kids, _ = Cascade.cascade_keyed media (Computed.browser_sheets ~quirks:false @ [ sheet ]) root in
+      let style, _ = Computed.styles_all media [ sheet ] root in
+      let rec go (e : Dom.element) =
+        (e.name, List.map fst (declared e), style e) :: List.concat_map (fun (n : Dom.node) -> match n with Element c -> go c | Text _ -> []) (kids e)
+      in
+      go root)
+
 let tests =
   Testo.categorize "Cascade"
     [
+      Testo.create "the styles kept from one styling to the next: as the simple way finds them, at each change" (fun () ->
+          let sheet : Cascade.sheet =
+            { origin = Author;
+              rules =
+                Css_syntax.parse_stylesheet
+                  {|li { color: black } li:first-child { color: red } li:last-child { font-weight: bold } li:only-child { font-style: italic }
+                    li:nth-child(2) { margin-left: 7px } li + li { padding-top: 3px } .on ~ li { text-decoration: underline }
+                    .hot li b { color: orange } ul > li > b { font-size: 20px } p:empty { height: 9px } [data-x="1"] b { color: green }
+                    a:not(.off) { color: purple } li::before { content: "- " } .hot li::before { content: "+ "; color: orange }
+                    div { font-size: 2em } div b { width: 50% } #deep span { color: teal }|} }
+          in
+          (* a page, then the same with one thing changed, each time *)
+          let pages =
+            [ {|<div><ul><li>a</li></ul><p></p></div>|};
+              {|<div><ul><li>a</li><li>b</li></ul><p></p></div>|};
+              {|<div><ul><li>a</li><li>b</li><li>c <b>x</b></li></ul><p></p></div>|};
+              {|<div><ul class=hot><li>a</li><li>b</li><li>c <b>x</b></li></ul><p></p></div>|};
+              {|<div><ul class=hot><li>a</li><li class=on>b</li><li>c <b>x</b></li></ul><p>t</p></div>|};
+              {|<div><ul><li>a</li><li class=on>b</li><li data-x=1>c <b>x</b></li><li>d</li></ul><p>t</p></div>|};
+              {|<div><ul><li>new</li><li>a</li><li class=on>b</li><li data-x=2>c <b>x</b></li><li>d</li></ul><p></p></div>|};
+              {|<div style="font-size: 10px"><ul><li>new</li><li>a</li><li>b</li><li data-x=2>c <b>x</b></li><li>d</li></ul><p></p><a class=off>l</a><a>m</a></div>|};
+              {|<div id=deep><div><ul><li>new</li><li>a</li><li>b</li></ul><span>s</span></div><ul><li>new</li><li>a</li><li>b</li></ul><span>s</span></div>|};
+              {|<div><ul><li>a</li></ul><p></p></div>|} ]
+          in
+          List.iteri
+            (fun i html ->
+              let fast = all_styles ~opti:true sheet html and simple = all_styles ~opti:false sheet html in
+              Alcotest.(check int) (Printf.sprintf "page %d: as many elements" i) (List.length simple) (List.length fast);
+              List.iter2
+                (fun (name, ds, st) (name', ds', st') ->
+                  Alcotest.(check (pair string (list string))) (Printf.sprintf "page %d: <%s>'s declarations" i name) (name, ds) (name', ds');
+                  Alcotest.(check bool) (Printf.sprintf "page %d: <%s>'s style" i name) true (st = st'))
+                simple fast)
+            pages;
+          (* and the memo did serve: a page styled again is found whole *)
+          let again = all_styles ~opti:true sheet (List.hd pages) in
+          Alcotest.(check bool) "the same records the second time" true
+            (List.for_all2 (fun (name, _, a) (_, _, b) -> a == b || String.starts_with ~prefix:"::" name) again (all_styles ~opti:true sheet (List.hd pages)));
+          Alcotest.(check bool) "but a ::before, which has no key" true (List.exists (fun (name, _, _) -> name = "::before") again));
       Testo.create "the worked example: the cascade's order" (fun () ->
           Alcotest.check color "green: !important beats a higher specificity" (0, 128, 0)
             (rgb (style "p { color: black } .x { color: green !important } #a { color: red }" "<p id=a class=x>" "a").color);

@@ -10,7 +10,9 @@
 
 (* See Js_value.mli *)
 
-type value = Undefined | Null | Bool of bool | Number of float | String of string | Symbol of string | Object of obj
+type value = Undefined | Null | Bool of bool | Number of float | String of string | Rope of rope | Symbol of string | Object of obj
+and rope = { mutable pieces : pieces; size : int }
+and pieces = Flat of string | Cat of rope * rope
 and obj = { id : int; mutable props : (string * value ref) list; kind : kind; mutable proto : obj option; mutable lookup : lookup option; mutable hidden : string list; (* its properties by their key, when they are many (Js_value's find) *)
 }
 
@@ -57,8 +59,59 @@ let make (kind : kind) : obj =
 
 let new_object () : obj = make Plain
 
+(*****************************************************************************)
+(* Ropes *)
+(*****************************************************************************)
+
+(* a rope's text: its pieces put end to end, once (then it is that
+ * text). By a list of what is still to be written, not by calling
+ * itself: a string grown a character at a time is a rope as deep as
+ * it is long *)
+let flatten (r : rope) : string =
+  match r.pieces with
+  | Flat s -> s
+  | Cat _ ->
+      let b = Bytes.create r.size in
+      let rec go (at : int) (todo : rope list) =
+        match todo with
+        | [] -> ()
+        | { pieces = Flat s; _ } :: rest ->
+            Bytes.blit_string s 0 b at (String.length s);
+            go (at + String.length s) rest
+        | { pieces = Cat (l, r); _ } :: rest -> go at (l :: r :: rest)
+      in
+      go 0 [ r ];
+      let s = Bytes.unsafe_to_string b in
+      r.pieces <- Flat s;
+      s
+
+(* a value that is a rope, as the string it is: what everything but
+ * [join] is given *)
+let flat (v : value) : value = match v with Rope r -> String (flatten r) | v -> v
+
+(* under this, two strings joined are a string *)
+let rope_from = 1024
+
+(* opti: two texts joined. Simply a ^ b; but a long text made by adding
+ * to it again and again is copied whole at each addition (a script's
+ * 60 KB grown a character at a time: 100,000 copies, 1.5 GB, and the
+ * collector after each), so a long one is a rope: the two pieces
+ * kept, written out when the text is first read. 200,000 additions
+ * of two characters: 34 s to 0.3. YouTube's search, its scripts in
+ * all: 28 s to 18 (with the styles' memo: a heap of 3.8 GB to 1.7) *)
+let join (a : value) (b : value) : value =
+  let size = function String s -> String.length s | Rope r -> r.size | _ -> 0 in
+  let n = size a + size b in
+  let piece = function String s -> { pieces = Flat s; size = String.length s } | Rope r -> r | _ -> { pieces = Flat ""; size = 0 } in
+  if n < rope_from || not !Mini_opti.enabled then
+    String ((match flat a with String s -> s | _ -> "") ^ match flat b with String s -> s | _ -> "")
+  else if size a = 0 then b
+  else if size b = 0 then a
+  else Rope { pieces = Cat (piece a, piece b); size = n }
+
 let new_array (vs : value list) : obj =
-  let elements = Array.of_list vs in
+  (* an item is no rope: what is kept is a String *)
+  let elements = Array.of_list (if List.exists (function Rope _ -> true | _ -> false) vs then List.map flat vs else vs) in
   make (Array { elements; length = Array.length elements; holes = 0 })
 
 let host_function (name : string) (f : this:value -> value list -> value) : value = Object (make (Host_function (name, f)))
@@ -101,7 +154,7 @@ let find (o : obj) (k : string) : value ref option =
 let get_own (o : obj) (k : string) : value option = match find (target o) k with Some r -> Some !r | None -> None
 
 let set_own (o : obj) (k : string) (v : value) : unit =
-  let o = target o in
+  let o = target o and v = flat v in
   match find o k with
   | Some r -> r := v
   | None -> (
@@ -185,7 +238,7 @@ let typeof (v : value) : string =
   | Null -> "object"
   | Bool _ -> "boolean"
   | Number _ -> "number"
-  | String _ -> "string"
+  | String _ | Rope _ -> "string"
   | Symbol _ -> "symbol"
   | Object { kind = Closure _ | Host_function _; _ } -> "function"
   | Object { kind = Proxy ({ kind = Closure _ | Host_function _; _ }, _); _ } -> "function"
@@ -197,6 +250,7 @@ let truthy (v : value) : bool =
   | Bool b -> b
   | Number f -> not (f = 0. || Float.is_nan f)
   | String s -> s <> ""
+  | Rope r -> r.size > 0
   | Symbol _ | Object _ -> true
 
 (* -0 is printed 0, as JavaScript does *)
@@ -214,6 +268,7 @@ let rec to_string (v : value) : string =
   | Null -> "null"
   | Bool b -> string_of_bool b
   | Number f -> number_to_string f
+  | Rope r -> flatten r
   | String s -> s
   (* "@@7:saved" is Symbol(saved); "@@iterator", Symbol(Symbol.iterator) *)
   | Symbol k -> (
@@ -247,7 +302,9 @@ and to_primitive ?(hint = "default") (v : value) : value =
   | v -> v
 
 let to_number (v : value) : float =
-  match to_primitive ~hint:"number" v with
+  (* a rope is a primitive already (to_primitive leaves it: + joins it); here its text is read *)
+  match flat (to_primitive ~hint:"number" v) with
+  | Rope _ -> Float.nan
   | Undefined -> Float.nan
   | Null -> 0.
   | Bool b -> if b then 1. else 0.
@@ -268,8 +325,9 @@ let to_number (v : value) : float =
             if ok && (hex || decimal) then Option.value (float_of_string_opt s) ~default:Float.nan else Float.nan)
   | Symbol _ | Object _ -> Float.nan
 
-let strict_equal (a : value) (b : value) : bool =
+let rec strict_equal (a : value) (b : value) : bool =
   match (a, b) with
+  | Rope _, _ | _, Rope _ -> strict_equal (flat a) (flat b)
   | Undefined, Undefined | Null, Null -> true
   | Bool x, Bool y -> x = y
   | Number x, Number y -> x = y (* NaN is not equal to itself; +0 is -0 *)
@@ -306,6 +364,7 @@ let display (v : value) : string =
   let rec go ~top (seen : obj list) (v : value) =
     match v with
     | String s -> if top then s else quoted s
+    | Rope r -> go ~top seen (String (flatten r))
     | Object { kind = Proxy (t, _); _ } -> go ~top seen (Object t)
     | Object o when List.memq o seen -> "[Circular]"
     (* five deep and no further: an application's one object holds
@@ -346,6 +405,7 @@ let to_json (v : value) : string option =
   (* None: left out (undefined, a function) *)
   let rec go (seen : obj list) (v : value) : string option =
     match v with
+    | Rope r -> go seen (String (flatten r))
     | Undefined -> None
     | Null -> Some "null"
     | Bool b -> Some (string_of_bool b)

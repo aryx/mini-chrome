@@ -285,19 +285,10 @@ let index_simple (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t =
     (rules m sheets);
   index
 
-(* opti: the index of the last sheets asked, kept: a page whose scripts
+(* opti: the index of the last sheets asked is kept (index_opti,
+ * below, with the memo of what was found by it): a page whose scripts
  * change its tree is styled again with the same sheets, and the index
  * of 1.9 MB of them (Discourse's) was made again each time *)
-let last_index : (media * sheet list * (string, entry) Hashtbl.t) option ref = ref None
-
-let index_opti (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t =
-  let same a b = List.length a = List.length b && List.for_all2 (fun (x : sheet) (y : sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
-  match !last_index with
-  | Some (m', sh, index) when m' = m && same sh sheets -> index
-  | _ ->
-      let index = index_simple m sheets in
-      last_index := Some (m, sheets, index);
-      index
 
 (* what content: says, as text: its strings, an attr(x) of the element;
  * none (no box) for none, normal, or nothing said *)
@@ -314,16 +305,105 @@ let content_text (e : Dom.element) (v : component list) : string option =
   | parts when List.mem None parts -> None
   | parts -> Some (String.concat "" (List.filter_map Fun.id parts))
 
-let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root : Dom.element) :
-    (Dom.element -> (string * component list) list) * (Dom.element -> Dom.node list) =
-  let index = if !Mini_opti.enabled then index_opti m sheets else index_simple m sheets in
+(* opti: an element's declarations kept from one styling of a page to
+ * the next.
+ *
+ * The problem. A page that is an application changes its tree all the
+ * time -- a result added, a class set -- and each change is a styling
+ * of the whole page: every element tried again against the rules that
+ * may be its own (YouTube's video page: 225 stylings of 9,000 elements
+ * against 3 MB of sheets, 74 s). Nearly all of the tree is as it was,
+ * but the tree given here is a new one each time (the script's tree
+ * frozen again), so nothing can be known unchanged by being the same
+ * value.
+ *
+ * The idea. What can a selector read of an element? Its name and its
+ * attributes; whether it holds anything (:empty); its place among its
+ * siblings -- those before it (+, ~, :first-child, :nth-child) and
+ * whether it is the last (:last-child, :only-child); and the same of
+ * each of its ancestors (a descendant's or a child's selector), whose
+ * attributes the hints read too. Nothing else: no selector of ours
+ * looks down (:has) or counts from the end. So all of that is hashed
+ * into a key, down the tree --
+ *
+ *   key(e) = mix (key(parent), the siblings before e, e's own, last?)
+ *
+ * -- and what the rules gave for a key ([found]: the winning
+ * declarations, a ::before's and an ::after's) is kept in a table and
+ * found again at the next styling, no rule tried. An element added at
+ * the end of a list changes one key beside its own (the one that was
+ * last); a class set on an element changes its key, its later
+ * siblings' and its descendants', and those alone are matched again.
+ *
+ * Two hashes of two seeds make the key, and the element's own part is
+ * compared besides (name, attributes): a wrong answer would need two
+ * different ancestries to clash on both. The table is the index's
+ * (the same sheets, the same media) and is thrown away with it;
+ * Computed keeps the styles computed from these declarations the same
+ * way, by the same key. A selector that came to read more (:has)
+ * would have to be put in the key, or its elements left out of the
+ * table. The simple way is this very code with no table (opti=off),
+ * and tests/css styles a page ten times changed both ways.
+ *
+ * Measured (OCaml 5.5.1, each site loaded once; the stylings, then
+ * their time before and after, Computed's memo included):
+ *
+ *   Wikipedia, an article      23     3.6 s    1.8 s
+ *   GitHub, a repository       24     7.2 s    3.3 s
+ *   Discourse, the topics      46     5.6 s    1.5 s
+ *   YouTube, a search          67    14.1 s    4.0 s
+ *   YouTube, a video          225    73.9 s   16.6 s
+ *
+ * What is left is the first styling of each page, the walk and the
+ * hashing, and the elements that did change. *)
+type key = int * int
+
+type kept = {
+  k_name : string;
+  k_attributes : (string * string) list;
+  k_extensions : (string * string) list;
+  k_winning : (string * component list) list;
+  k_before : (string * (string * component list) list) option; (* a ::before's text and declarations *)
+  k_after : (string * (string * component list) list) option;
+}
+
+let mix ((a, b) : key) ((c, d) : key) : key = ((a * 1000003) lxor c, (b * 999983) + d)
+let hash_text ((a, b) : key) (s : string) : key = mix (a, b) (Hashtbl.seeded_hash 17 s, Hashtbl.seeded_hash 4242 s)
+
+(* an element's own part of its key *)
+let own_key ~(visited : string -> bool) (e : Dom.element) : key =
+  let pairs k l = List.fold_left (fun k (n, v) -> hash_text (hash_text k n) v) k l in
+  let k = pairs (pairs (hash_text (1, 2) e.name) e.attributes) e.extensions in
+  let empty = List.for_all (fun (n : Dom.node) -> match n with Text "" -> true | _ -> false) e.children in
+  let seen = e.name = "a" && match Dom.attribute "href" e with Some h -> visited h | None -> false in
+  mix k ((if empty then 1 else 0), if seen then 1 else 0)
+
+let last_index : (media * sheet list * (string, entry) Hashtbl.t * (key, kept) Hashtbl.t) option ref = ref None
+
+let index_opti (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t * (key, kept) Hashtbl.t =
+  let same a b = List.length a = List.length b && List.for_all2 (fun (x : sheet) (y : sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
+  match !last_index with
+  | Some (m', sh, index, memo) when m' = m && same sh sheets ->
+      if Hashtbl.length memo > 200_000 then Hashtbl.reset memo;
+      (index, memo)
+  | _ ->
+      let index = index_simple m sheets and memo = Hashtbl.create 4096 in
+      last_index := Some (m, sheets, index, memo);
+      (index, memo)
+
+let cascade_keyed ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root : Dom.element) :
+    (Dom.element -> (string * component list) list) * (Dom.element -> Dom.node list) * (Dom.element -> key option) =
+  let index, memo = if !Mini_opti.enabled then (fun (i, memo) -> (i, Some memo)) (index_opti m sheets) else (index_simple m sheets, None) in
   let table : (int, Dom.element * (string * component list) list) Hashtbl.t = Hashtbl.create 1024 in
+  let key_table : (int, Dom.element * key) Hashtbl.t = Hashtbl.create (if memo = None then 1 else 1024) in
   (* the elements that have a ::before or an ::after: their children with those *)
   let kids : (int, Dom.element * Dom.node list) Hashtbl.t = Hashtbl.create 64 in
   (* the keys of the ancestors of the element being styled, counted *)
   let above : (string, int) Hashtbl.t = Hashtbl.create 256 in
-  let rec go (ancestors : Dom.element list) (e : Dom.element) =
-    let keys = keys_of e in
+  (* what the rules give an element: its declarations, and its
+   * ::before's and ::after's -- a text and declarations, for each
+   * whose rules give it a content *)
+  let found (ancestors : Dom.element list) (e : Dom.element) (keys : string list) =
     let candidates = List.concat_map (fun k -> Hashtbl.find_all index k) (List.sort_uniq compare ("*" :: keys)) in
     (* before the ancestor filter (0.95 s on a Wikipedia article, 0.54
      * after; notes_opti_ocaml.md section 10):
@@ -332,25 +412,15 @@ let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (r
       List.filter (fun en -> List.for_all (Hashtbl.mem above) en.needs && Selectors.matches ~visited en.selector ancestors e) candidates
     in
     let matching = List.filter (fun en -> Selectors.pseudo_element en.selector = None) all_matching in
-    (* its ::before and ::after: an element made for each whose rules
-     * give it a content, holding that text, styled by those rules *)
-    let pseudo (which : string) : Dom.node list =
+    let pseudo (which : string) : (string * (string * component list) list) option =
       match List.filter (fun en -> Selectors.pseudo_element en.selector = Some which) all_matching with
-      | [] -> []
-      | rules -> (
+      | [] -> None
+      | rules ->
           let keyed = List.concat_map (fun en -> List.map (fun (d : declaration) -> (((if d.important then en.layer_important else en.layer_normal), en.specificity, en.order), d)) en.declarations) rules in
           let sorted = List.stable_sort (fun (a, _) (b, _) -> compare a b) keyed in
           let winning = List.fold_left (fun acc (_, (d : declaration)) -> (d.name, d.value) :: List.remove_assoc d.name acc) [] sorted in
-          match Option.bind (List.assoc_opt "content" winning) (content_text e) with
-          | None -> []
-          | Some text ->
-              let made : Dom.element = { name = "::" ^ which; attributes = []; extensions = []; origin = Core; children = (if text = "" then [] else [ Text text ]) } in
-              Hashtbl.add table (Dom.hash made) (made, List.rev (List.remove_assoc "content" winning));
-              [ Element made ])
+          Option.map (fun text -> (text, List.rev (List.remove_assoc "content" winning))) (Option.bind (List.assoc_opt "content" winning) (content_text e))
     in
-    (match (pseudo "before", pseudo "after") with
-    | [], [] -> ()
-    | before, after -> Hashtbl.add kids (Dom.hash e) (e, before @ e.children @ after));
     (* each declaration with its sort key; style= an author's rule above
      * any selector *)
     let keyed =
@@ -380,13 +450,64 @@ let cascade_all ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (r
         (fun acc (_, (d : declaration)) -> if Hashtbl.mem seen d.name then acc else (Hashtbl.add seen d.name (); (d.name, d.value) :: acc))
         [] (List.rev sorted)
     in
-    Hashtbl.add table (Dom.hash e) (e, winning);
+    { k_name = e.name; k_attributes = e.attributes; k_extensions = e.extensions; k_winning = winning; k_before = pseudo "before"; k_after = pseudo "after" }
+  in
+  (* [key]: the element's, of its ancestry, its place and itself *)
+  let rec go (ancestors : Dom.element list) (e : Dom.element) (key : key) =
+    let keys = keys_of e in
+    let kept =
+      match memo with
+      | None -> found ancestors e keys
+      | Some memo -> (
+          Hashtbl.add key_table (Dom.hash e) (e, key);
+          match Hashtbl.find_opt memo key with
+          | Some k when k.k_name = e.name && k.k_attributes = e.attributes && k.k_extensions = e.extensions -> k
+          | _ ->
+              let k = found ancestors e keys in
+              Hashtbl.replace memo key k;
+              k)
+    in
+    (* its ::before and ::after: an element made for each, holding that
+     * text, styled by those rules *)
+    let made (which : string) (p : (string * (string * component list) list) option) : Dom.node list =
+      match p with
+      | None -> []
+      | Some (text, winning) ->
+          let made : Dom.element = { name = "::" ^ which; attributes = []; extensions = []; origin = Core; children = (if text = "" then [] else [ Text text ]) } in
+          Hashtbl.add table (Dom.hash made) (made, winning);
+          [ Element made ]
+    in
+    (match (made "before" kept.k_before, made "after" kept.k_after) with
+    | [], [] -> ()
+    | before, after -> Hashtbl.add kids (Dom.hash e) (e, before @ e.children @ after));
+    Hashtbl.add table (Dom.hash e) (e, kept.k_winning);
     List.iter (fun k -> Hashtbl.replace above k (1 + Option.value (Hashtbl.find_opt above k) ~default:0)) keys;
-    List.iter (fun (n : Dom.node) -> match n with Element c -> go (e :: ancestors) c | Text _ -> ()) e.children;
+    (* a child's key: its parent's, those before it, itself, and whether it is the last *)
+    let rec children (before : key) (ns : Dom.node list) =
+      match ns with
+      | [] -> ()
+      | Text _ :: rest -> children before rest
+      | Element c :: rest ->
+          if memo = None then go (e :: ancestors) c key
+          else (
+            let own = own_key ~visited c in
+            let last = not (List.exists (fun (n : Dom.node) -> match n with Element _ -> true | Text _ -> false) rest) in
+            go (e :: ancestors) c (mix (mix (mix key before) own) ((if last then 7 else 3), 0));
+            children (mix before own) rest);
+          if memo = None then children before rest
+    in
+    children (5, 6) e.children;
     List.iter (fun k -> match Hashtbl.find_opt above k with Some 1 -> Hashtbl.remove above k | Some n -> Hashtbl.replace above k (n - 1) | None -> ()) keys
   in
-  go [] root;
-  ((fun e -> match find_element table e with Some ds -> ds | None -> []), fun e -> match find_element kids e with Some ns -> ns | None -> e.children)
+  go [] root (own_key ~visited root);
+  ( (fun e -> match find_element table e with Some ds -> ds | None -> []),
+    (fun e -> match find_element kids e with Some ns -> ns | None -> e.children),
+    fun e -> find_element key_table e )
+
+let cascade_all ?visited (m : media) (sheets : sheet list) (root : Dom.element) :
+    (Dom.element -> (string * component list) list) * (Dom.element -> Dom.node list) =
+  let declared, kids, _ = cascade_keyed ?visited m sheets root in
+  (declared, kids)
 
 let cascade ?visited (m : media) (sheets : sheet list) (root : Dom.element) : Dom.element -> (string * component list) list =
   fst (cascade_all ?visited m sheets root)

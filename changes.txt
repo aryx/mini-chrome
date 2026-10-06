@@ -96,6 +96,23 @@
   mistake of each: what the JavaScript engine lacks, most common first
 
 ** speed
+- styles kept from one styling of a page to the next (Cascade's
+  memo, Computed's on top). A page whose scripts change its tree is
+  styled again whole, and nearly all of it is as it was: each element
+  now has a key -- two hashes of all a selector can read of it: its
+  name and attributes, whether it is empty, the siblings before it,
+  whether it is the last, and the same of every ancestor -- and what
+  the rules gave for a key is found again without a rule tried; the
+  style computed from the very declarations under the very parent's
+  style likewise. The simple way stays (opti=off), and a test styles
+  a page ten times changed both ways. Numbers in
+  docs/plans/plan_performance.md
+- a long string made by + is a rope (Js_value's Rope: the two pieces,
+  written out when first read): a text grown a character at a time
+  was copied whole at each addition -- 200,000 additions, 34 s; now
+  0.3 s. A rope lives in a script's variables only: a property, an
+  array's item, an argument of a function of ours are given the
+  String. YouTube's scripts replayed: 29 s to 22
 - YouTube's search, first results after 15 s where it was 19, all of
   them after 41 where it was 49 (OCaml 5.5.1). Sampled (gdb started
   with the program and interrupted four times a second: half the

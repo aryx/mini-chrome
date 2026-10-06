@@ -624,18 +624,43 @@ let quirks_sheet : Cascade.sheet =
 (* the browser's sheets, before the page's *)
 let browser_sheets ~(quirks : bool) : Cascade.sheet list = if quirks then [ user_agent_sheet; quirks_sheet ] else [ user_agent_sheet ]
 
+(* opti: a style kept from one styling to the next, by the element's
+ * key (Cascade's: its ancestry, its place, itself), if it is of the
+ * very declarations and the very parent's style it was computed from
+ * (==: the cascade's memo gives the same lists back, and a parent
+ * found here is the same record). The styles of a tree that changed
+ * little are then mostly found. One media's at a time. The numbers
+ * are Cascade's (its memo and this one together: YouTube's video
+ * page, 74 s of styles to 17) *)
+let kept : (Cascade.media * (Cascade.key, (string * component list) list * t * float * t) Hashtbl.t) ref = ref ({ Cascade.width = 0.; height = 0. }, Hashtbl.create 1)
+
 let styles_all ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.sheet list) (root : Dom.element) : (Dom.element -> t) * (Dom.element -> Dom.node list) =
   let ua = browser_sheets ~quirks in
-  let declared, kids = Cascade.cascade_all ?visited m (ua @ sheets) root in
+  let declared, kids, key_of = Cascade.cascade_keyed ?visited m (ua @ sheets) root in
   let table : (int, Dom.element * t) Hashtbl.t = Hashtbl.create 1024 in
-  let root_style = compute m ~root_font_size:16. ~parent:initial (declared root) in
+  if fst !kept <> m || Hashtbl.length (snd !kept) > 200_000 then kept := (m, Hashtbl.create 4096);
+  let memo = snd !kept in
+  let compute ~root_font_size ~parent (e : Dom.element) : t =
+    let ds = declared e in
+    (* a ::before or an ::after has no key: computed each time *)
+    match if !Mini_opti.enabled then key_of e else None with
+    | None -> compute m ~root_font_size ~parent ds
+    | Some key -> (
+        match Hashtbl.find_opt memo key with
+        | Some (ds', parent', size', style) when ds' == ds && parent' == parent && size' = root_font_size -> style
+        | _ ->
+            let style = compute m ~root_font_size ~parent ds in
+            Hashtbl.replace memo key (ds, parent, root_font_size, style);
+            style)
+  in
+  let root_style = compute ~root_font_size:16. ~parent:initial root in
   (* each element's from its parent's, down the tree *)
   let rec go (e : Dom.element) (style : t) =
     Hashtbl.add table (Dom.hash e) (e, style);
     List.iter
       (fun (n : Dom.node) ->
         match n with
-        | Element c -> go c (compute m ~root_font_size:root_style.font_size ~parent:style (declared c))
+        | Element c -> go c (compute ~root_font_size:root_style.font_size ~parent:style c)
         | Text _ -> ())
       (kids e)
   in
