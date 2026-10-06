@@ -29,3 +29,6 @@
     (echo "let text = {|")
     (cat ua.css)
     (echo "|}\n")))))
+
+; its modules are in subfolders, one library still
+(include_subdirs unqualified)

@@ -6,3 +6,6 @@
  (name lang_html)
  (wrapped false)
  (libraries mini_dom)) ; Dom: what a page is read into
+
+; its modules are in subfolders, one library still
+(include_subdirs unqualified)

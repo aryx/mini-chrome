@@ -977,6 +977,11 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- the languages' modules in subfolders, each language one library
+  still (include_subdirs): languages/javascript is parsing/, values/,
+  eval/ and library/ (nineteen modules were in one folder),
+  languages/css parsing/ and cascade/, languages/html parsing/ beside
+  Forms and Line_mode. No module renamed, no code changed
 - the budget is 40,000 lines (it was 30,000): the browser now has
   its own decoders of pictures, video, sound and compression
 - one tree for the languages: Dom moved from languages/html to a

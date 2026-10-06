@@ -43,3 +43,6 @@
     (echo "let text = {prelude|")
     (cat library.js)
     (echo "|prelude}\n")))))
+
+; its modules are in subfolders, one library still
+(include_subdirs unqualified)

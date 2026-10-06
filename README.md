@@ -219,10 +219,16 @@ library, in the order they depend on each other:
 libs/dom              the document as a tree (Dom): what HTML and XML are
                       read into, what CSS matches on and the rest walks
 languages/html        HTML read: bytes to text, tokens, the tree
+                      (parsing/), and beside it forms and a page as text
 languages/xml         XML read into the same tree (Xml): an SVG file
-languages/css         style sheets read and cascaded, computed styles
-languages/javascript  a small JavaScript, with modules (Js_module) and
-                      the later library written in itself (Js_prelude)
+languages/css         style sheets read (parsing/: syntax, selectors,
+                      values) and cascaded, computed styles (cascade/)
+languages/javascript  a small JavaScript: parsing/ (lexer, tree, parser),
+                      values/ (values, properties, operators), eval/
+                      (the tree walked or compiled, scopes, modules),
+                      library/ (what a script finds there: builtins,
+                      regular expressions, JSON, promises), and the
+                      later library written in itself (Js_prelude)
 languages/json        JSON read and written, over JavaScript's lexer
 libs/gui              the chrome's pieces that know no browser, as values
                       drawn and asked what is under a point: text in

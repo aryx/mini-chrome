@@ -275,6 +275,20 @@ same for what the browser plays: every kind of media it reads has a
 clip or a sound there (`Tube`, `Tube_clips`; a test opens each), and
 a new format gets one.
 
+A language with many modules has them in subfolders, one dune
+library still (`include_subdirs unqualified`): `languages/javascript`
+is `parsing/` (`Js_lexer`, `Js_ast`, `Js_parse`), `values/`
+(`Js_value`, `Js_props`, `Js_operators`), `eval/` (`Js_eval`,
+`Js_scope`, `Js_frame`, `Js_quicken`, `Js_compile`, `Js_slice`,
+`Js_coroutine`, `Js_module`) and `library/` (`Js_builtins`,
+`Js_globals`, `Js_json`, `Js_regexp`, `Js_promise`); `languages/css`
+is `parsing/` (`Css_syntax`, `Selectors`, `Css_values`, `Css_grid`,
+`Css_logical`) and `cascade/` (`Css`, `Cascade`, `Computed`, `Looks`);
+`languages/html` has `parsing/` (`Charset`, `Entities`, `Html_lexer`,
+`Dtd`, `Html_tree`) beside `Forms` and `Line_mode`. A new module goes
+in the folder it is of; what dune generates (`Js_prelude`, `Ua_sheet`)
+stays beside the `dune` file.
+
 JavaScript is cut in three. `languages/javascript` is the language
 alone (values, functions, promises; an async function's body is a
 thread, `Js_coroutine`): nothing in it knows of a page, and nothing
