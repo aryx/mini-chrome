@@ -1009,6 +1009,11 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- a long style sheet no more ends the program in a bus error:
+  Css_syntax's components and rules_of_block made a call a token and
+  a call a rule, and Discourse's sheet of 1.2 MB (discuss.ocaml.org)
+  is read on a thread of the pool, whose stack is 512 KB on macOS.
+  Both are loops now, the stack as deep as the brackets are.
 - a page's script may run long: one run's limit is a minute by the
   clock (Js_eval.set_seconds), no more the language's ten million
   steps (the window is drawn meanwhile, in slices; the limit is for a

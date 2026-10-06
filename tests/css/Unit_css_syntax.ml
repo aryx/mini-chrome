@@ -70,6 +70,12 @@ let tests =
           | [ At_rule { block = Some b; _ } ] ->
               Alcotest.(check int) "@media's block read as rules" 2 (List.length (rules_of_block b))
           | _ -> Alcotest.fail "no @media");
+      Testo.create "a long sheet: the stack is the brackets' depth, not the length" (fun () ->
+          (* Discourse's sheet is 1.2 MB, read on a thread of 512 KB of stack *)
+          let n = 300_000 in
+          let b = Buffer.create (n * 16) in
+          for _ = 1 to n do Buffer.add_string b "a { b: c d e }\n" done;
+          Alcotest.(check int) "every rule" n (List.length (parse_stylesheet (Buffer.contents b))));
       Testo.create "values written back" (fun () ->
           let value s = match parse_declarations s with [ d ] -> to_string d.value | _ -> "?" in
           Alcotest.(check (list string)) "functions, commas, calc"
