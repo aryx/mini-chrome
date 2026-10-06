@@ -13,7 +13,7 @@
 type kind = Text | Password | Checkbox | Radio | Submit | Reset | Button | Hidden | Select of (string * string) list | Textarea
 type value = { text : string; checked : bool; selected : int }
 type control = { element : Dom.element; kind : kind; name : string option; initial : value }
-type form = { action : string; post : bool; controls : control list }
+type form = { element : Dom.element; action : string; post : bool; controls : control list }
 
 let lower (s : string option) : string option = Option.map String.lowercase_ascii s
 let has (name : string) (e : Dom.element) : bool = Dom.attribute name e <> None
@@ -75,13 +75,14 @@ let forms (root : Dom.element) : form list =
   Dom.find_all "form" root
   |> List.map (fun (f : Dom.element) ->
          {
+           element = f;
            action = Option.value (Dom.attribute "action" f) ~default:"";
            post = lower (Dom.attribute "method" f) = Some "post";
            controls = controls_in f;
          })
 
 let form_of (forms : form list) (e : Dom.element) : form option =
-  List.find_opt (fun f -> List.exists (fun c -> c.element == e) f.controls) forms
+  List.find_opt (fun f -> List.exists (fun (c : control) -> c.element == e) f.controls) forms
 
 (* a click on [e]: the <button> it is, or is in, if that button sends
  * its form (type=submit, or no type: HTML's default) -- the form and
@@ -100,13 +101,13 @@ let submitting (root : Dom.element) (e : Dom.element) : (form * Dom.element) opt
     | b :: up when b.name = "button" -> (
         match (lower (Dom.attribute "type" b), has "disabled" b, List.find_opt (fun (f : Dom.element) -> f.name = "form") up) with
         | (None | Some "submit"), false, Some f ->
-            Some ({ action = Option.value (Dom.attribute "action" f) ~default:""; post = lower (Dom.attribute "method" f) = Some "post"; controls = controls_in f }, b)
+            Some ({ element = f; action = Option.value (Dom.attribute "action" f) ~default:""; post = lower (Dom.attribute "method" f) = Some "post"; controls = controls_in f }, b)
         | _ -> None)
     | _ :: up -> button up
   in
   Option.bind (path root []) button
 
-let submission (f : form) ~(value : Dom.element -> value) ~(submitter : Dom.element option) : (string * string) list =
+let submission ?(now = fun (_ : Dom.element) -> None) (f : form) ~(value : Dom.element -> value) ~(submitter : Dom.element option) : (string * string) list =
   List.filter_map
     (fun c ->
          match c.name with
@@ -114,7 +115,9 @@ let submission (f : form) ~(value : Dom.element -> value) ~(submitter : Dom.elem
          | Some name -> (
              let v = value c.element in
              match c.kind with
-             | Text | Password | Hidden | Textarea -> Some (name, v.text)
+             (* a hidden field's value as a script left it, if one did *)
+             | Hidden -> Some (name, Option.value (now c.element) ~default:v.text)
+             | Text | Password | Textarea -> Some (name, v.text)
              | Checkbox | Radio ->
                  if v.checked then Some (name, Option.value (Dom.attribute "value" c.element) ~default:"on") else None
              | Select opts -> (

@@ -309,6 +309,17 @@ let tests =
               EventTarget.prototype.removeEventListener.call(d, "go", f); d.dispatchEvent(new Event("go"));
               var t = new EventTarget(), m = 0; t.addEventListener("x", () => m++); t.dispatchEvent(new Event("x")); [n, m]|}
             "[22, 1]";
+          (* a form about to be sent: the document's submit listener puts a token in a hidden field (Google's sign-in), another prevents *)
+          (let root = Html_tree.of_string {|<body><form id=f action=/go><input type=hidden name=bg id=bg value=js_disabled><button id=b>Next</button></form><form id=g><input type=hidden name=h></form></body>|} in
+           let t = Browser_script.create root in
+           Browser_script.run_scripts t;
+           ignore (Browser_script.eval t {|document.addEventListener("submit", e => { if (e.target.id == "g") e.preventDefault(); else document.getElementById("bg").value = "token-" + e.type + "-" + (e instanceof Event) })|});
+           let rec find id (e : Dom.element) = if Dom.attribute "id" e = Some id then Some e else List.find_map (fun (n : Dom.node) -> match n with Dom.Element c -> find id c | Text _ -> None) e.children in
+           let tree = Browser_script.tree t in
+           let get id = Option.get (find id tree) in
+           Alcotest.(check bool) "told, not prevented" false (Browser_script.submit t (get "f"));
+           Alcotest.(check (option string)) "the field's value as the script left it" (Some "token-submit-true") (Browser_script.value_now t (get "bg"));
+           Alcotest.(check bool) "the other form's is prevented" true (Browser_script.submit t (get "g")));
           check "an event's path: its target, what it is in, the document, the window" ~html:"<div id=d><p id=p><b id=b>x</b></p></div>"
             {|var seen; document.getElementById("d").addEventListener("go", e => { seen = e.composedPath().map(n => n.id || n.nodeName || "window").join(" ") + " / " + (e.path.indexOf(e.currentTarget)) });
               document.getElementById("b").dispatchEvent(new Event("go", { bubbles: true })); seen|}

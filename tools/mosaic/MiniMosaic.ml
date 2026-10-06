@@ -374,7 +374,7 @@ let form_effect (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome :
   | Focus e -> ({ m with focus = Some e }, Cmd.none)
   | Unfocus -> ({ m with focus = None }, Cmd.none)
   | Changed p -> ({ m with state = Shown p; focus = (if keep_focus then m.focus else None) }, Cmd.none)
-  | Submit { url; post; page } ->
+  | Submit { url; post; page; _ } ->
       (* the page kept in the history with what was typed in it *)
       visit ?post network url { m with state = Shown page; focus = None }
 

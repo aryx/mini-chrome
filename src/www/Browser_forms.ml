@@ -15,20 +15,20 @@ type outcome =
   | Focus of Dom.element
   | Unfocus
   | Changed of Browser_page.t
-  | Submit of { url : string; post : (string * string) option; page : Browser_page.t }
+  | Submit of { url : string; post : (string * string) option; page : Browser_page.t; form : Forms.form; submitter : Dom.element option }
 
 let value_of = Browser_page.value_of
 let with_value = Browser_page.with_value
 
-let submission (p : Browser_page.t) (form : Forms.form) ~(submitter : Dom.element option) : string * (string * string) option =
-  let fields = Urlencoded.encode (Forms.submission form ~value:(value_of p) ~submitter) in
+let submission ?now (p : Browser_page.t) (form : Forms.form) ~(submitter : Dom.element option) : string * (string * string) option =
+  let fields = Urlencoded.encode (Forms.submission ?now form ~value:(value_of p) ~submitter) in
   let action = Browser_url.resolve p.url (if form.action = "" then p.url else form.action) in
   if form.post then (action, Some ("application/x-www-form-urlencoded", fields))
   else (fst (Browser_url.split_query (fst (Browser_url.split_fragment action))) ^ "?" ^ fields, None)
 
 let submit (p : Browser_page.t) (form : Forms.form) ~(submitter : Dom.element option) : outcome =
   let url, post = submission p form ~submitter in
-  Submit { url; post; page = p }
+  Submit { url; post; page = p; form; submitter }
 
 let click (p : Browser_page.t) (e : Dom.element) : outcome =
   match Forms.control e with

@@ -224,6 +224,12 @@ val set_measure : t -> (Dom.element -> Dom.element -> (float * float * float * f
  * (IntersectionObserver, data/prelude/web.js) *)
 val scrolled : t -> float -> unit
 
+(* [submit t form]: the form is about to be sent -- its submit event,
+ * bubbling; whether a script prevented it. [value_now t e]: a
+ * control's value as the scripts have left it *)
+val submit : t -> Dom.element -> bool
+val value_now : t -> Dom.element -> string option
+
 val take_navigation : t -> (string * bool) option
 
 (* [popstate t url]: the browser went back or forward to [url], a

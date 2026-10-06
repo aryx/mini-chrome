@@ -517,6 +517,13 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- a form about to be sent is told to the page's scripts: its submit
+  event, bubbling, which a script may prevent, and after which the
+  form goes with its hidden fields as the scripts left them. Google's
+  sign-in puts its proof that scripts ran in a hidden field at that
+  very moment: without the event it answered "the browser you're
+  using doesn't support JavaScript"; with it, to a name made up,
+  "Couldn't find this account" -- the page's own answer
 - EventTarget.prototype's addEventListener, removeEventListener and
   dispatchEvent, called on one of the browser's objects, are that
   object's own (they were a list of listeners apart, kept for a

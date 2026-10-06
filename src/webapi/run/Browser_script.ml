@@ -383,6 +383,15 @@ let click (t : t) (e : Dom.element) : bool =
   let held = [ ("button", Number 0.); ("detail", Number 1.); ("ctrlKey", Bool false); ("shiftKey", Bool false); ("metaKey", Bool false); ("altKey", Bool false) ] in
   match node_of_element t e with Some n -> dispatch t n "click" held | None -> false
 
+(* a form about to be sent: its submit event, which a script may
+ * prevent (it sends the form itself, later) or use to put a last value
+ * in a field of the form -- a token computed as the form goes: the
+ * page's proof that its scripts ran, on Google's sign-in *)
+let submit (t : t) (form : Dom.element) : bool = match node_of_element t form with Some n -> dispatch t n "submit" [] | None -> false
+
+(* a control's value as the scripts have it now (el.value = ...) *)
+let value_now (t : t) (e : Dom.element) : string option = Option.bind (node_of_element t e) (fun n -> attribute n "value")
+
 let key (t : t) (k : string) : bool =
   let body = match List.find_opt (fun n -> n.name = "body") (elements t.root) with Some b -> b | None -> t.root in
   dispatch t body "keydown" [ ("key", String k) ]

@@ -52,6 +52,12 @@ let tests =
               Alcotest.check fields "the hidden field, then the button's own name and value" [ ("gl", "IT"); ("set", "on") ]
                 (Forms.submission f ~value:(initial f) ~submitter:(Some b))
           | None -> Alcotest.fail "a click in the button sends the form");
+          (* a hidden field a script changed as the form went: its value now *)
+          (match on "in" with
+          | Some (f, b) ->
+              Alcotest.check fields "the hidden field's value now" [ ("gl", "token"); ("set", "on") ]
+                (Forms.submission ~now:(fun e -> if Dom.attribute "name" e = Some "gl" then Some "token" else None) f ~value:(initial f) ~submitter:(Some b))
+          | None -> ());
           Alcotest.(check (list bool)) "not a type=button, a disabled one, one in no form" [ true; true; true ]
             (List.map (fun id -> on id = None) [ "plain"; "off"; "out" ]));
       Testo.create "checkboxes and radios: only the checked" (fun () ->

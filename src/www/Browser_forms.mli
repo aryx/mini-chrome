@@ -23,12 +23,15 @@ type outcome =
   | Focus of Dom.element (* the field takes the keys *)
   | Unfocus (* it gives them up *)
   | Changed of Browser_page.t (* a value changed: the page with it *)
-  | Submit of { url : string; post : (string * string) option; page : Browser_page.t }
-      (* go there (a POST's content type and body), the page left as it is *)
+  | Submit of { url : string; post : (string * string) option; page : Browser_page.t; form : Forms.form; submitter : Dom.element option }
+      (* go there (a POST's content type and body), the page left as it
+       * is; the form and the button that sent it, for the page's scripts
+       * to be told first ([submission] made again with what they changed) *)
 
 (* the request a submission makes: the URL, and a POST's content type and
  * body *)
-val submission : Browser_page.t -> Forms.form -> submitter:Dom.element option -> string * (string * string) option
+val submission :
+  ?now:(Dom.element -> string option) -> Browser_page.t -> Forms.form -> submitter:Dom.element option -> string * (string * string) option
 
 (* a form sent: where to go, by GET or POST, with its controls' values
  * as they are now; [submitter], the button that sent it (a <button>

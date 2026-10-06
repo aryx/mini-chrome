@@ -66,6 +66,7 @@ type control = {
 }
 
 type form = {
+  element : Dom.element; (* the <form> itself: what is told it is about to be sent *)
   action : string; (* as the page wrote it: resolved by the browser *)
   post : bool;
   controls : control list; (* in the page's order *)
@@ -92,6 +93,9 @@ val submitting : Dom.element -> Dom.element -> (form * Dom.element) option
 val form_of : form list -> Dom.element -> form option
 
 (* the fields a submission sends, in order: [value] gives each control's
- * value now, [submitter] the button clicked (none: Return in a field);
+ * value now, [submitter] the button clicked (none: Return in a field),
+ * [now] a hidden field's value if a script changed it since the page
+ * was read (a token put there as the form is sent);
  * encoded by the browser (networking's Urlencoded) *)
-val submission : form -> value:(Dom.element -> value) -> submitter:Dom.element option -> (string * string) list
+val submission :
+  ?now:(Dom.element -> string option) -> form -> value:(Dom.element -> value) -> submitter:Dom.element option -> (string * string) list

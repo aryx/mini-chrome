@@ -684,4 +684,4 @@ let form_effect (cfg : 'msg config) (network : < Cap.network ; .. >) ~(keep_focu
           Browser_script.input s e (Browser_page.value_of p e).text;
           after_task cfg network tab
       | _ -> (tab, Cmd.none))
-  | Submit { url; post; page } -> visit ?post cfg network url { tab with state = Shown page; focus = None }
+  | Submit { url; post; page; _ } -> visit ?post cfg network url { tab with state = Shown page; focus = None }

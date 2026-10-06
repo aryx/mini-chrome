@@ -58,9 +58,6 @@ let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_fi
   | Leave -> ({ m with omnibox = None }, Cmd.none)
   | Nothing -> (m, Cmd.none)
 
-let form (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (m : model) : model * msg Cmd.t =
-  on_current m (fun cfg tab -> Browser_tab.form_effect cfg network ~keep_focus outcome tab)
-
 (* a task of the page's scripts done by [f], then the page laid out
  * again if its tree changed (Browser_tab.after_task) *)
 let task (network : < Cap.network ; .. >) (m : model) (f : Browser_script.t -> bool) : model * msg Cmd.t * bool =
@@ -70,6 +67,30 @@ let task (network : < Cap.network ; .. >) (m : model) (f : Browser_script.t -> b
       let m, cmd = on_current m (fun cfg tab -> Browser_tab.after_task cfg network tab) in
       (m, cmd, r)
   | None -> (m, Cmd.none, false)
+
+(* what a click or a key made of a form, done. A form to send is told
+ * to the page's scripts first (its submit event): one may prevent it,
+ * or change a hidden field as the form goes, and it is sent with the
+ * fields as they then are *)
+let form (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browser_forms.outcome) (m : model) : model * msg Cmd.t =
+  let outcome, m, told =
+    match outcome with
+    | Submit { form = f; submitter; page; _ } when (current_tab m).script <> None ->
+        let now = ref [] in
+        let m, cmd, prevented =
+          task network m (fun s ->
+              let prevented = Browser_script.submit s f.element in
+              now := List.filter_map (fun (c : Forms.control) -> if c.kind = Hidden then Option.map (fun v -> (c.element, v)) (Browser_script.value_now s c.element) else None) f.controls;
+              prevented)
+        in
+        if prevented then (Browser_forms.Nothing, m, cmd)
+        else
+          let url, post = Browser_forms.submission ~now:(fun e -> List.assq_opt e !now) page f ~submitter in
+          (Browser_forms.Submit { url; post; page; form = f; submitter }, m, cmd)
+    | o -> (o, m, Cmd.none)
+  in
+  let m, cmd = on_current m (fun cfg tab -> Browser_tab.form_effect cfg network ~keep_focus outcome tab) in
+  (m, Cmd.batch [ told; cmd ])
 
 let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t =
   match ((current_tab m).state, page_point m) with
