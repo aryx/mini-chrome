@@ -42,9 +42,18 @@ let hoisted (body : A.stmt list) : string list =
         @ (match finally with Some f -> List.concat_map names f | None -> [])
     | Block b -> List.concat_map names b
     | Export (Export_decl st) -> names st
+    (* a function declared in a block is the function's too (below) *)
+    | Function_decl { name = Some f; _ } -> [ f ]
     | _ -> []
   in
-  List.concat_map names body
+  (* a function declared in a block -- a try's, an if's -- is also a
+   * var of the function the block is in, given the function when the
+   * block is entered (ECMAScript's Annex B.3.3, "web legacy
+   * compatibility": what browsers did before blocks had scopes, kept
+   * for the pages that count on it -- a bundle whose parts are each
+   * in a try, one calling the other's function: Gmail's). Not one
+   * declared at the top, which is declared there whole *)
+  List.concat_map (fun (st : A.stmt) -> match st.stmt with Function_decl _ -> [] | _ -> names st) body
 
 let hoist (s : scope) (body : A.stmt list) : unit =
   List.iter (fun x -> if Js_scope.own s x = None then Js_scope.declare s x ~constant:false Undefined) (hoisted body)

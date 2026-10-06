@@ -149,11 +149,27 @@ let node_of_element (t : t) (e : Dom.element) : node option = List.find_map (fun
 (* Entry points *)
 (*****************************************************************************)
 
+(* the limits of one run of a page's script, or of one of its jobs: a
+ * minute by the clock, and steps without count (JS_BUDGET=n: so many
+ * steps, to cut a loop short and read where it was:
+ * docs/dev/notes_debugging_techniques.txt) *)
+let page_budget = match Option.bind (Sys.getenv_opt "JS_BUDGET") int_of_string_opt with Some n -> n | None -> max_int
+let page_seconds = 60.
+
 let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.) ?(viewport = (1000., 768.))
     ?(cookies = ((fun () -> ""), fun (_ : string) -> ())) (tree : Dom.element) : t =
   let lines = ref (fun (_ : string) -> ()) in
   let clock = ref (fun () -> epoch) in
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
+  (* a page's run may be long: an application's start is one run of
+   * hundreds of millions of steps (Gmail's stopped at the language's
+   * ten million, "the script ran too long", and showed its "having
+   * trouble loading?"). The window is drawn meanwhile (Js_slice), so
+   * the limit is only for a loop that truly never ends: a minute (by
+   * steps alone, and many, a page that does loop held its tab for
+   * half an hour: nobelprize.org) *)
+  Js_eval.set_budget engine page_budget;
+  Js_eval.set_seconds engine page_seconds;
   let t =
     { engine; root = thaw tree; changed = false; console = []; log; nodes = Hashtbl.create 64; document_listeners = []; frozen = [];
       now = 0.; timers = []; next_timer = 0; alerts = []; base; address = []; requests = []; waiting = []; next_request = 0; socket_asks = []; sockets = []; import_map = []; module_sources = []; module_asked = []; modules = None; module_jobs = []; navigation = None; submission = None; current_script = None; cookies;

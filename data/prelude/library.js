@@ -510,4 +510,20 @@
   ["info", "debug", "trace", "dir", "table", "group", "groupCollapsed"].forEach(function (m) { if (!console[m]) console[m] = console.log; });
   ["groupEnd", "time", "timeEnd", "timeLog", "count", "countReset", "clear", "profile", "profileEnd", "timeStamp"].forEach(function (m) { if (!console[m]) console[m] = function () {}; });
   if (!console.assert) console.assert = function (ok) { if (!ok) console.error.apply(console, ["Assertion failed:"].concat(Array.prototype.slice.call(arguments, 1))); };
+  // escape and unescape (JavaScript 1.0's, 1995; out of the standard's
+  // body since ES3 and on the web still, in a cookie's reading and a
+  // tracker's): %XX for a character that is not a letter, a digit or
+  // one of @*_+-./, %uXXXX above 255. Our strings being bytes, a letter
+  // with an accent is its two bytes here (%C3%A9 where a browser says %E9).
+  if (typeof globalThis.escape !== "function") {
+    globalThis.escape = function (s) {
+      return String(s).replace(/[^A-Za-z0-9@*_+\-.\/]/g, function (c) {
+        var n = c.charCodeAt(0);
+        return n < 256 ? "%" + (n < 16 ? "0" : "") + n.toString(16).toUpperCase() : "%u" + ("0000" + n.toString(16).toUpperCase()).slice(-4);
+      });
+    };
+    globalThis.unescape = function (s) {
+      return String(s).replace(/%u([0-9A-Fa-f]{4})|%([0-9A-Fa-f]{2})/g, function (m, u, b) { return String.fromCharCode(parseInt(u || b, 16)); });
+    };
+  }
 })();

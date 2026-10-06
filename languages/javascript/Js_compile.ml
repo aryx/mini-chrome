@@ -406,13 +406,13 @@ and inside (t : E.t) (st : A.stmt) : run =
 (* statements one after the other, their functions first; [scoped]: in
  * a scope of their own if they declare a name (a block's; a
  * function's body and a try's are given theirs) *)
-and block (t : E.t) ~(scoped : bool) (body : A.stmt list) : run =
+and block ?(top = false) (t : E.t) ~(scoped : bool) (body : A.stmt list) : run =
   let fresh = scoped && E.declares body and functions = functions body in
   let codes = Array.of_list (List.map (stmt t) body) in
   let n = Array.length codes in
   fun s this ->
     let s = if fresh then Js_scope.nested s else s in
-    if functions then E.declare_functions s this body;
+    if functions then E.declare_functions ~nested:(not top) s this body;
     let rec go i : E.outcome = if i >= n then Normal else match (Array.unsafe_get codes i) s this with Normal -> go (i + 1) | leave -> leave in
     go 0
 
@@ -421,7 +421,7 @@ and block (t : E.t) ~(scoped : bool) (body : A.stmt list) : run =
 (*****************************************************************************)
 
 let body (t : E.t) (f : A.func) : scope -> value -> value =
-  let b = block t ~scoped:false f.body in
+  let b = block ~top:true t ~scoped:false f.body in
   fun frame this -> match b frame this with Return v -> v | _ -> Undefined
 
 let () = E.compiler := Some body

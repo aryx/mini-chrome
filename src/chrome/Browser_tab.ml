@@ -201,6 +201,12 @@ let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   | _ -> tab
 
 let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
+  (* MINI_DUMP_PAGE=file: a page's bytes as they came, written -- the
+   * page of a signed-in session, to run again with no network
+   * (scripts/js/Page_scripts.exe; docs/dev/notes_debugging_techniques.txt) *)
+  (match Sys.getenv_opt "MINI_DUMP_PAGE" with
+  | Some file when status / 100 = 2 -> ( try Out_channel.with_open_bin file (fun oc -> Out_channel.output_string oc bytes) with Sys_error _ -> ())
+  | _ -> ());
   (* a PDF file, whatever its type is said to be: shown as a page of
    * ours, a picture a page (Pdf_viewer) *)
   let pdf, content_type, bytes =

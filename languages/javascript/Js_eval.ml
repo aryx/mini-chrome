@@ -19,6 +19,8 @@ type t = {
   mutable line : int; (* of the statement running: an error's *)
   mutable steps : int; (* left in this run's budget *)
   mutable budget : int;
+  mutable seconds : float; (* a run's time at most, if steps are not the limit (a page's): infinity, none *)
+  mutable deadline : float;
   mutable depth : int; (* of the calls *)
   mutable generators : generating list; (* those whose body is running, the innermost first *)
   (* import("m") in the module whose address is [base]: a promise of
@@ -123,7 +125,10 @@ let rec describe (e : A.expr) : string =
 
 let tick (t : t) : unit =
   t.steps <- t.steps - 1;
-  if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)"
+  if t.steps < 0 then throw "RangeError" "the script ran too long (a loop that never ends?)";
+  (* and by the clock, looked at every million steps: a page's run is
+   * allowed long (an application's start), not for ever *)
+  if t.steps land 0xFFFFF = 0 && Unix.gettimeofday () > t.deadline then throw "RangeError" "the script ran too long (a loop that never ends?)"
 
 (* a statement begun: its line, for an error; one step of the budget *)
 let step (t : t) (line : int) : unit =
@@ -420,7 +425,7 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
     (fun (m : A.member) ->
       match m.what with
       | Field e when m.static -> set_own f (key m.key) (match e with Some e -> eval_expr t statics made e | None -> Undefined)
-      | Static_block body -> ignore (exec_block t (new_scope statics) made body)
+      | Static_block body -> ignore (exec_block ~top:true t (new_scope statics) made body)
       | _ -> ())
     c.members;
   made
@@ -755,7 +760,7 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
             let run = (Option.get !compiler) t c.func in
             l.code <- Code run;
             run frame this
-        | _ -> ( match exec_block t frame this c.func.body with Return v -> v | _ -> Undefined)
+        | _ -> ( match exec_block ~top:true t frame this c.func.body with Return v -> v | _ -> Undefined)
       in
       (* an async function: its body a coroutine, run to its first
        * await; the call gives its promise *)
@@ -805,17 +810,25 @@ and bind_params (t : t) (frame : scope) (this : value) (ps : (A.pattern * A.expr
 (*****************************************************************************)
 
 (* a block's statements in [s]: its function declarations first *)
-and declare_functions (s : scope) (this : value) (body : A.stmt list) : unit =
+and declare_functions ?(nested = false) (s : scope) (this : value) (body : A.stmt list) : unit =
   List.iter
     (fun (st : A.stmt) ->
       match st.stmt with
-      | Function_decl f | Export (Export_decl { stmt = Function_decl f; _ } | Export_default_decl { stmt = Function_decl f; _ }) ->
-          declare s (Option.get f.name) ~constant:false (closure s this f)
+      | Function_decl f | Export (Export_decl { stmt = Function_decl f; _ } | Export_default_decl { stmt = Function_decl f; _ }) -> (
+          let name = Option.get f.name and v = closure s this f in
+          declare s name ~constant:false v;
+          (* in a block: the function's var of that name is given it too
+           * (Js_frame.hoisted made the var; Annex B.3.3) -- unless what
+           * is found there holds something else (a parameter) *)
+          if nested then
+            match Option.bind s.parent (fun p -> lookup p name) with
+            | Some b when (not b.constant) && (match b.value with Undefined | Object { kind = Closure _; _ } -> true | _ -> false) -> b.value <- v
+            | _ -> ())
       | _ -> ())
     body
 
-and exec_block (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome =
-  declare_functions s this body;
+and exec_block ?(top = false) (t : t) (s : scope) (this : value) (body : A.stmt list) : outcome =
+  declare_functions ~nested:(not top) s this body;
   let rec go (body : A.stmt list) =
     match body with
     | [] -> Normal
@@ -1073,7 +1086,7 @@ let prelude : A.program Lazy.t =
 
 let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
   let globals = Js_scope.global () in
-  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; depth = 0; generators = []; importer = None; global_this = A.place () } in
+  let t = { globals; protos = None; promises = None; line = 0; steps = default_budget; budget = default_budget; seconds = infinity; deadline = infinity; depth = 0; generators = []; importer = None; global_this = A.place () } in
   (* what a script's function gives back to OCaml is no rope either *)
   let call f ~this args = flat (call_value t f ~this args) in
   let define x v = declare globals x ~constant:false v in
@@ -1152,10 +1165,11 @@ let error_of (t : t) (v : value) : error =
  * jobs it left (the thens of the promises it settled) *)
 let guarded (t : t) (f : unit -> value) : (value, error) result =
   t.steps <- t.budget;
+  t.deadline <- Unix.gettimeofday () +. t.seconds;
   t.depth <- 0;
   let before = !running in
   running := Some t;
-  Fun.protect ~finally:(fun () -> Js_promise.drain ~each:(fun () -> t.steps <- t.budget) (Option.get t.promises); running := before) @@ fun () ->
+  Fun.protect ~finally:(fun () -> Js_promise.drain ~each:(fun () -> t.steps <- t.budget; t.deadline <- Unix.gettimeofday () +. t.seconds) (Option.get t.promises); running := before) @@ fun () ->
   match f () with
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)
@@ -1193,7 +1207,7 @@ let hoist_module (s : scope) (program : A.program) : unit =
 let exec_module (t : t) (s : scope) (program : A.program) : unit =
   let program = quickened s program in
   hoist s program;
-  match exec_block t s Undefined program with
+  match exec_block ~top:true t s Undefined program with
   | Normal -> ()
   | Return _ -> throw "SyntaxError" "Illegal return statement"
   | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"
@@ -1220,3 +1234,4 @@ let items = items_of
 let global (t : t) (x : string) : value option = Option.map (fun (b : binding) -> b.value) (Js_scope.own t.globals x)
 let define (t : t) (x : string) (v : value) : unit = declare t.globals x ~constant:false v
 let set_budget (t : t) (steps : int) : unit = t.budget <- steps
+let set_seconds (t : t) (seconds : float) : unit = t.seconds <- seconds

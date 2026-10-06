@@ -406,6 +406,14 @@
   a <noscript>'s content left out of a page whose scripts run
 
 *** JavaScript, the language
+- a function declared in a block -- a try's, an if's -- is also a var
+  of the function the block is in, given the function when the block
+  is entered (ECMAScript's Annex B.3.3, the browsers' way from before
+  blocks had scopes). A bundle whose parts are each in a try, one
+  calling another's function, counts on it: Gmail's first script
+  stopped at "na is not defined", caught by its own catch, and
+  nothing after it had what it defined
+- escape and unescape (data/prelude/library.js); Screen, as a name
 - JavaScript: properties that are not enumerated (a class's methods, a
   function's prototype, what Object.defineProperty makes without
   enumerable: Object.keys and for-in skip them, getOwnPropertyNames
@@ -1001,6 +1009,11 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- a page's script may run long: one run's limit is a minute by the
+  clock (Js_eval.set_seconds), no more the language's ten million
+  steps (the window is drawn meanwhile, in slices; the limit is for a
+  loop that never ends). Gmail's start, cut at ten million steps,
+  stayed on "having trouble loading?"
 - an event of the browser's own making (a click, a key) is an Event
   (instanceof), and every event has its path: composedPath(), and
   Chrome's older event.path -- the target, what it is in, the

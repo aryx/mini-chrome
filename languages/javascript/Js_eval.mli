@@ -157,6 +157,11 @@ val define : t -> string -> Js_value.value -> unit
 (* [steps] (10 million by default): the budget of a run or a call *)
 val set_budget : t -> int -> unit
 
+(* a run's or a job's time at most, by the clock (none by default):
+ * for a host whose scripts may rightly run long, a browser's page,
+ * which gives steps without count and a minute *)
+val set_seconds : t -> float -> unit
+
 (*****************************************************************************)
 (* {1 What modules ask} *)
 (*****************************************************************************)
@@ -210,7 +215,7 @@ val step : t -> int -> unit
 
 (* a block's function declarations made, first; whether a block
  * declares a name of its own, and so needs a scope *)
-val declare_functions : Js_value.scope -> Js_value.value -> Js_ast.stmt list -> unit
+val declare_functions : ?nested:bool -> Js_value.scope -> Js_value.value -> Js_ast.stmt list -> unit
 val declares : Js_ast.stmt list -> bool
 
 (* o.k = v; o[k] and o[k] = v, k a value; target = v, any target; a

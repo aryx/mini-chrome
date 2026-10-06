@@ -7,6 +7,67 @@ approach can be reused the next time a page does not look as it does
 in Chrome. A session adds a section; the first is below.
 
 
+First, the kit: what to reach for, and the switches
+---------------------------------------------------
+Each is told at length in the session where it was first used; here
+they are together, the commonest first.
+
+A page looks wrong, no scripts involved:
+
+  ./bin/mini-chrome -dump-frame 300 /tmp/p.png -size 1400x900 url=... profile=off scripts=off
+  ./bin/mini-httpd DIR          # a cut-down copy of the page served on 127.0.0.1:8000
+
+Read the PNG; cut the page down to ten lines that still show it;
+several variants side by side in one page (sections 2, 25).
+
+A page's scripts stop, or the page is blank with them:
+
+  ./bin/mini-chrome -v url=... 2>&1 | tee /tmp/site.log     # console:, each request, each click
+  ./bin/mini-curl -o page.html URL                            # the page, to run with no network
+  FILES=DIR scripts/js/Page_scripts.exe page.html URL ['expr' ['expr 3 s later']]
+
+Page_scripts runs a saved page's scripts with no window (dune builds
+it in _build/default/scripts/js). Its switches, all environment
+variables: FILES=DIR (answers taken from files under DIR, by the
+request's path), TIMES=1 (each stage timed), TURNS=n (tenths of a
+second of the page's time; 50), WALK=1 (js=walk), JS_SYNTAX=1 (the
+tokens around a syntax error), JS_THROWS=n (the first n values
+thrown, caught or not; JS_THROWS_NOT=words leaves some out),
+JS_STACK=words (the calls left by an error of the engine's whose
+message has the words; WALK=1 for their arguments).
+
+A page of a signed-in session (Gmail): it cannot be fetched again by
+curl, and it holds the person's data, so it is saved by the browser,
+on their machine, when they say so:
+
+  MINI_DUMP_PAGE=/tmp/page.html ./bin/mini-chrome -v mail.google.com 2>&1 | tee /tmp/site.log
+
+writes each page's bytes as they came (the last one loaded stays in
+the file). Then Page_scripts on that file, as above. The scripts it
+asks for are static files, public: fetched once into FILES' directory
+(the fetch.py of sections 21 and 26 does it in a loop). Of someone's
+log, read the paths, not the addresses' parameters: an account's name
+is in them. Their Cookies file is a password: its names and sites may
+be listed, never its values, and it is never used to ask the network.
+
+What the live page holds at each layout, scripts' changes included:
+
+  MINI_DUMP_HTML=/tmp/cur.html ./bin/mini-chrome ...        # then scripts stripped, served, scripts=off
+
+(section 25). A page that hangs the program: the load in a loop under
+gdb (section 31). A page that is slow: timings=on, then the sampler
+out of gdb and kill (section 29), then a counter (section 30).
+
+A script that never ends (one core at 100%, memory flat, no request,
+nothing more in the log: `ps -o etime,time,rss -p PID` twice, ten
+seconds apart): it is a loop of the page's that waits for what this
+browser never gives. The limit of steps ("the script ran too long")
+hid it for a while by cutting it. Save the page (MINI_DUMP_PAGE), run
+it in Page_scripts with JS_BUDGET=50000000 (the limit, lowered: a
+page's is two thousand million) JS_STACK="ran too long" WALK=1, and
+the calls left say which loop.
+
+
 Session 1 (2026-10-01): "a missing <h1> on example.com"
 --------------------------------------------------------
 

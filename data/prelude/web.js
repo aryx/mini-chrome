@@ -45,6 +45,8 @@
 
   // the kinds of lists the DOM gives, as names a page tests against
   // (NodeList.prototype.isPrototypeOf(x)); the lists themselves are arrays
+  // the class of window.screen, as a name a page tests against
+  global("Screen", function Screen() {});
   global("NodeList", function NodeList() {});
   global("HTMLCollection", function HTMLCollection() {});
 

@@ -112,6 +112,16 @@ let tests =
               Alcotest.(check bool) "the run's own reading: more than one slice" true (!slices > 1);
               (* told to go on when no run is paused: an answer, not a wait for ever *)
               Alcotest.(check bool) "continue with nothing paused comes back" false (Js_slice.continue ())));
+      Testo.create "a function declared in a block is the function's too (Annex B.3.3)" (fun () ->
+          check "declared in a try, called in the next: a bundle's parts"
+            "(function () { try { function f() { return 1 } } catch (e) {} try { return f() } catch (e) { return 'lost' } })()" "1";
+          check "a block's, an if's; undefined before the block, the function after"
+            "[(function () { { function g() {} } return typeof g })(), (function () { if (true) { function h() {} } return typeof h })(), (function () { var b = typeof k; { function k() {} } return b + '/' + typeof k })()]"
+            {|["function", "function", "undefined/function"]|};
+          check "a parameter of that name keeps what it was given; an outer function of that name is not touched"
+            "[(function (p) { { function p() {} } return typeof p })(7), (function () { function o() { return 'outer' } (function () { { function o() { return 'inner' } } })(); return o() })()]"
+            {|["number", "outer"]|};
+          check "escape and unescape, 1995's" "[escape('a b&c=d/e@f'), unescape('a%20b%26c%u0041')]" {|["a%20b%26c%3Dd/e@f", "a b&cA"]|});
       Testo.create "a boolean and a symbol have every object's methods" (fun () ->
           check "(!o).hasOwnProperty(k), a minifier's false" "var o = { a: 1 }; [(!o).hasOwnProperty('a'), typeof Symbol('s').hasOwnProperty, true.toString(), false.missing]"
             "[false, \"function\", \"true\", undefined]");
