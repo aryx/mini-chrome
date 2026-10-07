@@ -19,6 +19,8 @@ let tail (n : int) (s : string) : string =
   let k = List.length cs in
   if k <= n then s else String.concat "" (List.filteri (fun i _ -> i >= k - n) cs)
 
+let head (n : int) (s : string) : string = if List.length (Text.chars s) <= n then s else String.concat "" (List.filteri (fun i _ -> i < n) (Text.chars s))
+
 let monospace ?(max = 160) (x : number) (y : number) (color : color) (s : string) : shape list =
   Text.chars s
   |> List.mapi (fun i c -> (i, c))

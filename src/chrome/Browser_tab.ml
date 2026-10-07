@@ -339,6 +339,19 @@ let rec fetch_more (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, c
         fetch_more cfg network (logged (kind_of tab url) url { tab with in_flight = url :: tab.in_flight }, Cmd.batch [ cmd; get ]))
   | _ -> (tab, cmd)
 
+(* the page's icon: where its <link rel="icon"> says (the last one:
+ * a site lists several, the plain one first), else /favicon.ico at
+ * its site, the address every browser asks since Internet Explorer 5 *)
+let icon_url (tab : t) : string option =
+  match tab.state with
+  | Shown p when String.starts_with ~prefix:"http" p.url -> (
+      let rel (e : Dom.element) = List.map String.lowercase_ascii (String.split_on_char ' ' (Option.value (Dom.attribute "rel" e) ~default:"")) in
+      let links = List.filter (fun e -> List.mem "icon" (rel e) && Dom.attribute "href" e <> None) (Dom.find_all "link" p.tree) in
+      match List.rev links with
+      | e :: _ -> Some (Browser_url.resolve p.url (Option.get (Dom.attribute "href" e)))
+      | [] -> Some (Browser_url.resolve p.url "/favicon.ico"))
+  | _ -> None
+
 (* a page shown: its style sheets not had yet queued (by the box
  * model: Browser_page.sheets_wanted), then its pictures (if Auto Load
  * Images), the ones of the page before dropped *)
@@ -354,6 +367,7 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
         (* an <svg>'s <image href> (Svg_shapes) *)
         @ (Dom.find_all "image" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Dom.attribute ~extensions:true "href" e)))
         @ p.backgrounds
+        @ Option.to_list (icon_url tab)
         |> List.filter (fun u -> not (had u) && Pdf_viewer.page_of_src u = None)
         |> fresh
       in

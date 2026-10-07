@@ -121,7 +121,7 @@ let view_unscaled (m : model) : shape list =
      Gui_scrollbar.shapes bar ~lit:(m.grab <> None || Gui_scrollbar.at bar m.mouse <> None))
   (* the chrome over what overflows *)
   @ [ rectangle frame (width m) 44. |> move_y (top m -. 22.);
-      rectangle toolbar (width m) 42. |> move_y (area_top m +. 21.);
+      rectangle toolbar (width m) (42. +. bar_height m) |> move_y (area_top m +. 21. +. (bar_height m /. 2.));
       rectangle edge (width m) 1. |> move_y (area_top m) ]
   @ Gui_tabs.shapes (strip m) ~time:m.time
   (* which program this is, at the strip's end: the compiler, the pool (Browser_version) *)
@@ -129,7 +129,9 @@ let view_unscaled (m : model) : shape list =
      monospace (-.left m -. 12. -. (cell *. float_of_int (String.length runtime))) (top m -. 22.) (rgb 214 226 245) runtime)
   @ Gui_toolbar.shapes (buttons m)
   @ Omnibox.shapes (omnibox m)
-  @ monospace (js_x m -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
+  @ monospace (star_x m -. 12. -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
+  @ Bookmarks.star ~kept:(Bookmarks.has m.profile.bookmarks (current_url m)) (star_x m) (toolbar_y m)
+  @ (if m.profile.bookmarks = [] then [] else Bookmarks.shapes (bookmarks_bar m) ~pointer:m.mouse)
   @ (let on = Window_tabs.scripts_on m || tab.script <> None in
      [ rectangle (if on then inspector_blue else rgb 200 204 210) 22. 16. |> move (js_x m +. 11.) (toolbar_y m) ]
      @ monospace (js_x m +. 5.) (toolbar_y m) white "JS")

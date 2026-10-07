@@ -22,7 +22,12 @@
  * A piece in Gui_kit's style: a value built from the program's model,
  * asked what is under a point, and drawn. *)
 
-type 'a tab = { value : 'a; (* what the program knows it by *) title : string; busy : bool (* its icon turns *) }
+type 'a tab = {
+  value : 'a; (* what the program knows it by *)
+  title : string;
+  busy : bool; (* its icon turns *)
+  icon : Playground.shape list; (* its page's own, 16 by 16 around the origin; none, the strip's *)
+}
 
 type 'a t = {
   left : float; (* where the first tab starts *)

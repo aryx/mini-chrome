@@ -19,6 +19,8 @@ let decode (bytes : string) : t =
     else if starts "\x89PNG" then Arrived (Png.decode bytes)
     else if starts "\xFF\xD8" then Arrived (Jpeg.decode bytes)
     else if Webp.sniff bytes then Arrived (Webp.decode bytes)
+    (* a site's icon (/favicon.ico): one of the file's pictures *)
+    else if Ico.sniff bytes then Arrived (Ico.decode bytes)
     else if Svg.sniff bytes then
       (* drawn at its own size (a picture without one: CSS's 300 by 150) *)
       match Svg.parse bytes with

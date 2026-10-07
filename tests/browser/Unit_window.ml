@@ -88,6 +88,23 @@ let tests caps =
           Alcotest.(check string) "Enter goes there" "https://dynamicland.org/" (Window_layout.current_url (send (Key "Return") chosen));
           let both = typed "n" opened in
           Alcotest.(check (list string)) "n: the likeliest first (nine visits, three, one long ago)" [ "https://news.ycombinator.com/"; "https://dynamicland.org/"; "about:history" ] (listed both);
+          (* Ctrl+L: the omnibox from the keyboard *)
+          let by_key = send (Typed "l") (send (Key "l") { m with ctrl = true }) in
+          Alcotest.(check (pair string string)) "Ctrl+L: the address, all selected, no l typed" ("about:home", "about:home") (field by_key);
+          Alcotest.(check (pair string string)) "and typed over" ("dynamicland.org", "micland.org") (field (typed "dyna" { by_key with ctrl = false }));
+          let tabbed = send (Typed "t") (send (Key "t") { m with ctrl = true }) in
+          Alcotest.(check (pair int bool)) "Ctrl+T: a tab more, the omnibox taken, no t typed" (2, true) (List.length tabbed.tabs, fst (field tabbed) = snd (field tabbed) && tabbed.omnibox <> None);
+          Alcotest.(check int) "Ctrl+W: closed again" 1 (List.length (send (Key "w") { tabbed with ctrl = true }).tabs);
+          (* Ctrl+D keeps the page shown: the star, the bar under the toolbar, a click on its name *)
+          let top0 = Window_layout.area_top m in
+          let kept = send (Typed "d") (send (Key "d") { m with ctrl = true }) in
+          Alcotest.(check (list string)) "Ctrl+D: kept" [ "about:home" ] (List.map (fun (e : Bookmarks.entry) -> e.url) kept.profile.bookmarks);
+          Alcotest.(check (float 0.01)) "the bar takes its height from the page's area" Bookmarks.bar_height (top0 -. Window_layout.area_top kept);
+          let away = send (Key "Return") (typed "dyna" (send Mouse_up (send Click { kept with ctrl = false; mouse = (Window_layout.omnibox_x kept +. 30., Window_layout.toolbar_y kept) }))) in
+          let bar = Window_layout.bookmarks_bar away in
+          Alcotest.(check string) "its name in the bar, clicked: back there" "about:home" (Window_layout.current_url (send Click { away with mouse = (bar.left +. 20., bar.y) }));
+          let star = { kept with ctrl = false; mouse = (Window_layout.star_x kept, Window_layout.toolbar_y kept) } in
+          Alcotest.(check int) "the star clicked: let go, the bar gone" 0 (List.length (send Click star).profile.bookmarks);
           (* a click on a line of the list *)
           let menu = Option.get (Window_layout.suggestions both) in
           let on_second = { both with mouse = (menu.left +. 20., Gui_menu.row menu 1) } in

@@ -20,7 +20,7 @@ let hit : string Gui_tabs.hit option Alcotest.testable =
     ( = )
 
 let strip (n : int) (room : float) : string Gui_tabs.t =
-  { left = -490.; y = 331.; room; current = "tab0"; tabs = List.init n (fun i -> { Gui_tabs.value = Printf.sprintf "tab%d" i; title = "A title"; busy = i = 1 }) }
+  { left = -490.; y = 331.; room; current = "tab0"; tabs = List.init n (fun i -> { Gui_tabs.value = Printf.sprintf "tab%d" i; title = "A title"; busy = i = 1; icon = [] }) }
 
 let tests =
   Testo.categorize "Gui"
@@ -36,13 +36,19 @@ let tests =
           Alcotest.(check hit) "under the strip" None (Gui_tabs.at s (-400., 300.)));
       Testo.create "Gui_tabs: tabs share a room too small, their titles cut" (fun () ->
           let s = strip 6 900. in
-          Alcotest.(check number) "150 each" 150. (Gui_tabs.tab_width s);
+          Alcotest.(check number) "148 each, 2 between two" 148. (Gui_tabs.tab_width s);
           Alcotest.(check hit) "the fourth tab" (Some (Show "tab3")) (Gui_tabs.at s (-20., 331.));
           let letters (s : string Gui_tabs.t) = List.length (Gui_tabs.shapes s ~time:0.) in
           let long = { s with tabs = List.map (fun (t : string Gui_tabs.tab) -> { t with title = String.make 40 'x' }) s.tabs } in
           (* a tab: its trapezoid, its icon, the two strokes of its close box, its title's letters; then the +'s three *)
           Alcotest.(check int) "\"A title\": 6 letters, its space not drawn" ((6 * (4 + 6)) + 3) (letters s);
-          Alcotest.(check int) "15 of 40: (150 - 60) / 6" ((6 * (4 + 15)) + 3) (letters long));
+          Alcotest.(check int) "14 of 40, its first letters: (148 - 60) / 6" ((6 * (4 + 14)) + 3) (letters long);
+          (* thirty-six: each its icon alone, all in the room *)
+          let many = strip 36 900. in
+          Alcotest.(check number) "23 each" 23. (Gui_tabs.tab_width many);
+          Alcotest.(check int) "no title, no close box" ((36 * 2) + 3) (letters many);
+          Alcotest.(check hit) "a click shows it, wherever in it" (Some (Show "tab35")) (Gui_tabs.at many (-490. +. (35. *. 25.) +. 20., 331.));
+          Alcotest.(check hit) "the + after the last" (Some New) (Gui_tabs.at many (-490. +. (36. *. 25.) +. 10., 331.)));
       Testo.create "Gui_toolbar, the worked example: a grey button is not clicked" (fun () ->
           let t : Gui_toolbar.t = { left = -476.; y = 288.; buttons = [ (Back, true); (Forward, false); (Reload, true) ] } in
           Alcotest.(check bool) "Back" true (Gui_toolbar.at t (-470., 290.) = Some Back);

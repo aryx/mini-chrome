@@ -62,7 +62,8 @@ let panel_header_y (m : model) : float = panel_top m -. 12.
 let cell = Gui_text.cell
 
 (* the page area, below the toolbar, above the panel if it is open *)
-let area_top (m : model) : float = top m -. 86.
+let bar_height (m : model) : float = if m.profile.bookmarks = [] then 0. else Bookmarks.bar_height
+let area_top (m : model) : float = top m -. 86. -. bar_height m
 let area_left = left
 let area_bottom (m : model) : float = if m.panel = Closed then -.top m else panel_top m
 let area_height (m : model) : float = area_top m -. area_bottom m
@@ -79,6 +80,8 @@ let omnibox_w (m : model) : float = width m -. 180.
 (* the omnibox's "JS", the page's scripts on (blue) or off (grey) *)
 let js_x (m : model) : float = omnibox_x m +. omnibox_w m -. 30.
 let wrench_x (m : model) : float = -.left m -. 22.
+(* the star, left of it: the page shown kept or not (Bookmarks) *)
+let star_x (m : model) : float = js_x m -. 14.
 
 (* the lines of the page that the area shows *)
 let visible_lines (m : model) (tab : Browser_tab.t) : int = int_of_float (area_height m /. (line_height *. zoom_of m tab))
@@ -125,8 +128,12 @@ let buttons (m : model) : Gui_toolbar.t =
 
 let strip (m : model) : int Gui_tabs.t =
   let title (t : Browser_tab.t) = match t.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in
-  { left = tab_left m; y = tab_y m; room = width m -. 100.; current = m.current;
-    tabs = List.map (fun t -> { Gui_tabs.value = t.id; title = title t.tab; busy = loading t.tab }) m.tabs }
+  (* the page's icon, among the tab's pictures once it has come (Browser_tab.icon_url) *)
+  let icon (t : Browser_tab.t) =
+    match Option.bind (Browser_tab.icon_url t) (fun u -> List.assoc_opt u t.pictures) with Some (Arrived img) -> Browser_picture.drawn 16. 16. img | _ -> []
+  in
+  { left = tab_left m; y = tab_y m; room = width m -. 60. -. Gui_text.width (Browser_version.label ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers); current = m.current;
+    tabs = List.map (fun t -> { Gui_tabs.value = t.id; title = title t.tab; busy = loading t.tab; icon = icon t.tab }) m.tabs }
 
 let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool = Gui_kit.near x0 y0 w h m.mouse
 
@@ -135,9 +142,12 @@ let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool = 
 let omnibox (m : model) : Omnibox.t =
   let percent = Browser_zoom.label (zoom_of m (current_tab m)) in
   { x = omnibox_x m; y = toolbar_y m; w = omnibox_w m; address = current_url m; field = m.omnibox;
-    room = int_of_float ((omnibox_w m -. 52. -. (cell *. float_of_int (String.length percent + 1))) /. cell) }
+    room = int_of_float ((omnibox_w m -. 76. -. (cell *. float_of_int (String.length percent + 1))) /. cell) }
 
 let on_omnibox (m : model) : bool = Omnibox.at (omnibox m) m.mouse
+
+(* the bookmarks' bar, under the toolbar when there is one to show *)
+let bookmarks_bar (m : model) : Bookmarks.bar = { left = left m +. 12.; y = area_top m +. (Bookmarks.bar_height /. 2.); room = width m -. 24.; entries = m.profile.bookmarks }
 
 (* the pages seen that what is typed may mean, in a list under the
  * omnibox: a menu whose items are their addresses *)

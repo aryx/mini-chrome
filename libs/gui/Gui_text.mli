@@ -24,6 +24,9 @@ val monospace : ?max:int -> Playground.number -> Playground.number -> Playground
  * title or an address too long for its place *)
 val tail : int -> string -> string
 
+(* its first characters, as many as fit: a tab's title, cut at its end *)
+val head : int -> string -> string
+
 (* [bubble ~left ~y s]: [s] (its last 100 characters) on a small card
  * starting at [left], its middle at [y] -- Chrome's status bubble, at
  * the bottom of the window: a link's address, what is loading *)

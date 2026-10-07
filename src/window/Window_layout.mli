@@ -100,6 +100,12 @@ val pointed_control : model -> Dom.element option
 val near : float -> float -> float -> float -> model -> bool
 val on_omnibox : model -> bool
 
+(* the star's place in the omnibox; the bookmarks' bar (of no height
+   when nothing is kept: [area_top] is under it) *)
+val star_x : model -> float
+val bar_height : model -> float
+val bookmarks_bar : model -> Bookmarks.bar
+
 (* the pages seen that what is typed in the omnibox may mean, a menu
    under it whose items are their addresses; the one the pointer is on *)
 val suggestions : model -> string Gui_menu.t option

@@ -91,6 +91,14 @@ writes it; `profile=DIR` uses another directory. A `Preferences` that
 is not JSON is reported (a warning) and left alone: that run saves
 nothing.
 
+The bookmarks are the profile's too (`"bookmarks"`, a list of
+`{"url", "title"}`: `Bookmarks`, `src/chrome`, which has the star, the
+bar under the toolbar -- `Window_layout.area_top` is under it when
+there is one -- and `about:bookmarks`); Ctrl+D or the star's click
+changes them. The keys the window takes with Ctrl are in
+`Window_update.update`: L (the omnibox), T (a new tab), W (the tab
+closed), D (a bookmark), beside the zoom's and the scale's.
+
 The one part of `Preferences` a person writes is `"helpers"`: the
 programs given what the browser does not show itself, Mosaic's helper
 applications (`Browser_helpers`, `src/chrome`; its `.mli` has the
@@ -641,7 +649,7 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   are in elm-playground after 0.3.3: a compression is not a browser's.
 - What was born of the web is told here, not in elm-playground, even
   when it was written there first: a copy, meant to diverge, as
-  `libs/network`. `libs/images` has the picture formats: WebP
+  `libs/network`. `libs/images` has the picture formats (and `Ico`, a site's icon file, written here: a tab's favicon is `Browser_tab.icon_url`'s picture): WebP
   (in `webp/`: `Webp`, `Vp8l`, `Vp8`; written here, checked pixel for pixel
   against libwebp's output in `tests/images`, whose `data/make.py`
   made the files), SVG (`Svg`) and PNG (`Png`, with PngSuite in

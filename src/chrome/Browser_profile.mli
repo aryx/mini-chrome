@@ -49,6 +49,7 @@ type t = {
   scale : float option; (* the scale chosen; None, the desktop's *)
   zooms : Browser_zoom.t;
   helpers : Browser_helpers.t; (* the programs given what the browser does not show: written by hand, kept as read *)
+  bookmarks : Bookmarks.t; (* the pages kept at hand: the star, the bar *)
 }
 
 (* a first run's: nothing chosen yet *)

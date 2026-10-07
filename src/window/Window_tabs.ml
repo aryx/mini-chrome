@@ -53,6 +53,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
                   ~cache:(Option.map (fun (c : Http_cache.store) -> c.place) (Fetch.cache m.fetches)),
                 "text/html; charset=utf-8" )
         | "cache" -> Some (Browser_cache.page ~now:(Unix.gettimeofday ()) (Fetch.cache m.fetches), "text/html; charset=utf-8")
+        | "bookmarks" -> Some (Bookmarks.page m.profile.bookmarks, "text/html; charset=utf-8")
         | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));
     got = (fun url r -> Got (id, url, r));

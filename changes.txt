@@ -994,6 +994,23 @@
   format read
 
 *** the window and its chrome
+- bookmarks (Bookmarks, new, in src/chrome): a star at the omnibox's
+  end, yellow when the page shown is kept; a click on it, or Ctrl+D,
+  keeps the page or lets it go. Those kept are in a bar under the
+  toolbar, a click away, and in about:bookmarks; they are the
+  profile's (Preferences, "bookmarks")
+- a tab shows its page's icon, the favicon: where <link rel="icon">
+  says, else /favicon.ico, fetched with the page's pictures. An .ico
+  file is read (Ico, new, in libs/images: its pictures as Windows
+  bitmaps of 1 to 32 bits with their mask, or as PNG; the one nearest
+  to 32 dots taken)
+- many tabs share the strip: each narrower, its title cut at its end
+  (it was cut at its start), then its icon alone, its sides less
+  slanted; they stop before the program's label at the strip's end,
+  which they ran under. Thirty-six fit in a window of 1000
+- Ctrl+L goes to the omnibox, its address all selected (Chrome's and
+  Firefox's key): typed over at once. Ctrl+T opens a new tab, the
+  omnibox taken; Ctrl+W closes the tab shown
 - the omnibox suggests and completes the pages already seen (Places,
   new, in src/chrome; Firefox 3's awesomebar, Chrome's omnibox): each
   page shown is remembered -- address, title, visits, when last --

@@ -51,6 +51,14 @@ let init (network : < Cap.network ; .. >) ?jar ?cache ?(places = Places.create (
   let selected = match (panel, (current_tab m).state) with Elements, Shown p -> List.nth_opt (Dom.find_all "body" p.tree) 0 | _ -> None in
   ({ m with selected }, cmd)
 
+(* the page shown kept among the bookmarks, or let go; the pages laid
+ * out again when the bar comes or goes (their area's height) *)
+let bookmark (m : model) : model =
+  let title = match (current_tab m).state with Shown p -> p.title | Loading _ -> "" in
+  let bookmarks = Bookmarks.toggle m.profile.bookmarks ~url:(current_url m) ~title in
+  let changed = with_profile { m.profile with bookmarks } m in
+  if (bookmarks = []) <> (m.profile.bookmarks = []) then relaid_all changed else changed
+
 let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_field.t) (m : model) : model * msg Cmd.t =
   let found = match suggestions m with Some menu -> List.map (fun (i : string Gui_menu.item) -> i.value) menu.items | None -> [] in
   let n = List.length found in
@@ -386,7 +394,9 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
   | Click -> (
       let double = m.time -. m.last_click < 0.4 and before = m.omnibox in
       let m = { m with omnibox = None; last_click = m.time } in
-      if on_omnibox m then
+      if near (star_x m -. 10.) (toolbar_y m) 20. 20. m then (bookmark m, Cmd.none)
+      else if m.profile.bookmarks <> [] && Bookmarks.at (bookmarks_bar m) m.mouse <> None then visit network (Option.get (Bookmarks.at (bookmarks_bar m) m.mouse)) m
+      else if on_omnibox m then
         (* a first click takes it, its address all selected; then a click
          * puts the caret, and a drag from it selects (Omnibox.clicked) *)
         let field = Omnibox.clicked (omnibox { m with omnibox = before }) ~double (fst m.mouse) in
@@ -431,6 +441,19 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
       let scale = match Option.get (Browser_zoom.key key) with Reset -> None | change -> Some (Browser_zoom.apply change (scale_of m)) in
       (rescreened (with_profile { m.profile with scale } m), Cmd.none)
   | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Browser_zoom.apply (Option.get (Browser_zoom.key key))) m, Cmd.none)
+  (* Ctrl+L: the omnibox taken from the keyboard, its address all
+   * selected, as a first click does (Chrome's and Firefox's key) *)
+  | Key key when m.ctrl && String.lowercase_ascii key = "l" ->
+      on_current { m with omnibox = Some (Gui_field.focused (current_url m)); suggested = None; menu = None } (fun _ tab -> ({ tab with focus = None }, Cmd.none))
+  (* Ctrl+T: a new tab, as the strip's + opens one, and the omnibox
+   * taken, to type where to go *)
+  | Key key when m.ctrl && String.lowercase_ascii key = "t" ->
+      let m, cmd = open_tab network home { m with menu = None; suggested = None } in
+      ({ m with omnibox = Some (Gui_field.focused (current_url m)) }, cmd)
+  (* Ctrl+D: the page shown bookmarked, or no more (the star's click) *)
+  | Key key when m.ctrl && String.lowercase_ascii key = "d" -> (bookmark m, Cmd.none)
+  (* Ctrl+W: the tab shown, closed (a narrow tab has no button for it) *)
+  | Key key when m.ctrl && String.lowercase_ascii key = "w" -> close_tab network m.current { m with omnibox = None; menu = None }
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
   (* with Ctrl held a letter is a command (edit_omnibox), not typed *)
   | Typed s when m.omnibox <> None ->

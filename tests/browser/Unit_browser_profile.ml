@@ -10,7 +10,7 @@
 
 (* See Unit_browser_profile.mli *)
 
-let example : Browser_profile.t = { window = Some (1400, 800); scale = Some 1.5; zooms = [ ("news.ycombinator.com", 1.5); ("en.wikipedia.org", 0.9); ("", 1.25) ]; helpers = [] }
+let example : Browser_profile.t = { window = Some (1400, 800); scale = Some 1.5; zooms = [ ("news.ycombinator.com", 1.5); ("en.wikipedia.org", 0.9); ("", 1.25) ]; helpers = []; bookmarks = [] }
 
 let text = {|{
   "window": {
@@ -36,6 +36,11 @@ let tests (caps : < Cap.open_in ; Cap.open_out ; Cap.env ; .. >) =
   let loaded dir = Result.map (fun (p : Browser_profile.t) -> p.zooms) (Browser_profile.load caps ~dir) in
   Testo.categorize "Browser_profile"
     [
+      Testo.create "the bookmarks are the profile's: written, read back" (fun () ->
+          let kept : Browser_profile.t = { example with bookmarks = [ { url = "https://dynamicland.org/"; title = "Dynamicland \"front\" shelf" }; { url = "https://x.test/a?b=1"; title = "x" } ] } in
+          Alcotest.(check bool) "the same" true (Browser_profile.of_string (Browser_profile.to_string kept) = Ok kept);
+          let b = Bookmarks.toggle [] ~url:"https://a.test/" ~title:" A " in
+          Alcotest.(check bool) "kept, its title trimmed; let go" true (b = [ { url = "https://a.test/"; title = "A" } ] && Bookmarks.has b "https://a.test/" && Bookmarks.toggle b ~url:"https://a.test/" ~title:"" = []));
       Testo.create "the worked example: the file's text, and back" (fun () ->
           Alcotest.(check string) "written" text (Browser_profile.to_string example);
           Alcotest.(check zooms) "read" (Ok example.zooms) (read text);

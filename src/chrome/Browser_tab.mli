@@ -160,6 +160,10 @@ val forward : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
 val stop : 'msg config -> t -> t
 
 (* the pictures loaded now (Netscape's Images button) *)
+(* the address of the page's icon, the tab strip's (a favicon): its
+   <link rel="icon">, else /favicon.ico; fetched with its pictures *)
+val icon_url : t -> string option
+
 val load_images : 'msg config -> < Cap.network ; .. > -> t -> t * 'msg Cmd.t
 
 (* a page's answer: read and shown, or the page saying why not *)
