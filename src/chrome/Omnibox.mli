@@ -72,6 +72,18 @@ val typed : ctrl:bool -> string -> Gui_field.t -> Gui_field.t
 
 (* [search_url engine words]: where words are searched, by the engine's
  * name ("duckduckgo"; anything else is Wikipedia) *)
+(* The pages seen that what is typed may mean (Places). What is typed
+   is the field's text less its selected end, when that end is a
+   completion: [completed], after a character is typed, puts the
+   address it begins in the field, the part not typed selected (the
+   next character replaces it, Backspace takes it away) *)
+val typed_part : Gui_field.t -> string
+val completed : Places.t -> now:float -> Gui_field.t -> Gui_field.t
+val suggestions : Places.t -> now:float -> Gui_field.t -> Places.entry list
+
+(* a suggestion's line: its title, its address *)
+val label : Places.entry -> string
+
 val search_url : string -> string -> string
 
 (* [destination engine typed]: the address typed, or its search *)

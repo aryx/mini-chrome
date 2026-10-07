@@ -20,6 +20,8 @@ type model = {
   current : int; (* the id of the tab shown *)
   next_id : int;
   omnibox : Gui_field.t option; (* its text, while it is typed into (libs/gui); None, it shows the page's address *)
+  places : Places.t; (* the pages seen, which the omnibox suggests and completes from; changed in place, as the cookies' jar *)
+  suggested : int option; (* the suggestion the arrows chose, under the omnibox *)
   mouse : float * float;
   time : float;
   busy : float option; (* a page's script is in a long run, since then (the main's: Js_slice) *)

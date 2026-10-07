@@ -39,6 +39,9 @@ val height : 'a t -> float
 (* the item a point is on, from 0; and what a click there chooses: its
  * value, if it is enabled *)
 val index_at : 'a t -> float * float -> int option
+(* the y of an item's middle *)
+val row : 'a t -> int -> float
+
 val chosen : 'a t -> float * float -> 'a option
 
 (* the menu drawn: a white card and its shadow, the item under

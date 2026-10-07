@@ -58,6 +58,40 @@ let tests caps =
           Alcotest.(check bool) "a program that is not there: no rule" true (Browser_helpers.for_url (Browser_helpers.table caps own) "http://x.org/" = None);
           Alcotest.(check bool) "a program that does not exist is an error, not a crash" true
             (match Browser_helpers.launch caps [ "mini-chrome-no-such-program" ] with Error _ -> true | Ok () -> false));
+      Testo.create "the omnibox suggests and completes the pages seen" (fun () ->
+          let now = Unix.gettimeofday () in
+          let places =
+            Places.create
+              ~entries:
+                [ { url = "https://dynamicland.org/"; title = "Dynamicland front shelf"; visits = 3; last = now };
+                  { url = "https://news.ycombinator.com/"; title = "Hacker News"; visits = 9; last = now };
+                  { url = "about:history"; title = "kept by hand: a built-in page all the same"; visits = 1; last = now -. (100. *. 86400.) } ]
+              ()
+          in
+          let m = after caps (Window_update.init caps ~places (Browser_profile.empty, None) ~desktop:1. ~window:(800, 600) [ ("url", "about:home"); ("threads", "off") ]) in
+          let send msg m = after caps (Window_update.update caps msg m) in
+          let typed word m = List.fold_left (fun m c -> send (Typed (String.make 1 c)) m) m (List.init (String.length word) (String.get word)) in
+          let field (m : Window_model.model) = match m.omnibox with Some f -> (f.text, Gui_field.selected f) | None -> ("", "") in
+          let listed (m : Window_model.model) = match Window_layout.suggestions m with Some menu -> List.map (fun (i : string Gui_menu.item) -> i.value) menu.items | None -> [] in
+          let opened = send Mouse_up (send Click { m with mouse = (Window_layout.omnibox_x m +. 30., Window_layout.toolbar_y m) }) in
+          Alcotest.(check (list string)) "the address clicked, nothing typed: nothing suggested" [] (listed opened);
+          let dyna = typed "dyna" opened in
+          Alcotest.(check (pair string string)) "dyna: the site it begins, the rest selected" ("dynamicland.org", "micland.org") (field dyna);
+          Alcotest.(check (list string)) "and listed under it" [ "https://dynamicland.org/" ] (listed dyna);
+          Alcotest.(check (pair string string)) "Backspace takes the completion away, and no other comes" ("dyna", "") (field (send (Key "Backspace") dyna));
+          Alcotest.(check string) "Enter: the page seen, its scheme and all" "https://dynamicland.org/" (Window_layout.current_url (send (Key "Return") dyna));
+          let inside = typed "land" opened in
+          Alcotest.(check (pair string string)) "land: the start of no address, nothing completed" ("land", "") (field inside);
+          Alcotest.(check (list string)) "but found inside one" [ "https://dynamicland.org/" ] (listed inside);
+          let chosen = send (Key "Down") inside in
+          Alcotest.(check (option int)) "the arrow chooses it" (Some 0) chosen.suggested;
+          Alcotest.(check string) "Enter goes there" "https://dynamicland.org/" (Window_layout.current_url (send (Key "Return") chosen));
+          let both = typed "n" opened in
+          Alcotest.(check (list string)) "n: the likeliest first (nine visits, three, one long ago)" [ "https://news.ycombinator.com/"; "https://dynamicland.org/"; "about:history" ] (listed both);
+          (* a click on a line of the list *)
+          let menu = Option.get (Window_layout.suggestions both) in
+          let on_second = { both with mouse = (menu.left +. 20., Gui_menu.row menu 1) } in
+          Alcotest.(check string) "a suggestion clicked is gone to" "https://dynamicland.org/" (Window_layout.current_url (send Click on_second)));
       Testo.create "the omnibox: clicked, its text selected; the keys, a drag, a double click, copy and paste" (fun () ->
           let m = window caps "about:home" in
           let send msg m = after caps (Window_update.update caps msg m) in

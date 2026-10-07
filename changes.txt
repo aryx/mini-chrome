@@ -994,6 +994,16 @@
   format read
 
 *** the window and its chrome
+- the omnibox suggests and completes the pages already seen (Places,
+  new, in src/chrome; Firefox 3's awesomebar, Chrome's omnibox): each
+  page shown is remembered -- address, title, visits, when last --
+  and what is typed is looked for anywhere in the addresses and the
+  titles, each word, the likeliest first (visits weighed by how lately:
+  Firefox's "frecency"), six in a list under the omnibox, chosen by
+  the arrows and Enter or by a click. What is typed that an address
+  begins is completed in place, the rest selected: "dyna" shows
+  dynamicland.org and Enter goes there; "land" lists it. Kept in the
+  profile as History (JSON, its owner's alone), not with profile=off
 - with OCaml 4.14's threads, one fetched picture is decoded at a
   time: eight at once (dynamicland.org's report, eight photographs
   of eleven million dots, 4.6 s each) left the window one turn in

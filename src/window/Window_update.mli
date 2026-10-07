@@ -46,7 +46,7 @@ val first_pages : string -> Playground.flags -> string list
  * [window] the size the window starts at, in the screen's dots *)
 val init :
   < Cap.network ; .. > ->
-  ?jar:Cookie_jar.t -> ?cache:Http_cache.store ->
+  ?jar:Cookie_jar.t -> ?cache:Http_cache.store -> ?places:Places.t ->
   Browser_profile.t * string option ->
   desktop:float ->
   window:int * int ->

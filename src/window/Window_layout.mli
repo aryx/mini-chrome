@@ -100,6 +100,11 @@ val pointed_control : model -> Dom.element option
 val near : float -> float -> float -> float -> model -> bool
 val on_omnibox : model -> bool
 
+(* the pages seen that what is typed in the omnibox may mean, a menu
+   under it whose items are their addresses; the one the pointer is on *)
+val suggestions : model -> string Gui_menu.t option
+val suggestion_at : model -> string option
+
 (* the omnibox, built from the model (src/chrome's Omnibox) *)
 val omnibox : model -> Omnibox.t
 

@@ -28,10 +28,10 @@ let first_pages (engine : string) (flags : flags) : string list =
   | [] -> [ home ]
   | urls -> urls
 
-let init (network : < Cap.network ; .. >) ?jar ?cache ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
+let init (network : < Cap.network ; .. >) ?jar ?cache ?(places = Places.create ()) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
-    { tabs = []; current = 0; next_id = 0; omnibox = None; mouse = (1000., 1000.); time = 0.; busy = None;
+    { tabs = []; current = 0; next_id = 0; omnibox = None; places; suggested = None; mouse = (1000., 1000.); time = 0.; busy = None;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
       allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some "on" -> [ everywhere ] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);
@@ -52,9 +52,18 @@ let init (network : < Cap.network ; .. >) ?jar ?cache ((profile, profile_dir) : 
   ({ m with selected }, cmd)
 
 let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_field.t) (m : model) : model * msg Cmd.t =
+  let found = match suggestions m with Some menu -> List.map (fun (i : string Gui_menu.item) -> i.value) menu.items | None -> [] in
+  let n = List.length found in
+  match (String.lowercase_ascii key, m.suggested) with
+  (* the arrows go through the suggestions, round; Enter takes the one chosen *)
+  | ("down" | "arrowdown"), chosen when n > 0 -> ({ m with suggested = Some (match chosen with Some i -> (i + 1) mod n | None -> 0) }, Cmd.none)
+  | ("up" | "arrowup"), chosen when n > 0 -> ({ m with suggested = Some (match chosen with Some i -> (i + n - 1) mod n | None -> n - 1) }, Cmd.none)
+  | ("enter" | "return"), Some i when i < n -> visit network (List.nth found i) { m with suggested = None }
+  | _ ->
   match Omnibox.key ~ctrl:m.ctrl ~shift:m.shift key field with
-  | Edit field -> ({ m with omnibox = Some field }, Cmd.none)
-  | Go typed -> visit network (Omnibox.destination m.engine typed) m
+  | Edit field -> ({ m with omnibox = Some field; suggested = None }, Cmd.none)
+  (* an address as it was completed: the page seen, its scheme and all *)
+  | Go typed -> visit network (match Places.address m.places typed with Some url -> url | None -> Omnibox.destination m.engine typed) { m with suggested = None }
   | Leave -> ({ m with omnibox = None }, Cmd.none)
   | Nothing -> (m, Cmd.none)
 
@@ -185,7 +194,7 @@ let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) opt
       let at = (x /. scale_of m, y /. scale_of m) in
       let (x0, y0), (x1, y1) = (place m.mouse, place at) in
       if over_page at then Some ("mousemove", pointer at ~moved:(x1 -. x0, y1 -. y0) ~button:0. ~buttons:(if m.pressed then 1. else 0.)) else None
-  | Click when m.menu = None && over_page m.mouse -> Some ("mousedown", pointer m.mouse ~button:0. ~buttons:1.)
+  | Click when m.menu = None && suggestion_at m = None && over_page m.mouse -> Some ("mousedown", pointer m.mouse ~button:0. ~buttons:1.)
   | Mouse_up when m.pressed -> Some ("mouseup", pointer m.mouse ~button:0. ~buttons:0.)
   | Wheel notches when (not m.ctrl) && over_page m.mouse -> Some ("wheel", ("deltaY", number (-100. *. notches)) :: ("deltaMode", number 0.) :: pointer m.mouse ~button:0. ~buttons:0.)
   | _ -> None
@@ -268,7 +277,12 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
             | None -> r)
         | Error _ -> r
       in
-      on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab)
+      let m, cmd = on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab) in
+      (* a page that came is one seen: remembered, for the omnibox to suggest *)
+      (match (r, List.find_opt (fun (t : tab) -> t.id = id) m.tabs) with
+      | Ok { status; _ }, Some { tab = { state = Shown p; _ }; _ } when status < 400 -> Places.visit m.places ~now:(Unix.gettimeofday ()) ~url:p.url ~title:p.title
+      | _ -> ());
+      (m, cmd)
   | Got_picture (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_picture cfg network url r tab)
   | Got_answer (id, rid, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_answer cfg network rid url r tab)
   | Start_fetch r ->
@@ -358,6 +372,8 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
       let menu = Option.get m.menu in
       let m = { m with menu = None } in
       match Gui_menu.chosen menu m.mouse with Some action -> menu_action caps menu action m | None -> (m, Cmd.none))
+  (* a suggestion of the omnibox's, clicked: gone to *)
+  | Click when suggestion_at m <> None -> visit network (Option.get (suggestion_at m)) { m with suggested = None }
   (* a press on the scrollbar: its thumb held until the button
    * is let go, or a page up or down *)
   | Click when Gui_scrollbar.at (scrollbar m) m.mouse <> None -> (
@@ -417,7 +433,10 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
   | Key key when m.ctrl && Browser_zoom.key key <> None -> (zoomed (Browser_zoom.apply (Option.get (Browser_zoom.key key))) m, Cmd.none)
   | Typed s when m.ctrl && Browser_zoom.key s <> None -> (m, Cmd.none)
   (* with Ctrl held a letter is a command (edit_omnibox), not typed *)
-  | Typed s when m.omnibox <> None -> ({ m with omnibox = Option.map (Omnibox.typed ~ctrl:m.ctrl s) m.omnibox }, Cmd.none)
+  | Typed s when m.omnibox <> None ->
+      (* and what it begins, if it is a page seen: completed, the rest selected *)
+      let complete f = if m.ctrl then f else Omnibox.completed m.places ~now:(Unix.gettimeofday ()) f in
+      ({ m with omnibox = Option.map (fun f -> complete (Omnibox.typed ~ctrl:m.ctrl s f)) m.omnibox; suggested = None }, Cmd.none)
   | Key key when m.omnibox <> None -> edit_omnibox network key (Option.get m.omnibox) m
   | Typed s when (current_tab m).focus <> None -> (
       match ((current_tab m).state, (current_tab m).focus) with

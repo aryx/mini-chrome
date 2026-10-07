@@ -115,6 +115,14 @@ the main when the jar changed, at most every five seconds, and at the
 end. `about:cookies` shows the jar. A session's cookies are never
 written, and `profile=off` neither reads nor writes any.
 
+The pages seen are beside them, in `History` (JSON, its owner's
+alone: `Places`, `src/chrome`), kept the same way -- a store changed
+in place, in the model as `places`, read at the start and written by
+the main when it changed. The omnibox suggests from it (a list under
+it, `Window_layout.suggestions`: the pages that have each word typed,
+the likeliest first) and completes what an address begins
+(`Omnibox.completed`, the rest selected).
+
 The answers a server lets be used again are kept on disk
 (`Http_cache`, `libs/network`: may it be kept, is it fresh, how to ask
 whether it changed; `Browser_cache`, `src/chrome`: the files, one a

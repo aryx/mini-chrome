@@ -57,6 +57,27 @@ let key ~(ctrl : bool) ~(shift : bool) (key : string) (f : Gui_field.t) : outcom
 (* with Ctrl held a letter is a command ([key]), not text *)
 let typed ~(ctrl : bool) (s : string) (f : Gui_field.t) : Gui_field.t = if ctrl then f else Gui_field.typed s f
 
+(* what was typed: the text less a selection that goes to its end (a
+ * completion's, or the whole address of a click: nothing typed yet) *)
+let typed_part (f : Gui_field.t) : string =
+  let selected = Gui_field.selected f in
+  if selected <> "" && snd (Gui_field.selection f) = Gui_field.length f then String.sub f.text 0 (String.length f.text - String.length selected) else f.text
+
+let completed (places : Places.t) ~(now : float) (f : Gui_field.t) : Gui_field.t =
+  let typed = f.text in
+  match Places.completion places ~now typed with
+  | Some whole when Gui_field.selected f = "" && f.caret = Gui_field.length f && String.length whole > String.length typed ->
+      let text = typed ^ String.sub whole (String.length typed) (String.length whole - String.length typed) in
+      { text; caret = Gui_field.length (Gui_field.focused text); anchor = f.caret }
+  | _ -> f
+
+let suggestions (places : Places.t) ~(now : float) (f : Gui_field.t) : Places.entry list = Places.matching places ~now (typed_part f)
+
+let label (e : Places.entry) : string =
+  let cut n s = if String.length s > n then String.sub s 0 (n - 3) ^ "..." else s in
+  let title = String.map (fun c -> if Char.code c < 128 then c else '?') (String.trim e.title) in
+  (if title = "" then "" else cut 44 title ^ "  -  ") ^ cut 60 (Places.bare e.url)
+
 (* where words are searched: an engine whose page works without
  * scripts and answers a program -- Wikipedia's (the default: Google's
  * needs JavaScript, and DuckDuckGo's page without scripts, like

@@ -176,19 +176,37 @@ let save_cookies (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string opt
       (match Browser_cookies.save caps ~dir (Cookie_jar.cookies jar) with Ok () -> () | Error why -> Logs.warn (fun m -> m "the cookies are not saved: %s" why))
   | _ -> ()
 
+(* the pages seen, kept the same way (Places: the profile's History) *)
+let places_of (caps : < Cap.open_in ; .. >) (dir : string option) : Places.t =
+  match Option.map (fun dir -> Places.load caps ~dir) dir with
+  | Some (Ok entries) -> Places.create ~entries ()
+  | Some (Error why) ->
+      Logs.warn (fun m -> m "the pages seen are not used: %s" why);
+      Places.create ()
+  | None -> Places.create ()
+
+let places_written : (int * float) ref = ref (0, 0.)
+
+let save_places (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string option) (places : Places.t) : unit =
+  match dir with
+  | Some dir when Places.changes places <> fst !places_written && (now || Unix.gettimeofday () -. snd !places_written >= 5.) ->
+      places_written := (Places.changes places, Unix.gettimeofday ());
+      (match Places.save caps ~dir places with Ok () -> () | Error why -> Logs.warn (fun m -> m "the pages seen are not saved: %s" why))
+  | _ -> ()
+
 (* a long run's result when it ends, and the messages kept until then *)
 let result : (Window_model.model * Window_model.msg Cmd.t) option ref = ref None
 let queued : Window_model.msg list ref = ref []
 
-let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(cache : Http_cache.store option) ~(desktop : float) ~(window : int * int) =
+let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(places : Places.t) ~(cache : Http_cache.store option) ~(desktop : float) ~(window : int * int) =
   {
-    Playground.init = Window_update.init caps ~jar ?cache profile ~desktop ~window;
+    Playground.init = Window_update.init caps ~jar ~places ?cache profile ~desktop ~window;
     update =
       (fun msg m ->
         let done_ (msg : Window_model.msg) ((m : Window_model.model), cmd) =
           (* the cursor follows what is under the pointer, after anything that may have changed it:
            * the pointer moved, the page scrolled or came (asking for the one shown costs nothing) *)
-          (match msg with Tick _ -> save_cookies caps m.profile_dir jar | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
+          (match msg with Tick _ -> save_cookies caps m.profile_dir jar; save_places caps m.profile_dir m.places | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
           unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
           (m, cmd)
         in
@@ -338,6 +356,7 @@ let main = Program.main __MODULE__ (fun () ->
       (* the window closed (the Playground exits), -dump-frame's
        * frame written: what changed in the last second is saved *)
       let jar = cookies_of caps profile_dir in
+      let places = places_of caps profile_dir in
       (* the answers kept on disk (Browser_cache): beside a profile
        * given, else in the user's cache; none with profile=off or
        * cache=off *)
@@ -350,9 +369,10 @@ let main = Program.main __MODULE__ (fun () ->
       at_exit (fun () ->
           Logs.info (fun m -> m "quitting");
           save_cookies caps ~now:true profile_dir jar;
+          save_places caps ~now:true profile_dir places;
           Option.iter (fun (dir, p) -> ignore (Browser_profile.save caps ~dir p)) !unsaved);
       (* opti: a frame whose view is the list of the frame before
        * is not drawn again (Window_view.view gives it back when the
        * window has nothing new to show) *)
       Playground_platform.run_app ~flags
-        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~cache ~desktop ~window)))
+        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~places ~cache ~desktop ~window)))

@@ -139,6 +139,18 @@ let omnibox (m : model) : Omnibox.t =
 
 let on_omnibox (m : model) : bool = Omnibox.at (omnibox m) m.mouse
 
+(* the pages seen that what is typed may mean, in a list under the
+ * omnibox: a menu whose items are their addresses *)
+let suggestions (m : model) : string Gui_menu.t option =
+  match Option.map (Omnibox.suggestions m.places ~now:(Unix.gettimeofday ())) m.omnibox with
+  | Some (_ :: _ as found) ->
+      let items = List.map (fun (e : Places.entry) -> { Gui_menu.label = Omnibox.label e; value = e.url; enabled = true }) found in
+      Some (Gui_menu.opened ~screen:m.screen ~at:(omnibox_x m, toolbar_y m -. 16.) items)
+  | _ -> None
+
+(* the one the pointer is on, a click's *)
+let suggestion_at (m : model) : string option = Option.bind (suggestions m) (fun menu -> Gui_menu.chosen menu m.mouse)
+
 (* the panel's header: its views' names and Inspect *)
 let panel_button (m : model) : string option =
   if m.panel = Closed then None

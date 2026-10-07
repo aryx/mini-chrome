@@ -139,6 +139,10 @@ let view_unscaled (m : model) : shape list =
   @ (if m.panel <> Closed then panel m else [])
   @ bubble m
   @ (match m.menu with Some menu -> Gui_menu.shapes menu ~pointer:m.mouse | None -> [])
+  (* the omnibox's suggestions: lit, the one the arrows chose, else the pointer's *)
+  @ (match suggestions m with
+    | Some menu -> Gui_menu.shapes menu ~pointer:(match m.suggested with Some i -> (menu.left +. 4., Gui_menu.row menu i) | None -> m.mouse)
+    | None -> [])
 
 (* the window, its units made the screen's dots *)
 let view_simple (m : model) : shape list = [ group (view_unscaled m) |> scale (scale_of m) ]
@@ -158,10 +162,10 @@ let animated (m : model) : bool =
  * was (==), but the time. Every field is named, so that a new one is a
  * warning here until it is said whether the view reads it *)
 let same_but_time
-    ({ tabs; current; next_id; omnibox; mouse; time = _; busy; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
+    ({ tabs; current; next_id; omnibox; places = _; suggested; mouse; time = _; busy; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
        profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _; pressed = _; fresh = _; late = _ } :
       model) (m : model) : bool =
-  tabs == m.tabs && busy = m.busy && current == m.current && next_id == m.next_id && omnibox == m.omnibox && mouse == m.mouse && css == m.css
+  tabs == m.tabs && busy = m.busy && current == m.current && next_id == m.next_id && omnibox == m.omnibox && suggested = m.suggested && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
   && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
   && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && dots == m.dots && shift == m.shift
