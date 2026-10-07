@@ -63,8 +63,33 @@
   method(D, "elementFromPoint", function () { return null; });
   method(D, "elementsFromPoint", function () { return []; });
   method(D, "execCommand", function () { return false; });
-  method(D, "write", nothing);
-  method(D, "writeln", nothing);
+  // document.write, from a script that runs as its page is read: the
+  // text is HTML put where the script is, each write after the one
+  // before (how a page chose its style sheet, or wrote its date, since
+  // Netscape 2). The page is read whole before its scripts run here,
+  // so what is written goes after the <script> itself; a script
+  // written is made anew, to be run. Once the page is loaded a write
+  // would replace it: not done.
+  function written(html) {
+    var s = document.currentScript;
+    if (!s || !s.parentNode || document.readyState !== "loading") return;
+    if (!s.__wrote) { s.__wrote = true; s.__next = s.nextSibling; }
+    var holder = document.createElement("div");
+    holder.innerHTML = html;
+    while (holder.firstChild) {
+      var n = holder.firstChild;
+      holder.removeChild(n);
+      if (n.localName === "script") {
+        var again = document.createElement("script");
+        Array.prototype.forEach.call(n.attributes, function (a) { again.setAttribute(a.name, a.value); });
+        again.textContent = n.textContent;
+        n = again;
+      }
+      s.parentNode.insertBefore(n, s.__next || null);
+    }
+  }
+  method(D, "write", function () { written(Array.prototype.join.call(arguments, "")); });
+  method(D, "writeln", function () { written(Array.prototype.join.call(arguments, "") + "\n"); });
   method(D, "open", nothing);
   method(D, "close", nothing);
   // the nodes under a root, one after the other in the document's

@@ -256,6 +256,17 @@ let tests =
                var said = [t.rows.length, t.tBodies[0].rows.length, r.cells.length, r.cells[1] === c, r.cells.item(1) === c, c.cellIndex, r.rowIndex, r.sectionRowIndex, typeof document.getElementById(\"d\").cells]</script>"
           in
           Alcotest.(check string) "table.rows, a body's, a row's cells, and where each is" "[3, 2, 2, true, true, 1, 1, 0, \"undefined\"]" (value t "said"));
+      Testo.create "document.write, as the page is read: HTML where the script is, in order; a script written runs" (fun () ->
+          let t =
+            page
+              "<head><script>document.write('<link rel=\"stylesheet\" href=\"a.css\">'); document.write('<meta name=\"x\">', '<meta name=\"y\">')</script><title>t</title></head>\n\
+               <body><p id=before></p><script>document.write('<p id=w>written</p><script>var ran = \"yes\"<\\/script>')</script><p id=after></p>\n\
+               <script>var head = document.head.children, w = document.getElementById(\"w\");\n\
+               var said = [Array.prototype.map.call(head, function (e) { return e.localName + (e.getAttribute(\"name\") || \"\") }).join(\" \"),\n\
+               w.previousElementSibling.localName, w.textContent, typeof ran, document.getElementById(\"after\").previousElementSibling.localName]</script>"
+          in
+          Alcotest.(check string) "the link after its script, the writes in order; the paragraph after its own, the script after it run"
+            "[\"script link metax metay title\", \"script\", \"written\", \"string\", \"script\"]" (value t "said"));
       Testo.create "a table's rows and cells put in and taken out" (fun () ->
           let t =
             page

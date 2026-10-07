@@ -589,6 +589,12 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- document.write, from a script that runs as its page is read (it did
+  nothing): the HTML written is put after the script, each write
+  after the one before, and a script written is run
+  (data/prelude/web/dom.js). aryx.github.io chooses its style sheet
+  that way (?css=plain2, ?css=principia: a <link> written in the
+  head) and had none
 - a table changed by its own methods: insertRow, insertCell,
   deleteRow, deleteCell, createTHead, createTBody, createTFoot,
   createCaption (data/prelude/web/elements.js). Gmail builds an
