@@ -42,7 +42,8 @@ second of the page's time; 50), WALK=1 (js=walk), JS_SYNTAX=1 (the
 tokens around a syntax error), JS_THROWS=n (the first n values
 thrown, caught or not; JS_THROWS_NOT=words leaves some out),
 JS_STACK=words (the calls left by an error of the engine's whose
-message has the words; WALK=1 for their arguments).
+message has the words, each with how its text starts; WALK=1 for
+their arguments), MISSING=1 (-v's "missing:" report).
 
 A page of a signed-in session (Gmail): it cannot be fetched again by
 curl, and it holds the person's data, so it is saved by the browser,
@@ -1295,3 +1296,45 @@ A replay that fetches what it misses (a public script, by curl, no
 cookie) gets one file further a run when each file's address holds the
 names of those before it (Gmail's exm= list): a loop, a minute a
 round, left to run.
+
+
+45. A site's guard program, obfuscated: make it say what it asked for
+------------------------------------------------------------------
+
+Gmail said "Not connected" and posted the same sync for ever. The
+replay (44) showed a hundred errors in Google's anti-abuse script, a
+virtual machine whose program is bytes: nothing to read. Three things
+made it readable, each a few minutes:
+
+a. JS_THROWS and the stack now show how each function's text starts
+   (the 300 first characters, since a function keeps its text): in a
+   minified file "written at line 752" names nothing, the text is
+   found by grep. It named the constructor that failed at once:
+   dzb.prototype.set.call(e, k, l), dzb a Map -- Map.prototype.set
+   was not there. Five lines in mini-node against Node confirmed it.
+
+b. A public script may be changed in the scratch COPY of a recording
+   (never the recording itself; keep the original beside, put it
+   back): the machine's one "read a property" operation was given a
+   console.log of the name asked when the answer is undefined.
+
+     console: VMGET object String      <- of an iframe's window
+     console: VMGET undefined prototype
+
+   Two lines for what the bytes hid: it wanted String from a frame.
+
+c. When a script evaluates texts, print them (a prerr_endline in
+   Js_eval's direct_eval for the time of the hunt). "pj", then
+   "pj=123" looked like our bug and was the script's own answer to a
+   failure before: the same lines in Node break the same way. An error
+   that Node gives too is not ours; look before it.
+
+MISSING=1 on Page_scripts.exe is -v's "missing:" report, in the
+replay. It says host objects' members only: a method missing on one
+of the language's prototypes (Map.prototype.set) is not said -- (a)
+is what finds those.
+
+A replay ends where the recording does: once the page went further
+than the person's run did (a module asked that was never recorded,
+"Error loading ...: Consecutive load failures"), what follows is the
+replay's, not the browser's. Record again.

@@ -295,8 +295,13 @@ and to_primitive ?(hint = "default") (v : value) : value =
   | Object { kind = Proxy (t, _); _ } -> to_primitive (Object t)
   | Object ({ kind = Array _; _ } as o) ->
       String (String.concat "," (List.map (fun v -> match v with Undefined | Null -> "" | v -> to_string v) (array_items o)))
+  (* a function as a string is its own text, as it was written: a page
+   * reads it, compares it, even evaluates it again (an anti-abuse
+   * script of Google's rebuilt a function from its text, and
+   * "function () { ... }" is not one) *)
+  | Object { kind = Closure { func = { text = Some (source, first, stop); _ }; _ }; _ } when stop <= String.length source && first < stop -> String (String.sub source first (stop - first))
   | Object { kind = Closure { func = { name; _ }; _ }; _ } ->
-      String (Printf.sprintf "function %s() { ... }" (Option.value name ~default:""))
+      String (Printf.sprintf "function %s() { [native code] }" (Option.value name ~default:""))
   | Object { kind = Host_function (name, _); _ } -> String (Printf.sprintf "function %s() { [native code] }" name)
   (* a host's object: what its own toString says (location's is the
    * page's address), else its class *)

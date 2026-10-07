@@ -232,6 +232,8 @@ let rec expr (t : E.t) (e : A.expr) : code =
           Number (if prefix then old +. by else old))
   (* f(a), o.m(a), o[k](a): the function and its this, the arguments,
    * then the call *)
+  (* eval(text) by its name: the evaluator's, which runs it in this scope *)
+  | Call ((Name "eval" | Local ("eval", _)), [ _ ]) -> walk
   | Call (f, args) when not (spread args) -> (
       let args = List.map (expr t) args in
       let call (fn : value) (self : value) (s : scope) (this : value) : value =

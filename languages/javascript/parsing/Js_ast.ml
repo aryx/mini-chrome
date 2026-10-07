@@ -70,6 +70,10 @@ and func = {
   async : bool;
   frame : frame option;
   own_name : bool;
+  (* its own text: the program's, and where the function starts and
+   * ends in it (f.toString(), which a page may read, compare, or
+   * evaluate again) *)
+  text : (string * int * int) option;
 }
 
 and frame = { names : string array; index : int Names.t option; slots : int array; plain : bool; own : int; arguments : bool; mutable code : code }

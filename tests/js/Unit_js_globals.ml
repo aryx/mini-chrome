@@ -58,6 +58,18 @@ let tests =
             {|[["a1", "b2", "a=1", "b=2"], 2, ["a", "b"]]|};
           check "a Set: each value once" {|var s = new Set([1, 2, 2, 3]); s.add(3).add(4); [s.size, s.has(2), s.has(9), [...s], Array.from(new Set('hello')).length >= 0]|} "[4, true, false, [1, 2, 3, 4], true]";
           check "instanceof; without new" {|[new Map() instanceof Map, new Set() instanceof Map]|} "[true, false]";
+          check "the methods are the prototype's, asked of any map" {|var m = new Map([[1, 5]]), s = new Set([1, 2]);
+            [typeof Map.prototype.set, Map.prototype.get.call(m, 1), Set.prototype.has.call(s, 2), Object.keys(m).length, m.hasOwnProperty('set'), typeof Map.prototype[Symbol.iterator]]|}
+            {|["function", 5, true, 0, false, "function"]|};
+          check "on what is no map" {|var r; try { Map.prototype.get.call({}, 1) } catch (e) { r = e.name } r|} "TypeError";
+          check "a class made of Map the old way (Closure's)" {|var Base = function () { return Reflect.construct(Map, [], this.constructor) };
+            Base.prototype = Object.create(Map.prototype); Base.prototype.constructor = Base; Object.setPrototypeOf(Base, Map);
+            var Mine = function (x) { var e = Base.call(this) || this; Base.prototype.set.call(e, 'k', x); return e };
+            Mine.prototype = Object.create(Base.prototype); Mine.prototype.constructor = Mine;
+            Mine.prototype.twice = function (k) { return Base.prototype.get.call(this, k) * 2 };
+            var c = new Mine(21); [c instanceof Mine, c instanceof Map, c.size, c.twice('k'), Array.from(Base.prototype.entries.call(c)).length]|} "[true, true, 1, 42, 1]";
+          check "a subclass's own method is the one called" {|class Counted extends Map { constructor() { super(); this.n = 0 } set(k, v) { this.n++; return super.set(k, v) } }
+            var m = new Counted(); m.set(1, 2).set(3, 4); [m.n, m.get(1), m.size, [...m].length]|} "[2, 2, 2, 2]";
           check "a WeakMap, by the object" {|var w = new WeakMap(), o = {}; w.set(o, 'x'); [w.get(o), w.has({})]|} {|["x", false]|};
           check "a Map from a Map" {|new Map(new Map([[1, 2]])).get(1)|} "2");
       Testo.create "a mistake of the engine's own is the script's error, not the program's end" (fun () ->

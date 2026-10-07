@@ -64,6 +64,7 @@ and token = {
   kind : kind;
   line : int; (* from 1 *)
   newline_before : bool; (* a line ended between this token and the one before *)
+  at : int; (* where it starts in the text: a function's own text is cut from there (Function.prototype.toString) *)
 }
 
 (* a mistake in the text, and its line: an unterminated string or

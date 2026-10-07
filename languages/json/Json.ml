@@ -21,7 +21,7 @@ let parse (text : string) : (t, string) result =
   | exception Js_lexer.Error (line, msg) -> Error (Printf.sprintf "line %d: %s" line msg)
   | tokens -> (
       let toks = ref tokens in
-      let peek () : Js_lexer.token = match !toks with t :: _ -> t | [] -> { kind = Eof; line = 0; newline_before = false } in
+      let peek () : Js_lexer.token = match !toks with t :: _ -> t | [] -> { kind = Eof; line = 0; newline_before = false; at = 0 } in
       let next () = let t = peek () in (toks := match !toks with _ :: r -> r | [] -> []); t in
       (* the end said in words (a brace lost in a file fixed by hand) *)
       let fail (t : Js_lexer.token) = raise (Bad (t.line, "unexpected " ^ if t.kind = Eof then "end of the text" else Js_lexer.to_string t.kind)) in

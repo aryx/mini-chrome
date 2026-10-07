@@ -443,6 +443,23 @@
   a <noscript>'s content left out of a page whose scripts run
 
 *** JavaScript, the language
+- a Map's and a Set's methods are their prototype's
+  (Map.prototype.set.call(m, k, v)), not each object's own: a class
+  made of Map the old way -- Closure's map of a protocol buffer,
+  Reflect.construct(Map, [], this.constructor) and
+  Base.prototype.set.call(this, ...) -- threw "reading 'call'" on the
+  first map field. Gmail's sync brings some: its answer was never
+  read, the request made again and again, and the window said "Not
+  connected, connecting in..."; and a subclass's own set was hidden by
+  the object's
+- eval called by its name runs in the caller's scope (a direct eval:
+  its names, its this, what it declares); by another name or as a
+  member, in the global one as before. And a function's text is its
+  own, as written (f.toString(), with its comments), kept as a place
+  in the program's text (a token's offset, Js_lexer; func.text); one
+  of the engine's says "function max() { [native code] }". Google's
+  anti-abuse script reads its own functions and evaluates their text
+  again, in the closure they are of
 - Object.assign copies the properties whose key is a symbol, and
   Object.getOwnPropertySymbols lists them (it said none). Gmail's
   message view marks an object with a symbol, copies it with
@@ -600,6 +617,10 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- an iframe's contentWindow has the language's globals (String,
+  Array, setTimeout): it is over the page's own window. A script that
+  wants them untouched by the page asks a frame's for them, and found
+  none
 - another document (DOMParser's, createHTMLDocument's) is a document:
   it has the page's document's methods (createNodeIterator,
   createTreeWalker, createTextNode...), its nodes' ownerDocument is

@@ -15,6 +15,8 @@ let () =
       let base = match rest with b :: _ -> b | [] -> "http://page.test/" in
       (* WALK=1: the evaluator, whose errors say more (Js_compile's are shorter) *)
       if Sys.getenv_opt "WALK" <> None then Mini_opti.compiled := false;
+      (* MISSING: what the page looks for and does not find, as -v on the browser says *)
+      if Sys.getenv_opt "MISSING" <> None then (Logs.set_reporter (Logs.format_reporter ()); Logs.set_level (Some Logs.Info));
       (* SIMPLE=1: the simple scopes too (opti=off): a wrong answer that
        * goes away so is the fast paths' *)
       if Sys.getenv_opt "SIMPLE" <> None then (Mini_opti.enabled := false; Mini_opti.compiled := false);

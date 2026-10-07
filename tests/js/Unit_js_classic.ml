@@ -105,5 +105,22 @@ let tests =
           check "with is a name elsewhere; with of nothing" {|var o = { with: 1 }, r; try { with (null) { } } catch (e) { r = [o.with, e.name] } r|} {|[1, "TypeError"]|});
       Testo.create "eval" (fun () ->
           check "a text run, its last value; anything else given back" {|var g = 2; [eval('g * 21'), eval('var made = 1; made + 1'), made, eval(7), typeof eval]|} {|[42, 2, 1, 7, "function"]|};
-          check "its mistakes are the caller's to catch" {|var r; try { eval('(') } catch (e) { r = e.name } r|} "SyntaxError");
+          check "its mistakes are the caller's to catch" {|var r; try { eval('(') } catch (e) { r = e.name } r|} "SyntaxError";
+          check "called by its name, it is of the caller's scope: its names, its this, what it declares" {|var g = 'global';
+            var o = { n: 3, run: function (a) { var g = 'local'; var seen = eval('[g, a, this.n]'); eval('var made = a * 2'); eval('a = 7'); return seen.concat([made, a]) } };
+            [o.run(1), typeof made]|} {|[["local", 1, 3, 2, 7], "undefined"]|};
+          check "a function made there keeps the scope; hot or not" {|function vm() { var key = 5, op = function (x) { return x + key };
+              var again = function (Q) { return eval(Q) }('0,' + op); for (var i = 0, t = 0; i < 300; i++) t += again(1);
+              eval('key = 6'); return [t, again(1), again === op] }
+            vm()|} "[1800, 7, false]";
+          check "by another name, or as a member, it is of the global scope" {|var g = 'global';
+            (function () { var g = 'local', e = eval; return [(0, eval)('g'), e('g'), globalThis.eval('g'), eval('g')] })()|} {|["global", "global", "global", "local"]|});
+      Testo.create "a function's text" (fun () ->
+          check "as it was written, comments and all" {|function add(a, b) { return a + b /* sum */ }
+            var f = function (x) {return x*2}, g = (a, b) => a + b, h = async x => { await x };
+            [String(add), '' + f, g.toString(), h + '', Function.prototype.toString.call(f) === '' + f]|}
+            {|["function add(a, b) { return a + b /* sum */ }", "function (x) {return x*2}", "(a, b) => a + b", "async x => { await x }", true]|};
+          check "one of the engine's, one made of a text" {|[String(Math.max), /native code/.test(String([].push)), eval('(' + function (a) { return a + 1 } + ')')(1),
+            String(new Function('a', 'return a')).indexOf('return a') > 0, String(eval('0,function(q){return q}'))]|}
+            {|["function max() { [native code] }", true, 2, true, "function(q){return q}"]|});
     ]

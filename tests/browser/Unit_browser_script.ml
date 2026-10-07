@@ -211,9 +211,11 @@ let tests =
             page
               "<body><script>var f = document.createElement(\"iframe\"); document.body.appendChild(f);\n\
                var w = f.contentWindow; w.addEventListener(\"resize\", function () {}); w.document.open(); w.document.close();\n\
-               var said = [typeof w, w === f.contentWindow, w.parent === window, f.contentDocument === w.document, typeof document.body.contentWindow]</script>"
+               var said = [typeof w, w === f.contentWindow, w.parent === window, f.contentDocument === w.document, typeof document.body.contentWindow]\n\
+               var globals = [typeof w.String.prototype.replace, w.Array === Array, typeof w.setTimeout, w.window === w, w.document !== document]</script>"
           in
-          Alcotest.(check string) "one window a frame, with a document; no other element has one" "[\"object\", true, true, true, \"undefined\"]" (value t "said"));
+          Alcotest.(check string) "one window a frame, with a document; no other element has one" "[\"object\", true, true, true, \"undefined\"]" (value t "said");
+          Alcotest.(check string) "and the language's globals, asked of it by who wants them untouched" "[\"function\", true, \"function\", true, true]" (value t "globals"));
       Testo.create "outerHTML: a style's text as written, a paragraph's with entities" (fun () ->
           let t = page "<body><script>var s = document.createElement(\"style\"); s.textContent = \"a > b { color: red }\"; var p = document.createElement(\"p\"); p.textContent = \"1 < 2 && 3\";\nvar said = [s.outerHTML, p.outerHTML]</script>" in
           Alcotest.(check string) "no entity in a style" "[\"<style>a > b { color: red }</style>\", \"<p>1 &lt; 2 &amp;&amp; 3</p>\"]" (value t "said"));

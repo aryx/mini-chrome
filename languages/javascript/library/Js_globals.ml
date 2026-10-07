@@ -252,15 +252,22 @@ let store_opti () : store =
 let store () : store = if !Mini_opti.enabled then store_opti () else store_simple ()
 
 (* a Map's or a Set's constructor: each object made keeps its entries
- * (a Set's: its values, each its own key), the first put first *)
+ * (a Set's: its values, each its own key), the first put first. What
+ * works on them is kept by the object under hidden names ([[set]]),
+ * and the methods are the prototype's, as the standard has them: each
+ * asks its this for its own -- so Map.prototype.set.call(m, k, v) is
+ * m.set(k, v), what a class made of Map the old way calls (Closure's
+ * maps of a protocol buffer, in Gmail), and a subclass's own set is
+ * not hidden by the object's *)
 let collection ~(call : value -> this:value -> value list -> value) ~(items : value -> value list) (name : string) ~(map : bool) : value =
   let proto = new_object () in
+  let slot m = "[[" ^ m ^ "]]" in
   let make ~this args =
     let o = match this with Object o -> o | _ -> throw "TypeError" (Printf.sprintf "Constructor %s requires 'new'" name) in
     let st = store () in
     let has k = st.find k <> None in
     let put = st.put in
-    let def m f = set_own o m (fn m (fun ~this:_ args -> f args)) in
+    let def m f = set_own o (slot m) (fn m (fun ~this:_ args -> f args)) in
     let pair (k, v) = array [ k; v ] in
     def "has" (fun args -> Bool (has (arg args 0)));
     def "delete" (fun args -> Bool (st.remove (arg args 0)));
@@ -274,10 +281,8 @@ let collection ~(call : value -> this:value -> value list -> value) ~(items : va
       def "set" (fun args -> put (arg args 0) (arg args 1); this))
     else def "add" (fun args -> put (arg args 0) (arg args 0); this);
     (* what a for-of and a spread go through: a Map's pairs, a Set's values *)
-    set_own o "@@iterator" (fn "[Symbol.iterator]" (fun ~this:_ _ -> Js_builtins.iterator (if map then List.map pair (st.all ()) else List.map fst (st.all ()))));
-    set_own o "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this:_ _ -> Number (float_of_int (st.count ()))), Undefined) });
-    (* its methods are its own here (the standard has them on the
-     * prototype): they do not show, as there *)
+    def "@@iterator" (fun _ -> Js_builtins.iterator (if map then List.map pair (st.all ()) else List.map fst (st.all ())));
+    def "size" (fun _ -> Number (float_of_int (st.count ())));
     List.iter (hide o) (all_keys o);
     (* new Map([[k, v], ...]), new Set([v, ...]) *)
     (match arg args 0 with
@@ -285,6 +290,15 @@ let collection ~(call : value -> this:value -> value list -> value) ~(items : va
     | src -> List.iter (fun item -> if map then put (own item "0") (own item "1") else put item item) (items src));
     Undefined
   in
+  let asked m ~this args =
+    match this with
+    | Object o -> ( match get_own o (slot m) with Some f -> call f ~this args | None -> throw "TypeError" (Printf.sprintf "Method %s.prototype.%s called on incompatible receiver" name m))
+    | _ -> throw "TypeError" (Printf.sprintf "Method %s.prototype.%s called on incompatible receiver" name m)
+  in
+  List.iter (fun m -> set_own proto m (fn m (asked m)); hide proto m)
+    ([ "has"; "delete"; "clear"; "forEach"; "keys"; "values"; "entries"; "@@iterator" ] @ if map then [ "get"; "set" ] else [ "add" ]);
+  set_own proto "size" (Object { (new_object ()) with kind = Accessor (fn "size" (fun ~this _ -> match this with Object o when get_own o (slot "size") <> None -> asked "size" ~this [] | _ -> Undefined), Undefined) });
+  hide proto "size";
   let c = fn name make in
   (match c with Object o -> set_own o "prototype" (Object proto); set_own proto "constructor" c | _ -> ());
   c

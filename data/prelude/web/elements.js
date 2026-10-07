@@ -92,10 +92,12 @@
       var d = document.implementation.createHTMLDocument(""), el = this;
       d.open = d.close = d.write = function () {};
       var nothing = function () {};
-      this.__frame = { document: d, parent: window, top: window, frameElement: this, location: { href: "about:blank" },
+      // over the page's own window: the language's globals (String, Array)
+      // are asked of a frame's window by who wants them as they were made
+      this.__frame = Object.assign(Object.create(window), { document: d, parent: window, top: window, frameElement: this, location: { href: "about:blank" },
         addEventListener: nothing, removeEventListener: nothing, dispatchEvent: function () { return true; },
         // to the frame's own document, if it has scripts (Browser_script.adopt)
-        postMessage: function (data) { if (typeof __post_frame === "function") __post_frame(el, data); }, focus: nothing, blur: nothing, close: nothing };
+        postMessage: function (data) { if (typeof __post_frame === "function") __post_frame(el, data); }, focus: nothing, blur: nothing, close: nothing });
       this.__frame.self = this.__frame.window = this.__frame;
     }
     return this.__frame;

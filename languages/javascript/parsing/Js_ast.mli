@@ -150,6 +150,7 @@ and func = {
    * the name means outside. Not a declaration's (its name is the
    * scope's), nor a method's (its key is not a name) *)
   own_name : bool;
+  text : (string * int * int) option; (* its own text: the program's, where it starts and ends in it (f.toString()) *)
 }
 
 (* opti: a function's frame, known from its text: the names every call

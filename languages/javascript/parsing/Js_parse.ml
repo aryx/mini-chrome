@@ -17,6 +17,7 @@ exception Error of error
 
 (* the tokens, and where the parser is in them *)
 type t = {
+  text : string; (* what the tokens were read from *)
   tokens : Js_lexer.token array;
   mutable pos : int;
   aside : bool; (* read beside the window's run, on another thread: no slice of that run is its own to end *)
@@ -57,7 +58,9 @@ let fail (p : t) (message : string) =
     if Sys.getenv_opt "JS_SYNTAX" = None then message
     else
       let from = max 0 (p.pos - 12) in
+      (* (and how the text starts, when it is short enough to be one a script made: an eval's) *)
       message ^ ", after: " ^ String.concat " " (List.init (p.pos - from) (fun i -> describe p.tokens.(from + i).kind))
+      ^ if String.length p.text < 4000 then ", in: " ^ String.escaped (String.sub p.text 0 (min 600 (String.length p.text))) else ""
   in
   raise (Error { line = (peek p).line; message })
 let unexpected (p : t) (what : string) = fail p (Printf.sprintf "expected %s, not %s" what (describe (peek p).kind))
@@ -242,7 +245,7 @@ and body_in : 'a. t -> async:bool -> generator:bool -> (unit -> 'a) -> 'a =
 and template_values (p : t) (t : Js_lexer.token) (expressions : Js_lexer.token list list) : expr list =
   List.map
     (fun (tokens : Js_lexer.token list) ->
-      let inner = { tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; aside = p.aside; no_in = false; in_async = p.in_async; in_generator = p.in_generator } in
+      let inner = { text = "" (* a ${ }'s tokens are of a text of their own: a function there has no text kept *); tokens = Array.of_list (tokens @ [ { t with kind = Eof } ]); pos = 0; aside = p.aside; no_in = false; in_async = p.in_async; in_generator = p.in_generator } in
       let e = expression inner 0 in
       if (peek inner).kind <> Eof then unexpected inner "'}'";
       e)
@@ -380,7 +383,7 @@ and key (p : t) : key =
  * its key *)
 and method_ (p : t) (k : key) ~(async : bool) ~(generator : bool) : func =
   let ps, rest = params p in
-  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async; frame = None; own_name = false }
+  { name = (match k with Key n -> Some n | Computed _ -> None); params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow = false; generator; async; frame = None; own_name = false; text = None }
 
 (* one property of an object literal *)
 and property (p : t) : property =
@@ -396,7 +399,7 @@ and property (p : t) : property =
       ignore (advance p);
       let k = key p in
       let ps, rest = params p in
-      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None; own_name = false } in
+      let f = { name = None; params = ps; rest; body = body_in p ~async:false ~generator:false (fun () -> block_body p); arrow = false; generator = false; async = false; frame = None; own_name = false; text = None } in
       if which = "get" then Getter (k, f) else Setter (k, f)
   (* async m() { } *)
   | Name "async" when accessor || next = Punct "*" ->
@@ -500,24 +503,38 @@ and params (p : t) : (pattern * expr option) list * pattern option =
 
 (* x => ..., (a, b) => ...: a body in braces, or an expression returned *)
 and arrow (p : t) ~(async : bool) : expr =
+  let first = first_of p p.pos in
   let ps, rest = if is_punct p "(" then params p else ([ (Bind (name p), None) ], None) in
   let line = (peek p).line in
   expect p "=>";
   let body =
     body_in p ~async ~generator:false (fun () -> if is_punct p "{" then block_body p else [ { line; stmt = Return (Some (expression p 1)) } ])
   in
-  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async; frame = None; own_name = false }
+  (* (to the next token, less the blanks before it: its body may be an expression) *)
+  let stop = ref (if p.pos < Array.length p.tokens then p.tokens.(p.pos).at else String.length p.text) in
+  if p.text = "" then stop := first;
+  while !stop > first && (match p.text.[!stop - 1] with ' ' | '\n' | '\t' | '\r' -> true | _ -> false) do decr stop done;
+  Function { name = None; params = ps; rest; body; arrow = true; generator = false; async; frame = None; own_name = false; text = (if !stop > first then Some (p.text, first, !stop) else None) }
 
 (* function name? (params) { body }: what is after the keyword *)
 (* a function expression's name is its own, in its body *)
 and named (f : func) : func = { f with own_name = f.name <> None }
 
+(* where a function's text starts: at the token of that index, or at
+ * the "async" before it *)
+and first_of (p : t) (i : int) : int =
+  let i = if i > 0 && p.tokens.(i - 1).kind = Name "async" then i - 1 else i in
+  p.tokens.(min i (Array.length p.tokens - 1)).at
+
 and func (p : t) ~(arrow : bool) ~(async : bool) : func =
+  (* its text: from the keyword just read, to its body's last brace *)
+  let first = first_of p (max 0 (p.pos - 1)) in
   (* function* f: a generator *)
   let generator = is_punct p "*" && (ignore (advance p); true) in
   let name = match (peek p).kind with Name x -> ignore (advance p); Some x | _ -> None in
   let ps, rest = params p in
-  { name; params = ps; rest; body = body_in p ~async ~generator (fun () -> block_body p); arrow; generator; async; frame = None; own_name = false }
+  let body = body_in p ~async ~generator (fun () -> block_body p) in
+  { name; params = ps; rest; body; arrow; generator; async; frame = None; own_name = false; text = (if p.text = "" then None else Some (p.text, first, p.tokens.(p.pos - 1).at + 1)) }
 
 (* class Name extends Parent { members }: what is after the keyword. A
  * member: [static] then a method m() { }, an accessor get k() { } or
@@ -879,7 +896,7 @@ let with_tokens ?(aside = false) (text : string) (f : t -> 'a) : ('a, error) res
   match Js_lexer.tokenize text with
   | exception Js_lexer.Error (line, message) -> Error { line; message }
   | tokens -> (
-      let p = { tokens = Array.of_list tokens; pos = 0; aside; no_in = false; in_async = false; in_generator = false } in
+      let p = { text; tokens = Array.of_list tokens; pos = 0; aside; no_in = false; in_async = false; in_generator = false } in
       match f p with x -> Ok x | exception Error e -> Error e)
 
 let parse ?aside (text : string) : (program, error) result =

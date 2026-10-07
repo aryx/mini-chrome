@@ -22,7 +22,7 @@ type kind =
   | Template of string list * token list list
   | Eof
 
-and token = { kind : kind; line : int; newline_before : bool }
+and token = { kind : kind; line : int; newline_before : bool; at : int }
 
 exception Error of int * string
 
@@ -85,8 +85,10 @@ let utf_8 (cp : int) : string =
 let tokenize (s : string) : token list =
   let n = String.length s in
   let line = ref 1 and newline = ref false and tokens = ref [] in
+  (* where the token being read starts in the text (the loop's, below) *)
+  let here = ref 0 in
   let emit kind at_line =
-    tokens := { kind; line = at_line; newline_before = !newline } :: !tokens;
+    tokens := { kind; line = at_line; newline_before = !newline; at = !here } :: !tokens;
     newline := false
   in
   let error msg = raise (Error (!line, msg)) in
@@ -125,6 +127,7 @@ let tokenize (s : string) : token list =
   (* the tokens from [i]: to the end, or to the } that closes a
    * template's ${ }; where it stopped *)
   let rec go i =
+    here := i;
     if i >= n then n
     else
       match s.[i] with

@@ -146,6 +146,11 @@ let step (t : t) (line : int) : unit =
  * which is after this module and says so when the program starts *)
 let compiler : (t -> A.func -> scope -> value -> value) option ref = ref None
 
+(* eval(text) written so, by that name: a "direct" eval, whose text is
+ * run where the call is -- it sees the names of the function calling
+ * it (set below, where a program's run is) *)
+let direct_eval : (t -> scope -> value -> string -> value) ref = ref (fun _ _ _ _ -> Undefined)
+
 let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   match e with
   | Number f -> Number f
@@ -341,6 +346,17 @@ let rec eval_expr (t : t) (s : scope) (this : value) (e : A.expr) : value =
   | Index (o, k) ->
       let o = eval_expr t s this o in
       item t o (eval_expr t s this k)
+  (* eval(text), the engine's own eval called by its name: its text in
+   * this scope (an anti-abuse script of Google's is a closure whose
+   * machine evaluates pieces of text naming the closure's own
+   * functions: run in the global scope, as every eval was, none was
+   * defined) *)
+  | Call (((Name "eval" | Local ("eval", _)) as f), [ arg ]) -> (
+      let fn = eval_expr t s this f in
+      match (fn, eval_expr t s this arg) with
+      | Object { kind = Host_function ("eval", _); _ }, String text -> !direct_eval t s this text
+      | Object { kind = Closure _ | Host_function _ | Proxy _; _ }, v -> call_value t fn ~this:Undefined [ v ]
+      | _ -> throw "TypeError" "eval is not a function")
   | Call (f, args) ->
       (* a method call: this is the object the function was read from *)
       let fn, self =
@@ -400,9 +416,9 @@ and make_class (t : t) (s : scope) (this : value) (c : A.class_) : value =
     | Some f, Some _ -> f
     | Some f, None -> { f with body = stmt (Call (Member (Name "%init", "call"), [ This ])) :: f.body }
     | None, None ->
-        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None; own_name = false }
+        { name = c.class_name; params = []; rest = None; body = [ stmt (Call (Member (Name "%init", "call"), [ This ])) ]; arrow = false; generator = false; async = false; frame = None; own_name = false; text = None }
     | None, Some _ ->
-        { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false; frame = None; own_name = false }
+        { name = c.class_name; params = []; rest = Some (Bind "args"); body = [ stmt (Super_call [ Spread (Name "args") ]) ]; arrow = false; generator = false; async = false; frame = None; own_name = false; text = None }
   in
   (* opti: a constructor made here is quickened as the written ones were *)
   let ctor = if ctor.frame = None && Js_scope.slotted s then Js_quicken.func ctor else ctor in
@@ -809,7 +825,9 @@ and call_value (t : t) (fn : value) ~(this : value) (args : value list) : value 
                          (fun i (p, _) ->
                            let given = match List.nth_opt args i with Some v -> (let d = display v in if String.length d > 40 then String.sub d 0 40 ^ "..." else d) | None -> "nothing" in
                            (match p with A.Bind x -> x | _ -> "{..}") ^ " = " ^ given)
-                         c.func.params))));
+                         c.func.params))
+               (* and how its text starts: what to find it by in a minified file *)
+               ^ match c.func.text with Some (text, from, upto) -> "\n    " ^ String.sub text from (min 300 (upto - from)) | None -> ""));
           raise e)
   | _ -> throw "TypeError" (display fn ^ " is not a function")
 
@@ -1068,16 +1086,13 @@ and exec ?(labels = []) (t : t) (s : scope) (this : value) (st : A.stmt) : outco
  * kind (Js_quicken) *)
 let quickened (s : scope) (program : A.program) : A.program = if Js_scope.slotted s then Js_quicken.program program else program
 
-let run_in_run (t : t) (program : A.program) : value =
+let run_in (t : t) (scope : scope) (this : value) (program : A.program) : value =
       let program = quickened t.globals program in
       (* the value of the last expression statement: a console's echo *)
       let last = ref Undefined in
-      (* a script's own this is the global object (a page's window): what
-       * a library wrapped in (function (root) { ... })(this) is given *)
-      let this = match Js_scope.own t.globals "globalThis" with Some b -> b.value | None -> Undefined in
-      hoist t.globals program;
+      hoist scope program;
       List.iter
-        (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare t.globals (Option.get f.name) ~constant:false (closure t.globals Undefined f) | _ -> ())
+        (fun (st : A.stmt) -> match st.stmt with Function_decl f -> declare scope (Option.get f.name) ~constant:false (closure scope Undefined f) | _ -> ())
         program;
       List.iter
         (fun (st : A.stmt) ->
@@ -1085,14 +1100,27 @@ let run_in_run (t : t) (program : A.program) : value =
           | Expr e ->
               t.line <- st.line;
               tick t;
-              last := eval_expr t t.globals this e
+              last := eval_expr t scope this e
           | _ -> (
-              match exec t t.globals this st with
+              match exec t scope this st with
               | Normal -> ()
               | Return _ -> throw "SyntaxError" "Illegal return statement"
               | Break _ | Continue _ -> throw "SyntaxError" "Illegal break or continue statement"))
         program;
       !last
+
+let run_in_run (t : t) (program : A.program) : value =
+      (* a script's own this is the global object (a page's window): what
+       * a library wrapped in (function (root) { ... })(this) is given *)
+      run_in t t.globals (match Js_scope.own t.globals "globalThis" with Some b -> b.value | None -> Undefined) program
+
+let () =
+  direct_eval :=
+    fun t s this text ->
+      match Js_parse.parse text with
+      (* in the caller's own scope: what it declares (a var, a function) is the caller's after it *)
+      | Ok program -> run_in t s this program
+      | Error e -> t.line <- e.line; throw "SyntaxError" e.message
 
 let eval_in_run (t : t) (text : string) : value =
   match Stopwatch.time "parse" (fun () -> Js_parse.parse text) with
