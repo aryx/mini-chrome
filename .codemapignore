@@ -1,0 +1,7 @@
+# -*- sh -*-
+# gitignore-like file for Codemap (see https://github.com/aryx/codemap)
+
+tests/
+docs/
+changes.txt
+CLAUDE.md

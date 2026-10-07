@@ -600,6 +600,16 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- a frame's scripts run, in a world of their own (Browser_script.
+  adopt): an engine and a document apart from the page's, on the
+  page's clock, its requests sent with the page's, a key told to
+  both; what they leave of the document is what the page lays out in
+  the iframe's box. The two talk by messages alone -- the frame's
+  window.parent and the page's iframe.contentWindow are windows one
+  can only postMessage to, the event's source the way back. A deck of
+  Slipshow's (aryx.github.io/ocaml-caps, the whole deck a srcdoc
+  frame turned by its page) shows its slides, scaled to the window,
+  and the arrows go through them
 - what GitHub's page asked for and did not find (the new "missing:"
   list): a control's form (the one around it, or the one its form=
   names), an event's handler not set as null and known to "in"

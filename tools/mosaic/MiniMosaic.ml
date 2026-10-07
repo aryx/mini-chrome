@@ -187,7 +187,7 @@ let settings (m : model) : Browser_page.settings =
     height = 820.; (* the page area's *)
     visited = (fun url -> List.mem url m.visited);
     picture = (fun url -> List.assoc_opt url m.pictures);
-    sheet = (fun _ -> None);
+    sheet = (fun _ -> None); framed = (fun _ -> None);
   }
 
 (* the built-in site, shared with mini-netscape (Site.mli) *)

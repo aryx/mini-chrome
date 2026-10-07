@@ -42,7 +42,7 @@ let tests =
           Alcotest.(check (list string)) "open, the outer one not" [ "inner" ] (opened root));
       Testo.create "the page folds and unfolds: the layout's height" (fun () ->
           let settings : Browser_page.settings =
-            { css = true; engine = None; width = 600.; height = 400.; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None) }
+            { css = true; engine = None; width = 600.; height = 400.; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None); framed = (fun _ -> None) }
           in
           let p = Browser_page.read settings "http://x.test/" 200 (Some "text/html") page in
           let opened_page = Browser_page.with_tree settings p (Browser_details.toggled p.tree (first "details" p.tree)) in

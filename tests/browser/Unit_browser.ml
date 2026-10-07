@@ -13,14 +13,14 @@
 (* a page read with no pictures, nothing visited, 976 wide *)
 let page (url : string) (html : string) : Browser_page.t =
   Browser_page.read
-    { css = false; engine = None; width = 976.; height = 768.; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None) }
+    { css = false; engine = None; width = 976.; height = 768.; visited = (fun _ -> false); picture = (fun _ -> None); sheet = (fun _ -> None); framed = (fun _ -> None) }
     url 200 (Some "text/html") html
 
 (* by the box model, [sheets] the style sheets it has, by URL *)
 let styled (sheets : (string * string) list) (html : string) : Browser_page.t * Browser_page.settings =
   let s : Browser_page.settings =
     { css = true; engine = None; width = 976.; height = 768.; visited = (fun _ -> false);
-      picture = (fun _ -> None); sheet = (fun url -> List.assoc_opt url sheets) }
+      picture = (fun _ -> None); sheet = (fun url -> List.assoc_opt url sheets); framed = (fun _ -> None) }
   in
   (Browser_page.read s "http://x.org/a/page.html" 200 (Some "text/html") html, s)
 

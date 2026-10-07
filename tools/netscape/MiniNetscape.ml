@@ -126,7 +126,7 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
     height = 800.;
     visited = (fun url -> List.mem url tab.visited);
     picture = (fun url -> List.assoc_opt url tab.pictures);
-    sheet = (fun _ -> None);
+    sheet = (fun _ -> None); framed = (fun _ -> None);
   }
 
 (* Netscape's four connections at once; no scripts (Netscape 2's, 1995,

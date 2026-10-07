@@ -27,6 +27,8 @@ let settings (m : model) (tab : Browser_tab.t) : Browser_page.settings =
     visited = (fun url -> List.mem url tab.visited);
     picture = (fun url -> List.assoc_opt url tab.pictures);
     sheet = (fun url -> List.assoc_opt url tab.sheets);
+    (* a frame's document as its scripts have it (Browser_script.adopt) *)
+    framed = (fun key -> Option.bind tab.script (fun s -> Browser_script.frame_tree s key));
   }
 
 (* whose scripts run: every site's ("*"), the browser's setting, which

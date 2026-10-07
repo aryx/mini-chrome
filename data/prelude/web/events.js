@@ -64,6 +64,25 @@
     }, 0);
   };
 
+  // A message from another window (a frame's from its page, a page's
+  // from its frame: Browser_script.adopt): the browser's to give, as
+  // postMessage's own. Its source is a window to answer to.
+  g.__deliver = function (data, from) {
+    var e = new Event("message");
+    e.data = data; e.origin = location.origin; e.ports = []; e.lastEventId = "";
+    e.source = from && from.contentWindow ? from.contentWindow : g.parent;
+    window.dispatchEvent(e);
+  };
+  // This document is a frame's: its parent, and the top, are a window
+  // it can only post to.
+  g.__framed = function () {
+    var up = { postMessage: function (data) { __post_parent(data); }, addEventListener: function () {}, removeEventListener: function () {},
+               focus: function () {}, blur: function () {}, location: { href: "", origin: location.origin }, frames: [], length: 0 };
+    up.parent = up.top = up.self = up.window = up;
+    g.parent = g.top = up;
+    g.frameElement = null;
+  };
+
   // MessageChannel (HTML5's channel messaging): two ports, what is
   // posted on one given to the other's onmessage in a task of its own.
   // Frameworks use it as a timer that is not held back (a scheduler's

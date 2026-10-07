@@ -57,7 +57,7 @@ let () =
       let sheets : (string * string) list ref = ref [] in
       let settings () : Browser_page.settings =
         { css = true; engine = None; width; height; visited = (fun _ -> false);
-          picture = (fun _ -> None); sheet = (fun u -> List.assoc_opt u !sheets) }
+          picture = (fun _ -> None); sheet = (fun u -> List.assoc_opt u !sheets); framed = (fun _ -> None) }
       in
       (* the stages before the styles *)
       let text = timed ~runs:3 "Charset: to UTF-8" (fun () -> Charset.to_utf_8 (Charset.detect ~content_type:"text/html" bytes) bytes) in

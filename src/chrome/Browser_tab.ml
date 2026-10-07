@@ -192,12 +192,34 @@ let relaid (cfg : 'msg config) (tab : t) : t =
  * and the page laid out from the tree they leave *)
 (* the page's scripts run, all of them had: the page laid out from the
  * tree they leave *)
+(* the page's frames whose documents have scripts: each a world of its
+ * own, made the page's (Browser_script.adopt), its scripts run -- those
+ * written in it, and those of a file the tab has already -- and the
+ * page laid out again with what they leave *)
+let with_frame_scripts (cfg : 'msg config) (tab : t) : t =
+  match (tab.state, tab.script) with
+  | Shown p, Some s ->
+      let settings = cfg.settings tab in
+      let fresh = List.filter (fun (key, _, tree) -> (not (List.mem_assoc key (Browser_script.frames s))) && Dom.find_all "script" tree <> []) p.frames in
+      List.iter
+        (fun (key, base, tree) ->
+          let log line = Logs.info (fun m -> m "console (frame): %s" line) in
+          let frame = Browser_script.create ~log ~seed:cfg.seed ~epoch:cfg.epoch ~base ~viewport:(settings.width, settings.height) tree in
+          Browser_script.adopt s ~key frame;
+          (* where its elements are: its document laid out alone, at the window's size *)
+          let alone = Browser_page.read { settings with framed = (fun _ -> None) } base 200 (Some "text/html") "" in
+          Browser_script.set_measure frame (fun tree -> Browser_page.where (Browser_page.with_tree settings alone tree));
+          Browser_script.run_scripts ~source:(fun u -> List.assoc_opt u tab.sources) frame)
+        fresh;
+      if fresh = [] then tab else { tab with state = Shown (Browser_page.laid_out (cfg.settings tab) p) }
+  | _ -> tab
+
 let run_page_scripts (cfg : 'msg config) (tab : t) : t =
   match (tab.state, tab.script) with
   | Shown p, Some s ->
       ignore (measuring cfg tab);
       Browser_script.run_scripts ~source:(fun u -> List.assoc_opt u tab.sources) s;
-      { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p (Browser_script.tree s)) }
+      with_frame_scripts cfg { tab with state = Shown (Browser_page.with_tree (cfg.settings tab) p (Browser_script.tree s)) }
   | _ -> tab
 
 let arrive (cfg : 'msg config) (tab : t) (url : string) (status : int) (content_type : string option) (bytes : string) : t =
@@ -365,7 +387,7 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let sheets = fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
       let wanted =
         (* the page's pictures, and its frames' documents' (Browser_page's frames) *)
-        List.concat_map (fun (base, tree) -> Dom.find_all "img" tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve base) (Box_tree.picture_src e))) ((p.url, p.tree) :: p.frames)
+        List.concat_map (fun (base, tree) -> Dom.find_all "img" tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve base) (Box_tree.picture_src e))) ((p.url, p.tree) :: List.map (fun (_, base, tree) -> (base, tree)) p.frames)
         (* an <svg>'s <image href> (Svg_shapes) *)
         @ (Dom.find_all "image" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Dom.attribute ~extensions:true "href" e)))
         @ p.backgrounds

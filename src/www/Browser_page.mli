@@ -40,7 +40,10 @@ type t = {
   values : (Dom.element * Forms.value) list; (* the controls changed, by element (==) *)
   quirks : bool; (* no DOCTYPE: quirks mode (Computed.styles), by the box model *)
   backgrounds : string list; (* by the box model: the pictures of its boxes' background-image, absolute URLs *)
-  frames : (string * Dom.element) list; (* the documents its <iframe>s show (Frames), each with the address its links are of: their boxes are in [layout] *)
+  (* the documents its <iframe>s show (Frames): what each iframe shows
+     (its srcdoc's text, its src's address), the address its links are
+     of, its tree; their boxes are in [layout] *)
+  frames : (string * string * Dom.element) list;
 }
 
 (* another way to lay a page out and draw it than CSS's box model: the
@@ -60,6 +63,10 @@ type settings = {
   visited : string -> bool; (* an absolute URL, no #fragment *)
   picture : string -> Browser_picture.t option; (* an absolute URL *)
   sheet : string -> string option; (* a style sheet's text, once it has come (an absolute URL) *)
+  (* a frame's document as its own scripts have it now, by what the
+     iframe shows (its srcdoc's text, its src's absolute address);
+     None: as it was written (Frames) *)
+  framed : string -> Dom.element option;
 }
 
 (* [read settings url status content_type bytes]: the page, through the

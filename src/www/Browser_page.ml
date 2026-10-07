@@ -27,7 +27,7 @@ type t = {
   values : (Dom.element * Forms.value) list;
   quirks : bool;
   backgrounds : string list;
-  frames : (string * Dom.element) list;
+  frames : (string * string * Dom.element) list;
 }
 
 type engine =
@@ -41,6 +41,7 @@ type settings = {
   visited : string -> bool;
   picture : string -> Browser_picture.t option;
   sheet : string -> string option;
+  framed : string -> Dom.element option;
 }
 
 (*****************************************************************************)
@@ -242,17 +243,20 @@ let frame_styles : (Dom.element * Cascade.media * Cascade.sheet list * ((Dom.ele
  * documents those frames show, each with the address its links are
  * of: an <iframe>'s document laid out at its box's size, with its own
  * sheets; its own frames the same way *)
-let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxes : Box_types.box) : Box_types.box * (string * Dom.element) list =
+let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxes : Box_types.box) : Box_types.box * (string * string * Dom.element) list =
   let shown = ref [] in
   let frame (e : Dom.element) ~(width : float) ~(height : float) : Box_types.box option =
     let document =
       match Frames.source e with
-      | Some (Inline text) -> Some (base, Frames.tree_of text)
-      | Some (Address a) -> let url = Browser_url.resolve base a in Option.map (fun text -> (url, Frames.tree_of text)) (s.sheet url)
+      (* as its scripts have it, if it has scripts that ran; else as it was written *)
+      | Some (Inline text) -> Some (text, base, match s.framed text with Some tree -> tree | None -> Frames.tree_of text)
+      | Some (Address a) ->
+          let url = Browser_url.resolve base a in
+          Option.map (fun text -> (url, url, match s.framed url with Some tree -> tree | None -> Frames.tree_of text)) (s.sheet url)
       | None -> None
     in
     Option.map
-      (fun (base, tree) ->
+      (fun (key, base, tree) ->
         let s = { s with width; height } and media : Cascade.media = { width; height } in
         let sheets = if s.css then fst (page_sheets s media base tree) else [] in
         let same a b = List.length a = List.length b && List.for_all2 (fun (x : Cascade.sheet) (y : Cascade.sheet) -> x.rules == y.rules) a b in
@@ -270,7 +274,7 @@ let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxe
         let canvas = List.find_map (fun e -> match (styles e).background with c when c.a > 0. -> Some c | _ -> None) (tree :: Dom.find_all "body" tree) in
         let inside = { inside with height = Float.max inside.height height; style = (match canvas with Some background -> { inside.style with background } | None -> inside.style) } in
         let inside, deeper = if level < Frames.depth then with_frames ~level:(level + 1) ~visited s base inside else (inside, []) in
-        shown := ((base, tree) :: deeper) @ !shown;
+        shown := ((key, base, tree) :: deeper) @ !shown;
         inside)
       document
   in
@@ -278,7 +282,7 @@ let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxe
   (boxes, List.rev !shown)
 
 let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element) :
-    Html_layout.box * Browser_draw.drawn * Looks.color option * string list * (string * Dom.element) list =
+    Html_layout.box * Browser_draw.drawn * Looks.color option * string list * (string * string * Dom.element) list =
   (* a tree as the parser left it: its declared shadow trees in their
    * hosts' place (Shadow_tree; a script's are composed already) *)
   let tree = Shadow_tree.composed tree in
@@ -319,7 +323,7 @@ let sheets_wanted (s : settings) (p : t) : string list =
   if s.engine = None && s.css then
     let media : Cascade.media = { width = s.width; height = s.height } in
     let documents (base, tree) = List.filter (fun u -> s.sheet u = None) (List.map (Browser_url.resolve base) (Frames.addresses tree)) in
-    snd (page_sheets s media p.url p.tree) @ documents (p.url, p.tree) @ List.concat_map (fun (base, tree) -> snd (page_sheets s media base tree) @ documents (base, tree)) p.frames
+    snd (page_sheets s media p.url p.tree) @ documents (p.url, p.tree) @ List.concat_map (fun (_, base, tree) -> snd (page_sheets s media base tree) @ documents (base, tree)) p.frames
   else []
 
 let laid_out (s : settings) (p : t) : t =

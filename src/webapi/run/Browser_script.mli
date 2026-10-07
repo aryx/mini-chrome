@@ -261,6 +261,17 @@ val take_socket_asks : t -> Script_types.socket_ask list
  * onclose called. False when the page has no such socket. *)
 val socket_event : t -> int -> Websocket_client.event -> bool
 
+(* Frames. [adopt page ~key frame]: the world of the document one of
+   the page's <iframe>s shows ([key]: its srcdoc's text, or its src's
+   address), linked to the page's -- its timers on the page's clock,
+   its requests sent and answered with the page's, a key told to both,
+   and the two talking by postMessage alone (the frame's window.parent,
+   the page's iframe.contentWindow). [frame_tree]: that document as its
+   scripts have it now *)
+val adopt : t -> key:string -> t -> unit
+val frame_tree : t -> string -> Dom.element option
+val frames : t -> (string * t) list
+
 val take_requests : t -> Script_types.request list
 
 (* [answer t rid result]: the answer of the request of that number (its

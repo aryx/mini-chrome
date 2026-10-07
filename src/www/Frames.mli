@@ -21,12 +21,27 @@
    among the page's, what draws, scrolls and hit-tests a page does the
    same for what its frames hold. Three frames deep at most.
 
-   What is here is the document shown. Not yet: its scripts (none of
-   the frame's runs, and the page's own sees an empty contentWindow:
-   data/prelude/web/elements.js), a frame scrolled by itself (what is
-   past its box is cut), a document's own address for its relative
-   links when it came by src (they are taken as the page's), and
-   <frameset>, which no page written since 2000 uses.
+   A frame's scripts run in a world of their own (Browser_script.adopt,
+   made by the tab for a document that has scripts): its own globals
+   and its own document, on the page's clock, and what they leave of
+   the document is what is laid out (the settings' [framed]). The two
+   worlds share no object. They talk as two documents of different
+   sites may in any browser, by messages alone:
+
+     the page:   iframe.contentWindow.postMessage(data)
+     the frame:  window.addEventListener("message", e => ... e.data ...
+                   e.source.postMessage(answer))        // or parent.postMessage
+
+   which is how a deck of slides in a frame is turned by its page, an
+   embedded player told to pause. A key pressed is told to the frame
+   too.
+
+   Not yet: one document reaching into the other's (contentDocument,
+   parent.document: same-site frames may, here none), a frame's
+   scripts of a file not fetched for the page, a frame scrolled by
+   itself (what is past its box is cut), a document's own address for
+   its relative links when it came by src (they are taken as the
+   page's), and <frameset>, which no page written since 2000 uses.
 
    cs-history:
    Frames were Netscape 2's (March 1996): <frameset> cut the window in

@@ -300,7 +300,11 @@ at its box's size and its boxes put under the iframe's
 then does the frame's too, with no second window. The documents shown
 are the page's `frames`, for the tab to ask their sheets and pictures;
 one that comes by `src` is fetched as a sheet is (`settings.sheet`).
-No script of a frame runs yet.
+A frame's scripts run in a world of their own, a `Browser_script.t`
+the page's adopts (`Browser_script.adopt`, made by
+`Browser_tab.with_frame_scripts`): its timers, requests and keys go
+with the page's, its document as they leave it is the settings'
+`framed`, and the two worlds talk by `postMessage` alone.
 
 The built-in site is the browser's demonstration: `about:chrome`
 (`data/about/chrome.html`, `chrome.css`) has a card for each thing the
