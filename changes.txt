@@ -600,6 +600,18 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- another document (DOMParser's, createHTMLDocument's) is a document:
+  it has the page's document's methods (createNodeIterator,
+  createTreeWalker, createTextNode...), its nodes' ownerDocument is
+  itself, and document.getElementsByTagName answers for the document
+  it is called on, its <html> among them. el.outerHTML = text (it
+  did nothing): the element replaced, a <body> keeping its place.
+  An element of an <svg> has its name's case and its namespace;
+  XMLSerializer; an element's attributes are a NamedNodeMap (a
+  sanitizer removes an element whose are not); a made document has
+  its <head>. Together what DOMPurify does to clean a message's
+  HTML: a thread of Topicbox (9fans) showed its plain-text mails and
+  not its HTML ones, cleaned to nothing
 - the pointer's events (pointerdown, pointermove, pointerup: mouse,
   pen and finger as one, 2012) are told with the mouse's, each just
   before its twin, to a page that listens for them
@@ -834,6 +846,12 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- the space between two words of a link is the link's, for the
+  element a click finds as for its address: it was the block's, so
+  the page's scripts did not know a link was clicked while the
+  browser followed it. Discourse (discuss.ocaml.org) goes from a list
+  to a thread itself, on a click it takes; a click that fell between
+  two words of a title loaded the whole application again, a minute
 - frames (Frames, new, in src/www): an <iframe> is a box of the page,
   300 by 150 unless its attributes or its style say, in which its
   document is laid out -- its srcdoc's text, or what its src gives

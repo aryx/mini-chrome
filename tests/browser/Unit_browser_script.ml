@@ -316,6 +316,23 @@ let tests =
           ignore (Browser_script.window_event t "keydown" [ ("key", String "ArrowRight") ]);
           Browser_script.advance t 16.;
           Alcotest.(check string) "told to the page" "key ArrowRight" (said t "heard[2]"));
+      Testo.create "another document, as a sanitizer makes and goes through one (DOMPurify's ways)" (fun () ->
+          let t =
+            page
+              "<body><p id=mine>the page</p><script>\n\
+               var d = new DOMParser().parseFromString('<p>hi <b>x</b></p><!--c--><svg><g></g></svg>', 'text/html');\n\
+               var byTag = document.getElementsByTagName, it = document.createNodeIterator.call(d, d.body, 1 | 4 | 128, null, false), n, seen = [];\n\
+               while ((n = it.nextNode())) seen.push(n.nodeName);\n\
+               var made = document.implementation.createHTMLDocument(''), body = made.body;\n\
+               body.outerHTML = '<i>cleaned</i> text';\n\
+               var p = document.getElementById('mine'); p.outerHTML = '<h3 id=now>replaced</h3><em></em>';\n\
+               var said = [byTag.call(d, 'html').length, byTag.call(d, 'body')[0] === d.body, byTag.call(d, 'p').length, document.getElementsByTagName('html')[0] === document.documentElement,\n\
+                 d.body.firstChild.ownerDocument === d, document.body.ownerDocument === document, seen.join(' '), d.body.lastChild.namespaceURI.slice(-3),\n\
+                 byTag.call(made, 'body')[0].innerHTML, document.getElementById('now').nextSibling.localName, document.getElementById('mine'),\n\
+                 new XMLSerializer().serializeToString(d.body.firstChild)]</script>"
+          in
+          Alcotest.(check string) "the page's functions called on it; its nodes are its own; a body's outerHTML; a serializer"
+            {|[1, true, 1, true, true, true, "P #text B #text #comment svg g", "svg", "<i>cleaned</i> text", "em", null, "<p>hi <b>x</b></p>"]|} (value t "said"));
       Testo.create "a table's rows and cells put in and taken out" (fun () ->
           let t =
             page

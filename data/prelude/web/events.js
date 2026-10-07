@@ -49,6 +49,9 @@
   }
   global("NodeList", function NodeList() {});
   global("HTMLCollection", function HTMLCollection() {});
+  // an element's attributes: a list, asked by name too (the host's)
+  global("NamedNodeMap", function NamedNodeMap() {});
+  NamedNodeMap.prototype = Object.create(Array.prototype);
 
   // window.postMessage (HTML5's cross-document messaging, 2008): a
   // message for a window, told to its "message" listeners in a task

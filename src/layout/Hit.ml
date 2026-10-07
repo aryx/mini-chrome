@@ -53,7 +53,22 @@ let rec fragment_at (b : Html_layout.box) ~(x : float) ~(y : float) : Html_layou
       List.find_map
         (fun (l : Html_layout.line) ->
           if y >= l.top && y <= l.top +. l.height then
-            List.find_opt (fun (f : Html_layout.fragment) -> x >= f.x && x <= f.x +. f.width) l.fragments
+            match List.find_opt (fun (f : Html_layout.fragment) -> x >= f.x && x <= f.x +. f.width) l.fragments with
+            | Some f -> Some f
+            | None ->
+                (* the space between two words of one link is the link's
+                 * too ([on_line] says so of its address): the word before
+                 * it. A click there was the block's for the page's
+                 * scripts, which then did not know a link was clicked,
+                 * and the link's for the browser, which followed it: an
+                 * application that goes from page to page itself
+                 * (Discourse) was loaded whole again *)
+                let rec gap (fs : Html_layout.fragment list) =
+                  match fs with
+                  | f :: (next :: _ as rest) -> if x > f.x +. f.width && x < next.x && f.look.link <> None && f.look.link = next.look.link then Some f else gap rest
+                  | _ -> None
+                in
+                gap l.fragments
           else None)
         b.lines
     in

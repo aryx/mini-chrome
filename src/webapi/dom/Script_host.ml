@@ -125,9 +125,15 @@ and get (t : t) (n : node) (k : string) : value =
   let elements_of ns = List.filter is_element ns in
   let opt = function Some c -> wrap t c | None -> Null in
   match k with
+  (* an element of a drawing keeps its name's case (svg, linearGradient) *)
+  | "tagName" | "nodeName" when is_element n && (let rec drawn (n : node) = n.name = "svg" || (match n.parent with Some p -> p.name <> "foreignObject" && drawn p | None -> false) in drawn n) -> String n.name
   | "tagName" | "nodeName" -> String (if is_element n then String.uppercase_ascii n.name else n.name)
   | "nodeType" -> Number (if is_text n then 3. else if n.name = comment_name then 8. else if n.name = fragment_name then 11. else 1.)
-  | "ownerDocument" -> Option.value (Js_eval.global t.engine "document") ~default:Null
+  (* the page's, or the document it was read into (DOMParser, createHTMLDocument: its root says) *)
+  | "ownerDocument" -> (
+      let rec top (n : node) = match n.parent with Some p -> top p | None -> n in
+      match List.assoc_opt "@@document" (top n).expando with Some d -> d | None -> Option.value (Js_eval.global t.engine "document") ~default:Null)
+
   | "id" -> String (Option.value (attribute n "id") ~default:"")
   | "className" -> String (Option.value (attribute n "class") ~default:"")
   (* a text's data, a comment's: not an element's, whose class may have a data of its own *)
@@ -318,6 +324,20 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
    * script written so was read as a tag, up to the next ">" *)
   | "innerHTML" when n.name = "script" || n.name = "style" -> replace_children [ make text_name ~text:(str v) ]
   | "innerHTML" -> replace_children (parse_fragment (str v))
+  (* the element itself replaced by what the HTML reads to -- but a
+   * <body>, which stays, the HTML its content: what a parser makes of
+   * text given in a body's place (a sanitizer builds its document so:
+   * body.outerHTML = the text to clean) *)
+  | "outerHTML" when n.name = "body" || n.name = "html" -> replace_children (parse_fragment (str v))
+  | "outerHTML" -> (
+      match n.parent with
+      | Some p ->
+          let nodes = parse_fragment (str v) in
+          p.children <- List.concat_map (fun c -> if c == n then nodes else [ c ]) p.children;
+          adopt p nodes;
+          n.parent <- None;
+          touch t
+      | None -> ())
   | "value" -> if n.name = "textarea" then replace_children [ make text_name ~text:(str v) ] else (set_attribute n "value" (str v); touch t)
   | "checked" ->
       (if truthy v then set_attribute n "checked" "" else n.attributes <- List.remove_assoc "checked" n.attributes);

@@ -378,7 +378,10 @@ let icon_url (tab : t) : string option =
 (* a page shown: its style sheets not had yet queued (by the box
  * model: Browser_page.sheets_wanted), then its pictures (if Auto Load
  * Images), the ones of the page before dropped *)
-let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cmd) : t * 'msg Cmd.t) : t * 'msg Cmd.t =
+let rec with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) (tc : t * 'msg Cmd.t) : t * 'msg Cmd.t =
+  Stopwatch.time "wanted" (fun () -> wanted_of cfg network tc)
+
+and wanted_of (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cmd) : t * 'msg Cmd.t) : t * 'msg Cmd.t =
   match tab.state with
   | Loading _ -> (tab, cmd)
   | Shown p ->

@@ -339,13 +339,13 @@ let with_tree (s : settings) (p : t) (tree : Dom.element) : t =
     p with
     frames;
     tree;
-    line_mode = Line_mode.render tree;
+    line_mode = Stopwatch.time "lines" (fun () -> Line_mode.render tree);
     title = title_of tree;
     layout;
     drawn;
     background = canvas;
     backgrounds;
-    forms = Forms.forms tree;
+    forms = Stopwatch.time "forms" (fun () -> Forms.forms tree);
     (* the values were the old tree's elements'; a script's page keeps
      * a field's text in its value= (Browser_script.input) *)
     values = [];

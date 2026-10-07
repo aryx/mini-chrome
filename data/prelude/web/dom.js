@@ -147,6 +147,10 @@
     };
   });
   method(D, "createNodeIterator", D && D.createTreeWalker);
+  // XMLSerializer (2000, Mozilla's): a node as text.
+  global("XMLSerializer", function XMLSerializer() {
+    this.serializeToString = function (n) { return n.nodeType === 9 ? n.documentElement.outerHTML : n.nodeType === 1 ? n.outerHTML : n.nodeType === 11 ? Array.prototype.map.call(n.childNodes, function (c) { return c.nodeType === 1 ? c.outerHTML : c.textContent; }).join("") : n.textContent; };
+  });
   method(D, "createRange", function () {
     var doc = this;
     if (typeof __missed === "function") __missed("document.createRange (a range that selects nothing)");

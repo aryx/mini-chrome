@@ -160,6 +160,16 @@ let tests =
           let p = page {|<body style="margin: 0"><div style="padding-left: calc((50% * 0) - (65 * 1em) / 2); padding-top: calc(10px - 30px)"><div id=a style="height: 10px"></div></div><div style="padding-left: calc(10px + 20px)"><div id=b style="height: 10px"></div></div>|} in
           Alcotest.(check (list near)) "at the left edge and the top, not before them" [ 0.; 0. ] [ (box "a" p).x; (box "a" p).y ];
           Alcotest.(check (list near)) "a positive one as it is" [ 30. ] [ (box "b" p).x ]);
+      Testo.create "the space between two words of a link is the link's, for the element found too" (fun () ->
+          let p = page ~width:400. {|<body style="margin: 0"><p style="margin: 0"><a id=l href=x>two words</a> after</p>|} in
+          let h = Box_tree.as_html_layout p in
+          let fragments = List.concat_map (fun (l : Html_layout.line) -> l.fragments) (List.concat_map (fun (b : Html_layout.box) -> b.lines) (let rec all (b : Html_layout.box) = b :: List.concat_map all b.children in all h)) in
+          let two = List.find (fun (f : Html_layout.fragment) -> f.text = "two") fragments and words = List.find (fun (f : Html_layout.fragment) -> f.text = "words") fragments in
+          let x = (two.x +. two.width +. words.x) /. 2. and y = two.baseline -. 2. in
+          Alcotest.(check bool) "there is a space between them" true (words.x > two.x +. two.width);
+          Alcotest.(check (option string)) "the link's address" (Some "x") (Hit.link_at h ~x ~y);
+          Alcotest.(check (option string)) "and the link itself, not the paragraph" (Some "l") (Option.bind (Hit.element_at h ~x ~y) (Dom.attribute "id"));
+          Alcotest.(check (option string)) "past the link: the paragraph's" None (Option.bind (Hit.element_at h ~x:(words.x +. words.width +. 2.) ~y) (Dom.attribute "id")));
       Testo.create "a click finds the box drawn on top" (fun () ->
           (* the frame fills the window, its side bar is drawn over it:
            * the link there is what is under the pointer *)

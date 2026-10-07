@@ -20,9 +20,11 @@ let document (t : t) : value =
   let named name = nodes_array t (List.filter (fun e -> e.name = name) (elements root)) in
   (* a page of its own: enough of a document to parse HTML into *)
   let other_document ?(html_text = "") () =
-    let html = make "html" and body = make "body" in
-    html.children <- [ body ];
-    adopt html [ body ];
+    (* a <head> before its <body>, as every document has (a sanitizer
+     * takes "the first element of <html>" away to have the body alone) *)
+    let html = make "html" and head = make "head" and body = make "body" in
+    html.children <- [ head; body ];
+    adopt html [ head; body ];
     body.children <- parse_fragment html_text;
     adopt body body.children;
     let o = new_object () in
@@ -34,9 +36,25 @@ let document (t : t) : value =
     set_own o "createElement" (method_ "createElement" (fun args -> wrap t (make (String.lowercase_ascii (str (arg args 0))))));
     (* the lookups its root has (getElementsByTagName("svg"): an icon read from its text), its head *)
     (match wrap t html with
-    | Object { kind = Host_object h; _ } -> List.iter (fun k -> set_own o k (h.get k)) [ "getElementsByTagName"; "getElementsByClassName"; "getElementById"; "firstChild" ]
+    | Object { kind = Host_object h; _ } -> List.iter (fun k -> set_own o k (h.get k)) [ "getElementsByClassName"; "getElementById"; "firstChild" ]
     | _ -> ());
-    set_own o "head" Null;
+    set_own o "getElementsByTagName"
+      (method_ "getElementsByTagName" (fun args ->
+           let name = String.lowercase_ascii (str (arg args 0)) in
+           nodes_array t (List.filter (fun e -> name = "*" || e.name = name) (let all = elements html in if List.memq html all then all else html :: all))));
+    set_own o "head" (wrap t head);
+    (* a document as the page's is, for what its prototype has
+     * (createNodeIterator, createTreeWalker: how a sanitizer goes through
+     * the HTML of a message before showing it -- DOMPurify, in a thread
+     * of Topicbox, whose HTML mails came out empty), and what makes nodes *)
+    set_own o "createTextNode" (method_ "createTextNode" (fun args -> wrap t (make text_name ~text:(str (arg args 0)))));
+    set_own o "createDocumentFragment" (method_ "createDocumentFragment" (fun _ -> wrap t (make fragment_name)));
+    set_own o "createComment" (method_ "createComment" (fun args -> wrap t (make comment_name ~text:(str (arg args 0)))));
+    set_own o "nodeName" (String "#document");
+    set_own o "defaultView" Null;
+    o.proto <- List.assoc_opt "document" t.protos;
+    (* its nodes' ownerDocument: found from their root (Script_host) *)
+    html.expando <- ("@@document", Object o) :: html.expando;
     Object o
   in
   let d =
@@ -96,7 +114,22 @@ let document (t : t) : value =
                   | Some (Object _ as f) when String.contains name '-' -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ el ])
                   | _ -> ());
                   el)
-          | "getElementsByClassName" | "getElementsByTagName" -> ( match wrap t root with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
+          (* a document's elements of a name, its root among them
+           * (getElementsByTagName("html")) -- of the document it is
+           * called on: a sanitizer keeps the page's function and calls
+           * it on the document it has parsed (DOMPurify's
+           * getElementsByTagName.call(doc, "html")), which had the
+           * page's own elements for answer, and no <html> at all *)
+          | "getElementsByTagName" ->
+              host_function k (fun ~this args ->
+                  let top =
+                    match this with
+                    | Object ({ kind = Plain; _ } as o) -> ( match get_own o "documentElement" with Some e -> ( try node_of t e with _ -> root) | None -> root)
+                    | _ -> root
+                  in
+                  let name = String.lowercase_ascii (str (arg args 0)) in
+                  nodes_array t (List.filter (fun e -> name = "*" || e.name = name) (let all = elements top in if List.memq top all then all else top :: all)))
+          | "getElementsByClassName" -> ( match wrap t root with Object { kind = Host_object h; _ } -> h.get k | _ -> Undefined)
           | "location" -> location t
           | "URL" -> String t.base
           (* "a=1; b=2", the browser's for this page *)

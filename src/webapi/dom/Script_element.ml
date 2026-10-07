@@ -79,7 +79,9 @@ let get (t : t) (n : node) (k : string) : value option =
   | "lastElementChild" -> Some (opt (List.nth_opt (List.rev (children_elements ())) 0))
   | "childElementCount" -> Some (Number (float_of_int (List.length (children_elements ()))))
   | "localName" -> Some (String n.name)
-  | "namespaceURI" -> Some (String "http://www.w3.org/1999/xhtml")
+  | "namespaceURI" ->
+      let rec drawn (n : node) = n.name = "svg" || match n.parent with Some p -> p.name <> "foreignObject" && drawn p | None -> false in
+      Some (String (if drawn n then "http://www.w3.org/2000/svg" else "http://www.w3.org/1999/xhtml"))
   | "cloneNode" -> m (fun args -> wrap t (clone ~deep:(truthy (arg args 0)) n))
   (* its shadow tree (Shadow_tree.mli): attached, empty, and then filled
    * as any node is; the root's host and mode are said by the prelude *)
@@ -172,6 +174,13 @@ let get (t : t) (n : node) (k : string) : value option =
       let method_ k f = set_own list k (host_function k (fun ~this:_ args -> f args)); hide list k in
       method_ "getNamedItem" (fun args -> match List.assoc_opt (String.lowercase_ascii (str (arg args 0))) n.attributes with Some v -> item (String.lowercase_ascii (str (arg args 0)), v) | None -> Null);
       method_ "item" (fun args -> match List.nth_opt n.attributes (int_of_float (to_number (arg args 0))) with Some a -> item a | None -> Null);
+      (* an instance of NamedNodeMap, which the prelude makes a kind of
+       * array: a sanitizer takes an element whose attributes are not
+       * one for a trap (a form with a field named "attributes") and
+       * removes it -- DOMPurify removed every element *)
+      (match Js_eval.global t.engine "NamedNodeMap" with
+      | Some (Object c) -> ( match get_own c "prototype" with Some (Object p) -> list.proto <- Some p | _ -> ())
+      | _ -> ());
       Some (Object list)
   | "toggleAttribute" ->
       m (fun args ->
