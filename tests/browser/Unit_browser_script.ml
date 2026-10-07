@@ -239,6 +239,23 @@ let tests =
       Testo.create "the page's selection is none, and its text empty" (fun () ->
           let t = page "<body><script>var s = getSelection(); var said = [String(s), \"\" + s, s.isCollapsed, s.rangeCount, s.type]</script>" in
           Alcotest.(check string) "what a page asks before it takes a click for one" "[\"\", \"\", true, 0, \"None\"]" (value t "said"));
+      Testo.create "location as a string is the page's address; el.click() is the left button's" (fun () ->
+          let t =
+            page
+              "<body><a id=a>x</a><script>var a = document.getElementById(\"a\"), button = \"none\";\n\
+               a.addEventListener(\"click\", function (e) { button = e.button });\n\
+               a.click();\n\
+               var said = [(location + \"#top\").slice(-5), String(location) === location.href, \"\" + a, button]</script>"
+          in
+          Alcotest.(check string) "an address made with +, and the button a handler asks for" "[\"k#top\", true, \"[object HTMLElement]\", 0]" (value t "said"));
+      Testo.create "a table as its rows and cells" (fun () ->
+          let t =
+            page
+              "<body><table id=t><thead><tr><th>h</th></tr></thead><tbody><tr id=r><td>a</td><td id=c>b</td></tr><tr><td>c</td></tr></tbody></table><div id=d></div><script>\n\
+               var t = document.getElementById(\"t\"), r = document.getElementById(\"r\"), c = document.getElementById(\"c\");\n\
+               var said = [t.rows.length, t.tBodies[0].rows.length, r.cells.length, r.cells[1] === c, r.cells.item(1) === c, c.cellIndex, r.rowIndex, r.sectionRowIndex, typeof document.getElementById(\"d\").cells]</script>"
+          in
+          Alcotest.(check string) "table.rows, a body's, a row's cells, and where each is" "[3, 2, 2, true, true, 1, 1, 0, \"undefined\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

@@ -49,6 +49,8 @@ type 'msg t = {
   cache : Http_cache.store option;
   (* the pages' WebSockets, stepped with the requests *)
   sockets : 'msg Web_sockets.t;
+  (* a recording to answer from, and the network never asked (Browser_replay) *)
+  replay : (string -> string option) option;
 }
 
 (* eight workers (a browser's six connections a host, Netscape's four,
@@ -56,11 +58,11 @@ type 'msg t = {
  * or https:// fetches at once, the others queued *)
 let workers = 8
 
-let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache () : 'msg t =
+let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache ?replay () : 'msg t =
   (* the pool's workers may be domains, reading answers at the same time *)
   if threads && Worker_spawn.parallel then Http.ready ();
   let pool = if threads then Some (Worker.create workers) else None in
-  { in_flight = []; pool; jar; agent; cache; sockets = Web_sockets.create ?pool () }
+  { in_flight = []; pool; jar; agent; cache; sockets = Web_sockets.create ?pool (); replay }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar
 let cache (t : 'msg t) : Http_cache.store option = t.cache
@@ -104,6 +106,9 @@ let perform (t : 'msg t) (r : 'msg request) : unit =
   Logs.info (fun m -> m "%s %s" (if r.post = None then "GET" else "POST") r.url);
   let k (a : answer) = said r.url a; r.k a in
   let f =
+    match t.replay with
+    | Some saved -> Now (k (match saved r.url with Some body -> Ok { url = r.url; status = 200; headers = []; body } | None -> Ok { url = r.url; status = 404; headers = []; body = "" }))
+    | None ->
     if is_https r.url then blocking ?post:r.post ?said:r.said ~reload:r.reload ~ready:r.ready t r.caps r.url k
     else Request (r.caps, Http_request.start ?post:r.post ?resolver:t.pool ~jar:t.jar ?agent:t.agent r.caps r.url, k)
   in

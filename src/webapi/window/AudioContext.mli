@@ -25,7 +25,7 @@
    What is here is that much and no more: a context, its clock, a
    buffer, a buffer's source started at a time and connected to the
    destination. The class is written in JavaScript
-   (data/prelude/web.js); this module is the two things it cannot do
+   (data/prelude/web/); this module is the two things it cannot do
    itself, the clock and the samples handed to who plays them
    ([output], which the browser sets: Audio_queue). No graph of nodes:
    no gain, no oscillator, no filter, no decoding of a file

@@ -70,6 +70,18 @@ Then
   FILES=/tmp/gm2 OK='jserror\|logstreamz' TURNS=60 JS_THROWS=40 \
      Page_scripts.exe /tmp/gm2/page.html https://mail.google.com/mail/u/0/ 2>&1 | head -c 2000000
 
+and, when the scripts alone do what the window does not (section 44),
+the whole browser on the same recording, the network cut off:
+
+  SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy MINI_REPLAY=/tmp/gm2 unshare -rn \
+     ./bin/mini-chrome -v -size 1400x900 -script "at(0;55):390-420,click:400" \
+     -dump-frame 520 /tmp/after.png url=https://mail.google.com/mail/u/0/ profile=off 2> /tmp/replay.log
+
+MINI_REPLAY=DIR (Browser_replay) answers every request from DIR -- the
+page, DIR/_seq in order, DIR/_long/<md5>, a file by its path -- and
+404 for the rest; unshare -rn gives the program no network at all, to
+be sure; profile=off leaves the person's cookies unread.
+
 gives them back in that order (a file of _seq first, then the files by
 their path). Short lines for the person to paste: a long one wraps in
 their terminal and the variable ends up on a line of its own. The
@@ -1227,3 +1239,51 @@ One line in mini-node and in node, side by side (section 36):
 
 A check of a library on its own tables is a test of the language for
 free: when one fails, believe it.
+
+
+44. It works in the replay and not in the window: replay the window
+--------------------------------------------------------------------
+A click on a row of Gmail's list opened nothing. In Page_scripts'
+replay the same click, made by a script (dispatchEvent), asked for the
+message at once. Three guesses, each fixed, none the cause: the order
+of mousedown, mouseup and click; the click's coordinates; row.cells.
+What ended the guessing was to stop comparing two different programs:
+
+a. Make the tool do it the window's way, a difference at a time.
+   el.click() in place of the script's MouseEvent: no request. So an
+   event's fields mattered -- then each field alone (new Event("click",
+   {bubbles: true, button: 0}) was enough): el.click() lacked the
+   button, a bug, but the window's click had it. Not the cause; one
+   replay a variant, half a minute each, and the question is closed.
+
+b. Read what the site says of itself. Gmail posts its own errors to
+   .../jserror?error=...: the log of the person's run has them, and
+   the tool's output too. The same three after the click in both:
+   the handler ran the same way up to there.
+
+c. Run the window itself on the recording (MINI_REPLAY, the kit; a
+   click by -script: Playground's coordinates, the centre the origin
+   and y up, so a point (cx, cy) of a 1400x900 picture is
+   at(cx-700; 450-cy)). The click did nothing there either: the
+   person's bug, on my side, as often as wanted.
+
+d. Then count what differs between the two replays, not guess:
+
+     tool, TURNS=150:    55 modules loaded before the click   the message asked
+     tool, TURNS=40:     27                                    nothing
+     window, frame 800:  39 (the same with no click at all)    nothing
+
+   The click needs code that Gmail loads by itself, a module after the
+   other, over fifteen seconds of the PAGE's time. And the window gave
+   the page a sixtieth of a second a frame, when a frame of that page
+   takes a fifth of a second: its clock ran twelve times slow. Nothing
+   was wrong with the click.
+
+A page's time is a thing to check like its DOM: when "wait a little"
+is part of the answer, ask how long the page thinks it waited
+(performance.now() in the window, beside a watch).
+
+A replay that fetches what it misses (a public script, by curl, no
+cookie) gets one file further a run when each file's address holds the
+names of those before it (Gmail's exm= list): a loop, a minute a
+round, left to run.

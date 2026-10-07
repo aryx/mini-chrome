@@ -391,12 +391,15 @@ and add_block (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     if ctx.env.centring && (not ctx.env.measuring) && ml <> Auto && mr <> Auto && box.width < cb_width then moved (cb_x +. ((cb_width -. box.width) /. 2.) -. box.x) 0. box
     else box
   in
+  (* (its room in the flow is its own height: a transform draws it
+   * elsewhere or at another size, and moves nothing else) *)
+  let room = box.height in
   let box = relative ctx s box in
-  let empty = box.height = 0. && box.children = [] in
+  let empty = room = 0. && box.children = [] in
   ctx.children <- box :: ctx.children;
   if empty && not ctx.absorbed then ctx.pending <- collapse (collapse ctx.pending mt) (collapse mb through)
   else (
-    ctx.cursor <- y +. box.height;
+    ctx.cursor <- y +. room;
     ctx.pending <- collapse mb through;
     ctx.absorbed <- false)
 
@@ -404,9 +407,15 @@ and add_block (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
  * of its own size (a list whose rows are all at the top, each moved
  * down to its place: how an application draws thousands of them) *)
 and translated (s : Computed.t) (b : box) : box =
-  match s.translate with
-  | None -> b
-  | Some (x, y) -> moved (Css_values.resolve x b.width) (Css_values.resolve y b.height) b
+  resized s (match s.translate with None -> b | Some (x, y) -> moved (Css_values.resolve x b.width) (Css_values.resolve y b.height) b)
+
+(* transform: scale(...), the box drawn that many times its size around
+ * its transform-origin, once laid out at its own (an icon drawn large
+ * and shown small: Gmail's star, 192 pixels scaled to 22) *)
+and resized (s : Computed.t) (b : box) : box =
+  match s.scale with
+  | 1., 1. -> b
+  | kx, ky -> Box_tree.scaled kx ky (b.x +. Css_values.resolve (fst s.origin) b.width, b.y +. Css_values.resolve (snd s.origin) b.height) b
 
 (* position: relative, the box moved by its offsets; and a transform's
  * move *)
@@ -468,7 +477,7 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     | Some (tx, ty) -> (x -. box.x +. Css_values.resolve tx box.width, y -. box.y +. Css_values.resolve ty box.height)
   in
   if late <> None then incr env.late;
-  ctx.env.positioned := (moved dx dy box, late) :: !(ctx.env.positioned)
+  ctx.env.positioned := (resized s (moved dx dy box), late) :: !(ctx.env.positioned)
 
 (* a float, laid out shrink-to-fit where it is, placed with the lines *)
 and float_item (ctx : ctx) (e : Dom.element) (s : Computed.t) : item =

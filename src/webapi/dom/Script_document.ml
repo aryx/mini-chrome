@@ -91,7 +91,7 @@ let document (t : t) : value =
                   let name = String.lowercase_ascii (str (arg args 0)) in
                   let el = wrap t (make name) in
                   (* a custom element (a name with a dash) is upgraded at once
-                   * if its class is defined: the registry's (data/prelude/web.js) *)
+                   * if its class is defined: the registry's (data/prelude/web/) *)
                   (match Js_eval.global t.engine "__created" with
                   | Some (Object _ as f) when String.contains name '-' -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ el ])
                   | _ -> ());

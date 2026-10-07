@@ -170,8 +170,9 @@ val eval : t -> string -> (Js_value.value, Js_eval.error) result
 val tree : t -> Dom.element
 
 (* a click on an element of the last [tree]: dispatched, bubbling;
- * whether a handler prevented the default (the link not followed) *)
-val click : t -> Dom.element -> bool
+ * whether a handler prevented the default (the link not followed).
+ * [at]: where in the page's window (clientX, clientY) *)
+val click : ?at:float * float -> t -> Dom.element -> bool
 
 (* a key pressed ("a", "Enter", "ArrowUp"): keydown at the body,
  * bubbling to the document, event.key the key; whether prevented *)
@@ -221,7 +222,7 @@ val set_measure : t -> (Dom.element -> Dom.element -> (float * float * float * f
  * kept (scrollY, and a getBoundingClientRect is from the window's
  * top), no event: the wheel turns while a script runs, and what waits
  * for a place to come into view looks again by itself
- * (IntersectionObserver, data/prelude/web.js) *)
+ * (IntersectionObserver, data/prelude/web/) *)
 val scrolled : t -> float -> unit
 
 (* [submit t form]: the form is about to be sent -- its submit event,

@@ -19,6 +19,10 @@ val fragments : box -> Html_layout.fragment list
 (* a box and all it holds moved by (dx, dy) *)
 val moved : float -> float -> box -> box
 
+(* [scaled kx ky (ox, oy) b]: a box and all it holds drawn that many
+ * times its size around a point (transform: scale) *)
+val scaled : float -> float -> float * float -> box -> box
+
 (* how far right a box's content reaches, for shrink-to-fit: its lines'
  * words, its children's content (a block of width auto is as wide as
  * its container, which is not what it needs) *)

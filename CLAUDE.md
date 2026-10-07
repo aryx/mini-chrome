@@ -318,9 +318,20 @@ to V8, for teaching, and the way to run a script with no page.
 
 What can be written in JavaScript is: `data/prelude/library.js` (the
 standard library since ES2016, `Date`, `JSON.stringify`; `Js_prelude`,
-run in every engine) and `data/prelude/web.js` (small web APIs, the
+run in every engine) and `data/prelude/web/` (small web APIs, the
 DOM's small members put on its prototypes; `Script_prelude`, run in
-every page). A method missing that needs nothing of the engine's
+every page). The second is one text in parts, put end to end by
+`src/webapi/dune` in the order written there: `start.js` opens the
+function they are all in and has what they share, then a part a
+subject -- `events.js` (EventTarget, postMessage, MessageChannel),
+`url.js`, `bytes.js` (base64, TextEncoder), `requests.js`
+(AbortController, Request, Headers, FormData), `intl.js`, `dom.js`
+(what a document and its elements have besides), `drawing.js`
+(animate, canvas, audio), `observers.js`, `elements.js` (template,
+table, iframe), `components.js` (custom elements, slots, which closes
+the function), `prototypes.js` (the DOM's members on its prototypes).
+A new API goes in the part it is of, or in a new one named in the
+`dune` rule; a part is not a script of its own. A method missing that needs nothing of the engine's
 insides goes there, not in OCaml: it is not in the budget, and it is
 how a page's own polyfill would do it. Modules are `Js_module` (the
 language's part: scopes, exports, who runs before whom) and
@@ -385,10 +396,10 @@ the tree that is laid out is composed by `Shadow_tree` (`libs/dom`:
 a host's shadow tree with its children at the slots; `Browser_script`
 composes a script's when it freezes the tree, `Browser_page` a
 declared one), and the registry of custom elements is JavaScript
-(`data/prelude/web.js`), told by the browser of an element made
+(`data/prelude/web/components.js`), told by the browser of an element made
 (`__created`) and of one entering the page (`__connected`). Their sound is `AudioContext`'s
 (`src/webapi/window`: buffers of samples started at a time, the class
-itself in `data/prelude/web.js`), mixed with the players' by
+itself in `data/prelude/web/drawing.js`), mixed with the players' by
 `Audio_queue` (`src/viewers`); an Ogg file's Vorbis or Opus is decoded
 as it plays, three seconds ahead (`Sound_stream`), not when opened.
 
@@ -520,7 +531,12 @@ site's or a script's colour, change its cell, and the date.
 `scripts/js/Page_scripts.exe` a saved page's own, with no window: the
 way to find what a real site's script stops on (`mini-curl -o` the
 page, run it, read the first error; `-v` on the browser itself says
-the same console).
+the same console). A session that needs an account is recorded once by
+the person (`MINI_DUMP_PAGE`, `MINI_DUMP_ANSWERS`) and given again to
+the whole browser with no network (`MINI_REPLAY=DIR`,
+`Browser_replay`): `docs/dev/notes_debugging_techniques.txt` has the
+commands. A page's clock is the time that passed between two `Tick`s
+(`Window_update`), not a count of frames.
 
 ## The budget
 

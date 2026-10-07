@@ -51,6 +51,11 @@ type t = {
    * translate3d), the percents of the box's own size; the rest of a
    * transform (a rotation, a scale) is not applied *)
   translate : (Css_values.length * Css_values.length) option;
+  (* transform: scale(k), scale(kx, ky), scaleX, scaleY -- how many
+   * times its own size the box is drawn, around transform-origin (a
+   * point of the box: its middle, unless said) *)
+  scale : float * float;
+  origin : Css_values.length * Css_values.length;
   top : size;
   right : size;
   bottom : size;
@@ -115,6 +120,8 @@ let initial : t =
     float = Side_none;
     clear = Side_none;
     translate = None;
+    scale = (1., 1.);
+    origin = ({ px = 0.; pct = 50. }, { px = 0.; pct = 50. });
     top = Auto;
     right = Auto;
     bottom = Auto;
@@ -474,6 +481,56 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
               | _ -> acc)
             None v
           |> Option.some);
+    scale =
+      (match get "transform" with
+      | None -> (1., 1.)
+      | Some v ->
+          List.fold_left
+            (fun (sx, sy) c ->
+              match c with
+              | Css_syntax.Func (f, args) -> (
+                  (* a number, or a calc() that is one: a ratio of two
+                   * lengths (scale(calc(22px / 192px)): an icon drawn at 192
+                   * shown at 22), a product *)
+                  let rec number (cs : Css_syntax.component list) : float option =
+                    let side cs =
+                      match V.parts cs with
+                      | [ Css_syntax.Token (Number n) ] -> Some n
+                      | [ (Css_syntax.Func ("calc", _) | Block ('(', _)) ] as inner -> number inner
+                      | [ c ] -> Option.map (fun (l : Css_values.length) -> l.px) (V.length ctx c)
+                      | _ -> None
+                    in
+                    match V.parts cs with
+                    | [ Css_syntax.Token (Number n) ] -> Some n
+                    | [ (Css_syntax.Func ("calc", inner) | Block ('(', inner)) ] -> (
+                        match (Css_syntax.split_on (Delim '/') inner, Css_syntax.split_on (Delim '*') inner) with
+                        | [ a; b ], _ -> ( match (side a, side b) with Some a, Some b when b <> 0. -> Some (a /. b) | _ -> None)
+                        | _, [ a; b ] -> ( match (side a, side b) with Some a, Some b -> Some (a *. b) | _ -> None)
+                        | _ -> side inner)
+                    | _ -> None
+                  in
+                  let nums = List.filter_map number (Css_syntax.split_on Comma args) in
+                  match (String.lowercase_ascii f, nums) with
+                  | "scale", [ k ] -> (sx *. k, sy *. k)
+                  | ("scale" | "scale3d"), kx :: ky :: _ -> (sx *. kx, sy *. ky)
+                  | "scalex", [ k ] -> (sx *. k, sy)
+                  | "scaley", [ k ] -> (sx, sy *. k)
+                  | _ -> (sx, sy))
+              | _ -> (sx, sy))
+            (1., 1.) v);
+    origin =
+      (let half : Css_values.length = { px = 0.; pct = 50. } in
+       match Option.map V.parts (get "transform-origin") with
+       | None -> (half, half)
+       | Some parts -> (
+           let one c : Css_values.length option =
+             match String.lowercase_ascii (String.trim (to_string [ c ])) with
+             | "left" | "top" -> Some { px = 0.; pct = 0. }
+             | "center" -> Some half
+             | "right" | "bottom" -> Some { px = 0.; pct = 100. }
+             | _ -> V.length ctx c
+           in
+           match List.filter_map one parts with x :: y :: _ -> (x, y) | [ x ] -> (x, half) | [] -> (half, half)));
     top = size "top" ~inh:parent.top ~init:Auto;
     right = size "right" ~inh:parent.right ~init:Auto;
     bottom = size "bottom" ~inh:parent.bottom ~init:Auto;

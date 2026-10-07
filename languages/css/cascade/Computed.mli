@@ -93,6 +93,11 @@ type t = {
    * translate3d), the percents of the box's own size; the rest of a
    * transform (a rotation, a scale) is not applied *)
   translate : (Css_values.length * Css_values.length) option;
+  (* transform: scale(k), scale(kx, ky), scaleX, scaleY -- how many
+   * times its own size the box is drawn, around transform-origin (a
+   * point of the box: its middle, unless said) *)
+  scale : float * float;
+  origin : Css_values.length * Css_values.length;
   top : size;
   right : size;
   bottom : size;

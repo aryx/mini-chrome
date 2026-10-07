@@ -20,9 +20,9 @@ type t = Script_types.t
 (* Entry points *)
 (*****************************************************************************)
 
-(* data/prelude/web.js, parsed once *)
+(* data/prelude/web/, parsed once *)
 let prelude : Js_ast.program Lazy.t =
-  lazy (match Js_parse.parse Script_prelude.text with Ok program -> program | Error e -> failwith (Printf.sprintf "data/prelude/web.js, line %d: %s" e.line e.message))
+  lazy (match Js_parse.parse Script_prelude.text with Ok program -> program | Error e -> failwith (Printf.sprintf "data/prelude/web/, line %d: %s" e.line e.message))
 
 (* [inserted], which is written after what it needs *)
 let inserted_later : (t -> node -> unit) ref = ref (fun _ _ -> ())
@@ -207,7 +207,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
      set_own o "userAgent" (String "Mozilla/5.0 (TinyChrome; elm_playground)");
      set_own o "language" (String "en-US");
      Object o);
-  (* a URL's parts, for the URL class (data/prelude/web.js): href
+  (* a URL's parts, for the URL class (data/prelude/web/): href
    * resolved against a base, the page's if none is given *)
   define "__url" (fun args ->
       let base = match arg args 1 with Undefined -> t.base | v -> str v in
@@ -220,7 +220,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   (* modules: import() is there even in a page with none *)
   ignore (Script_modules.modules t);
   (* the small web APIs written in JavaScript *)
-  (match Js_eval.run engine (Lazy.force prelude) with Ok _ -> () | Error e -> log (Printf.sprintf "data/prelude/web.js, line %d: %s" e.line e.message));
+  (match Js_eval.run engine (Lazy.force prelude) with Ok _ -> () | Error e -> log (Printf.sprintf "data/prelude/web/, line %d: %s" e.line e.message));
   Script_url.install t (Js_eval.define engine);
   t
 
@@ -267,7 +267,7 @@ let run_modules t = Stopwatch.time "scripts" (fun () -> run_modules t)
  * each once *)
 let inserted (t : t) (n : node) : unit =
   let connected (n : node) = let rec up (n : node) = n == t.root || (match n.parent with Some p -> up p | None -> false) in up n in
-  (* custom elements (data/prelude/web.js): an element entering the
+  (* custom elements (data/prelude/web/): an element entering the
    * page, said to the registry, which upgrades it or calls its
    * connectedCallback, and its descendants' *)
   (match Js_eval.global t.engine "__connected" with
@@ -409,11 +409,13 @@ let scrolled (t : t) (y : float) : unit =
     t.scroll_y <- y;
     List.iter (fun k -> Js_eval.define t.engine k (Number y)) [ "scrollY"; "pageYOffset" ])
 
-let click (t : t) (e : Dom.element) : bool =
+let click ?(at : (float * float) option) (t : t) (e : Dom.element) : bool =
   (* the left button, no key held: what a page's handler checks before
-   * it takes a link's click for its own (event.button === 0) *)
-  let held = [ ("button", Number 0.); ("detail", Number 1.); ("ctrlKey", Bool false); ("shiftKey", Bool false); ("metaKey", Bool false); ("altKey", Bool false) ] in
-  match node_of_element t e with Some n -> dispatch t n "click" held | None -> false
+   * it takes a link's click for its own (event.button === 0); and
+   * where, in the page's window, as a mousedown says it *)
+  let where = match at with Some (x, y) -> [ ("clientX", Number x); ("clientY", Number y); ("pageX", Number x); ("pageY", Number (y +. t.scroll_y)) ] | None -> [] in
+  let held = [ ("button", Number 0.); ("buttons", Number 0.); ("which", Number 1.); ("detail", Number 1.); ("ctrlKey", Bool false); ("shiftKey", Bool false); ("metaKey", Bool false); ("altKey", Bool false) ] in
+  match node_of_element t e with Some n -> dispatch t n "click" (where @ held) | None -> false
 
 (* a form about to be sent: its submit event, which a script may
  * prevent (it sends the form itself, later) or use to put a last value

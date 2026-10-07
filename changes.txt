@@ -584,6 +584,16 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- location as a string is the page's address ("" + location,
+  location + "#starred": it was "[object Location]", and Gmail's
+  links to its folders went nowhere), a host's object being asked
+  its own toString; el.click() makes a click of the left button
+  (event.button is 0: a handler that checks it took it for none)
+- a table as its rows and cells: table.rows and tBodies, a section's
+  rows, a row's cells, cellIndex, rowIndex, sectionRowIndex
+  (data/prelude/web/elements.js). Gmail's list of mail is a table,
+  and a click on it is read as "which cell of this row":
+  row.cells[i] was an error at each click, and no message opened
 - TextEncoder and TextDecoder really encode and decode UTF-8 (a
   string was its bytes already, and they copied them); atob gives a
   binary string, a character a byte, as everywhere
@@ -775,6 +785,13 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- transform: scale(k), scale(kx, ky), scaleX, scaleY, around
+  transform-origin (Computed's scale and origin; Box_tree.scaled, the
+  box and all it holds drawn that many times its size once laid out,
+  its room in the flow unchanged); the factor may be a calc() that is
+  a ratio of two lengths. An icon drawn large and shown small:
+  Gmail's Gemini star is 192 pixels, scale(calc(22px / 192px)) -- a
+  blue square 192 wide over the header's buttons, before
 - z-index, and the order positioned boxes are drawn in
   (Box_layout.layout; Computed's z_index): every positioned box, the
   relative ones too, after the flow, by z-index and among equals in
@@ -957,6 +974,13 @@
   format read
 
 *** the window and its chrome
+- a page's clock follows the time that passed between two frames,
+  not a sixtieth of a second a frame: on a large page a frame takes
+  a fifth of a second and more, and its timers ran ten to twenty
+  times late -- a setTimeout of two seconds came after half a
+  minute. Gmail loads its code a piece after the other, a pause
+  between two: minutes after the list was shown, the piece that
+  opens a message had not come, and a click on a row did nothing
 - while a page's script runs long, the right click's menu opens at
   once and a helper program's item in it runs at once (they are
   nothing of the script's), the pointer's place is the model's at
@@ -1074,6 +1098,19 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- a session given again with no network (Browser_replay, new, in
+  src/chrome): MINI_REPLAY=DIR answers every request from a
+  recording (MINI_DUMP_PAGE, MINI_DUMP_ANSWERS: the page, each
+  answer to a script's request in order), 404 for the rest, and
+  nothing is asked of anyone. The whole browser runs on it, not the
+  scripts alone as scripts/js/Page_scripts.exe: a click that does
+  nothing in the window is made again with -script, as often as
+  needed, without the person or their account
+- data/prelude/web.js, 965 lines, is twelve parts in
+  data/prelude/web/ (events, url, bytes, requests, intl, dom,
+  drawing, observers, elements, components, prototypes, and the
+  start they share), put end to end by the dune rule: the text
+  embedded is the same to the byte
 - the budget is 50,000 lines (it was 40,000, and 38,203 of them
   were used)
 - the languages' modules in subfolders, each language one library
@@ -1123,6 +1160,13 @@
   JavaScript lexer: comments and a last comma taken) and written
 
 ** Bug fixes
+- a page told of the button's presses is told its click when the
+  button comes up, after the mouseup, and where: mousedown, mouseup,
+  click, each with clientX and clientY (and which, detail, the keys
+  held). The click was told at the press, before the mouseup, and
+  with no place: an application that follows a press itself -- Gmail's
+  list of mail -- took it for no click, and no message opened. A page
+  that listens for no press has its click at the press, as before
 - the second argument of a search is its starting position, and was
   ignored by eight methods: a string's lastIndexOf, includes,
   startsWith and endsWith, an array's indexOf, lastIndexOf and

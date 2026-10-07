@@ -58,7 +58,9 @@ type 'msg t
 
 (* [threads]: https:// fetched (and names resolved) on a pool of four
  * threads, Netscape's four connections; without, the frame waits *)
-val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?cache:Http_cache.store -> unit -> 'msg t
+(* [replay]: each request answered by it, 404 for None, and the network
+   never asked (Browser_replay.answers) *)
+val create : ?threads:bool -> ?jar:Cookie_jar.t -> ?agent:(string -> string) -> ?cache:Http_cache.store -> ?replay:(string -> string option) -> unit -> 'msg t
 
 (* [cache]: the answers kept, which an https:// GET goes through
  * (Http_cache; none if not given), read and written on the pool's

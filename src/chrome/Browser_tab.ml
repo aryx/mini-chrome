@@ -638,9 +638,6 @@ let after_task (cfg : 'msg config) (network : < Cap.network ; .. >) (tab : t) : 
     | Some s when Browser_script.changed s -> if !Mini_opti.enabled then ({ tab with stale = true }, Cmd.none) else retreed cfg network tab
     | _ -> (tab, Cmd.none))
 
-(* MINI_DUMP_ANSWERS: how many answers were written for an address *)
-let dumped_answers : (string, int) Hashtbl.t = Hashtbl.create 16
-
 (* the answer to a request a script made (XMLHttpRequest,
  * fetch): given to the script, a task -- the page laid out again if it
  * changed it, the requests it made in turn sent *)
@@ -655,21 +652,8 @@ let got_answer (cfg : 'msg config) (network : < Cap.network ; .. >) (rid : int) 
       | Ok r when r.status >= 400 -> Logs.info (fun m -> m "%d %s says: %s" r.status url (String.escaped (String.sub r.body 0 (min 300 (String.length r.body)))))
       | _ -> ());
       (* MINI_DUMP_ANSWERS=DIR: each answer to a script's request, written
-       * as it came -- DIR/_seq/<md5 of the address less its query>-<n>,
-       * the nth to that address -- for scripts/js/Page_scripts.exe to
-       * give again with no network: a signed-in session run a second
-       * time, offline (docs/dev/notes_debugging_techniques.txt) *)
-      (match (Sys.getenv_opt "MINI_DUMP_ANSWERS", result) with
-      | Some dir, Ok r -> (
-          let key = Digest.to_hex (Digest.string (List.hd (String.split_on_char '?' url))) in
-          let n = 1 + Option.value (Hashtbl.find_opt dumped_answers key) ~default:0 in
-          Hashtbl.replace dumped_answers key n;
-          try
-            let seq = Filename.concat dir "_seq" in
-            if not (Sys.file_exists seq) then Sys.mkdir seq 0o700;
-            Out_channel.with_open_bin (Filename.concat seq (Printf.sprintf "%s-%d" key n)) (fun oc -> Out_channel.output_string oc r.body)
-          with Sys_error _ -> ())
-      | _ -> ());
+       * as it came, to be given again with no network (Browser_replay) *)
+      (match (Sys.getenv_opt "MINI_DUMP_ANSWERS", result) with Some dir, Ok r -> Browser_replay.record dir url r.body | _ -> ());
       Browser_script.answer s rid
         (match result with
         | Ok r -> Ok { Script_types.status = r.status; headers = r.headers; body = r.body; final = r.url }

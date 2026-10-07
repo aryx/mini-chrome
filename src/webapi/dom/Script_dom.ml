@@ -215,7 +215,7 @@ let matches_opti (selector : string) (n : node) : bool =
 let select_opti (selector : string) ~(within : node) : node list =
   (* opti: "*" is every element under it, and needs no tree frozen to
    * say so. A page's components ask it at each one they connect, and
-   * our registry of custom elements does (data/prelude/web.js): 5,285
+   * our registry of custom elements does (data/prelude/web/): 5,285
    * times for YouTube's search page, 6.4 million elements copied:
    * its scripts replayed went from 36 s to 29 (OCaml 5.5; 45 to 30
    * with 4.14) *)

@@ -39,6 +39,40 @@ let rec moved (dx : float) (dy : float) (b : box) : box =
           b.lines;
     }
 
+(* a box and all it holds drawn (kx, ky) times its size around the
+ * point (ox, oy): transform: scale. Its words too, their letters by ky *)
+let rec scaled (kx : float) (ky : float) ((ox, oy) : float * float) (b : box) : box =
+  let x v = ox +. ((v -. ox) *. kx) and y v = oy +. ((v -. oy) *. ky) in
+  let bt, br, bb, bl = b.border in
+  let again = scaled kx ky (ox, oy) in
+  {
+    b with
+    x = x b.x;
+    y = y b.y;
+    width = b.width *. kx;
+    height = b.height *. ky;
+    border = (bt *. ky, br *. kx, bb *. ky, bl *. kx);
+    children = List.map again b.children;
+    backdrops = List.map again b.backdrops;
+    lifted = List.map (fun ((l : box), bottom) -> ((if l.style.position = Fixed then l else again l), bottom)) b.lifted;
+    lines =
+      List.map
+        (fun (l : Html_layout.line) ->
+          {
+            l with
+            top = y l.top;
+            height = l.height *. ky;
+            baseline = y l.baseline;
+            fragments =
+              List.map
+                (fun (f : Html_layout.fragment) ->
+                  { f with x = x f.x; width = f.width *. kx; baseline = y f.baseline; look = { f.look with size = f.look.size *. ky };
+                    picture = Option.map (fun (p : Html_layout.picture) -> { p with height = p.height *. ky }) f.picture })
+                l.fragments;
+          })
+        b.lines;
+  }
+
 (* how far right a box's content reaches, for shrink-to-fit: its lines'
  * words, its children's content -- a block of width auto is as wide as
  * its container, which is not what it needs *)

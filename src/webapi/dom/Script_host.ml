@@ -88,7 +88,7 @@ let rec wrap (t : t) (n : node) : value =
 
 (* an attribute of a custom element set or removed by a script: its
  * class told, if it observes that one (attributeChangedCallback, by
- * the registry: data/prelude/web.js) *)
+ * the registry: data/prelude/web/) *)
 and told_attribute (t : t) (n : node) (a : string) (old : string option) : unit =
   if List.mem_assoc "__upgraded" n.expando && old <> attribute n a then
     match Js_eval.global t.engine "__attribute" with
@@ -295,7 +295,7 @@ and set (t : t) (n : node) (k : string) (v : value) : unit =
       if is_text n || n.name = comment_name then (
         n.text <- str v;
         touch t;
-        (* a text a MutationObserver watches: the observer told (data/prelude/web.js) *)
+        (* a text a MutationObserver watches: the observer told (data/prelude/web/) *)
         if List.mem_assoc "__observed" n.expando then
           match Js_eval.global t.engine "__mutated" with
           | Some (Object _ as f) -> ignore (Js_eval.call_in_run t.engine f ~this:Undefined [ wrap t n; String "characterData" ])

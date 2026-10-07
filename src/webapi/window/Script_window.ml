@@ -94,7 +94,7 @@ let computed_style (n : node) : value =
     }
 
 (* an observer that is never told anything (IntersectionObserver's is
- * data/prelude/web.js's, which says all is in view, and
+ * data/prelude/web/'s, which says all is in view, and
  * MutationObserver's, told of a text changed) *)
 let observer (name : string) : value =
   let c = fn name (fun _ -> object_of [ nothing "observe"; nothing "unobserve"; nothing "disconnect"; ("takeRecords", fn "takeRecords" (fun _ -> Object (new_array []))) ]) in
@@ -104,12 +104,12 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   install_classes t define;
   (* a host object asked, or told, itself -- not its prototypes: what
    * the accessors the prelude puts on Node.prototype and the others
-   * call (data/prelude/web.js, "the DOM's members on its prototypes") *)
+   * call (data/prelude/web/, "the DOM's members on its prototypes") *)
   define "__host_get" (fn "__host_get" (fun args -> match arg args 0 with Object { kind = Host_object h; _ } -> h.get (str (arg args 1)) | _ -> Undefined));
   define "__host_set" (fn "__host_set" (fun args -> (match arg args 0 with Object { kind = Host_object h; _ } -> h.set (str (arg args 1)) (arg args 2) | _ -> ()); Undefined));
   (* opti: the elements of a name, in the page and in its shadow trees:
    * what the registry of custom elements asks at each class defined
-   * (data/prelude/web.js). It went through every element of the page
+   * (data/prelude/web/). It went through every element of the page
    * in JavaScript to find them -- YouTube's search page defines 1,103
    * classes: 800,000 elements listed, each asked its name *)
   define "__named"

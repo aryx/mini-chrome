@@ -197,6 +197,16 @@ let tests =
           let a = box "a" p and b = box "b" p in
           Alcotest.(check (list near)) "a list's row, moved down to its place" [ 0.; 90. ] [ a.x; a.y ];
           Alcotest.(check (list near)) "percents of the box's own size" [ 20.; 103. ] [ b.x; b.y ]);
+      Testo.create "transform: scale draws a box smaller, around its origin" (fun () ->
+          (* Gmail's star is 192 pixels scaled to 22 from its top left corner; here to 24, a round number *)
+          let p =
+            page
+              {|<body style="margin: 0"><div style="position: relative; height: 200px"><div id=a style="position: absolute; top: 9px; left: 9px; transform: scale(.125); transform-origin: 0 0"><div id=in style="width: 192px; height: 192px"></div></div></div><div id=b style="width: 40px; height: 20px; transform: scale(0.5)"></div><div id=c style="width: 40px; height: 20px; transform: scaleX(2); transform-origin: left top"></div>|}
+          in
+          let a = box "in" p and b = box "b" p and c = box "c" p in
+          Alcotest.(check (list near)) "from its corner: where it was, an eighth of the size" [ 9.; 9.; 24.; 24. ] [ a.x; a.y; a.width; a.height ];
+          Alcotest.(check (list near)) "around its middle, by default" [ 10.; 205.; 20.; 10. ] [ b.x; b.y; b.width; b.height ];
+          Alcotest.(check (list near)) "one way only" [ 0.; 220.; 80.; 20. ] [ c.x; c.y; c.width; c.height ]);
       Testo.create "a list's markers" (fun () ->
           let p = page "<ol><li id=a>x<li id=b>y</ol><ul><li id=c>z</ul>" in
           Alcotest.(check (list bool))

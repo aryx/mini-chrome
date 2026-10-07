@@ -38,7 +38,7 @@ let init (network : < Cap.network ; .. >) ?jar ?cache ((profile, profile_dir) : 
       (* threads on, as in TinyNetscape (N2): a name resolved, an
        * https:// page fetched, on threads of their own; threads=off,
        * the frame waits *)
-      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ?cache ~agent:Browser_agent.for_host ();
+      fetches = Fetch.create ~threads:(List.assoc_opt "threads" flags <> Some "off") ?jar ?cache ~agent:Browser_agent.for_host ?replay:(Option.map Browser_replay.answers (Sys.getenv_opt "MINI_REPLAY")) ();
       (* until the platform says (Resized, before the first frame) *)
       screen = (Playground.default_width, Playground.default_height); ctrl = false; profile; profile_dir; saved = profile; changed = 0.; menu = None; window; desktop; selecting = false; last_click = -1.; pressed = false; fresh = []; late = []; dots = 1.; shift = false; grab = None }
   in
@@ -105,7 +105,7 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
       (* the page's scripts first (the element under the pointer, its
        * click bubbling); then, unless one prevented it, the browser's *)
       let control = pointed_control m and link = hovered m and element = Hit.element_at p.layout ~x ~y in
-      let m, cmd, prevented = task network m (fun s -> match Hit.element_at p.layout ~x ~y with Some e -> Browser_script.click s e | None -> false) in
+      let m, cmd, prevented = task network m (fun s -> match Hit.element_at p.layout ~x ~y with Some e -> Browser_script.click ~at:(x, y -. float_of_int (current_tab m).scroll) s e | None -> false) in
       (* with -v: what was clicked, and what became of it *)
       Logs.info (fun f ->
           f "click on %s: %s%s"
@@ -173,7 +173,8 @@ let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) opt
   let place (x, y) = ((x -. area_left m) /. z, (area_top m -. y) /. z) in
   let pointer ?(moved = (0., 0.)) at ~button ~buttons =
     let x, y = place at in
-    [ ("clientX", number x); ("clientY", number y); ("button", number button); ("buttons", number buttons); ("movementX", number (fst moved)); ("movementY", number (snd moved)) ]
+    [ ("clientX", number x); ("clientY", number y); ("pageX", number x); ("pageY", number (y +. float_of_int (current_tab m).scroll)); ("button", number button); ("buttons", number buttons); ("which", number 1.);
+      ("detail", number 1.); ("ctrlKey", flag m.ctrl); ("shiftKey", flag m.shift); ("altKey", flag false); ("metaKey", flag false); ("movementX", number (fst moved)); ("movementY", number (snd moved)) ]
   in
   let free = m.omnibox = None && (current_tab m).focus = None && m.menu = None in
   let over_page at = page_point_at m at <> None && Gui_scrollbar.at (scrollbar m) at = None in
@@ -204,10 +205,26 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
         | _ -> None
       in
       let m, cmd, prevented = task network m (fun s -> Browser_script.window_event ?at s typ fields) in
+      (* a page told of the button going down is told its click when it
+       * comes up, after the mouseup -- mousedown, mouseup, click, the
+       * order every page counts on (an application that tracks the
+       * press itself: Gmail's list took a click before its mouseup for
+       * no click at all). A page that listens for neither has its click
+       * at the press, as the browser's own things do *)
+      let was_pressed = m.pressed in
       let m = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
       (* what went down, until the page's next frame ([update]) *)
       let m = match msg with Key k -> { m with fresh = String.lowercase_ascii k :: m.fresh } | Click -> { m with fresh = "mouse" :: m.fresh } | _ -> m in
-      if prevented then (m, cmd) else let m, cmd' = update_browser caps msg m in (m, Cmd.batch [ cmd; cmd' ])
+      if prevented && msg <> Mouse_up then (m, cmd)
+      else
+        let m, cmd' = update_browser ~page_click:(msg <> Click) caps msg m in
+        let m, cmd'' = if msg = Mouse_up && was_pressed && page_point m <> None then click_page network m else (m, Cmd.none) in
+        (m, Cmd.batch [ cmd; cmd'; cmd'' ])
+  (* (a page that heard the press and does not listen for the release: its click all the same) *)
+  | _ when msg = Mouse_up && m.pressed ->
+      let m, cmd = update_browser caps msg { m with pressed = false } in
+      let m, cmd' = if page_point m <> None then click_page network m else (m, Cmd.none) in
+      (m, Cmd.batch [ cmd; cmd' ])
   | _ -> update_browser caps msg m
 
 (* [step], and a tap not lost. A program reads the keys held at each
@@ -227,7 +244,7 @@ and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (ms
       (m, Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) late))
   | _ -> step caps msg m
 
-and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
   (* the menu is over a page that stays as it is: closed by what
    * moves the page, and by Escape *)
@@ -275,7 +292,17 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .
           Logs.info (fun f -> f "the screen's dots for a point: %g" dots);
           { m with dots })
       in
-      let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s (1000. /. 60.); false) in
+      (* the page's clock moves by the time that passed, not by a frame's
+       * sixtieth of a second: a frame of a large page takes far longer
+       * (Gmail's, a third of a second), and a clock that counted frames
+       * ran twenty times too slowly there -- a setTimeout of two seconds
+       * came after forty, and the scripts Gmail loads one after the
+       * other, a pause between two, were not all there minutes later
+       * (a click on a message did nothing: its code had not come). At
+       * least a frame's time, for a Tick that says no time passed; five
+       * seconds at most, for the first one and a window left asleep *)
+      let passed = Float.min 5000. (Float.max (1000. /. 60.) ((time -. m.time) *. 1000.)) in
+      let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s passed; false) in
       (* the layouts owed since the frame before, one a tab *)
       let m, cmd =
         List.fold_left
@@ -370,7 +397,7 @@ and update_browser (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .
         | None, _, Some Gui_toolbar.Forward -> on_current m (fun cfg tab -> Browser_tab.forward cfg network tab)
         | None, _, Some Gui_toolbar.Reload -> load ~reload:true network (current_url m) m
         | None, _, Some Gui_toolbar.Stop -> on_current m (fun cfg tab -> (Browser_tab.stop cfg tab, Cmd.none))
-        | _ -> if page_point m <> None then click_page network m else (m, Cmd.none))
+        | _ -> if page_point m <> None && page_click then click_page network m else (m, Cmd.none))
   (* Ctrl held (SDL's names, or the web's), and the page zoomed;
    * the character such a key may also type is not the omnibox's *)
   | Key ("Left Ctrl" | "Right Ctrl" | "left ctrl" | "right ctrl" | "Control") -> ({ m with ctrl = true }, Cmd.none)

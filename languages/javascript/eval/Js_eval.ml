@@ -622,7 +622,7 @@ and put (t : t) (target : value) (k : string) (v : value) : unit =
    * its prototypes first -- the class a page gave a custom element
    * defines its properties so (Polymer: el.data = x is a call, which
    * draws the element again), and those the browser has are there as
-   * setters that ask the object itself (data/prelude/web.js) *)
+   * setters that ask the object itself (data/prelude/web/) *)
   | Object { kind = Host_object _; proto = Some p; _ } when k <> "__proto__" -> (
       (* the page's prototypes only, down to the browser's own
        * (Js_props.dom_mark): what is there asks the object anyway *)
@@ -1172,6 +1172,7 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
  * else its valueOf and its toString, in the order the hint says, if
  * they are functions written in JavaScript and give a primitive *)
 let running : t option ref = ref None
+let asked : value list ref = ref []
 
 let () =
   Js_value.own_primitive :=
@@ -1183,9 +1184,13 @@ let () =
             match get t v k with
             | Object { kind = Closure _; _ } as f -> ( match call_value t f ~this:v args with Object _ -> None | p -> Some p)
             (* a host's object with a toString of its own (a window's
-             * selection, which is its text: "" + getSelection()) *)
-            | Object { kind = Host_function _; _ } as f when (match v with Object o -> get_own o k <> None | _ -> false) -> (
-                match call_value t f ~this:v args with Object _ -> None | p -> Some p)
+             * selection, which is its text: "" + getSelection(); the
+             * page's location, which is its address: location + "#top") *)
+            | Object { kind = Host_function _; _ } as f when (match v with Object { kind = Host_object _; _ } -> not (List.memq v !asked) | Object o -> get_own o k <> None | _ -> false) -> (
+                (* (an element's toString is every object's, which asks
+                 * the element for its string: once) *)
+                asked := v :: !asked;
+                match Fun.protect ~finally:(fun () -> asked := List.tl !asked) (fun () -> call_value t f ~this:v args) with Object _ -> None | p -> Some p)
             | _ -> None
           in
           match ask "@@toPrimitive" [ String hint ] with

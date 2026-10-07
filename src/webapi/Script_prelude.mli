@@ -1,4 +1,4 @@
-(* Script_prelude: small web APIs written in JavaScript -- data/prelude/web.js,
+(* Script_prelude: small web APIs written in JavaScript -- data/prelude/web/,
    embedded, run in every page before its scripts.
 
    As Js_prelude is for the language's library (its .mli says why a
@@ -54,5 +54,5 @@
    its newer road -- which then expects the rest of what browsers of
    that year had. *)
 
-(* data/prelude/web.js *)
+(* data/prelude/web/ *)
 val text : string

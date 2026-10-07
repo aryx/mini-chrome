@@ -33,19 +33,45 @@
    mini_opti ; Stopwatch: the scripts' time
    network)) ; Urlencoded, a URL's query
 
-; the small web APIs written in JavaScript (data/prelude/web.js: data,
-; kept in data/ at the top and copied here at build time), embedded
-; as a string: Script_prelude
-(copy_files ../../data/prelude/web.js)
+; the small web APIs written in JavaScript (data/prelude/web/*.js:
+; data, kept in data/ at the top and copied here at build time),
+; embedded as one string: Script_prelude. The parts are pieces of one
+; text, put end to end in this order -- the first opens the function
+; they all are in and has what they share, the one before last closes
+; it: a part is not a script of its own
+(copy_files ../../data/prelude/web/*.js)
 
 (rule
  (targets Script_prelude.ml)
- (deps web.js)
+ (deps
+  start.js
+  events.js
+  url.js
+  bytes.js
+  requests.js
+  intl.js
+  dom.js
+  drawing.js
+  observers.js
+  elements.js
+  components.js
+  prototypes.js)
  (action
   (with-stdout-to
    %{targets}
    (progn
-    (echo "(* generated from data/prelude/web.js by src/webapi/dune *)\n")
+    (echo "(* generated from data/prelude/web/*.js by src/webapi/dune *)\n")
     (echo "let text = {prelude|")
-    (cat web.js)
+    (cat start.js)
+    (cat events.js)
+    (cat url.js)
+    (cat bytes.js)
+    (cat requests.js)
+    (cat intl.js)
+    (cat dom.js)
+    (cat drawing.js)
+    (cat observers.js)
+    (cat elements.js)
+    (cat components.js)
+    (cat prototypes.js)
     (echo "|prelude}\n")))))

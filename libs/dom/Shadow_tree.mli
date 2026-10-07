@@ -58,7 +58,7 @@
    extends HTMLElement { ... })), whose constructor and
    connectedCallback then run for each such element of the page -- it
    is there that a component attaches its shadow tree. The registry is
-   written in JavaScript (data/prelude/web.js); this module is only
+   written in JavaScript (data/prelude/web/); this module is only
    the tree.
 
    cs-history:

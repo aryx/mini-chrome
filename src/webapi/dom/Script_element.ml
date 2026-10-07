@@ -218,6 +218,6 @@ let get (t : t) (n : node) (k : string) : value option =
   | "tabIndex" -> Some (Number (-1.))
   (* events of a script's own *)
   | "dispatchEvent" -> m (fun args -> Bool (not (t.dispatch (Some n) (arg args 0))))
-  | "click" -> m (fun _ -> ignore (t.dispatch (Some n) (Script_events.make ~bubbles:true "click" [])); Undefined)
+  | "click" -> m (fun _ -> ignore (t.dispatch (Some n) (Script_events.make ~bubbles:true "click" [ ("button", Number 0.); ("buttons", Number 0.); ("detail", Number 0.); ("clientX", Number 0.); ("clientY", Number 0.); ("ctrlKey", Bool false); ("shiftKey", Bool false); ("altKey", Bool false); ("metaKey", Bool false) ])); Undefined)
   | "normalize" -> m (fun _ -> Undefined)
   | _ -> None

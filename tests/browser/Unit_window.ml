@@ -161,6 +161,26 @@ let tests caps =
           Alcotest.(check bool) "the button let go is kept" true (m.late = [ Mouse_up ]);
           let m = tick caps 10.12 m in
           Alcotest.(check string) "the frame saw it pressed" "ArrowLeft |  | button" (frames ());
+          (* and its click: after the mouseup, with where it was (Gmail's
+           * list took a click told before its mouseup for none) *)
+          (match Browser_script.eval script "var order = [];\n['mousedown', 'mouseup', 'click'].forEach(function (t) { document.addEventListener(t, function (e) { order.push(t + ' ' + typeof e.clientX + ' ' + e.button) }) })" with
+          | Ok _ -> ()
+          | Error e -> Alcotest.fail e.message);
+          let m = tick caps 10.14 m in
+          let m = send Click m in
+          let m = tick caps 10.16 m in
+          let m = tick caps 10.18 (send Mouse_up m) in
+          Alcotest.(check string) "down, up, click" {|["mousedown number 0", "mouseup number 0", "click number 0"]|} (match Browser_script.eval script "order" with Ok v -> Js_value.display v | Error e -> e.message);
+          (* the page's clock is the time that passed, not a frame's
+           * sixtieth of a second each Tick: a timer of two seconds comes
+           * two seconds later, however few frames were drawn meanwhile *)
+          (match Browser_script.eval script "var late = 'not yet'; setTimeout(function () { late = 'came' }, 2000)" with Ok _ -> () | Error e -> Alcotest.fail e.message);
+          let late () = match Browser_script.eval script "late" with Ok v -> Js_value.display v | Error e -> e.message in
+          let m = tick caps 10.2 m in
+          let m = tick caps 11.2 m in
+          Alcotest.(check string) "a second later, two frames: not due" "not yet" (late ());
+          let m = tick caps 12.3 m in
+          Alcotest.(check string) "two seconds later, three frames: due" "came" (late ());
           ignore m);
       Testo.create "a URL's host" (fun () ->
           Alcotest.(check string) "a page" "news.ycombinator.com" (Window_layout.host_of "https://news.ycombinator.com/item?id=1");

@@ -293,7 +293,9 @@ and to_primitive ?(hint = "default") (v : value) : value =
   | Object { kind = Closure { func = { name; _ }; _ }; _ } ->
       String (Printf.sprintf "function %s() { ... }" (Option.value name ~default:""))
   | Object { kind = Host_function (name, _); _ } -> String (Printf.sprintf "function %s() { [native code] }" name)
-  | Object { kind = Host_object h; _ } -> String (Printf.sprintf "[object %s]" h.class_name)
+  (* a host's object: what its own toString says (location's is the
+   * page's address), else its class *)
+  | Object { kind = Host_object h; _ } -> ( match !own_primitive v hint with Some p -> p | None -> String (Printf.sprintf "[object %s]" h.class_name))
   | Object { kind = Regexp re; _ } -> String (Printf.sprintf "/%s/%s" (Js_regexp.source re) (Js_regexp.flags re))
   (* an error, as Error.prototype.toString says it: "TypeError: ..."
    * (with no prototypes, told by its name and message) *)
