@@ -89,6 +89,10 @@ type env = {
   viewport : float * float;
   positioned : (box * float option) list ref; (* the positioned boxes of the block being laid out: its [lifted], when done *)
   late : int ref; (* how many wait to be placed by their bottom *)
+  (* whether a positioned box was placed in a height not known yet that
+   * it needed (top: 20%, height: 10%): its containing block is laid out
+   * again once its height is *)
+  needy : bool ref;
   (* shrink-to-fit's measure: lines on the left (a centred line at an
    * unlimited width would be far to the right) *)
   measuring : bool;

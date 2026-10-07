@@ -141,6 +141,20 @@ let tests =
           Alcotest.(check (list near)) "height: 100% of the column's item, itself the window's" [ 600.; 600. ] [ (box "app" p).height; side.height ];
           Alcotest.(check (list near)) "top and bottom: the box fills between them" [ 50.; 10.; 150.; 570. ] [ main.x; main.y; main.width; main.height ];
           Alcotest.(check (list near)) "bottom and right, in a box itself absolute: moved with it" [ 185.; 565. ] [ corner.x; corner.y ]);
+      Testo.create "an image map made of CSS: empty links placed by percents of a height the content gives" (fun () ->
+          (* dynamicland.org's shelf: a picture, and over each part of it
+           * an <a> with nothing in it *)
+          let p =
+            page
+              {|<body style="margin: 0"><div style="position: relative; width: 400px"><div id=pic style="height: 600px"></div><a id=one href=one style="position: absolute; display: block; left: 10%; top: 20%; width: 25%; height: 10%"></a><div id=fill style="position: absolute; top: 50%; bottom: 25%; left: 0; width: 10px"></div></div>|}
+          in
+          let one = box "one" p and fill = box "fill" p in
+          Alcotest.(check (list near)) "top and height: of the block's height, known after its content" [ 40.; 120.; 100.; 60. ] [ one.x; one.y; one.width; one.height ];
+          Alcotest.(check (list near)) "between a top and a bottom in percents" [ 300.; 150. ] [ fill.y; fill.height ];
+          let h = Box_tree.as_html_layout p in
+          let name at = Option.bind (Hit.element_at h ~x:(fst at) ~y:(snd at)) (Dom.attribute "id") in
+          Alcotest.(check (option string)) "the link is what a click finds, though it holds nothing" (Some "one") (name (60., 150.));
+          Alcotest.(check (option string)) "beside it, the picture" (Some "pic") (name (300., 150.)));
       Testo.create "a click finds the box drawn on top" (fun () ->
           (* the frame fills the window, its side bar is drawn over it:
            * the link there is what is under the pointer *)

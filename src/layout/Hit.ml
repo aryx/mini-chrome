@@ -84,7 +84,11 @@ let rec element_at (b : Html_layout.box) ~(x : float) ~(y : float) : Dom.element
         match fragment_at b ~x ~y with
         | Some f when List.memq f (List.concat_map (fun (l : Html_layout.line) -> l.fragments) b.lines) -> Some f.element
         | _ -> (
-            let full, empty = List.partition (fun c -> not (hollow c)) (on_top b) in
+            (* (but an empty link is there to be clicked: a picture's
+             * parts each under an <a> of no content, placed over it --
+             * dynamicland.org's shelf, an image map made of CSS) *)
+            let link (c : Html_layout.box) = match c.kind with Block { name = "a"; _ } -> true | _ -> false in
+            let full, empty = List.partition (fun c -> (not (hollow c)) || link c) (on_top b) in
             match List.find_map (fun c -> element_at c ~x ~y) (full @ empty) with
             | Some e -> Some e
             | None -> ( match b.kind with Block e when inside b -> Some e | _ -> None)))

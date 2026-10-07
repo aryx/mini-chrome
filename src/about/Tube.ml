@@ -46,6 +46,8 @@ let sounds : clip list =
     { file = "tune.mid"; title = "Au clair de la lune"; format = "a MIDI file (1988)"; about = "No sound in the file: keys pressed and released, in time. The synthesizer is ours." };
     { file = "tune.mod"; title = "Au clair de la lune"; format = "a tracker's module (Amiga, 1987)";
       about = "A recording of one note, 32 bytes long, and a grid saying when to play it at which pitch: sampled sound in a kilobyte." };
+    { file = "frere_jacques.mid"; title = "Frère Jacques"; format = "a MIDI file, several tracks"; about = "A round: the same tune entering again, a track a voice, all played at once." };
+    { file = "tiny_soundtracker.mod"; title = "Tiny soundtracker"; format = "a module of several samples"; about = "Four channels, a few instruments, the tracker's effects: what an Amiga's Paula chip played, mixed here in software." };
     { file = "tune.abc"; title = "Au clair de la lune"; format = "ABC, a tune as text"; about = "Folk music's notation by electronic mail: C C C D | E2 D2 |" };
     { file = "tune.doremi"; title = "Au clair de la lune"; format = "solfege, as text"; about = "do do do re | mi:2 re:2 |" } ]
 

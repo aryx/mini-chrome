@@ -50,6 +50,36 @@
     var t = this.closest("table");
     return t ? table_rows(t).indexOf(this) : -1;
   });
+  // ... and changed: a row put in a table or a section at a place
+  // (-1, or none given: the end), a cell in a row, one taken out.
+  // Gmail builds a message's header this way.
+  function put(parent, made, list, i) {
+    if (i === undefined || i === -1 || i === list.length) parent.appendChild(made);
+    else if (i >= 0 && i < list.length) list[i].parentNode.insertBefore(made, list[i]);
+    else throw new DOMException("The index is not in the allowed range.", "IndexSizeError");
+    return made;
+  }
+  method(E, "insertRow", function (i) {
+    var row = document.createElement("tr"), rows = this.rows;
+    // a table with no row yet: in its body, made if there is none
+    if (this.localName === "table" && rows.length === 0) return (this.tBodies[0] || this.appendChild(document.createElement("tbody"))).appendChild(row);
+    if (this.localName === "table" && (i === undefined || i === -1 || i === rows.length)) return rows[rows.length - 1].parentNode.appendChild(row);
+    return put(this, row, rows, i);
+  });
+  method(E, "insertCell", function (i) { return put(this, document.createElement("td"), this.cells, i); });
+  function taken(list, i) { var e = list[i === -1 ? list.length - 1 : i]; if (e) e.parentNode.removeChild(e); }
+  method(E, "deleteRow", function (i) { taken(this.rows, i); });
+  method(E, "deleteCell", function (i) { taken(this.cells, i); });
+  function section(name) {
+    return function () {
+      var had = kids(this, [name])[0];
+      return had || (name === "thead" || name === "caption" ? this.insertBefore(document.createElement(name), this.firstChild) : this.appendChild(document.createElement(name)));
+    };
+  }
+  method(E, "createTHead", section("thead"));
+  method(E, "createTFoot", section("tfoot"));
+  method(E, "createCaption", section("caption"));
+  method(E, "createTBody", function () { return this.appendChild(document.createElement("tbody")); });
 
   // An <iframe>'s window. A frame's page is not loaded here; what a
   // script is given is the window of an empty one (about:blank's): a

@@ -190,6 +190,8 @@ let told (m : model) (msg : msg) : (string * (string * Js_value.value) list) opt
   | Wheel notches when (not m.ctrl) && over_page m.mouse -> Some ("wheel", ("deltaY", number (-100. *. notches)) :: ("deltaMode", number 0.) :: pointer m.mouse ~button:0. ~buttons:0.)
   | _ -> None
 
+let replaying : bool = Sys.getenv_opt "MINI_REPLAY" <> None
+
 (* a message: for the page's scripts, then for the browser *)
 let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
   let network = (caps :> < Cap.network >) in
@@ -301,7 +303,9 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
        * (a click on a message did nothing: its code had not come). At
        * least a frame's time, for a Tick that says no time passed; five
        * seconds at most, for the first one and a window left asleep *)
-      let passed = Float.min 5000. (Float.max (1000. /. 60.) ((time -. m.time) *. 1000.)) in
+      (* (a recording given again, MINI_REPLAY: a tenth of a second a
+       * frame, so that two runs of it are the same) *)
+      let passed = if replaying then 100. else Float.min 5000. (Float.max (1000. /. 60.) ((time -. m.time) *. 1000.)) in
       let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s passed; false) in
       (* the layouts owed since the frame before, one a tab *)
       let m, cmd =

@@ -185,4 +185,9 @@ let playlist : (string * string Lazy.t) list =
     ("tune.mid", lazy (match Abc.parse tune_abc with Ok t -> Midi.of_tune t | Error why -> failwith why));
     ("tune.doremi", Lazy.from_val tune_doremi);
     ("tune.mod", tune_mod);
+    (* and two files as they come: a round in four voices, a module of
+     * several samples and effects (elm-playground's test files, by
+     * its own writers) *)
+    ("frere_jacques.mid", Lazy.from_val Tube_files.frere_jacques_mid);
+    ("tiny_soundtracker.mod", Lazy.from_val Tube_files.tiny_soundtracker_mod);
   ]

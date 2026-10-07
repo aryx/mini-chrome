@@ -256,6 +256,15 @@ let tests =
                var said = [t.rows.length, t.tBodies[0].rows.length, r.cells.length, r.cells[1] === c, r.cells.item(1) === c, c.cellIndex, r.rowIndex, r.sectionRowIndex, typeof document.getElementById(\"d\").cells]</script>"
           in
           Alcotest.(check string) "table.rows, a body's, a row's cells, and where each is" "[3, 2, 2, true, true, 1, 1, 0, \"undefined\"]" (value t "said"));
+      Testo.create "a table's rows and cells put in and taken out" (fun () ->
+          let t =
+            page
+              "<body><table id=t></table><script>\n\
+               var t = document.getElementById(\"t\"), r = t.insertRow(), c = r.insertCell(-1), first = r.insertCell(0), r0 = t.insertRow(0), last = t.insertRow(-1);\n\
+               var said = [t.tBodies.length, t.rows.length, t.rows[0] === r0, t.rows[2] === last, r.cells.length, r.cells[0] === first, r.cells[1] === c, r.parentNode.localName];\n\
+               t.deleteRow(0); r.deleteCell(-1); t.createTHead(); said.push(t.rows.length, r.cells.length, t.firstChild.localName)</script>"
+          in
+          Alcotest.(check string) "insertRow, insertCell, deleteRow, deleteCell, createTHead" "[1, 3, true, true, 2, true, true, \"tbody\", 2, 1, \"thead\"]" (value t "said"));
       Testo.create "errors to the console, the next script still run" (fun () ->
           let t = page "<script>\nx.y\n</script><script>console.log(\"next\", [1])</script>" in
           Alcotest.(check (list string)) "the console" [ "Uncaught ReferenceError: x is not defined (line 2)"; "next [1]" ] (Browser_script.console t));

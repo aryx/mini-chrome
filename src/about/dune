@@ -95,9 +95,10 @@
 (rule
  (targets Tube_files.ml)
  (deps ball_and_square.mpg ball_and_square.webm stereo.mp3 chirps.opus chirps.ogg chirps.webm chirps.mp2
+       frere_jacques.mid tiny_soundtracker.mod
        %{project_root}/scripts/files_to_string_ml.ml)
  (action
   (with-stdout-to
    %{targets}
    (run ocaml %{project_root}/scripts/files_to_string_ml.ml ball_and_square.mpg ball_and_square.webm stereo.mp3
-        chirps.opus chirps.ogg chirps.webm chirps.mp2))))
+        chirps.opus chirps.ogg chirps.webm chirps.mp2 frere_jacques.mid tiny_soundtracker.mod))))

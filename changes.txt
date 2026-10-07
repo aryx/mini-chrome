@@ -584,6 +584,10 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- a table changed by its own methods: insertRow, insertCell,
+  deleteRow, deleteCell, createTHead, createTBody, createTFoot,
+  createCaption (data/prelude/web/elements.js). Gmail builds an
+  opened message's header with table.insertRow
 - location as a string is the page's address ("" + location,
   location + "#starred": it was "[object Location]", and Gmail's
   links to its folders went nowhere), a host's object being asked
@@ -785,6 +789,13 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- a positioned box's top, bottom and height in percents of a
+  containing block whose height only its content gives: the block is
+  laid out a second time once its height is known (they were percents
+  of nothing: 0). And an empty link is what a click finds, though a
+  box that holds nothing lets the click through to what is under it.
+  dynamicland.org's shelf is a photograph with an empty <a> over each
+  book (left: 11%; top: 18%; height: 5%): none could be clicked
 - transform: scale(k), scale(kx, ky), scaleX, scaleY, around
   transform-origin (Computed's scale and origin; Box_tree.scaled, the
   box and all it holds drawn that many times its size once laid out,
@@ -877,6 +888,10 @@
   (example.com's grey)
 
 *** pictures, video, sound, documents
+- about:tube has two more sounds, as files (data/tube): a MIDI file
+  of several tracks (Frere Jacques, a round) and a tracker's module
+  of several samples and effects, beside the one-voice tune the page
+  already wrote itself in both formats
 - a progressive JPEG is drawn (most of the web's photographs: it was
   a red slash, the picture that could not be read). The decoder is
   the Playground's (Jpeg_progressive, elm-playground after 0.3.6):
@@ -1098,6 +1113,9 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- a recording replayed (MINI_REPLAY) has a clock of its own, a tenth
+  of a second a frame: two runs of it ask the same things in the
+  same order
 - a session given again with no network (Browser_replay, new, in
   src/chrome): MINI_REPLAY=DIR answers every request from a
   recording (MINI_DUMP_PAGE, MINI_DUMP_ANSWERS: the page, each

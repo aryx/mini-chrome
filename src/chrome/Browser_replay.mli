@@ -30,6 +30,10 @@
      MINI_REPLAY=DIR ./bin/mini-chrome profile=off -script "at(-100;135):200-260" \
        -dump-frame 400 /tmp/after.png url=https://mail.google.com/mail/u/0/
 
+   A replay's page has a clock of its own, a tenth of a second a frame
+   (Window_update): the real one would have its timers come in another
+   order at each run, and its requests with them.
+
    profile=off with it: the person's cookies are not read, and a
    recording holds what the site showed them, to be kept as their mail
    is. docs/dev/notes_debugging_techniques.txt tells the whole method.

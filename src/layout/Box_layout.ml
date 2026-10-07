@@ -36,6 +36,9 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let floats = if own then ref [] else floats in
   let x = cb_x +. ml in
   let given = definite env s ~chrome:(pt +. pb +. bt +. bb) in
+  (* what a second layout, at its height once known, starts from *)
+  let asked = !(env.needy) and floats_before = !floats and late_before = !(env.late) and outer = env in
+  if s.position <> Static then env.needy := false;
   (* its own list of the positioned boxes written in it *)
   let env = { env with positioned = ref [] } in
   let env =
@@ -116,9 +119,23 @@ let rec layout_block (env : env) (floats : placed list ref) (e : Dom.element) (s
   let lifted = if waiting then List.map settled lifted else lifted in
   let children = List.rev ctx.children in
   let children = if waiting then List.map settle children else children in
-  ( { element = Some e; style = s; x; y; width = bl +. pl +. cw +. pr +. br; height = bt +. pt +. ch +. pb +. bb;
-      border = (bt, br, bb, bl); children; lines = []; backdrops = []; marker; lifted },
-    if through then ctx.pending else 0. )
+  let box =
+    { element = Some e; style = s; x; y; width = bl +. pl +. cw +. pr +. br; height = bt +. pt +. ch +. pb +. bb;
+      border = (bt, br, bb, bl); children; lines = []; backdrops = []; marker; lifted }
+  in
+  let needed = s.position <> Static && !(env.needy) in
+  if s.position <> Static then env.needy := asked;
+  (* a box placed in it by percents of its height, which only its
+   * content gives (a picture, and over it a link a part: top: 18%,
+   * height: 5% -- an image map made of CSS, dynamicland.org's shelf;
+   * the links were of no height, at the top): now that the height is
+   * known, laid out again with it said *)
+  if needed && given = None then (
+    floats := floats_before;
+    env.late := late_before;
+    let again, _ = layout_block outer floats e { s with height = Len { Css_values.zero with px = box.height }; border_box = true } ~cb_x ~cb_width ~y ~marker ?content () in
+    ({ again with style = s }, if through then ctx.pending else 0.))
+  else (box, if through then ctx.pending else 0.)
 
 (* a flex container's items laid out (Flex_layout's arithmetic): each
  * measured, the lines cut, the room shared, the items placed along and
@@ -451,6 +468,10 @@ and add_absolute (ctx : ctx) (e : Dom.element) (s : Computed.t) : unit =
     | Computed.Auto, Some t, Some b, Some h -> Computed.Len { Css_values.zero with px = Float.max 0. (h -. t -. b) }
     | _ -> s.height
   in
+  (* (percents of a height not known yet, or a box between a top and
+   * a bottom of it: said, for the block to be laid out again) *)
+  let pct (v : Computed.size) = match v with Len l -> l.pct <> 0. | _ -> false in
+  if ch = None && (pct s.top || pct s.bottom || pct s.height || (s.height = Auto && s.top <> Auto && s.bottom <> Auto)) then env.needy := true;
   let filling = height != s.height in
   let s_in = { s with height; border_box = s.border_box || filling; margin = (let t, r, b, _ = s.margin in (t, r, b, Len Css_values.zero)) } in
   let env = { env with known_height = ch } in
@@ -817,7 +838,7 @@ and layout_table (env : env) (table : Dom.element) (s : Computed.t) ~(cb_x : flo
 
 let layout (metrics : Html_layout.metrics) ?(picture_size = fun _ -> None) ?(kids = fun (e : Dom.element) -> e.children) ~(viewport : float * float) (style : Dom.element -> Computed.t)
     (root : Dom.element) : box =
-  let env = { metrics; picture_size; style; kids; viewport; positioned = ref []; late = ref 0; measuring = false; centring = false; containing = (0., 0., fst viewport, Some (snd viewport)); known_height = Some (snd viewport);
+  let env = { metrics; picture_size; style; kids; viewport; positioned = ref []; late = ref 0; needy = ref false; measuring = false; centring = false; containing = (0., 0., fst viewport, Some (snd viewport)); known_height = Some (snd viewport);
       measured = Hashtbl.create 1024 } in
   let s = style root in
   (* the root is its own formatting context: its floats inside it *)

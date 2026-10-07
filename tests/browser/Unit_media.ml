@@ -156,7 +156,7 @@ let tests =
           Alcotest.(check (list (pair string string))) "the kinds"
             [ ("ball_and_square.avi", "AVI"); ("ball_and_square.flc", "FLIC"); ("ball_and_square.m1v", "MPEG-1"); ("ball_and_square.webm", "WebM");
               ("ball_and_square.y4m", "Y4M"); ("blips.wav", "WAV"); ("bouncing_ball.gif", "GIF"); ("chirps.mp2", "MP2"); ("chirps.ogg", "Ogg Vorbis");
-              ("chirps.opus", "Ogg Opus"); ("chirps.webm", "WebM"); ("ffmpeg_muxed.mpg", "MPEG-1 system"); ("lame_encoded.mp3", "MP3");
+              ("chirps.opus", "Ogg Opus"); ("chirps.webm", "WebM"); ("ffmpeg_muxed.mpg", "MPEG-1 system"); ("frere_jacques.mid", "MIDI"); ("lame_encoded.mp3", "MP3"); ("tiny_soundtracker.mod", "MOD");
               ("tune.abc", "ABC"); ("tune.doremi", "solfege"); ("tune.mid", "MIDI"); ("tune.mod", "MOD") ]
             (List.sort compare kinds);
           (* and the page names only files there are *)
