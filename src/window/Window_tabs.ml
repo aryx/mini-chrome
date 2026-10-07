@@ -57,7 +57,7 @@ let config (m : model) (id : int) : msg Browser_tab.config =
         | "cache" -> Some (Browser_cache.page ~now:(Unix.gettimeofday ()) (Fetch.cache m.fetches), "text/html; charset=utf-8")
         | "memory" ->
             let cache = Option.map (fun (c : Http_cache.store) -> let es = c.entries ~now:(Unix.gettimeofday ()) in (List.length es, List.fold_left (fun n (_, size, _, _) -> n + size) 0 es, c.place)) (Fetch.cache m.fetches) in
-            Some (Browser_memory.page ~samples:m.memory ~tabs:(List.map (fun (t : tab) -> Browser_memory.tab t.tab) m.tabs) ~cache ~profile:m.profile_dir, "text/html; charset=utf-8")
+            Some (Browser_memory.page ~cpu:(Browser_cpu.card m.tasks) ~samples:m.memory ~tabs:(List.map (fun (t : tab) -> Browser_memory.tab t.tab) m.tabs) ~cache ~profile:m.profile_dir, "text/html; charset=utf-8")
         | "bookmarks" -> Some (Bookmarks.page m.profile.bookmarks, "text/html; charset=utf-8")
         | "cookies" -> Some (Browser_cookies.page ~now:(Unix.gettimeofday ()) (Cookie_jar.cookies (Fetch.jar m.fetches)), "text/html; charset=utf-8")
         | _ -> ( match Tube.about name with Some x -> Some x | None -> Site.about name));

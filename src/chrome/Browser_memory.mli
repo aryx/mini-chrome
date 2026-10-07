@@ -45,8 +45,9 @@ val resident : < Cap.open_in ; .. > -> int
 (* megabytes of OCaml's heap *)
 val heap : unit -> int
 
-(* the samples as bars, the last one last, ending at [x] on the line [y] *)
-val graph : int list -> x:float -> y:float -> Playground.shape list
+(* the samples as bars, the last one last, ending at [x] on the line
+   [y]: each a share of the highest, or of [least] if none reaches it *)
+val graph : ?least:int -> ?colour:Playground.color -> int list -> x:float -> y:float -> Playground.shape list
 val graph_width : float
 
 (* what a tab holds: its title, the pages kept behind and ahead, its
@@ -57,4 +58,4 @@ val tab : Browser_tab.t -> tab
 
 (* about:memory: the samples (the last first), the tabs, the cache on
    disk (how many answers, their bytes, where), the profile's directory *)
-val page : samples:int list -> tabs:tab list -> cache:(int * int * string) option -> profile:string option -> string
+val page : cpu:string (* Browser_cpu.card *) -> samples:int list -> tabs:tab list -> cache:(int * int * string) option -> profile:string option -> string

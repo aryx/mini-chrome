@@ -1089,6 +1089,15 @@
   format read
 
 *** the window and its chrome
+- how busy the program is, beside the memory at the tab strip's end:
+  a minute of the processor's share as bars and its percent, all the
+  threads together, 100% being one core (Browser_cpu, new: each
+  thread's time from /proc/self/task/*/stat, every two seconds). And
+  about:memory has a row a thread, the busiest first, by name -- "the
+  window", "tab domain 3", "fetch 5": a pool's thread says who it is
+  as it starts (Task_names, new, in libs/opti). With tabs=domains a
+  page that works, or loops, is a tab's domain at 100% and the
+  window's near 0
 - a tab no longer only grows: the pages kept whole for Back and
   Forward are the nearest three each way (Bfcache.limit; further, the
   page is loaded again, from the answers on disk), and the pictures

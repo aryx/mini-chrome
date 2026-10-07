@@ -1338,3 +1338,42 @@ A replay ends where the recording does: once the page went further
 than the person's run did (a module asked that was never recorded,
 "Error loading ...: Consecutive load failures"), what follows is the
 replay's, not the browser's. Record again.
+
+
+46. "It got slow": the commit before, built beside; and whose time it is
+----------------------------------------------------------------------
+
+A click on a Discourse thread "did not work any more, or is really
+slow", after a commit to the engine. Before reading the diff:
+
+a. The commit before, beside, with no stash and no checkout:
+
+     git worktree add $S/before <commit>
+     (cd $S/before && dune build ./tools/node ./src/main)
+
+   and the same script given to both (-script "at(x;y):900-1000,
+   click:950" -dump-frame 1800, timings=on, each line of -v timed by
+   a three-line Python filter). Here the new one was the FASTER (298 s
+   against 402): no regression, the page is slow in both. A small
+   benchmark of what the commit touched (map.get a million times, in
+   mini-node of each) found the real cost, 20% a call, and that is
+   what was fixed.
+
+b. timings=on said "update: 123 s" of its own, outside every stage.
+   Not a hidden cost: a long run of a script is cut in slices
+   (Js_slice), the run goes on in its own thread and the window's
+   waits for it -- under "update", with no stage. Sampled to know:
+
+     gdb -q -batch -x cmds --args ./_build/default/src/main/MiniChrome.exe ...
+       cmds: handle SIGINT stop nopass / run / then forty times
+             "thread 1", "bt 18", "continue"
+     and beside it, every 2.5 s:  kill -INT $(pgrep -n -x MiniChrome.exe)
+
+   (gdb as the PARENT: /proc/sys/kernel/yama/ptrace_scope is 1 here,
+   and gdb -p is refused. pgrep -x, by the program's name: -f finds
+   the shell that runs pgrep.) 39 samples of 40 in Js_slice.wait: the
+   time is the page's scripts'. So a Discourse thread opens in what
+   Ember costs our evaluator, some forty seconds.
+
+about:memory's threads (Browser_cpu) say the same at a glance, with no
+debugger: which thread is at 100%.

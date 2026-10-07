@@ -34,11 +34,11 @@ let rec work (pool : t) : unit =
   job ();
   work pool
 
-let create (n : int) : t =
+let create ?(name : (int -> string) option) (n : int) : t =
   let pool = { mutex = Mutex.create (); queued = Condition.create (); queue = Queue.create () } in
   (* threads, or OCaml 5's domains: Worker_spawn *)
-  for _ = 1 to Worker_spawn.workers n do
-    Worker_spawn.spawn (fun () -> work pool)
+  for i = 1 to Worker_spawn.workers n do
+    Worker_spawn.spawn (fun () -> Option.iter (fun name -> Task_names.here (name i)) name; work pool)
   done;
   pool
 

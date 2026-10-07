@@ -64,7 +64,7 @@ let workers = 16
 let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache ?replay () : 'msg t =
   (* the pool's workers may be domains, reading answers at the same time *)
   if threads && Worker_spawn.parallel then Http.ready ();
-  let pool = if threads then Some (Worker.create workers) else None in
+  let pool = if threads then Some (Worker.create ~name:(Printf.sprintf "fetch %d") workers) else None in
   { in_flight = []; pool; jar; agent; cache; sockets = Web_sockets.create ?pool (); replay }
 
 let jar (t : 'msg t) : Cookie_jar.t = t.jar

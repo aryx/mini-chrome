@@ -21,6 +21,8 @@ type model = {
   next_id : int;
   omnibox : Gui_field.t option; (* its text, while it is typed into (libs/gui); None, it shows the page's address *)
   places : Places.t; (* the pages seen, which the omnibox suggests and completes from; changed in place, as the cookies' jar *)
+  cpu : int list; (* the percents of a core the program took, all threads, as [memory]; and the last reading by thread (Browser_cpu) *)
+  tasks : Browser_cpu.task list;
   memory : int list; (* the megabytes the program holds, the last first, one every two seconds for a minute: the main's (Browser_version.resident); none, not shown *)
   suggested : int option; (* the suggestion the arrows chose, under the omnibox *)
   mouse : float * float;

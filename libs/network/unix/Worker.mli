@@ -54,7 +54,8 @@ type t
 type 'a job
 
 (* [create n]: a pool of [n] threads, waiting for jobs *)
-val create : int -> t
+(* [name]: what each thread says it is, the nth of the pool (Task_names) *)
+val create : ?name:(int -> string) -> int -> t
 
 (* [submit pool f]: [f ()] to be run by one of the pool's threads; returns
  * at once. The jobs start in the order submitted. *)

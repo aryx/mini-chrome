@@ -35,7 +35,7 @@ let init (network : < Cap.network ; .. >) ?jar ?cache ?(places = Places.create (
   if List.assoc_opt "tabs" flags = Some "domains" then Tab_jobs.start (max 1 (min 16 (Worker_spawn.workers 64 / 4)));
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
-    { tabs = []; current = 0; next_id = 0; omnibox = None; places; memory = []; suggested = None; mouse = (1000., 1000.); time = 0.; busy = None;
+    { tabs = []; current = 0; next_id = 0; omnibox = None; places; memory = []; cpu = []; tasks = []; suggested = None; mouse = (1000., 1000.); time = 0.; busy = None;
       css = List.assoc_opt "css" flags <> Some "off"; panel; inspecting = false; selected = None;
       engine = Option.value (List.assoc_opt "search" flags) ~default:"wikipedia";
       allowed = (match List.assoc_opt "scripts" flags with Some "off" -> [] | Some "on" -> [ everywhere ] | Some hosts -> String.split_on_char ',' hosts | None -> default_allowed);

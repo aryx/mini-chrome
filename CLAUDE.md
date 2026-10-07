@@ -145,7 +145,13 @@ and `profile=off` keep none: the dumps of this file, made with
 The memory held is said there too, before it (`Browser_memory`:
 megabytes in RAM from `/proc/self/statm`, read by the main every two
 seconds into the model's `memory`, a minute of them drawn as bars;
-`about:memory` tells the tabs' share and the disk's). Not read under
+`about:memory` tells the tabs' share and the disk's). And before
+that, how busy the program's threads are (`Browser_cpu`: each
+thread's time from `/proc/self/task/*/stat`, the model's `cpu` their
+sum, 100% a core, and `tasks` the last reading a thread, which
+`about:memory` lists by name -- a pool's thread says who it is as it
+starts, `Task_names.here`, `libs/opti`: "the window", "tab domain 3",
+"fetch 5"; a new pool names its threads). Not read under
 SDL's dummy driver, so a dump stays the same on every machine, unless
 `memory=on`; `memory=off` never reads it.
 

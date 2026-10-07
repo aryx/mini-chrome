@@ -199,10 +199,22 @@ let save_places (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string opti
  * dump being the same on every machine -- unless memory=on *)
 let measured : float ref = ref 0.
 
+(* and with it what each thread did since the reading before (Browser_cpu) *)
+let ticks : Browser_cpu.reading ref = ref []
+
 let with_memory (caps : < Cap.open_in ; .. >) ~(on : bool) (m : Window_model.model) : Window_model.model =
-  if on && Unix.gettimeofday () -. !measured >= 2. then (
-    measured := Unix.gettimeofday ();
-    { m with memory = Browser_memory.resident caps :: List.filteri (fun i _ -> i < 29) m.memory })
+  let now = Unix.gettimeofday () in
+  if on && now -. !measured >= 2. then (
+    let before = !ticks and seconds = now -. !measured in
+    ticks := Browser_cpu.read caps;
+    measured := now;
+    let last n l = List.filteri (fun i _ -> i < n) l in
+    let m = { m with memory = Browser_memory.resident caps :: last 29 m.memory } in
+    (* the first reading has none before it; elsewhere than Linux there is none *)
+    if before = [] || !ticks = [] then m
+    else
+      let tasks = Browser_cpu.busy ~before ~after:!ticks ~seconds in
+      { m with tasks; cpu = Browser_cpu.total tasks :: last 29 m.cpu })
   else m
 
 (* a long run's result when it ends, and the messages kept until then *)
@@ -310,6 +322,7 @@ let main = Program.main __MODULE__ (fun () ->
        * flags (): Logs' level. A line at a time, the answers coming
        * from the pool's threads too (Tls_client's roots) *)
       Logs.set_reporter (reporter ());
+      Task_names.here "the window";
       Logs.info (fun m -> m "ran as %s from %s" (CapSys.argv caps).(0) (Sys.getcwd ()));
       let flags = if List.mem_assoc "threads" flags then flags else ("threads", "on") :: flags in
       (* the collector given more room before it goes through the heap

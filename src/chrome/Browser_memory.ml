@@ -25,13 +25,13 @@ let resident (caps : < Cap.open_in ; .. >) : int =
 let bars = 30
 let graph_width = float_of_int (2 * bars)
 
-let graph (samples : int list) ~(x : float) ~(y : float) : shape list =
-  let top = float_of_int (List.fold_left max 1 samples) in
+let graph ?(least = 1) ?(colour = rgb 214 226 245) (samples : int list) ~(x : float) ~(y : float) : shape list =
+  let top = float_of_int (List.fold_left max least samples) in
   (* the last first: drawn from the right *)
   List.mapi
     (fun i s ->
       let h = Float.max 1. (16. *. float_of_int s /. top) in
-      rectangle (rgb 214 226 245) 2. h |> move (x -. 1. -. (2. *. float_of_int i)) (y -. 8. +. (h /. 2.)))
+      rectangle colour 2. h |> move (x -. 1. -. (2. *. float_of_int i)) (y -. 8. +. (h /. 2.)))
     (List.filteri (fun i _ -> i < bars) samples)
 
 type tab = { title : string; kept : int; pictures : int; pixels_mb : int; heap_mb : int }
@@ -44,7 +44,7 @@ let tab (t : Browser_tab.t) : tab =
     (* all that is reached from the tab, in OCaml's heap: its page, the pages kept, its scripts' worlds *)
     heap_mb = mb (Obj.reachable_words (Obj.repr t) * (Sys.word_size / 8)) }
 
-let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string) option) ~(profile : string option) : string =
+let page ~(cpu : string) ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string) option) ~(profile : string option) : string =
   let esc = Browser_text.escape_html in
   let row (t : tab) = Printf.sprintf "<tr><td>%s</td><td>%d MB</td><td>%d</td><td>%d</td><td>%d MB</td></tr>\n" (esc t.title) t.heap_mb t.kept t.pictures t.pixels_mb in
   let now = match samples with s :: _ -> Printf.sprintf "%d MB" s | [] -> "not measured (memory=off, or a frame dumped)" in
@@ -63,7 +63,7 @@ let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string)
 <tr><th>The last minute</th><td>%s</td></tr>
 <tr><th>OCaml's heap</th><td>%d MB <small>(the pages' trees, the scripts' objects; not the pictures' pixels)</small></td></tr>
 </table></div>
-<div class="card"><h2>The tabs</h2>
+%s<div class="card"><h2>The tabs</h2>
 <table><tr><th>Tab</th><th>In the heap</th><th>Pages kept for Back</th><th>Pictures decoded</th><th>Their pixels</th></tr>
 %s</table>
 <p>A tab's heap is all that is reached from it: its page, the pages kept, its scripts' worlds (what two tabs share is counted in both; the pixels are beside it).</p>
@@ -78,6 +78,7 @@ let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string)
     now
     (if samples = [] then "-" else Printf.sprintf "from %d to %d MB" low high)
     (heap ())
+    cpu
     (String.concat "" (List.map row tabs))
     Bfcache.limit
     (mb Browser_picture.kept_bytes)

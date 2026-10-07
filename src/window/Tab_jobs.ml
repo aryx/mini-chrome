@@ -24,7 +24,7 @@ let start (n : int) : unit =
   else if n > 0 then (
     Logs.info (fun m -> m "tabs: %d domains for their work" n);
     (* each a pool of one: a tab stays on its domain *)
-    pools := Array.init n (fun _ -> Worker.create 1))
+    pools := Array.init n (fun i -> Worker.create ~name:(fun _ -> Printf.sprintf "tab domain %d" i) 1))
 
 let stop () : unit =
   pools := [||];

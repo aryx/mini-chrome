@@ -130,8 +130,14 @@ let buttons (m : model) : Gui_toolbar.t =
 let runtime (m : model) : string =
   (match m.memory with mb :: _ -> Printf.sprintf "%d MB   " mb | [] -> "") ^ Browser_version.label ~tabs:(Tab_jobs.domains ()) ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers ()
 
-(* what the strip's end takes: the label, and the memory's graph before it *)
-let runtime_width (m : model) : float = Gui_text.width (runtime m) +. if m.memory = [] then 0. else Browser_memory.graph_width +. 10.
+(* before it, the processor's share: all the threads', a core being 100% *)
+let cpu_label (m : model) : string = match m.cpu with p :: _ -> Printf.sprintf "%d%%" p | [] -> ""
+
+(* what the strip's end takes: the label and the memory's graph before it, the processor's label and graph before those *)
+let runtime_width (m : model) : float =
+  Gui_text.width (runtime m)
+  +. (if m.memory = [] then 0. else Browser_memory.graph_width +. 10.)
+  +. if m.cpu = [] then 0. else Gui_text.width (cpu_label m) +. Browser_memory.graph_width +. 24.
 
 let strip (m : model) : int Gui_tabs.t =
   let title (t : Browser_tab.t) = match t.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in

@@ -128,7 +128,14 @@ let view_unscaled (m : model) : shape list =
   @ (let runtime = runtime m in
      let x = -.left m -. 12. -. (cell *. float_of_int (String.length runtime)) in
      (* the memory held, a minute of it, before its number (Browser_memory) *)
-     monospace x (top m -. 22.) (rgb 214 226 245) runtime @ Browser_memory.graph m.memory ~x:(x -. 8.) ~y:(top m -. 22.))
+     monospace x (top m -. 22.) (rgb 214 226 245) runtime @ Browser_memory.graph m.memory ~x:(x -. 8.) ~y:(top m -. 22.)
+     (* and before those the processor's share, the same way (Browser_cpu): full height is a core, or the most seen *)
+     @
+     if m.cpu = [] then []
+     else
+       let label = cpu_label m and warm = rgb 245 222 190 in
+       let x = x -. (if m.memory = [] then 0. else Browser_memory.graph_width +. 10.) -. 14. -. (cell *. float_of_int (String.length label)) in
+       monospace x (top m -. 22.) warm label @ Browser_memory.graph ~least:100 ~colour:warm m.cpu ~x:(x -. 8.) ~y:(top m -. 22.))
   @ Gui_toolbar.shapes (buttons m)
   @ Omnibox.shapes (omnibox m)
   @ monospace (star_x m -. 12. -. (cell *. float_of_int (String.length percent + 1))) (toolbar_y m) muted percent
@@ -166,10 +173,10 @@ let animated (m : model) : bool =
  * was (==), but the time. Every field is named, so that a new one is a
  * warning here until it is said whether the view reads it *)
 let same_but_time
-    ({ tabs; current; next_id; omnibox; places = _; memory; suggested; mouse; time = _; busy; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
+    ({ tabs; current; next_id; omnibox; places = _; memory; cpu; tasks = _; suggested; mouse; time = _; busy; css; panel; inspecting; selected; engine; allowed; fetches; screen; ctrl; profile;
        profile_dir; saved; changed; menu; window; desktop; dots; shift; grab; selecting; last_click = _; pressed = _; fresh = _; late = _ } :
       model) (m : model) : bool =
-  tabs == m.tabs && busy = m.busy && current == m.current && next_id == m.next_id && omnibox == m.omnibox && memory == m.memory && suggested = m.suggested && mouse == m.mouse && css == m.css
+  tabs == m.tabs && busy = m.busy && current == m.current && next_id == m.next_id && omnibox == m.omnibox && memory == m.memory && cpu == m.cpu && suggested = m.suggested && mouse == m.mouse && css == m.css
   && panel == m.panel && inspecting == m.inspecting && selected == m.selected && engine == m.engine && allowed == m.allowed
   && fetches == m.fetches && screen == m.screen && ctrl == m.ctrl && profile == m.profile && profile_dir == m.profile_dir
   && saved == m.saved && changed == m.changed && menu == m.menu && window == m.window && desktop == m.desktop && dots == m.dots && shift == m.shift
