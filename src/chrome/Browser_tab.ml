@@ -284,7 +284,8 @@ let with_sheet (cfg : 'msg config) (tab : t) (url : string) (text : string) : t 
   match tab.state with
   | Shown p ->
       let fresh = fresh tab in
-      let more = wanted in
+      (* (laid out: a frame's document that just came has sheets of its own to ask for) *)
+      let more = if last then List.filter fresh (Browser_page.sheets_wanted (cfg.settings tab) p) else wanted in
       let pictures = if tab.images && last then List.filter fresh p.backgrounds else [] in
       { tab with queue = more @ tab.queue @ pictures; sheet_urls = more @ tab.sheet_urls; total = tab.total + List.length more + List.length pictures }
   | Loading _ -> tab
@@ -363,7 +364,8 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let fresh = List.fold_left (fun acc u -> if List.mem u acc || List.mem u tab.in_flight then acc else acc @ [ u ]) [] in
       let sheets = fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
       let wanted =
-        (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_tree.picture_src e)))
+        (* the page's pictures, and its frames' documents' (Browser_page's frames) *)
+        List.concat_map (fun (base, tree) -> Dom.find_all "img" tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve base) (Box_tree.picture_src e))) ((p.url, p.tree) :: p.frames)
         (* an <svg>'s <image href> (Svg_shapes) *)
         @ (Dom.find_all "image" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Dom.attribute ~extensions:true "href" e)))
         @ p.backgrounds

@@ -40,6 +40,7 @@ type t = {
   values : (Dom.element * Forms.value) list; (* the controls changed, by element (==) *)
   quirks : bool; (* no DOCTYPE: quirks mode (Computed.styles), by the box model *)
   backgrounds : string list; (* by the box model: the pictures of its boxes' background-image, absolute URLs *)
+  frames : (string * Dom.element) list; (* the documents its <iframe>s show (Frames), each with the address its links are of: their boxes are in [layout] *)
 }
 
 (* another way to lay a page out and draw it than CSS's box model: the

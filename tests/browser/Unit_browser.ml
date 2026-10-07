@@ -30,6 +30,27 @@ let element (p : Browser_page.t) (name : string) : Dom.element =
 let tests =
   Testo.categorize "Browser"
     [
+      Testo.create "Frames, the worked example: an iframe's document laid out in its box, its own sheet, a link in it" (fun () ->
+          let html =
+            {|<body style="margin: 0"><p style="margin: 0; height: 20px">before</p><iframe id=f width=400 height=100 style="border: 0; display: block" srcdoc="<style>h1 { margin: 0; font-size: 20px } body { margin: 10px }</style><h1 id=in>inside <a href='there'>a link</a></h1>"></iframe><iframe id=g src="inner.html" style="border: 0; display: block; width: 200px; height: 50px"></iframe><iframe id=none></iframe>|}
+          in
+          let p, s = styled [] html in
+          Alcotest.(check (list string)) "the document of src is asked for" [ "http://x.org/a/inner.html" ] (Browser_page.sheets_wanted s p);
+          Alcotest.(check int) "one frame's document so far" 1 (List.length p.frames);
+          (* a box of the frame's document: among the page's, under the iframe's *)
+          let rec find id (b : Html_layout.box) = match b.kind with Block e when Dom.attribute "id" e = Some id -> Some b | _ -> List.find_map (find id) b.children in
+          let f = Option.get (find "f" p.layout) and inside = Option.get (find "in" p.layout) in
+          Alcotest.(check (list (float 0.5))) "the iframe: its attributes' size, after the paragraph" [ 0.; 20.; 400.; 100. ] [ f.x; f.y; f.width; f.height ];
+          Alcotest.(check (list (float 0.5))) "its heading: at its own body's margin, in the frame's width" [ 10.; 30.; 380. ] [ inside.x; inside.y; inside.width ];
+          Alcotest.(check (option string)) "a link of the frame is found by a click" (Some "there") (Hit.link_at p.layout ~x:100. ~y:40.);
+          (* the document of src, once it has come, with a sheet of its own to ask for and a frame in it *)
+          let inner = {|<link rel=stylesheet href="inner.css"><p id=deep style="margin: 0">fetched</p><iframe srcdoc="<b id=nested>n</b>" style="border: 0; display: block" width=50 height=20></iframe>|} in
+          let p, s = styled [ ("http://x.org/a/inner.html", inner) ] html in
+          Alcotest.(check (list string)) "its sheet is asked for, by its own address" [ "http://x.org/a/inner.css" ] (Browser_page.sheets_wanted s p);
+          Alcotest.(check int) "three documents: the two frames', and the frame's frame's" 3 (List.length p.frames);
+          let deep = Option.get (find "deep" p.layout) in
+          Alcotest.(check (list (float 0.5))) "laid out in the second frame, 200 wide less its body's margins" [ 8.; 128.; 184. ] [ deep.x; deep.y; deep.width ];
+          Alcotest.(check bool) "an iframe with nothing to show is an empty box" true ((Option.get (find "none" p.layout)).children = []));
       Testo.create "a picture without area is not drawn (<img width=0>)" (fun () ->
           let img = Rgba_image.create ~width:1 ~height:1 in
           Alcotest.(check int) "10 by 10: one shape" 1 (List.length (Browser_picture.drawn 10. 10. img));

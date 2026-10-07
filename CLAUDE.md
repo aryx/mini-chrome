@@ -294,6 +294,14 @@ as `Flex_layout` and `Table_layout`) and `Css_grid`'s values
 (an item laid out, its content measured) -- the way to add a layout
 without growing `Box_layout`.
 
+An `<iframe>`'s document is laid out by `Browser_page` (`with_frames`)
+at its box's size and its boxes put under the iframe's
+(`Frames.graft`, `src/www`): what draws, clips and hit-tests the page
+then does the frame's too, with no second window. The documents shown
+are the page's `frames`, for the tab to ask their sheets and pictures;
+one that comes by `src` is fetched as a sheet is (`settings.sheet`).
+No script of a frame runs yet.
+
 The built-in site is the browser's demonstration: `about:chrome`
 (`data/about/chrome.html`, `chrome.css`) has a card for each thing the
 engine does (the box model, the attributes' hints, flexbox, grid,

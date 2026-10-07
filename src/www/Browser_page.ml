@@ -27,6 +27,7 @@ type t = {
   values : (Dom.element * Forms.value) list;
   quirks : bool;
   backgrounds : string list;
+  frames : (string * Dom.element) list;
 }
 
 type engine =
@@ -232,8 +233,52 @@ let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascad
  * Browser_boxes), the page's colour its root's or its body's (CSS 2.1
  * section 14.2: the canvas) -- or by another engine, if the settings
  * give one *)
+(* a frame's styles, kept by its tree (Frames.tree_of gives the same
+ * one for the same text), its size and its sheets: the page around it
+ * is laid out again far more often than a frame changes *)
+let frame_styles : (Dom.element * Cascade.media * Cascade.sheet list * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) list ref = ref []
+
+(* the page's boxes with its frames' in them (Frames.graft), and the
+ * documents those frames show, each with the address its links are
+ * of: an <iframe>'s document laid out at its box's size, with its own
+ * sheets; its own frames the same way *)
+let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxes : Box_types.box) : Box_types.box * (string * Dom.element) list =
+  let shown = ref [] in
+  let frame (e : Dom.element) ~(width : float) ~(height : float) : Box_types.box option =
+    let document =
+      match Frames.source e with
+      | Some (Inline text) -> Some (base, Frames.tree_of text)
+      | Some (Address a) -> let url = Browser_url.resolve base a in Option.map (fun text -> (url, Frames.tree_of text)) (s.sheet url)
+      | None -> None
+    in
+    Option.map
+      (fun (base, tree) ->
+        let s = { s with width; height } and media : Cascade.media = { width; height } in
+        let sheets = if s.css then fst (page_sheets s media base tree) else [] in
+        let same a b = List.length a = List.length b && List.for_all2 (fun (x : Cascade.sheet) (y : Cascade.sheet) -> x.rules == y.rules) a b in
+        let styles, kids =
+          match List.find_opt (fun (t, m, sh, _) -> t == tree && m = media && same sh sheets) !frame_styles with
+          | Some (_, _, _, styles) -> styles
+          | None ->
+              let styles = Computed.styles_all ~visited ~quirks:false media sheets tree in
+              frame_styles := (tree, media, sheets, styles) :: List.filteri (fun i _ -> i < 7) !frame_styles;
+              styles
+        in
+        let picture_size src = Option.bind (s.picture (Browser_url.resolve base src)) Browser_picture.size in
+        let inside = Box_layout.layout Browser_text.metrics ~picture_size ~kids ~viewport:(width, height) styles tree in
+        (* its canvas: its root's colour, or its body's, over the whole frame (CSS 2.1, 14.2) *)
+        let canvas = List.find_map (fun e -> match (styles e).background with c when c.a > 0. -> Some c | _ -> None) (tree :: Dom.find_all "body" tree) in
+        let inside = { inside with height = Float.max inside.height height; style = (match canvas with Some background -> { inside.style with background } | None -> inside.style) } in
+        let inside, deeper = if level < Frames.depth then with_frames ~level:(level + 1) ~visited s base inside else (inside, []) in
+        shown := ((base, tree) :: deeper) @ !shown;
+        inside)
+      document
+  in
+  let boxes = Frames.graft frame boxes in
+  (boxes, List.rev !shown)
+
 let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element) :
-    Html_layout.box * Browser_draw.drawn * Looks.color option * string list =
+    Html_layout.box * Browser_draw.drawn * Looks.color option * string list * (string * Dom.element) list =
   (* a tree as the parser left it: its declared shadow trees in their
    * hosts' place (Shadow_tree; a script's are composed already) *)
   let tree = Shadow_tree.composed tree in
@@ -243,7 +288,7 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
   match s.engine with
   | Some engine ->
       let layout, drawn, background = engine ~visited ~picture ~width:s.width tree in
-      (layout, drawn, background, [])
+      (layout, drawn, background, [], [])
   | None ->
     let media : Cascade.media = { width = s.width; height = s.height } in
     let sheets = Stopwatch.time "sheets" (fun () -> if s.css then fst (page_sheets s media base tree) else []) in
@@ -251,6 +296,8 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
      *   let styles = Computed.styles ~visited ~quirks media sheets tree in *)
     let styles, kids = Stopwatch.time "styles" (fun () -> styles_of ~visited ~quirks media sheets tree) in
     let boxes = Stopwatch.time "boxes" (fun () -> Box_layout.layout Browser_text.metrics ~picture_size ~kids ~viewport:(s.width, s.height) styles tree) in
+    (* its frames' documents, laid out in their boxes (most pages have none) *)
+    let boxes, frames = if Dom.find_all "iframe" tree = [] then (boxes, []) else Stopwatch.time "frames" (fun () -> with_frames ~level:1 ~visited s base boxes) in
     let canvas =
       List.find_map
         (fun e -> match (styles e).background with c when c.a > 0. -> Some (c.r, c.g, c.b) | _ -> None)
@@ -263,22 +310,30 @@ let lay_out ?(quirks = false) (s : settings) (base : string) (tree : Dom.element
         [ b.style.background_image; b.style.mask_image ]
       @ List.concat_map backgrounds b.children @ List.concat_map backgrounds b.backdrops
     in
-    Stopwatch.time "shapes" (fun () -> (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, canvas, List.sort_uniq compare (backgrounds boxes)))
+    Stopwatch.time "shapes" (fun () -> (Box_tree.as_html_layout boxes, Browser_boxes.draw ~visited ~picture_of:picture boxes, canvas, List.sort_uniq compare (backgrounds boxes), frames))
 
+(* the page's sheets, its frames' documents (which come as a sheet's
+ * text does: by their address, asked of [s.sheet]) and those
+ * documents' own sheets *)
 let sheets_wanted (s : settings) (p : t) : string list =
-  if s.engine = None && s.css then snd (page_sheets s { width = s.width; height = s.height } p.url p.tree) else []
+  if s.engine = None && s.css then
+    let media : Cascade.media = { width = s.width; height = s.height } in
+    let documents (base, tree) = List.filter (fun u -> s.sheet u = None) (List.map (Browser_url.resolve base) (Frames.addresses tree)) in
+    snd (page_sheets s media p.url p.tree) @ documents (p.url, p.tree) @ List.concat_map (fun (base, tree) -> snd (page_sheets s media base tree) @ documents (base, tree)) p.frames
+  else []
 
 let laid_out (s : settings) (p : t) : t =
-  let layout, drawn, canvas, backgrounds = lay_out ~quirks:p.quirks s p.url p.tree in
-  { p with layout; drawn; background = canvas; backgrounds }
+  let layout, drawn, canvas, backgrounds, frames = lay_out ~quirks:p.quirks s p.url p.tree in
+  { p with layout; drawn; background = canvas; backgrounds; frames }
 
 let title_of (tree : Dom.element) : string =
   match Dom.find_all "title" tree with t :: _ -> String.trim (Dom.text_content t) | [] -> ""
 
 let with_tree (s : settings) (p : t) (tree : Dom.element) : t =
-  let layout, drawn, canvas, backgrounds = lay_out ~quirks:p.quirks s p.url tree in
+  let layout, drawn, canvas, backgrounds, frames = lay_out ~quirks:p.quirks s p.url tree in
   {
     p with
+    frames;
     tree;
     line_mode = Line_mode.render tree;
     title = title_of tree;
@@ -300,7 +355,7 @@ let read (s : settings) (url : string) (status : int) (content_type : string opt
   let title = title_of tree in
   (* no DOCTYPE: the page written for the browsers of the 1990s *)
   let quirks = not (List.exists (fun (t : Html_lexer.token) -> match t with Doctype _ -> true | _ -> false) tokens) in
-  let layout, drawn, canvas, backgrounds = lay_out ~quirks s url tree in
+  let layout, drawn, canvas, backgrounds, frames = lay_out ~quirks s url tree in
   {
     url;
     status;
@@ -318,6 +373,7 @@ let read (s : settings) (url : string) (status : int) (content_type : string opt
     values = [];
     quirks;
     backgrounds;
+    frames;
   }
 
 (*****************************************************************************)

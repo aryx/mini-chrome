@@ -817,6 +817,18 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- frames (Frames, new, in src/www): an <iframe> is a box of the page,
+  300 by 150 unless its attributes or its style say, in which its
+  document is laid out -- its srcdoc's text, or what its src gives
+  (fetched as a sheet is), with its own style sheets and pictures, a
+  frame in it the same way, three deep. The document's boxes are put
+  among the page's, under the iframe's, so that they are drawn, cut
+  at its edge and found by a click as the page's own are. Not yet: a
+  frame's scripts (none runs, and the page's sees an empty
+  contentWindow), a frame scrolled by itself. A deck of Slipshow's
+  (aryx.github.io/ocaml-caps: the whole deck is a srcdoc) shows its
+  text and no longer a blank page, not yet its slides: its scripts
+  place them. about:chrome has a card
 - a padding that a calc() makes negative is none: LWN centres its
   article with padding-left: calc(50% * var(--centre) - 32em), which
   is -32em for a reader who did not ask for it, and the article began

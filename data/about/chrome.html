@@ -165,6 +165,16 @@
   </div>
 
   <div class="card">
+    <h2>Frames</h2>
+    <p>A document inside another: an <code>&lt;iframe&gt;</code> is a box of
+    the page in which another page is laid out, with its own style
+    sheets, cut at the box's edge. Its document is its <code>srcdoc</code>'s
+    text, or what its <code>src</code> gives. An advertisement, a video's
+    player, a map, a deck of slides: other sites' pieces in a page.</p>
+    <p><iframe width="420" height="84" srcdoc="&lt;style&gt;body { margin: 8px; background: #eef4ff; font-family: sans-serif } b { color: #1a73e8 }&lt;/style&gt;&lt;b&gt;Inside the frame.&lt;/b&gt; A page of its own, with its own sheet: the &lt;code&gt;body&lt;/code&gt; here is not the page's. &lt;a href='about:tube'&gt;A link in it&lt;/a&gt;."></iframe></p>
+    <pre>&lt;iframe width="420" height="84" srcdoc="&amp;lt;style&amp;gt;body { background: #eef4ff }..."&gt;</pre>
+  </div>
+  <div class="card">
     <h2>Folded, with no script <span class="badge">HTML5</span></h2>
     <p>For fifteen years a part of a page that opens on a click was a
     script's work. <code>&lt;details&gt;</code> made it an element: click
