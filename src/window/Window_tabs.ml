@@ -66,7 +66,8 @@ let config (m : model) (id : int) : msg Browser_tab.config =
     got_answer = (fun rid url r -> Got_answer (id, rid, url, r));
     socket = (fun ask -> Socket (id, ask));
     fetch = (fun r -> Start_fetch r);
-    connections = 6;
+    (* a tab's requests in flight: six, a browser's for a host; twelve where the pool's workers are domains *)
+    connections = (if Worker_spawn.parallel then 12 else 6);
     visible = (match List.find_opt (fun t -> t.id = id) m.tabs with Some t -> visible_lines m t.tab | None -> 0);
     line_height;
     (* the built-in pages' scripts, and the allowed sites' *)

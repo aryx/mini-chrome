@@ -38,11 +38,11 @@ let tests (caps : < Cap.open_in ; Cap.open_out ; .. >) =
               let left = Array.length (Sys.readdir dir) in
               Alcotest.(check bool) "held under its size" true (left < 100)));
       Testo.create "about:version, and the strip's label: the compiler, the pool" (fun () ->
-          let label = Browser_version.label ~threads:true ~workers:8 in
+          let label = Browser_version.label ~threads:true ~workers:8 () in
           let has text s = try ignore (Str.search_forward (Str.regexp_string s) text 0); true with Not_found -> false in
           Alcotest.(check bool) "the compiler's version; domains with OCaml 5, threads before" true
             (has label ("OCaml " ^ Sys.ocaml_version) && has label (if Worker_spawn.parallel then "domains" else "8 threads"));
-          Alcotest.(check string) "threads=off" ("OCaml " ^ Sys.ocaml_version ^ ", no threads") (Browser_version.label ~threads:false ~workers:8);
+          Alcotest.(check string) "threads=off" ("OCaml " ^ Sys.ocaml_version ^ ", no threads") (Browser_version.label ~threads:false ~workers:8 ());
           let page = Browser_version.page ~threads:true ~workers:8 ~profile:(Some "/home/x/.config/mini-chrome") ~cache:None in
           Alcotest.(check bool) "the page: the profile's place, no cache" true (has page "/home/x/.config/mini-chrome" && has page "none (cache=off"));
     ]

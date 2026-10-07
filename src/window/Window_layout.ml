@@ -128,7 +128,7 @@ let buttons (m : model) : Gui_toolbar.t =
 
 (* the strip's end: the memory held, then which program this is *)
 let runtime (m : model) : string =
-  (match m.memory with mb :: _ -> Printf.sprintf "%d MB   " mb | [] -> "") ^ Browser_version.label ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers
+  (match m.memory with mb :: _ -> Printf.sprintf "%d MB   " mb | [] -> "") ^ Browser_version.label ~tabs:(Tab_jobs.domains ()) ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers ()
 
 (* what the strip's end takes: the label, and the memory's graph before it *)
 let runtime_width (m : model) : float = Gui_text.width (runtime m) +. if m.memory = [] then 0. else Browser_memory.graph_width +. 10.

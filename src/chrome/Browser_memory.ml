@@ -34,17 +34,19 @@ let graph (samples : int list) ~(x : float) ~(y : float) : shape list =
       rectangle (rgb 214 226 245) 2. h |> move (x -. 1. -. (2. *. float_of_int i)) (y -. 8. +. (h /. 2.)))
     (List.filteri (fun i _ -> i < bars) samples)
 
-type tab = { title : string; kept : int; pictures : int; pixels_mb : int }
+type tab = { title : string; kept : int; pictures : int; pixels_mb : int; heap_mb : int }
 
 let tab (t : Browser_tab.t) : tab =
   let kept (entries : Browser_tab.entry list) = List.length (List.filter (fun (e : Browser_tab.entry) -> e.kept <> None) entries) in
   let pixels = List.fold_left (fun n (_, p) -> match p with Browser_picture.Arrived img -> n + (4 * img.width * img.height) | _ -> n) 0 t.pictures in
   { title = (match t.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading url -> url);
-    kept = kept t.history.behind + kept t.history.ahead; pictures = List.length t.pictures; pixels_mb = mb pixels }
+    kept = kept t.history.behind + kept t.history.ahead; pictures = List.length t.pictures; pixels_mb = mb pixels;
+    (* all that is reached from the tab, in OCaml's heap: its page, the pages kept, its scripts' worlds *)
+    heap_mb = mb (Obj.reachable_words (Obj.repr t) * (Sys.word_size / 8)) }
 
 let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string) option) ~(profile : string option) : string =
   let esc = Browser_text.escape_html in
-  let row (t : tab) = Printf.sprintf "<tr><td>%s</td><td>%d</td><td>%d</td><td>%d MB</td></tr>\n" (esc t.title) t.kept t.pictures t.pixels_mb in
+  let row (t : tab) = Printf.sprintf "<tr><td>%s</td><td>%d MB</td><td>%d</td><td>%d</td><td>%d MB</td></tr>\n" (esc t.title) t.heap_mb t.kept t.pictures t.pixels_mb in
   let now = match samples with s :: _ -> Printf.sprintf "%d MB" s | [] -> "not measured (memory=off, or a frame dumped)" in
   let high = List.fold_left max 0 samples and low = List.fold_left min max_int samples in
   Printf.sprintf
@@ -62,8 +64,9 @@ let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string)
 <tr><th>OCaml's heap</th><td>%d MB <small>(the pages' trees, the scripts' objects; not the pictures' pixels)</small></td></tr>
 </table></div>
 <div class="card"><h2>The tabs</h2>
-<table><tr><th>Tab</th><th>Pages kept for Back</th><th>Pictures decoded</th><th>Their pixels</th></tr>
+<table><tr><th>Tab</th><th>In the heap</th><th>Pages kept for Back</th><th>Pictures decoded</th><th>Their pixels</th></tr>
 %s</table>
+<p>A tab's heap is all that is reached from it: its page, the pages kept, its scripts' worlds (what two tabs share is counted in both; the pixels are beside it).</p>
 <p>A page left is kept whole, with its scripts' world, while it is one of the %d nearest behind or ahead; further, Back loads it again. A picture decoded is four bytes a dot: the page shown keeps its own, a tab %d MB of the pages before.</p></div>
 <div class="card"><h2>On disk</h2>
 <table>

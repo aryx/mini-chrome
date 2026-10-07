@@ -51,7 +51,7 @@ val graph_width : float
 
 (* what a tab holds: its title, the pages kept behind and ahead, its
    pictures decoded and their megabytes *)
-type tab = { title : string; kept : int; pictures : int; pixels_mb : int }
+type tab = { title : string; kept : int; pictures : int; pixels_mb : int; heap_mb : int (* all that is reached from it in OCaml's heap (Obj.reachable_words) *) }
 
 val tab : Browser_tab.t -> tab
 

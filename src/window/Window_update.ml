@@ -29,8 +29,10 @@ let first_pages (engine : string) (flags : flags) : string list =
   | urls -> urls
 
 let init (network : < Cap.network ; .. >) ?jar ?cache ?(places = Places.create ()) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
-  (* tabs=domains: a tab's work on a domain of its own (Tab_jobs); four of them, or as many as the machine has to spare *)
-  if List.assoc_opt "tabs" flags = Some "domains" then Tab_jobs.start (max 1 (min 4 (Worker_spawn.workers 4)));
+  (* tabs=domains: a tab's work on a domain of its own (Tab_jobs); sixteen
+   * of them at most, a quarter of the machine's cores (the network's
+   * pool has its own, and the window one) *)
+  if List.assoc_opt "tabs" flags = Some "domains" then Tab_jobs.start (max 1 (min 16 (Worker_spawn.workers 64 / 4)));
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
     { tabs = []; current = 0; next_id = 0; omnibox = None; places; memory = []; suggested = None; mouse = (1000., 1000.); time = 0.; busy = None;
@@ -219,15 +221,30 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
   (* a page that is a program (a game, the Playground's own web
    * platform) is told first; then the browser does its own, unless a
    * script prevented it *)
+  (* a mouse's event has a pointer's twin, told just before it: the
+   * events of 2012 for mouse, pen and finger alike, which a framework
+   * that finds PointerEvent listens to and to no other (Overture's,
+   * of Fastmail and Topicbox: a message of a thread was not opened by
+   * a click it never heard) *)
+  let twin typ = match typ with "mousedown" -> Some "pointerdown" | "mouseup" -> Some "pointerup" | "mousemove" -> Some "pointermove" | _ -> None in
+  let hears s typ = Browser_script.listens s typ || match twin typ with Some p -> Browser_script.listens s p | None -> false in
   match (told m msg, (current_tab m).script) with
-  | Some (typ, fields), Some s when (not (Tab_jobs.away m.current)) && Browser_script.listens s typ ->
+  | Some (typ, fields), Some s when (not (Tab_jobs.away m.current)) && hears s typ ->
       (* the pointer's events are of the element under it *)
       let at =
         match (msg, (current_tab m).state, page_point m) with
         | (Click | Mouse_up | Mouse_move _ | Wheel _), Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y
         | _ -> None
       in
-      let m, cmd, prevented = task network m (fun s -> Browser_script.window_event ?at s typ fields) in
+      let m, cmd, prevented =
+        task network m (fun s ->
+            (match twin typ with
+            | Some pointer ->
+                let more = [ ("pointerId", Js_value.Number 1.); ("pointerType", Js_value.String "mouse"); ("isPrimary", Js_value.Bool true); ("width", Js_value.Number 1.); ("height", Js_value.Number 1.); ("pressure", Js_value.Number (if typ = "mouseup" then 0. else 0.5)) ] in
+                ignore (Browser_script.window_event ?at s pointer (fields @ more))
+            | None -> ());
+            Browser_script.window_event ?at s typ fields)
+      in
       (* a page told of the button going down is told its click when it
        * comes up, after the mouseup -- mousedown, mouseup, click, the
        * order every page counts on (an application that tracks the

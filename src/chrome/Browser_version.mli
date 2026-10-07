@@ -22,7 +22,7 @@
 
 (* "OCaml 5.5.1, 8 domains", "OCaml 4.14.2, 8 threads", "OCaml 4.14.2,
  * no threads": [threads] whether there is a pool, of [workers] asked *)
-val label : threads:bool -> workers:int -> string
+val label : ?tabs:int -> threads:bool -> workers:int -> unit -> string
 
 (* about:version *)
 val page : threads:bool -> workers:int -> profile:string option -> cache:string option -> string

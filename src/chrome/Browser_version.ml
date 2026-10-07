@@ -14,7 +14,9 @@ let workers_of ~(threads : bool) ~(workers : int) : string =
   if not threads then "no threads"
   else Printf.sprintf "%d %s" (Worker_spawn.workers workers) (if Worker_spawn.parallel then "domains" else "threads")
 
-let label ~(threads : bool) ~(workers : int) : string = Printf.sprintf "OCaml %s, %s" Sys.ocaml_version (workers_of ~threads ~workers)
+(* [tabs]: the domains the tabs' work is done on (tabs=domains), said after the network's *)
+let label ?(tabs = 0) ~(threads : bool) ~(workers : int) () : string =
+  Printf.sprintf "OCaml %s, %s%s" Sys.ocaml_version (workers_of ~threads ~workers) (if tabs > 0 then Printf.sprintf " + %d for tabs" tabs else "")
 
 let page ~(threads : bool) ~(workers : int) ~(profile : string option) ~(cache : string option) : string =
   let esc = Browser_text.escape_html in

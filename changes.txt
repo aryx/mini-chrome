@@ -600,6 +600,9 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- the pointer's events (pointerdown, pointermove, pointerup: mouse,
+  pen and finger as one, 2012) are told with the mouse's, each just
+  before its twin, to a page that listens for them
 - Date.now() moves during a long run (past a twentieth of a second of
   it): a page that waits by asking the time again and again -- while
   (Date.now() - start < 4000) -- waited for ever, the page's clock
@@ -1218,6 +1221,15 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- more of the machine used (OCaml 5): the network's pool is sixteen
+  workers at most (it was eight), a tab keeps twelve requests in
+  flight (six), and tabs=domains gives the tabs sixteen domains at
+  most, a quarter of the cores (four). The strip's label says both
+  ("16 domains + 15 for tabs": it said the network's alone, which
+  read as if the tabs had none)
+- about:memory says what each tab holds in OCaml's heap: all that is
+  reached from it (Obj.reachable_words) -- its page, the pages kept,
+  its scripts' worlds
 - tabs=domains (OCaml 5; Tab_jobs, new, in src/window): a tab's work
   -- its page read, its scripts and their timers, its layout, its
   pictures and answers -- is a job on a domain of its own, of four,

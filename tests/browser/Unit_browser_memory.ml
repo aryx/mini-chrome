@@ -27,11 +27,11 @@ let tests caps =
       Testo.create "about:memory: the samples, a tab's pictures, the cache on disk" (fun () ->
           let page =
             Browser_memory.page ~samples:[ 412; 300; 95 ]
-              ~tabs:[ { title = "A <page>"; kept = 2; pictures = 8; pixels_mb = 352 } ]
+              ~tabs:[ { title = "A <page>"; kept = 2; pictures = 8; pixels_mb = 352; heap_mb = 41 } ]
               ~cache:(Some (120, 30 * 1_048_576, "/home/x/.cache/mini-chrome")) ~profile:None
           in
           List.iter
             (fun word -> if not (has page word) then Alcotest.failf "%S is not on the page" word)
-            [ "412 MB"; "from 95 to 412 MB"; "A &lt;page&gt;"; "<td>2</td><td>8</td><td>352 MB</td>"; "120, 30 MB"; "none (profile=off)" ];
+            [ "412 MB"; "from 95 to 412 MB"; "A &lt;page&gt;"; "<td>41 MB</td><td>2</td><td>8</td><td>352 MB</td>"; "120, 30 MB"; "none (profile=off)" ];
           Alcotest.(check bool) "not measured: said" true (has (Browser_memory.page ~samples:[] ~tabs:[] ~cache:None ~profile:None) "not measured"));
     ]

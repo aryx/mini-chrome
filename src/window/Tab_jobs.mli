@@ -37,7 +37,8 @@
    - what the tabs' code kept in globals is a domain's own
      (Per_domain), or locked.
 
-   A tab is given a domain by its number, of four at most: its caches
+   A tab is given a domain by its number, of sixteen at most (a quarter
+   of the machine's cores): its caches
    stay warm there, and two tabs on one domain take turns.
 
    wib: a script started by a click (not by the page's load or its
@@ -61,6 +62,7 @@ type work = msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t
 (* tabs=domains, and a compiler that has domains: how many, 0 for none *)
 val start : int -> unit
 val enabled : unit -> bool
+val domains : unit -> int
 
 (* no more: the tabs' work in the window's domain again (what was away is forgotten; a test's end) *)
 val stop : unit -> unit

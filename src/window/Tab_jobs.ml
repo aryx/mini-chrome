@@ -32,6 +32,7 @@ let stop () : unit =
   kept := []
 
 let enabled () : bool = Array.length !pools > 0
+let domains () : int = Array.length !pools
 let away (id : int) : bool = Hashtbl.mem jobs id
 
 let send (id : int) (cfg : msg Browser_tab.config) (tab : Browser_tab.t) (f : work) : unit =

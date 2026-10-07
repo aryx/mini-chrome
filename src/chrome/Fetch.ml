@@ -53,10 +53,13 @@ type 'msg t = {
   replay : (string -> string option) option;
 }
 
-(* eight workers (a browser's six connections a host, Netscape's four,
- * and room for a picture being decoded): at most eight names resolved
- * or https:// fetches at once, the others queued *)
-let workers = 8
+(* sixteen workers at most, as many as the machine has cores to spare
+ * (Worker_spawn.workers: under OCaml 5 each is a domain; eight on a
+ * machine of nine cores, three on one of four): that many names
+ * resolved, https:// fetches and pictures decoded at once, the others
+ * queued. It was eight, a browser's six connections a host and room
+ * for a picture being decoded *)
+let workers = 16
 
 let create ?(threads = true) ?(jar = Cookie_jar.create ()) ?agent ?cache ?replay () : 'msg t =
   (* the pool's workers may be domains, reading answers at the same time *)
