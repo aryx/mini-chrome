@@ -58,6 +58,26 @@ let tests caps =
           Alcotest.(check bool) "a program that is not there: no rule" true (Browser_helpers.for_url (Browser_helpers.table caps own) "http://x.org/" = None);
           Alcotest.(check bool) "a program that does not exist is an error, not a crash" true
             (match Browser_helpers.launch caps [ "mini-chrome-no-such-program" ] with Error _ -> true | Ok () -> false));
+      Testo.create "the pages kept whole for Back are the nearest three; further, Back loads again" (fun () ->
+          let m = window caps "about:home" in
+          let send msg m = after caps (Window_update.update caps msg m) in
+          let go url (m : Window_model.model) =
+            let m = send Mouse_up (send Click { m with mouse = (Window_layout.omnibox_x m +. 30., Window_layout.toolbar_y m) }) in
+            let m = List.fold_left (fun m c -> send (Typed (String.make 1 c)) m) m (List.init (String.length url) (String.get url)) in
+            tick caps (m.time +. 1.) (send (Key "Return") m)
+          in
+          let pages = [ "about:history"; "about:form"; "about:css"; "about:netscape"; "about:firefox" ] in
+          let m = List.fold_left (fun m url -> go url m) m pages in
+          let behind = (Window_layout.current_tab m).history.behind in
+          Alcotest.(check (list string)) "five behind, the last left first" [ "about:netscape"; "about:css"; "about:form"; "about:history"; "about:home" ] (List.map (fun (e : Browser_tab.entry) -> e.at) behind);
+          Alcotest.(check (list bool)) "the nearest three kept whole" [ true; true; true; false; false ] (List.map (fun (e : Browser_tab.entry) -> e.kept <> None) behind);
+          (* Back, five times: each page is reached, kept or loaded again *)
+          let back (m : Window_model.model) = tick caps (m.time +. 1.) (send Click { m with mouse = (Window_layout.button_x m 0, Window_layout.toolbar_y m) }) in
+          let rec gone n m acc = if n = 0 then List.rev acc else let m = back m in gone (n - 1) m (Window_layout.current_url m :: acc) in
+          Alcotest.(check (list string)) "all the way back" [ "about:netscape"; "about:css"; "about:form"; "about:history"; "about:home" ] (gone 5 m []);
+          let far = List.fold_left (fun m () -> back m) m [ (); (); (); (); () ] in
+          Alcotest.(check (list bool)) "and ahead of the first, the nearest three again" [ true; true; true; false; false ]
+            (List.map (fun (e : Browser_tab.entry) -> e.kept <> None) (Window_layout.current_tab far).history.ahead));
       Testo.create "the omnibox suggests and completes the pages seen" (fun () ->
           let now = Unix.gettimeofday () in
           let places =

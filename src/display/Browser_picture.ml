@@ -54,6 +54,11 @@ let decode (bytes : string) : t =
   Mutex.unlock lock;
   match found with Some (_, pic) -> pic | None -> Stopwatch.time "pictures" (fun () -> decode bytes)
 
+(* how many bytes of pictures decoded a tab keeps besides its shown
+ * page's (four a dot): 128 MB, three photographs of a camera or
+ * a few hundred of a page *)
+let kept_bytes = 128 * 1024 * 1024
+
 let broken_size = 24.
 
 let drawn (w : float) (h : float) (img : Rgba_image.t) : Playground.shape list =

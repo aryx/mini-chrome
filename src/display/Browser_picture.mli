@@ -45,6 +45,11 @@ val decode : string -> t
 val warm : string -> unit
 
 (* the size a picture that could not be had takes: the broken image's *)
+(* the bytes of decoded pictures a tab keeps besides those of the page
+   it shows (four a dot): past it, the oldest are let go, and decoded
+   again if their page is shown again (Browser_tab.with_pictures) *)
+val kept_bytes : int
+
 val broken_size : float
 
 (* its size, for the layout, once known: its pixels', or the broken

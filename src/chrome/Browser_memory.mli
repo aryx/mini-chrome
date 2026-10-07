@@ -18,9 +18,11 @@
    what is on disk: the answers kept (Browser_cache), the profile's
    files.
 
-   Nothing is let go yet but what a closed tab held: a page left is
-   kept whole and a picture decoded stays decoded. The page says so;
-   what to drop first, and when, is the next thing to write.
+   Two limits keep a tab from only growing: the pages kept whole are
+   the nearest ones (Bfcache.limit each way), and the pictures of the
+   pages before stay decoded up to Browser_picture.kept_bytes. OCaml's
+   heap, once grown (a large picture's decoding takes ten times its
+   pixels for a moment), is not given back to the system.
 
    cs-history:
    about:memory is Firefox's (2011, from its "MemShrink" effort: the

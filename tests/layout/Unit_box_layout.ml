@@ -155,6 +155,11 @@ let tests =
           let name at = Option.bind (Hit.element_at h ~x:(fst at) ~y:(snd at)) (Dom.attribute "id") in
           Alcotest.(check (option string)) "the link is what a click finds, though it holds nothing" (Some "one") (name (60., 150.));
           Alcotest.(check (option string)) "beside it, the picture" (Some "pic") (name (300., 150.)));
+      Testo.create "a padding less than nothing is nothing" (fun () ->
+          (* LWN's article: padding-left: calc(50% * 0 - 32em) *)
+          let p = page {|<body style="margin: 0"><div style="padding-left: calc((50% * 0) - (65 * 1em) / 2); padding-top: calc(10px - 30px)"><div id=a style="height: 10px"></div></div><div style="padding-left: calc(10px + 20px)"><div id=b style="height: 10px"></div></div>|} in
+          Alcotest.(check (list near)) "at the left edge and the top, not before them" [ 0.; 0. ] [ (box "a" p).x; (box "a" p).y ];
+          Alcotest.(check (list near)) "a positive one as it is" [ 30. ] [ (box "b" p).x ]);
       Testo.create "a click finds the box drawn on top" (fun () ->
           (* the frame fills the window, its side bar is drawn over it:
            * the link there is what is under the pointer *)

@@ -19,8 +19,15 @@
  * instead of loading. An entry of the history (Browser_history) is an
  * address and, if the page got as far as being shown, one of these.
  *
- * wib: every page is kept, for as long as its tab: no limit on how
- * many, none on memory, and no page is refused. A page's sockets and
+ * The nearest pages alone are kept: [limit] behind and as many ahead
+ * (Browser_tab.trimmed). Further, an entry is its address, and going
+ * to it loads the page again -- from the answers kept on disk, mostly
+ * (Browser_cache), so in a moment, but at its top and its scripts
+ * started anew. A page's scripts' world is its largest part (an
+ * application's: hundreds of megabytes), and every page of a long
+ * visit kept was a tab that only grew.
+ *
+ * wib: the limit is a count, not a size, and no page is refused. A page's sockets and
  * requests in flight are not frozen with it (a WebSocket of a page
  * left stays open until its next message).
  *
@@ -44,4 +51,7 @@
 
 (* a page kept: itself, its scripts' world, its PDF document if it is
  * one, and how far down it was scrolled (in lines) *)
+(* how many pages are kept behind the one shown, and how many ahead *)
+val limit : int
+
 type t = { page : Browser_page.t; script : Browser_script.t option; document : Pdf_viewer.t option; scroll : int }

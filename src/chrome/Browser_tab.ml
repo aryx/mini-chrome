@@ -362,14 +362,36 @@ let with_pictures (cfg : 'msg config) (network : < Cap.network ; .. >) ((tab, cm
       let had url = match List.assoc_opt url tab.pictures with Some (Arrived _ | Broken) -> true | _ -> false in
       let fresh = List.fold_left (fun acc u -> if List.mem u acc || List.mem u tab.in_flight then acc else acc @ [ u ]) [] in
       let sheets = fresh (Browser_page.sheets_wanted (cfg.settings tab) p) in
-      let pictures =
+      let wanted =
         (Dom.find_all "img" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Box_tree.picture_src e)))
         (* an <svg>'s <image href> (Svg_shapes) *)
         @ (Dom.find_all "image" p.tree |> List.filter_map (fun e -> Option.map (Browser_url.resolve p.url) (Dom.attribute ~extensions:true "href" e)))
         @ p.backgrounds
         @ Option.to_list (icon_url tab)
-        |> List.filter (fun u -> not (had u) && Pdf_viewer.page_of_src u = None)
-        |> fresh
+      in
+      let pictures = wanted |> List.filter (fun u -> not (had u) && Pdf_viewer.page_of_src u = None) |> fresh in
+      (* the pictures of the pages before stay decoded (Back shows them
+       * at once) while they are not too many dots: past
+       * Browser_picture.kept_bytes, the oldest are let go -- they are
+       * fetched and decoded again if their page is shown again. The
+       * page shown keeps all of its own *)
+      let tab =
+        let bytes (pic : Browser_picture.t) = match pic with Arrived img -> 4 * img.width * img.height | _ -> 0 in
+        let _, kept =
+          List.fold_left
+            (fun (sum, acc) (u, pic) ->
+              if bytes pic = 0 || List.mem u wanted || Pdf_viewer.page_of_src u <> None then (sum, (u, pic) :: acc)
+              else if sum + bytes pic <= Browser_picture.kept_bytes then (sum + bytes pic, (u, pic) :: acc)
+              else (sum, acc))
+            (0, []) tab.pictures
+        in
+        if List.length kept = List.length tab.pictures then tab
+        else (
+          (* and the heap their decoding grew (ten times a photograph's
+           * pixels, for a moment) given back to the system: a pause of
+           * a tenth of a second, when a page is left *)
+          Gc.compact ();
+          { tab with pictures = List.rev kept })
       in
       let pictures = if tab.images then pictures else [] in
       (* the scripts' files between: the page's style first, its
@@ -415,12 +437,30 @@ let entry_of (tab : t) : entry =
   | Shown p -> { at = p.url; kept = Some { page = p; script = tab.script; document = tab.pdf; scroll = tab.scroll }; within = None }
   | Loading url -> { at = url; kept = None; within = None }
 
+(* the pages kept whole are the nearest ones, Bfcache.limit behind and
+ * as many ahead: further, an entry is its address alone, and Back to
+ * it loads the page again (from the answers kept on disk, mostly). A
+ * state of another document (its pushState's) lets that document go
+ * the same way; one of the document shown costs nothing and stays *)
+let trimmed (tab : t) : t =
+  let side (entries : entry list) : entry list =
+    let _, kept =
+      List.fold_left
+        (fun (n, acc) (e : entry) ->
+          let holds = e.kept <> None || (match (e.within, tab.script) with Some s, Some current -> s != current | Some _, None -> true | None, _ -> false) in
+          if not holds then (n, e :: acc) else if n < Bfcache.limit then (n + 1, e :: acc) else (n, { e with kept = None; within = None } :: acc))
+        (0, []) entries
+    in
+    List.rev kept
+  in
+  { tab with history = { behind = side tab.history.behind; ahead = side tab.history.ahead } }
+
 let visit ?post (cfg : 'msg config) (network : < Cap.network ; .. >) (url : string) (tab : t) : t * 'msg Cmd.t =
   let target, fragment = Browser_url.split_fragment url in
   let tab =
     {
       tab with
-      history = Browser_history.visit (entry_of tab) tab.history;
+      history = (trimmed { tab with history = Browser_history.visit (entry_of tab) tab.history }).history;
       visited = (if List.mem target tab.visited then tab.visited else target :: tab.visited);
       fragment;
     }
@@ -495,12 +535,12 @@ let restore (cfg : 'msg config) (network : < Cap.network ; .. >) (e : entry) (ta
 
 let back cfg network tab =
   match Browser_history.back (entry_of tab) tab.history with
-  | Some (e, history) -> restore cfg network e { tab with history }
+  | Some (e, history) -> restore cfg network e (trimmed { tab with history })
   | None -> (tab, Cmd.none)
 
 let forward cfg network tab =
   match Browser_history.forward (entry_of tab) tab.history with
-  | Some (e, history) -> restore cfg network e { tab with history }
+  | Some (e, history) -> restore cfg network e (trimmed { tab with history })
   | None -> (tab, Cmd.none)
 
 let stop (cfg : 'msg config) (tab : t) : t =

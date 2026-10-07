@@ -10,4 +10,6 @@
 
 (* See Bfcache.mli *)
 
+let limit = 3
+
 type t = { page : Browser_page.t; script : Browser_script.t option; document : Pdf_viewer.t option; scroll : int }

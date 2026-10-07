@@ -547,10 +547,12 @@ let compute (m : Cascade.media) ~(root_font_size : float) ~(parent : t) (declare
         size "margin-bottom" ~inh:pmb ~init:(Len zero),
         size "margin-left" ~inh:pml ~init:(Len zero) );
     padding =
-      ( length "padding-top" ~inh:ppt ~init:zero,
-        length "padding-right" ~inh:ppr ~init:zero,
-        length "padding-bottom" ~inh:ppb ~init:zero,
-        length "padding-left" ~inh:ppl ~init:zero );
+      (* never negative: what a calc() makes less than nothing is
+       * nothing (LWN centres its article with padding-left: calc(50% *
+       * var(--centre) - 32em), which is -32em for a reader who did not
+       * ask for it: the column began half a screen left of the window) *)
+      (let side name inh = match length name ~inh ~init:zero with (l : Css_values.length) when l.pct = 0. && l.px < 0. -> zero | l -> l in
+       (side "padding-top" ppt, side "padding-right" ppr, side "padding-bottom" ppb, side "padding-left" ppl));
     border_width = (bt, br, bb, bl);
     border_color = (ct, cr, cb, cl);
     border_box = word "box-sizing" = Some "border-box";

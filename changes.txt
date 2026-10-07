@@ -794,6 +794,10 @@
   languages/javascript, JavaScript in a browser in a directory of its own
 
 *** HTML, CSS and the layout
+- a padding that a calc() makes negative is none: LWN centres its
+  article with padding-left: calc(50% * var(--centre) - 32em), which
+  is -32em for a reader who did not ask for it, and the article began
+  half a screen left of the window, under the menu
 - a positioned box's top, bottom and height in percents of a
   containing block whose height only its content gives: the block is
   laid out a second time once its height is known (they were percents
@@ -994,6 +998,13 @@
   format read
 
 *** the window and its chrome
+- a tab no longer only grows: the pages kept whole for Back and
+  Forward are the nearest three each way (Bfcache.limit; further, the
+  page is loaded again, from the answers on disk), and the pictures
+  of the pages before stay decoded up to 128 MB (the page shown keeps
+  all of its own), the oldest let go first and the heap compacted
+  then. dynamicland.org's report then another page: 253 MB of
+  pictures kept before, 126 now, and 930 MB in RAM for 1310
 - the memory the browser holds is said at the tab strip's end: its
   megabytes in RAM (the system's count, the pictures' pixels in it),
   read every two seconds, and a minute of them as a small graph

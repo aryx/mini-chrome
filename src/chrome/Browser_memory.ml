@@ -64,7 +64,7 @@ let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string)
 <div class="card"><h2>The tabs</h2>
 <table><tr><th>Tab</th><th>Pages kept for Back</th><th>Pictures decoded</th><th>Their pixels</th></tr>
 %s</table>
-<p>A page left is kept whole, with its scripts' world, for as long as its tab; a picture decoded stays decoded, four bytes a dot. Nothing is let go but by closing the tab.</p></div>
+<p>A page left is kept whole, with its scripts' world, while it is one of the %d nearest behind or ahead; further, Back loads it again. A picture decoded is four bytes a dot: the page shown keeps its own, a tab %d MB of the pages before.</p></div>
 <div class="card"><h2>On disk</h2>
 <table>
 <tr><th>Answers kept</th><td>%s</td></tr>
@@ -76,6 +76,8 @@ let page ~(samples : int list) ~(tabs : tab list) ~(cache : (int * int * string)
     (if samples = [] then "-" else Printf.sprintf "from %d to %d MB" low high)
     (heap ())
     (String.concat "" (List.map row tabs))
+    Bfcache.limit
+    (mb Browser_picture.kept_bytes)
     (match cache with
     | Some (n, bytes, place) -> Printf.sprintf "%d, %d MB, in <code>%s</code> (<a href=\"about:cache\">about:cache</a>)" n (mb bytes) (esc place)
     | None -> "none (cache=off or profile=off)")
