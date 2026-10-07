@@ -192,7 +192,12 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   t.dispatch <- dispatch_event ~nested:true t;
   t.inserted <- (fun n -> !inserted_later t n);
   (* Date's clock: the page's, from [epoch] *)
-  clock := (fun () -> epoch +. t.now);
+  (* (and the time a long run has taken, past a twentieth of a second:
+   * a page that waits by asking the time again and again -- while
+   * (Date.now() - start < 4000) -- waited for ever on a clock that
+   * moved between its tasks alone. Not counted under that, so that a
+   * page's dates are the same from one run to the next) *)
+  clock := (fun () -> let run = Js_eval.running_for engine *. 1000. in epoch +. t.now +. if run > 50. then Float.round run else 0.);
   lines := say t;
   let define name f = Js_eval.define engine name (host_function name (fun ~this:_ args -> f args)) in
   (* window and what a library looks for on it, the classes of the
@@ -226,7 +231,7 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   (* with -v, what this page looks for and does not find is said, once
    * a name: not the marks a library keeps on a node (_x, $x, __x), nor
    * what every promise and every JSON asks of any object *)
-  Hashtbl.reset Script_host.missed_names;
+  Hashtbl.reset (Script_host.missed_names ());
   Js_value.missing :=
     (if Logs.level () = Some Logs.Info || Logs.level () = Some Logs.Debug then
        Some (fun cls k -> if k <> "" && (match k.[0] with 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false) && not (List.mem k [ "then"; "toJSON"; "nodeType"; "window"; "jquery"; "event"; "attributeChangedCallback"; "connectedCallback"; "disconnectedCallback"; "adoptedCallback" ]) then Script_host.missed (cls ^ "." ^ k))
@@ -620,17 +625,17 @@ let adopt (page : t) ~(key : string) (frame : t) : unit =
 
 (* a frame's document as its scripts have it now *)
 (* (the same tree while they change nothing: what is computed from it is kept by its identity) *)
-let frozen : (int, Dom.element) Hashtbl.t = Hashtbl.create 8
+let frozen_here = Per_domain.make (fun () : (int, Dom.element) Hashtbl.t -> Hashtbl.create 8)
 
 let frame_tree (t : t) (key : string) : Dom.element option =
   Option.map
     (fun (frame : t) ->
       let id = Hashtbl.hash key in
-      match Hashtbl.find_opt frozen id with
+      match Hashtbl.find_opt (frozen_here ()) id with
       | Some kept when not frame.changed -> kept
       | _ ->
           let now = tree frame in
-          Hashtbl.replace frozen id now;
+          Hashtbl.replace (frozen_here ()) id now;
           now)
     (List.assoc_opt key t.frames)
 let frames (t : t) : (string * t) list = t.frames

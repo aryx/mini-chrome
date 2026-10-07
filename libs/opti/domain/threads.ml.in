@@ -1,0 +1,19 @@
+(* Claude Code
+ *
+ * Copyright (C) 2026 Yoann Padioleau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public License
+ * (LGPL) as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *)
+
+(* See Per_domain.mli: OCaml 4.14's, where there is one domain: one value *)
+
+let parallel = false
+
+let make (init : unit -> 'a) : unit -> 'a =
+  let v = init () in
+  fun () -> v
+
+let main () : bool = true

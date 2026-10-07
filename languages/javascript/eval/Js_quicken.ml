@@ -13,15 +13,15 @@ open Js_ast
 
 (* whether the function being copied says arguments: a call makes
  * that array only then (Js_frame) *)
-let says_arguments = ref false
+let says_arguments_here = Per_domain.make (fun () -> ref false)
 
 let rec expr (e : expr) : expr =
   match e with
   | Name x ->
-      if x = "arguments" then says_arguments := true;
+      if x = "arguments" then says_arguments_here () := true;
       Local (x, place ())
   | Local (x, _) ->
-      if x = "arguments" then says_arguments := true;
+      if x = "arguments" then says_arguments_here () := true;
       e
   | Number _ | String _ | Bool _ | Null | This | Regex _ | Super_member _ | Import_meta -> e
   | Unary (op, a) -> Unary (op, expr a)
@@ -52,11 +52,11 @@ let rec expr (e : expr) : expr =
 (* a function: its parts, then what its calls have in common *)
 and func (f : func) : func =
   (* an arrow's arguments are those of the function around it *)
-  let around = !says_arguments in
-  if not f.arrow then says_arguments := false;
+  let around = !(says_arguments_here ()) in
+  if not f.arrow then says_arguments_here () := false;
   let f = { f with params = List.map (fun (pt, d) -> (pattern pt, Option.map expr d)) f.params; rest = Option.map pattern f.rest; body = List.map stmt f.body } in
-  let arguments = !says_arguments in
-  if not f.arrow then says_arguments := around;
+  let arguments = !(says_arguments_here ()) in
+  if not f.arrow then says_arguments_here () := around;
   { f with frame = Some (Js_frame.layout ~arguments f) }
 
 and key (k : key) : key = match k with Key _ -> k | Computed e -> Computed (expr e)

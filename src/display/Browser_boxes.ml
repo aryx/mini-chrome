@@ -37,28 +37,28 @@ let inside ((l, t, r, b) : clip) (x : float) (y : float) (w : float) (h : float)
 (* its pixels, by element (==), colour and size: a page laid out again
  * as each of its pictures arrives draws the same icons again (GitHub's
  * hundreds) *)
-let rendered : (int, Dom.element * (int * int * int) * int * int * Rgba_image.t) Hashtbl.t = Hashtbl.create 64
+let rendered_here = Per_domain.make (fun () : (int, Dom.element * (int * int * int) * int * int * Rgba_image.t) Hashtbl.t -> Hashtbl.create 64)
 
 (* the page's <symbol>s by their id, for <use href="#id">: an icon
  * drawn once in a sprite the page hides, and used by name wherever it
  * shows (<svg><use href="#lock"></use></svg>: SVG 1.1's use, how a
  * site of the 2020s carries its icons). Those of the tree last drawn. *)
-let symbols : (Dom.element * (string, Dom.element) Hashtbl.t) option ref = ref None
+let symbols_here = Per_domain.make (fun () : (Dom.element * (string, Dom.element) Hashtbl.t) option ref -> ref None)
 
 let symbols_of (root : Dom.element) : (string, Dom.element) Hashtbl.t =
-  match !symbols with
+  match !(symbols_here ()) with
   | Some (r, t) when r == root -> t
   | _ ->
       let t = Hashtbl.create 64 in
       List.iter (fun (sym : Dom.element) -> Option.iter (fun id -> Hashtbl.replace t id sym) (Dom.attribute "id" sym)) (Dom.find_all "symbol" root);
-      symbols := Some (root, t);
+      symbols_here () := Some (root, t);
       t
 
 (* an <svg> that is a <use> of a symbol: the symbol's shapes in its
  * place, and its viewBox if the svg has none *)
 let used (e : Dom.element) : Dom.element =
   let uses = List.filter_map (fun (n : Dom.node) -> match n with Element ({ name = "use"; _ } as u) -> Some u | _ -> None) e.children in
-  match (uses, !symbols) with
+  match (uses, !(symbols_here ())) with
   | u :: _, Some (_, table) -> (
       let href = match Dom.attribute "href" u with Some h -> Some h | None -> Dom.attribute ~extensions:true "xlink:href" u in
       match Option.bind href (fun h -> if String.length h > 1 && h.[0] = '#' then Hashtbl.find_opt table (String.sub h 1 (String.length h - 1)) else None) with
@@ -70,12 +70,12 @@ let used (e : Dom.element) : Dom.element =
 
 let svg_picture (e : Dom.element) (color : int * int * int) (w : int) (h : int) : Rgba_image.t =
   let key = Hashtbl.hash (w, h, color, e.name, e.attributes) in
-  match List.find_opt (fun (e', c, w', h', _) -> e' == e && c = color && w' = w && h' = h) (Hashtbl.find_all rendered key) with
+  match List.find_opt (fun (e', c, w', h', _) -> e' == e && c = color && w' = w && h' = h) (Hashtbl.find_all (rendered_here ()) key) with
   | Some (_, _, _, _, img) -> img
   | None ->
-      if Hashtbl.length rendered > 4096 then Hashtbl.reset rendered;
+      if Hashtbl.length (rendered_here ()) > 4096 then Hashtbl.reset (rendered_here ());
       let img = Svg.render ~color (used e) ~width:w ~height:h in
-      Hashtbl.add rendered key (e, color, w, h, img);
+      Hashtbl.add (rendered_here ()) key (e, color, w, h, img);
       img
 
 (* a fragment's shapes: an inline <svg>'s picture drawn here, the rest
@@ -105,10 +105,10 @@ let glyphs ~visited ~picture_of ?decorated (f : Html_layout.fragment) : shape li
 
 (* a picture in one colour, its alpha kept: a mask's shape in the
  * background's colour -- by picture (==) and colour *)
-let tinted : (Rgba_image.t * (int * int * int) * Rgba_image.t) list ref = ref []
+let tinted_here = Per_domain.make (fun () : (Rgba_image.t * (int * int * int) * Rgba_image.t) list ref -> ref [])
 
 let tint (img : Rgba_image.t) ((r, g, b) : int * int * int) : Rgba_image.t =
-  match List.find_opt (fun (i, c, _) -> i == img && c = (r, g, b)) !tinted with
+  match List.find_opt (fun (i, c, _) -> i == img && c = (r, g, b)) !(tinted_here ()) with
   | Some (_, _, t) -> t
   | None ->
       let t = Rgba_image.create ~width:img.width ~height:img.height in
@@ -118,8 +118,8 @@ let tint (img : Rgba_image.t) ((r, g, b) : int * int * int) : Rgba_image.t =
         t.rgba.{(4 * i) + 2} <- b;
         t.rgba.{(4 * i) + 3} <- img.rgba.{(4 * i) + 3}
       done;
-      if List.length !tinted > 256 then tinted := [];
-      tinted := (img, (r, g, b), t) :: !tinted;
+      if List.length !(tinted_here ()) > 256 then tinted_here () := [];
+      tinted_here () := (img, (r, g, b), t) :: !(tinted_here ());
       t
 
 (*****************************************************************************)

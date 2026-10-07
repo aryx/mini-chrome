@@ -66,10 +66,11 @@ let table (s : string) : int array =
  * (None), else their table. Two of them: a loop often goes through
  * one string while it reads another. Without it, "for (i < s.length)
  * s.charCodeAt(i)" on a page's 1 MB of text is a scan a step *)
-let kept : (string * int array option) array = Array.make 2 ("", None)
-let turn = ref 0
+(* (a domain its own: two tabs' scripts run side by side) *)
+let cache = Per_domain.make (fun () -> (Array.make 2 ("", None), ref 0))
 
 let known (s : string) : int array option =
+  let (kept : (string * int array option) array), turn = cache () in
   let a, ta = kept.(0) and b, tb = kept.(1) in
   if a == s then ta
   else if b == s then tb

@@ -139,18 +139,18 @@ let absolute_urls (base : string) (rules : Css_syntax.rule list) : Css_syntax.ru
  * address, not again at each relayout -- a picture's arrival lays the
  * page out again, and GitHub's 41 sheets are 4.9 MB (notes_opti_ocaml.md
  * section 11) *)
-let parsed_sheets : (string * int * int, string * Css_syntax.rule list) Hashtbl.t = Hashtbl.create 16
+let parsed_sheets_here = Per_domain.make (fun () : (string * int * int, string * Css_syntax.rule list) Hashtbl.t -> Hashtbl.create 16)
 
 let parsed (url : string) (text : string) : Css_syntax.rule list =
   (* by address and text: a page's <style>s share its address *)
   let key = (url, String.length text, Hashtbl.hash text) in
-  match Hashtbl.find_opt parsed_sheets key with
+  match Hashtbl.find_opt (parsed_sheets_here ()) key with
   | Some (t, rules) when t == text || t = text -> rules
   | _ ->
       (* before: absolute_urls url (Css_syntax.parse_stylesheet text), each time *)
       let rules = absolute_urls url (Css_syntax.parse_stylesheet text) in
-      if Hashtbl.length parsed_sheets > 256 then Hashtbl.reset parsed_sheets;
-      Hashtbl.replace parsed_sheets key (text, rules);
+      if Hashtbl.length (parsed_sheets_here ()) > 256 then Hashtbl.reset (parsed_sheets_here ());
+      Hashtbl.replace (parsed_sheets_here ()) key (text, rules);
       rules
 
 (* a sheet's rules, its @imports' put in their place (four deep at
@@ -218,15 +218,15 @@ let page_sheets s media base tree : Cascade.sheet list * string list =
  * its tree (==), its sheets' rules (==, Browser_page.parsed's), quirks,
  * the window -- the same when a relayout is for a picture that came,
  * the cascade then not run again (notes_opti_ocaml.md section 11) *)
-let last_styles : (Dom.element * Cascade.sheet list * bool * Cascade.media * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) option ref = ref None
+let last_styles_here = Per_domain.make (fun () : (Dom.element * Cascade.sheet list * bool * Cascade.media * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) option ref -> ref None)
 
 let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascade.sheet list) (tree : Dom.element) : (Dom.element -> Computed.t) * (Dom.element -> Dom.node list) =
   let same_sheets a b = List.length a = List.length b && List.for_all2 (fun (x : Cascade.sheet) (y : Cascade.sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
-  match !last_styles with
+  match !(last_styles_here ()) with
   | Some (t, sh, q, m, styles) when t == tree && q = quirks && m = media && same_sheets sh sheets -> styles
   | _ ->
       let styles = Computed.styles_all ~visited ~quirks media sheets tree in
-      last_styles := Some (tree, sheets, quirks, media, styles);
+      last_styles_here () := Some (tree, sheets, quirks, media, styles);
       styles
 
 (* the tree laid out and drawn, the page's links and pictures resolved
@@ -237,7 +237,7 @@ let styles_of ~visited ~(quirks : bool) (media : Cascade.media) (sheets : Cascad
 (* a frame's styles, kept by its tree (Frames.tree_of gives the same
  * one for the same text), its size and its sheets: the page around it
  * is laid out again far more often than a frame changes *)
-let frame_styles : (Dom.element * Cascade.media * Cascade.sheet list * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) list ref = ref []
+let frame_styles_here = Per_domain.make (fun () : (Dom.element * Cascade.media * Cascade.sheet list * ((Dom.element -> Computed.t) * (Dom.element -> Dom.node list))) list ref -> ref [])
 
 (* the page's boxes with its frames' in them (Frames.graft), and the
  * documents those frames show, each with the address its links are
@@ -261,11 +261,11 @@ let rec with_frames ~(level : int) ~visited (s : settings) (base : string) (boxe
         let sheets = if s.css then fst (page_sheets s media base tree) else [] in
         let same a b = List.length a = List.length b && List.for_all2 (fun (x : Cascade.sheet) (y : Cascade.sheet) -> x.rules == y.rules) a b in
         let styles, kids =
-          match List.find_opt (fun (t, m, sh, _) -> t == tree && m = media && same sh sheets) !frame_styles with
+          match List.find_opt (fun (t, m, sh, _) -> t == tree && m = media && same sh sheets) !(frame_styles_here ()) with
           | Some (_, _, _, styles) -> styles
           | None ->
               let styles = Computed.styles_all ~visited ~quirks:false media sheets tree in
-              frame_styles := (tree, media, sheets, styles) :: List.filteri (fun i _ -> i < 7) !frame_styles;
+              frame_styles_here () := (tree, media, sheets, styles) :: List.filteri (fun i _ -> i < 7) !(frame_styles_here ());
               styles
         in
         let picture_size src = Option.bind (s.picture (Browser_url.resolve base src)) Browser_picture.size in

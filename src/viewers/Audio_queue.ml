@@ -18,7 +18,12 @@ let queue : scheduled list ref = ref []
 
 let now () : float = float_of_int !clock /. float_of_int Signal.rate
 
+(* a script's sound comes from its tab's domain, the mixing is the window's *)
+let lock = Mutex.create ()
+let locked (f : unit -> 'a) : 'a = Mutex.lock lock; Fun.protect ~finally:(fun () -> Mutex.unlock lock) f
+
 let play ~(at : float) ~(rate : int) (left : float array) (right : float array) : unit =
+  locked @@ fun () ->
   let ours x = if rate = Signal.rate then x else Resample.to_rate Cubic rate x in
   let start = max !clock (int_of_float (Float.round (at *. float_of_int Signal.rate))) in
   (* with no sound card (a dump), the clock does not move and nothing
@@ -27,6 +32,7 @@ let play ~(at : float) ~(rate : int) (left : float array) (right : float array) 
   queue := waiting @ [ { start; left = ours left; right = ours right } ]
 
 let mix (out : Signal.stereo) : unit =
+  locked @@ fun () ->
   let n = Array.length out.left and from = !clock in
   List.iter
     (fun s ->

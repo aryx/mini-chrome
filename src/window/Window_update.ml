@@ -20,7 +20,7 @@ let resolve = Browser_url.resolve
  * that are not a flag's name -- an address or words to search, as
  * typed in the omnibox (the Playground cuts a word at its first =: put
  * back, for an address with a query) *)
-let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js"; "timings"; "cache"; "memory" ]
+let flag_names = [ "url"; "css"; "panel"; "search"; "scripts"; "threads"; "profile"; "scale"; "opti"; "letters"; "pdf"; "js"; "timings"; "cache"; "memory"; "tabs" ]
 
 let first_pages (engine : string) (flags : flags) : string list =
   let words = List.filter (fun (name, _) -> not (List.mem name flag_names)) flags in
@@ -29,6 +29,8 @@ let first_pages (engine : string) (flags : flags) : string list =
   | urls -> urls
 
 let init (network : < Cap.network ; .. >) ?jar ?cache ?(places = Places.create ()) ((profile, profile_dir) : Browser_profile.t * string option) ~(desktop : float) ~(window : int * int) (flags : flags) : model * msg Cmd.t =
+  (* tabs=domains: a tab's work on a domain of its own (Tab_jobs); four of them, or as many as the machine has to spare *)
+  if List.assoc_opt "tabs" flags = Some "domains" then Tab_jobs.start (max 1 (min 4 (Worker_spawn.workers 4)));
   let panel = match List.assoc_opt "panel" flags with Some "elements" -> Elements | Some "network" -> Network | _ -> Closed in
   let m =
     { tabs = []; current = 0; next_id = 0; omnibox = None; places; memory = []; suggested = None; mouse = (1000., 1000.); time = 0.; busy = None;
@@ -79,6 +81,8 @@ let edit_omnibox (network : < Cap.network ; .. >) (key : string) (field : Gui_fi
  * again if its tree changed (Browser_tab.after_task) *)
 let task (network : < Cap.network ; .. >) (m : model) (f : Browser_script.t -> bool) : model * msg Cmd.t * bool =
   match (current_tab m).script with
+  (* (a tab away on its domain: its scripts are not the window's to run) *)
+  | Some _ when Tab_jobs.away m.current -> (m, Cmd.none, false)
   | Some s ->
       let r = f s in
       let m, cmd = on_current m (fun cfg tab -> Browser_tab.after_task cfg network tab) in
@@ -216,7 +220,7 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
    * platform) is told first; then the browser does its own, unless a
    * script prevented it *)
   match (told m msg, (current_tab m).script) with
-  | Some (typ, fields), Some s when Browser_script.listens s typ ->
+  | Some (typ, fields), Some s when (not (Tab_jobs.away m.current)) && Browser_script.listens s typ ->
       (* the pointer's events are of the element under it *)
       let at =
         match (msg, (current_tab m).state, page_point m) with
@@ -254,6 +258,24 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
  * frame since it went down is kept ([late]) and told right after that
  * frame, which is this Tick's (the page's timers run on it) *)
 and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (msg : msg) (m : model) : model * msg Cmd.t =
+  (* the shown tab is away on its domain (Tab_jobs): what is meant for
+   * its page -- a click on it, a key with no field of the window's
+   * taken -- is kept until it is back, its scripts not being the
+   * window's to tell meanwhile. The window's own things answer: the
+   * strip, the toolbar, the omnibox, the wheel *)
+  let for_page =
+    Tab_jobs.away m.current
+    &&
+    match msg with
+    | Click | Right_click -> m.menu = None && suggestion_at m = None && page_point m <> None && Gui_scrollbar.at (scrollbar m) m.mouse = None
+    | Mouse_up -> m.pressed
+    (* (Ctrl and Shift are the window's to know of: Ctrl+T, Ctrl+W, with the page away) *)
+    | Key k | Key_up k when List.exists (fun w -> List.mem w (String.split_on_char ' ' (String.lowercase_ascii k))) [ "ctrl"; "shift"; "alt" ] -> false
+    | Key _ | Key_up _ | Typed _ -> m.omnibox = None && not m.ctrl
+    | _ -> false
+  in
+  if for_page then (Tab_jobs.hold msg; (m, Cmd.none))
+  else
   match msg with
   | Key_up k when List.mem (String.lowercase_ascii k) m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
   | Mouse_up when List.mem "mouse" m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
@@ -285,12 +307,15 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
             | None -> r)
         | Error _ -> r
       in
-      let m, cmd = on_tab m id (fun cfg tab -> Browser_tab.got cfg network url r tab) in
-      (* a page that came is one seen: remembered, for the omnibox to suggest *)
-      (match (r, List.find_opt (fun (t : tab) -> t.id = id) m.tabs) with
-      | Ok { status; _ }, Some { tab = { state = Shown p; _ }; _ } when status < 400 -> Places.visit m.places ~now:(Unix.gettimeofday ()) ~url:p.url ~title:p.title
-      | _ -> ());
-      (m, cmd)
+      let places = m.places in
+      on_tab m id (fun cfg tab ->
+          let tab, cmd = Browser_tab.got cfg network url r tab in
+          (* a page that came is one seen: remembered, for the omnibox to suggest *)
+          (match (r, tab.state) with
+          | Ok { status; _ }, Shown p when status < 400 ->
+              Places.visit places ~now:(Unix.gettimeofday ()) ~url:p.url ~title:p.title
+          | _ -> ());
+          (tab, cmd))
   | Got_picture (id, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_picture cfg network url r tab)
   | Got_answer (id, rid, url, r) -> on_tab m id (fun cfg tab -> Browser_tab.got_answer cfg network rid url r tab)
   | Start_fetch r ->
@@ -328,11 +353,42 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
       (* (a recording given again, MINI_REPLAY: a tenth of a second a
        * frame, so that two runs of it are the same) *)
       let passed = if replaying then 100. else Float.min 5000. (Float.max (1000. /. 60.) ((time -. m.time) *. 1000.)) in
-      let m, cmd, _ = task network (saved caps { m with time }) (fun s -> Browser_script.advance s passed; false) in
-      (* the layouts owed since the frame before, one a tab *)
+      let m = saved caps { m with time } in
+      (* the tabs back from their domains (Tab_jobs): each put in the
+       * model, its commands run, what waited for it sent in turn *)
+      let m, back = List.fold_left (fun (m, cmd) job -> let m, c = landed network m job in (m, Cmd.batch [ cmd; c ])) (m, Cmd.none) (if Tab_jobs.enabled () then Tab_jobs.back () else []) in
+      (* with its work on a domain, a tab's layout owed goes before its
+       * timers: sent after them it would find the tab away at every
+       * Tick, and never be made *)
+      (* the shown tab is back and clicks or keys were kept for it:
+       * given now, before anything sends it away again (its timers
+       * would at every Tick, and they would wait for ever) *)
+      let release = Tab_jobs.enabled () && Tab_jobs.holding () && not (Tab_jobs.away m.current) in
+      let m, early =
+        if not (Tab_jobs.enabled ()) then (m, Cmd.none)
+        else
+          List.fold_left
+            (fun (m, cmd) (t : tab) ->
+              if t.tab.stale && (not (Tab_jobs.away t.id)) && not (release && t.id = m.current) then (let m, c = on_tab m t.id (fun cfg tab -> Browser_tab.settle cfg network tab) in (m, Cmd.batch [ cmd; c ])) else (m, cmd))
+            (m, Cmd.none) m.tabs
+      in
+      let m, cmd =
+        if not (Tab_jobs.enabled ()) then (let m, cmd, _ = task network m (fun s -> Browser_script.advance s passed; false) in (m, cmd))
+        else if Tab_jobs.away m.current then (Tab_jobs.owe m.current passed; (m, Cmd.none))
+        else if release || (current_tab m).script = None then (m, Cmd.none)
+        else
+          (* its timers, on its domain *)
+          on_current m (fun cfg tab -> (match tab.script with Some s -> Browser_script.advance s passed | None -> ()); Browser_tab.after_task cfg network tab)
+      in
+      let cmd = Cmd.batch [ early; cmd ] in
+      let cmd = Cmd.batch [ back; cmd ] in
+      (* the clicks and keys kept for the shown tab while it was away *)
+      let cmd = if release then Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) (Tab_jobs.held ())) else cmd in
+      (* the layouts owed since the frame before, one a tab (one that is away: when it is back) *)
       let m, cmd =
         List.fold_left
-          (fun (m, cmd) (t : tab) -> if t.tab.stale then (let m, c = on_tab m t.id (fun cfg tab -> Browser_tab.settle cfg network tab) in (m, Cmd.batch [ cmd; c ])) else (m, cmd))
+          (fun (m, cmd) (t : tab) ->
+            if t.tab.stale && not (Tab_jobs.enabled ()) then (let m, c = on_tab m t.id (fun cfg tab -> Browser_tab.settle cfg network tab) in (m, Cmd.batch [ cmd; c ])) else (m, cmd))
           (m, cmd) m.tabs
       in
       (* the requests in flight stepped: the answers, Got and

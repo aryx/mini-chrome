@@ -40,7 +40,7 @@ val method_ : string -> (value list -> value) -> value
    ("missing: Window.indexedDB"); the names said so far, forgotten at
    each new page *)
 val missed : string -> unit
-val missed_names : (string, unit) Hashtbl.t
+val missed_names : unit -> (string, unit) Hashtbl.t
 
 val wrap : t -> node -> value
 val node_of : t -> value -> node

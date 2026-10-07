@@ -162,6 +162,9 @@ val set_budget : t -> int -> unit
  * which gives steps without count and a minute *)
 val set_seconds : t -> float -> unit
 
+(* how long the run being made has lasted, in seconds (0 between two) *)
+val running_for : t -> float
+
 (*****************************************************************************)
 (* {1 What modules ask} *)
 (*****************************************************************************)

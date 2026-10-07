@@ -276,9 +276,9 @@ let tests =
           Alcotest.(check string) "the page itself goes on" {|["undefined", "undefined", "undefined", "string", "undefined", "function"]|} (match r with Ok v -> Js_value.display v | Error e -> e.message);
           Alcotest.(check (list string)) "the three not found, and a table's cells, which a paragraph has not; not what is there"
             [ "HTMLDocument.zork"; "HTMLElement.frobnicate"; "Window.nope" ] (List.rev !asked);
-          Hashtbl.reset Script_host.missed_names;
+          Hashtbl.reset (Script_host.missed_names ());
           ignore (Browser_script.eval t "document.open(); document.open(); p.scrollTo(0, 10)");
-          Alcotest.(check (list string)) "called, said once each" [ "document.open()"; "element.scrollTo()" ] (List.sort compare (List.of_seq (Hashtbl.to_seq_keys Script_host.missed_names))));
+          Alcotest.(check (list string)) "called, said once each" [ "document.open()"; "element.scrollTo()" ] (List.sort compare (List.of_seq (Hashtbl.to_seq_keys (Script_host.missed_names ())))));
       Testo.create "a control's form; an event's handler not set is null" (fun () ->
           let t =
             page

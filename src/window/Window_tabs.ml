@@ -93,7 +93,27 @@ let stamp (time : float) (t : tab) : tab =
   { t with times }
 
 (* the tab [id] changed by [f] (its commands its own) *)
-let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) : model * msg Cmd.t =
+(* [light]: a change that is no work and touches no script (a scroll,
+ * a field taken): made at once whatever the tab is doing.
+ *
+ * With tabs=domains (Tab_jobs) the rest is a job for the tab's own
+ * domain: the model comes back as it is, and the tab's new value and
+ * its commands at a later Tick ([landed]). For a tab that is away,
+ * [f] waits its turn; a light change is shown at once on the tab as
+ * the window has it, and made again on the one that comes back *)
+let rec on_tab ?(light = false) (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) : model * msg Cmd.t =
+  match List.find_opt (fun t -> t.id = id) m.tabs with
+  | None -> (m, Cmd.none)
+  | Some _ when Tab_jobs.enabled () && Tab_jobs.away id ->
+      Tab_jobs.later id f;
+      if light then (fst (now m id f), Cmd.none) else (m, Cmd.none)
+  | Some t when Tab_jobs.enabled () && not light ->
+      Tab_jobs.send id (config m id) t.tab f;
+      (m, Cmd.none)
+  | Some _ -> now m id f
+
+(* [f] done here, in the window's own domain *)
+and now (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) : model * msg Cmd.t =
   match List.find_opt (fun t -> t.id = id) m.tabs with
   | None -> (m, Cmd.none)
   | Some t ->
@@ -108,8 +128,31 @@ let on_tab (m : model) (id : int) (f : msg Browser_tab.config -> Browser_tab.t -
       if tab == t.tab && stamped.times = t.times then (m, cmd)
       else ({ m with tabs = List.map (fun t' -> if t'.id = id then stamped else t') m.tabs }, cmd)
 
-let on_current m f = on_tab m m.current f
-let scrolled (by : int) (m : model) : model = fst (on_current m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))
+let on_current ?light m f = on_tab ?light m m.current f
+let scrolled (by : int) (m : model) : model = fst (on_current ~light:true m (fun cfg tab -> (Browser_tab.scrolled cfg by tab, Cmd.none)))
+
+(* a tab back from its domain (Tab_jobs.back): its new value put in the
+ * model, with its commands; what waited for it, and the time its
+ * scripts' clock is owed, given as its next job, one after the other *)
+let landed (network : < Cap.network ; .. >) (m : model) ((id, result, waiting, owed) : int * (Browser_tab.t * msg Cmd.t) option * Tab_jobs.work list * float) : model * msg Cmd.t =
+  let m, cmd = match result with Some (tab, cmd) -> now m id (fun _ _ -> (tab, cmd)) | None -> (m, Cmd.none) in
+  (* (clicks or keys are kept for it: they go before its timers and its
+   * layout, which would send it away again at once; the Tick gives them) *)
+  let owed = if Tab_jobs.holding () && id = m.current then 0. else owed in
+  let clock : Tab_jobs.work list =
+    if owed > 0. then [ (fun cfg tab -> (match tab.script with Some s -> Browser_script.advance s owed | None -> ()); Browser_tab.after_task cfg network tab) ] else []
+  in
+  (* (a layout it owes goes with them: asked at the next Tick, it would
+   * find the tab away again with its timers, and wait for ever) *)
+  let layout (t : tab) : Tab_jobs.work list = if t.tab.stale && not (Tab_jobs.holding () && id = m.current) then [ (fun cfg tab -> Browser_tab.settle cfg network tab) ] else [] in
+  match List.find_opt (fun t -> t.id = id) m.tabs with
+  | None -> (m, cmd)
+  | Some t when waiting = [] && owed <= 0. && layout t = [] -> (m, cmd)
+  | Some t ->
+      let next = waiting @ layout t @ clock in
+      let all cfg tab = List.fold_left (fun (tab, cmd) (f : Tab_jobs.work) -> let tab, c = f cfg tab in (tab, Cmd.batch [ cmd; c ])) (tab, Cmd.none) next in
+      Tab_jobs.send id (config m id) t.tab all;
+      (m, cmd)
 (* the wheel's notches as lines: three a notch, a positive one up the page *)
 let wheeled (notches : float) (m : model) : model = scrolled (-3 * int_of_float (Float.round notches)) m
 let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) - 2)
@@ -119,13 +162,12 @@ let pages (m : model) (by : int) : int = by * (visible_lines m (current_tab m) -
  * what was read *)
 let relaid_all (m : model) : model =
   let height (tab : Browser_tab.t) = match tab.state with Shown p -> p.layout.height | Loading _ -> 0. in
-  let relaid (t : tab) =
-    let cfg = config m t.id in
-    let tab = Browser_tab.relaid cfg t.tab in
-    let scroll = if height t.tab > 0. then int_of_float (float_of_int tab.scroll *. height tab /. height t.tab) else tab.scroll in
-    { t with tab = Browser_tab.scrolled cfg 0 { tab with scroll } }
+  let relaid cfg (before : Browser_tab.t) =
+    let tab = Browser_tab.relaid cfg before in
+    let scroll = if height before > 0. then int_of_float (float_of_int tab.scroll *. height tab /. height before) else tab.scroll in
+    (Browser_tab.scrolled cfg 0 { tab with scroll }, Cmd.none)
   in
-  { m with tabs = List.map relaid m.tabs }
+  List.fold_left (fun m (t : tab) -> fst (on_tab m t.id relaid)) m m.tabs
 
 (* the profile changed: saved once it has been still for a
  * second (Tick), so a window dragged to its size is written once, not

@@ -60,7 +60,7 @@ their names are `flag_names` in `Window_update`, to keep up to date):
 script's long run freezes the window), `cache=off` (no answer kept on
 disk), `timings=on` (where the time
 went, by stage, said at the end: `Stopwatch`), `profile=DIR|off`, `scale=N`,
-`memory=off|on`, `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
+`memory=off|on`, `tabs=domains` (a tab's work on a domain of its own: `Tab_jobs`; OCaml 5), `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
 compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
 picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
 PDF's text in our own letters; and `-gradients`, `-clips`,
@@ -461,6 +461,21 @@ window be drawn, `busy` in the model saying so, the messages that come
 meanwhile kept for its end). Tests call `Window_update.update` itself. No module should pass about
 700 lines: when one nears it, look for a split along a concern as
 this one, and leave it whole if there is none.
+
+With `tabs=domains` a tab's work is a job on a domain of its own
+(`Tab_jobs`; under OCaml 4.14, which has one domain, the flag does
+nothing): `Window_tabs.on_tab` sends the step to the tab's domain and
+gives the model back as it is, and `Window_tabs.landed`, at a later
+`Tick`, puts the tab's new value in the model and sends what waited.
+So a step's result is not there when `on_tab` returns: code that needs
+it at once uses `now`, or `~light:true` for a change that is no work
+(a scroll). The window never touches the scripts of a tab that is
+away (`Tab_jobs.away`): messages for its page are held and given
+back. A global that a tab's code keeps for itself -- a cache, "what
+is running" -- is made with `Per_domain.make` (`libs/opti`: a value a
+domain), never a plain top-level `ref` or `Hashtbl`; one that must be
+the whole program's has a mutex. `tests/browser`'s `Unit_window` runs
+a window in this mode.
 
 The program's screen is the window itself (`run_app ~window`, with
 `follows_window = true`), not the Playground's usual 1000 by 1000

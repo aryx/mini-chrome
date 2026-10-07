@@ -36,8 +36,19 @@ val config : model -> int -> msg Browser_tab.config
 
 (* the tab [id] changed by a step of Browser_tab's, its requests given
  * their times (the network panel's) *)
-val on_tab : model -> int -> (msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) -> model * msg Cmd.t
-val on_current : model -> (msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) -> model * msg Cmd.t
+(* With tabs=domains (Tab_jobs) that step is a job for the tab's own
+ * domain: the model comes back as it is, and the tab's new value and
+ * its commands at a later Tick ([landed]); a step for a tab that is
+ * away waits its turn. [light]: a change that is no work and touches
+ * no script (a scroll): made at once, here, whatever the tab is doing
+ * -- and again on the tab that comes back. [now]: here, always *)
+val on_tab : ?light:bool -> model -> int -> (msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) -> model * msg Cmd.t
+val on_current : ?light:bool -> model -> (msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) -> model * msg Cmd.t
+val now : model -> int -> (msg Browser_tab.config -> Browser_tab.t -> Browser_tab.t * msg Cmd.t) -> model * msg Cmd.t
+
+(* a tab back from its domain (one of Tab_jobs.back's): its value put in
+ * the model with its commands, and what waited for it sent as its next job *)
+val landed : < Cap.network ; .. > -> model -> int * (Browser_tab.t * msg Cmd.t) option * Tab_jobs.work list * float -> model * msg Cmd.t
 
 (* the shown tab goes to an address (its history kept); loads one *)
 val visit : < Cap.network ; .. > -> string -> model -> model * msg Cmd.t

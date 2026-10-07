@@ -21,7 +21,7 @@ let lock = Mutex.create ()
 
 (* the bodies running, the innermost first: a body can resume another
  * (an async function calling one) *)
-let running : t list ref = ref []
+let running_here = Per_domain.make (fun () : t list ref -> ref [])
 
 (* the turn given to [next], and this thread asleep until it is given
  * back *)
@@ -52,14 +52,14 @@ let start (co : t) : unit =
 let resume (co : t) : unit =
   if not co.ended then (
     if not co.started then start co;
-    let outer = !running in
-    running := co :: outer;
+    let outer = !(running_here ()) in
+    running_here () := co :: outer;
     pass co Body;
-    running := outer)
+    running_here () := outer)
 
-let current () : t option = match !running with co :: _ -> Some co | [] -> None
+let current () : t option = match !(running_here ()) with co :: _ -> Some co | [] -> None
 
 let suspend () : unit =
-  match !running with
+  match !(running_here ()) with
   | co :: _ -> pass co Resumer
   | [] -> invalid_arg "Js_coroutine.suspend: no coroutine is running"

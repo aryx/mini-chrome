@@ -23,16 +23,16 @@ let addresses (tree : Dom.element) : string list =
 
 (* the documents read, by their text: a page is laid out again and
  * again, its frames' texts the same *)
-let read : (int * int, string * Dom.element) Hashtbl.t = Hashtbl.create 8
+let read_here = Per_domain.make (fun () : (int * int, string * Dom.element) Hashtbl.t -> Hashtbl.create 8)
 
 let tree_of (text : string) : Dom.element =
   let key = (String.length text, Hashtbl.hash text) in
-  match Hashtbl.find_opt read key with
+  match Hashtbl.find_opt (read_here ()) key with
   | Some (t, tree) when t == text || t = text -> tree
   | _ ->
       let tree = Html_tree.of_string text in
-      if Hashtbl.length read > 16 then Hashtbl.reset read;
-      Hashtbl.replace read key (text, tree);
+      if Hashtbl.length (read_here ()) > 16 then Hashtbl.reset (read_here ());
+      Hashtbl.replace (read_here ()) key (text, tree);
       tree
 
 let depth = 3

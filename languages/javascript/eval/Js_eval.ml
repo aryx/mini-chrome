@@ -1171,13 +1171,14 @@ let create ?(log = fun _ -> ()) ?(seed = 1) ?now () : t =
  * middle of an operator (Js_value.own_primitive): its Symbol.toPrimitive,
  * else its valueOf and its toString, in the order the hint says, if
  * they are functions written in JavaScript and give a primitive *)
-let running : t option ref = ref None
-let asked : value list ref = ref []
+(* (a domain its own: each tab's engine runs on one) *)
+let running_here = Per_domain.make (fun () : t option ref -> ref None)
+let asked_here = Per_domain.make (fun () : value list ref -> ref [])
 
 let () =
   Js_value.own_primitive :=
     fun v hint ->
-      match !running with
+      match !(running_here ()) with
       | None -> None
       | Some t -> (
           let ask (k : string) (args : value list) : value option =
@@ -1186,11 +1187,11 @@ let () =
             (* a host's object with a toString of its own (a window's
              * selection, which is its text: "" + getSelection(); the
              * page's location, which is its address: location + "#top") *)
-            | Object { kind = Host_function _; _ } as f when (match v with Object { kind = Host_object _; _ } -> not (List.memq v !asked) | Object o -> get_own o k <> None | _ -> false) -> (
+            | Object { kind = Host_function _; _ } as f when (match v with Object { kind = Host_object _; _ } -> not (List.memq v !(asked_here ())) | Object o -> get_own o k <> None | _ -> false) -> (
                 (* (an element's toString is every object's, which asks
                  * the element for its string: once) *)
-                asked := v :: !asked;
-                match Fun.protect ~finally:(fun () -> asked := List.tl !asked) (fun () -> call_value t f ~this:v args) with Object _ -> None | p -> Some p)
+                asked_here () := v :: !(asked_here ());
+                match Fun.protect ~finally:(fun () -> asked_here () := List.tl !(asked_here ())) (fun () -> call_value t f ~this:v args) with Object _ -> None | p -> Some p)
             | _ -> None
           in
           match ask "@@toPrimitive" [ String hint ] with
@@ -1216,9 +1217,9 @@ let guarded (t : t) (f : unit -> value) : (value, error) result =
   t.steps <- t.budget;
   t.deadline <- Unix.gettimeofday () +. t.seconds;
   t.depth <- 0;
-  let before = !running in
-  running := Some t;
-  Fun.protect ~finally:(fun () -> Js_promise.drain ~each:(fun () -> t.steps <- t.budget; t.deadline <- Unix.gettimeofday () +. t.seconds) (Option.get t.promises); running := before) @@ fun () ->
+  let before = !(running_here ()) in
+  running_here () := Some t;
+  Fun.protect ~finally:(fun () -> Js_promise.drain ~each:(fun () -> t.steps <- t.budget; t.deadline <- Unix.gettimeofday () +. t.seconds) (Option.get t.promises); running_here () := before) @@ fun () ->
   match f () with
   | v -> Ok v
   | exception Throw v -> Error (error_of t v)
@@ -1284,3 +1285,4 @@ let global (t : t) (x : string) : value option = Option.map (fun (b : binding) -
 let define (t : t) (x : string) (v : value) : unit = declare t.globals x ~constant:false v
 let set_budget (t : t) (steps : int) : unit = t.budget <- steps
 let set_seconds (t : t) (seconds : float) : unit = t.seconds <- seconds
+let running_for (t : t) : float = Float.max 0. (Unix.gettimeofday () -. (t.deadline -. t.seconds))

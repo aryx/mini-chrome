@@ -701,14 +701,14 @@ let browser_sheets ~(quirks : bool) : Cascade.sheet list = if quirks then [ user
  * little are then mostly found. One media's at a time. The numbers
  * are Cascade's (its memo and this one together: YouTube's video
  * page, 74 s of styles to 17) *)
-let kept : (Cascade.media * (Cascade.key, (string * component list) list * t * float * t) Hashtbl.t) ref = ref ({ Cascade.width = 0.; height = 0. }, Hashtbl.create 1)
+let kept_here = Per_domain.make (fun () : (Cascade.media * (Cascade.key, (string * component list) list * t * float * t) Hashtbl.t) ref -> ref ({ Cascade.width = 0.; height = 0. }, Hashtbl.create 1))
 
 let styles_all ?visited ?(quirks = false) (m : Cascade.media) (sheets : Cascade.sheet list) (root : Dom.element) : (Dom.element -> t) * (Dom.element -> Dom.node list) =
   let ua = browser_sheets ~quirks in
   let declared, kids, key_of = Cascade.cascade_keyed ?visited m (ua @ sheets) root in
   let table : (int, Dom.element * t) Hashtbl.t = Hashtbl.create 1024 in
-  if fst !kept <> m || Hashtbl.length (snd !kept) > 200_000 then kept := (m, Hashtbl.create 4096);
-  let memo = snd !kept in
+  if fst !(kept_here ()) <> m || Hashtbl.length (snd !(kept_here ())) > 200_000 then kept_here () := (m, Hashtbl.create 4096);
+  let memo = snd !(kept_here ()) in
   let compute ~root_font_size ~parent (e : Dom.element) : t =
     let ds = declared e in
     (* a ::before or an ::after has no key: computed each time *)

@@ -78,6 +78,30 @@ let tests caps =
           let far = List.fold_left (fun m () -> back m) m [ (); (); (); (); () ] in
           Alcotest.(check (list bool)) "and ahead of the first, the nearest three again" [ true; true; true; false; false ]
             (List.map (fun (e : Browser_tab.entry) -> e.kept <> None) (Window_layout.current_tab far).history.ahead));
+      Testo.create "tabs=domains: a tab's work done on a domain of its own, landed at a later Tick" (fun () ->
+          Tab_jobs.start 2;
+          Fun.protect ~finally:Tab_jobs.stop @@ fun () ->
+          if not Per_domain.parallel then Alcotest.(check bool) "OCaml 4.14 has one domain: the tabs stay in it" false (Tab_jobs.enabled ())
+          else (
+            let m = after caps (Window_update.init caps (Browser_profile.empty, None) ~desktop:1. ~window:(800, 600) [ ("url", "about:chrome"); ("threads", "off") ]) in
+            let shown (m : Window_model.model) = match (Window_layout.current_tab m).state with Shown p -> p.title | Loading _ -> "" in
+            Alcotest.(check (pair string bool)) "asked for, not there yet: its work is elsewhere" ("", true) (shown m, Tab_jobs.away m.current);
+            (* a key for its page is kept; one of the window's own is not *)
+            let m = after caps (Window_update.update caps (Key "space") m) in
+            let rec wait n (m : Window_model.model) =
+              if n = 0 || (shown m <> "" && not (Tab_jobs.away m.current)) then m
+              else (
+                Unix.sleepf 0.01;
+                wait (n - 1) (tick caps (m.time +. 0.016) m))
+            in
+            let m = wait 500 m in
+            Alcotest.(check string) "landed: the page, read and laid out on the tab's domain" "MiniChrome" (shown m);
+            let m = wait 50 (tick caps (m.time +. 0.016) m) in
+            Alcotest.(check bool) "the key kept was given when the tab came back: scrolled" true ((Window_layout.current_tab m).scroll > 0);
+            (* a scroll is made at once, whatever the tab does *)
+            let before = (Window_layout.current_tab m).scroll in
+            let m' = after caps (Window_update.update caps (Wheel (-1.)) m) in
+            Alcotest.(check bool) "the wheel: at once" true ((Window_layout.current_tab m').scroll > before)));
       Testo.create "the omnibox suggests and completes the pages seen" (fun () ->
           let now = Unix.gettimeofday () in
           let places =

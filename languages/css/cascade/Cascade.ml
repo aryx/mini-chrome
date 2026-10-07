@@ -378,17 +378,17 @@ let own_key ~(visited : string -> bool) (e : Dom.element) : key =
   let seen = e.name = "a" && match Dom.attribute "href" e with Some h -> visited h | None -> false in
   mix k ((if empty then 1 else 0), if seen then 1 else 0)
 
-let last_index : (media * sheet list * (string, entry) Hashtbl.t * (key, kept) Hashtbl.t) option ref = ref None
+let last_index_here = Per_domain.make (fun () : (media * sheet list * (string, entry) Hashtbl.t * (key, kept) Hashtbl.t) option ref -> ref None)
 
 let index_opti (m : media) (sheets : sheet list) : (string, entry) Hashtbl.t * (key, kept) Hashtbl.t =
   let same a b = List.length a = List.length b && List.for_all2 (fun (x : sheet) (y : sheet) -> x.rules == y.rules && x.origin = y.origin) a b in
-  match !last_index with
+  match !(last_index_here ()) with
   | Some (m', sh, index, memo) when m' = m && same sh sheets ->
       if Hashtbl.length memo > 200_000 then Hashtbl.reset memo;
       (index, memo)
   | _ ->
       let index = index_simple m sheets and memo = Hashtbl.create 4096 in
-      last_index := Some (m, sheets, index, memo);
+      last_index_here () := Some (m, sheets, index, memo);
       (index, memo)
 
 let cascade_keyed ?(visited = fun _ -> false) (m : media) (sheets : sheet list) (root : Dom.element) :

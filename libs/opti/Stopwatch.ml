@@ -20,7 +20,8 @@ let table : (string, span) Hashtbl.t = Hashtbl.create 16
 let stack : float ref list ref = ref []
 
 let time (name : string) (f : unit -> 'a) : 'a =
-  if not !enabled then f ()
+  (* (the window's domain's alone: a tab's work on its own is not timed) *)
+  if not (!enabled && Per_domain.main ()) then f ()
   else (
     let children = ref 0. and start = Unix.gettimeofday () in
     stack := children :: !stack;

@@ -9,3 +9,15 @@
  (name mini_opti)
  (wrapped false)
  (libraries unix)) ; Stopwatch reads the clock
+
+; a value a domain (Per_domain.mli): Domain.DLS under OCaml 5, one
+; value under 4.14, which has one domain
+(rule
+ (targets Per_domain.ml)
+ (enabled_if (< %{ocaml_version} 5.0))
+ (action (copy domain/threads.ml.in %{targets})))
+
+(rule
+ (targets Per_domain.ml)
+ (enabled_if (>= %{ocaml_version} 5.0))
+ (action (copy domain/domains.ml.in %{targets})))

@@ -231,6 +231,19 @@ What follows from that:
 - Only the shown tab's timers run (`Tick` advances its scripts alone);
   the fetches of every tab go on.
 - A resize or a zoom lays out every tab again, on the main thread.
+- **With `tabs=domains`** (OCaml 5; `Tab_jobs`, `src/window`) a tab's
+  work is not the main thread's: each message for a tab -- its page
+  came, a timer of its scripts is due, a picture, an answer -- is a
+  job given to one of four domains, the tab's by its number, and the
+  tab's new value comes back at a later `Tick`. The window draws the
+  value it has meanwhile and answers its own things (the strip, the
+  omnibox, the wheel); a click or a key for a page that is away waits
+  for it. A page that loops for ever then freezes its tab, and the
+  tabs that share its domain, and nothing else. What the tabs' code
+  kept in globals is a domain's own (`Per_domain`, `libs/opti`) or
+  locked. Not the default: a script started by a click still runs on
+  the main thread, and the stages' times (`timings=on`) are the main
+  thread's alone.
 
 ### Chrome: a process per site, many threads in each
 

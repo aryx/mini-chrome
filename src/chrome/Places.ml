@@ -11,9 +11,10 @@
 (* See Places.mli *)
 
 type entry = { url : string; title : string; visits : int; last : float }
-type t = { mutable entries : entry list; mutable changes : int }
+(* (a page seen is said from its tab's domain: locked) *)
+type t = { mutable entries : entry list; mutable changes : int; lock : Mutex.t }
 
-let create ?(entries = []) () : t = { entries; changes = 0 }
+let create ?(entries = []) () : t = { entries; changes = 0; lock = Mutex.create () }
 let entries (t : t) : entry list = t.entries
 let changes (t : t) : int = t.changes
 let kept = 2000
@@ -26,6 +27,8 @@ let ranked ~(now : float) (es : entry list) : entry list = List.stable_sort (fun
 
 let visit (t : t) ~(now : float) ~(url : string) ~(title : string) : unit =
   if not (String.starts_with ~prefix:"about:" url) then (
+    Mutex.lock t.lock;
+    Fun.protect ~finally:(fun () -> Mutex.unlock t.lock) @@ fun () ->
     let seen, others = List.partition (fun e -> e.url = url) t.entries in
     let visits = match seen with e :: _ -> e.visits + 1 | [] -> 1 in
     let title = match (String.trim title, seen) with "", e :: _ -> e.title | title, _ -> title in

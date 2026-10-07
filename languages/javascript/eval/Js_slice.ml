@@ -77,11 +77,13 @@ let continue () : bool =
   wait ()
 
 (* the slice ended if its time is up, the clock looked at now *)
+(* (a run on a domain of its own is not the window's to cut: a tab's
+ * work, which the window does not wait for) *)
 let rec breath_now () : unit =
-  if !turn = Running && Unix.gettimeofday () -. !started > !length then pause ()
+  if !turn = Running && Per_domain.main () && Unix.gettimeofday () -. !started > !length then pause ()
 
 and breath () : unit =
-  if !turn = Running then (
+  if !turn = Running && Per_domain.main () then (
     incr calls;
     if !calls land 1023 = 0 && Unix.gettimeofday () -. !started > !length then pause ())
 

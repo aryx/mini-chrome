@@ -167,17 +167,17 @@ let matching (selector : string) (n : node) ~(keep : node -> bool) : node list =
  * frozen: the ancestors with their children bare; and a search goes
  * through the element asked, not the document. Each selector's text is
  * read once. *)
-let read : (string, Css.rule list) Hashtbl.t = Hashtbl.create 64
+let read_here = Per_domain.make (fun () : (string, Css.rule list) Hashtbl.t -> Hashtbl.create 64)
 
 let rules_of (selector : string) : Css.rule list =
-  match Hashtbl.find_opt read selector with
+  match Hashtbl.find_opt (read_here ()) selector with
   | Some rules -> rules
   | None -> (
       match Css.parse (selector ^ " {}") with
       | [] -> throw "SyntaxError" (Printf.sprintf "'%s' is not a valid selector" selector)
       | rules ->
-          if Hashtbl.length read > 2048 then Hashtbl.reset read;
-          Hashtbl.replace read selector rules;
+          if Hashtbl.length (read_here ()) > 2048 then Hashtbl.reset (read_here ());
+          Hashtbl.replace (read_here ()) selector rules;
           rules)
 
 (* [n] frozen with these children in place of its own *)
