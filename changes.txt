@@ -432,6 +432,11 @@
   a <noscript>'s content left out of a page whose scripts run
 
 *** JavaScript, the language
+- Object.assign copies the properties whose key is a symbol, and
+  Object.getOwnPropertySymbols lists them (it said none). Gmail's
+  message view marks an object with a symbol, copies it with
+  Object.assign and asks "mark in copy": no context was found, the
+  error was "Cse", and an opened message stayed at "Loading"
 - a string is counted in UTF-16's code units, as the language says,
   over the UTF-8 bytes it is kept in (Js_utf16, new, in
   languages/javascript/values): length, s[i], charCodeAt, charAt,
@@ -989,6 +994,11 @@
   format read
 
 *** the window and its chrome
+- with OCaml 4.14's threads, one fetched picture is decoded at a
+  time: eight at once (dynamicland.org's report, eight photographs
+  of eleven million dots, 4.6 s each) left the window one turn in
+  nine, and Back did not answer for a minute. OCaml 5's domains
+  decode them side by side: 7 s for the page, against 52
 - a page's clock follows the time that passed between two frames,
   not a sixtieth of a second a frame: on a large page a frame takes
   a fifth of a second and more, and its timers ran ten to twenty

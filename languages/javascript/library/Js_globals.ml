@@ -16,6 +16,12 @@ let fn = host_function
 let array (vs : value list) : value = Object (new_array vs)
 let is_symbol (k : string) : bool = String.length k >= 2 && k.[0] = '@' && k.[1] = '@'
 
+(* the keys that are symbols a script made (Symbol("x"): "@@7:x"), not
+ * the engine's own marks: what Object.assign copies besides the keys
+ * that show, and what getOwnPropertySymbols lists *)
+let own_symbols (v : value) : string list =
+  match v with Object o -> List.filter (fun k -> String.length k > 2 && is_symbol k && k.[2] >= '0' && k.[2] <= '9') (keys (target o)) | _ -> []
+
 (* an object's own keys that show: not a symbol's *)
 let own_keys (v : value) : string list =
   match (match v with Object o -> Object (target o) | v -> v) with
@@ -84,7 +90,7 @@ let object_statics : (string * value) list =
          (match (arg args 0, arg args 1) with Object o, (Object ds as d) -> List.iter (fun k -> define o k (own d k)) (keys ds) | _ -> ());
          arg args 0));
     ("getOwnPropertyNames", fn "getOwnPropertyNames" (fun ~this:_ args -> array (List.map (fun k -> String k) (own_names (arg args 0)))));
-    ("getOwnPropertySymbols", fn "getOwnPropertySymbols" (fun ~this:_ _ -> array []));
+    ("getOwnPropertySymbols", fn "getOwnPropertySymbols" (fun ~this:_ args -> array (List.map (fun k -> Symbol k) (own_symbols (arg args 0)))));
     ("getOwnPropertyDescriptor",
      fn "getOwnPropertyDescriptor" (fun ~this:_ args ->
          let k = to_string (arg args 1) in
@@ -381,7 +387,11 @@ let install ~(call : value -> this:value -> value list -> value) ~(lookup : stri
                          match src with
                          | Object _ | String _ ->
                              let ks = match call keys_of ~this:Undefined [ src ] with Object a -> array_items a | _ -> [] in
-                             List.iter (fun k -> let k = to_string k in put target k (get src k)) ks
+                             List.iter (fun k -> let k = to_string k in put target k (get src k)) ks;
+                             (* and those whose key is a symbol (a mark put on an
+                              * object and looked for with "in": Gmail's message
+                              * view found none of its contexts, "Loading" for ever) *)
+                             List.iter (fun k -> put target k (get src k)) (own_symbols src)
                          | _ -> ())
                        sources;
                      target

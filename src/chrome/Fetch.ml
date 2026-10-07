@@ -80,6 +80,8 @@ let https_get ?post ?agent ?said ?cache ?reload (jar : Cookie_jar.t) (caps : Cap
   | Ok (url, response) -> Ok { url; status = response.status; headers = response.headers; body = response.body }
   | Error why -> Error (Network_error why)
 
+let readying = Mutex.create ()
+
 (* the blocking fetch: at once, the frame waiting, or on a thread *)
 let blocking ?post ?said ?reload ?(ready = ignore) (t : 'msg t) (caps : Cap.network) (url : string) (k : answer -> 'msg) : 'msg in_flight =
   match t.pool with
@@ -89,7 +91,17 @@ let blocking ?post ?said ?reload ?(ready = ignore) (t : 'msg t) (caps : Cap.netw
        * will need of it made there (a picture decoded), not in a frame *)
       let fetch () =
         let a = https_get ?post ?said ?agent:t.agent ?cache:t.cache ?reload t.jar caps url in
-        (match a with Ok r -> ( try ready r with _ -> ()) | Error _ -> ());
+        (match a with
+        | Ok r -> (
+            (* with threads that take turns (OCaml 4.14: one runs at a
+             * time), one answer made ready at a time: eight large
+             * pictures decoded at once left the window one turn in
+             * nine, and it did not answer a click for a minute
+             * (dynamicland.org's report: eight photographs of eleven
+             * million dots). Domains really run beside it *)
+            if not Worker_spawn.parallel then Mutex.lock readying;
+            Fun.protect ~finally:(fun () -> if not Worker_spawn.parallel then Mutex.unlock readying) (fun () -> try ready r with _ -> ()))
+        | Error _ -> ());
         a
       in
       Blocking (Worker.submit pool fetch, k)

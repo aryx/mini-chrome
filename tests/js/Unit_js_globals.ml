@@ -19,6 +19,10 @@ let check (what : string) (s : string) (expected : string) : unit = Alcotest.(ch
 let tests =
   Testo.categorize "Js globals"
     [
+      Testo.create "a property whose key is a symbol: copied by Object.assign, listed by getOwnPropertySymbols" (fun () ->
+          (* a mark put on an object and looked for with "in", as a framework does *)
+          Alcotest.(check string) "copied, found, listed; not among the keys" {|[true, true, 1, true, ["a"]]|}
+            (run {|var m = Symbol("mark"), d = { a: 1 }; d[m] = true; var o = Object.assign({}, d); var syms = Object.getOwnPropertySymbols(o); [m in o, o[m], syms.length, syms[0] === m, Object.keys(o)]|}));
       Testo.create "Object's helpers" (fun () ->
           check "defineProperty: a value; a getter and a setter" {|var o = {}, n = 0; Object.defineProperty(o, 'v', { value: 1 }); Object.defineProperty(o, 'g', { get: function () { return this.v + 1 }, set: function (x) { n = x } }); o.g = 9; [o.v, o.g, n]|}
             "[1, 2, 9]";
