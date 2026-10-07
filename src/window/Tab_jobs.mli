@@ -41,11 +41,14 @@
    of the machine's cores): its caches
    stay warm there, and two tabs on one domain take turns.
 
-   wib: a script started by a click (not by the page's load or its
-   timers) still runs in the window's domain, where its answer is
-   waited for (did the page prevent the click?); a tab closed while
-   away keeps its domain busy until its work ends, which a loop that
-   never ends does not.
+   A click or a key is told to the page's scripts on their domain too,
+   and not waited for: what the browser itself does of it (follow the
+   link, scroll) depends on whether a script prevented it, so it comes
+   back as a message when the scripts have answered (Told, Clicked).
+   A form's submit event alone is waited for ([wait]).
+
+   wib: a tab closed while away keeps its domain busy until its work
+   ends, which a loop that never ends does not.
 
    modern:
    Chrome gives each site a process and the window another; Firefox
@@ -72,6 +75,11 @@ val away : int -> bool
 
 (* a tab's work given to its domain: [cfg] and the tab as they are now *)
 val send : int -> msg Browser_tab.config -> Browser_tab.t -> work -> unit
+
+(* [wait id f]: [f] done on the tab's domain and its answer waited
+   for -- a script's task the window cannot go on without (a click:
+   was it prevented?). Without tabs=domains, [f ()] here *)
+val wait : int -> (unit -> 'a) -> 'a
 
 (* work for a tab that is away, for when it is back; milliseconds of
    its scripts' clock that passed meanwhile; a message meant for its

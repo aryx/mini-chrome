@@ -107,7 +107,8 @@ let rec on_tab ?(light = false) (m : model) (id : int) (f : msg Browser_tab.conf
   | None -> (m, Cmd.none)
   | Some _ when Tab_jobs.enabled () && Tab_jobs.away id ->
       Tab_jobs.later id f;
-      if light then (fst (now m id f), Cmd.none) else (m, Cmd.none)
+      (* (shown at once on the tab as the window has it, its scripts left alone: they are its domain's) *)
+      if light then (fst (now m id (fun cfg tab -> let shown, cmd = f cfg { tab with script = None } in ({ shown with script = tab.script }, cmd))), Cmd.none) else (m, Cmd.none)
   | Some t when Tab_jobs.enabled () && not light ->
       Tab_jobs.send id (config m id) t.tab f;
       (m, Cmd.none)

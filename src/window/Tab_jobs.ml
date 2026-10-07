@@ -39,6 +39,20 @@ let send (id : int) (cfg : msg Browser_tab.config) (tab : Browser_tab.t) (f : wo
   let pool = !pools.(id mod Array.length !pools) in
   Hashtbl.replace jobs id { run = Worker.submit pool (fun () -> f cfg tab); waiting = []; owed = 0. }
 
+(* [f], on the tab's domain, waited for: a script's task whose answer
+ * the window needs before it goes on (did the page prevent the click?)
+ * -- run where the page's other tasks run, not in the window's
+ * domain: an async function of the page stopped at an await is a
+ * thread of the tab's domain, and woken from another it found no
+ * coroutine running (a click in Gmail asked for its message and the
+ * answer was never shown) *)
+let wait (id : int) (f : unit -> 'a) : 'a =
+  if not (Array.length !pools > 0) then f ()
+  else
+    let job = Worker.submit !pools.(id mod Array.length !pools) f in
+    let rec poll () = match Worker.poll job with Some (Ok v) -> v | Some (Error e) -> raise e | None -> Unix.sleepf 0.0002; poll () in
+    poll ()
+
 let later (id : int) (f : work) : unit = match Hashtbl.find_opt jobs id with Some j -> j.waiting <- j.waiting @ [ f ] | None -> ()
 let owe (id : int) (ms : float) : unit = match Hashtbl.find_opt jobs id with Some j -> j.owed <- Float.min 5000. (j.owed +. ms) | None -> ()
 let hold (msg : msg) : unit = kept := !kept @ [ msg ]

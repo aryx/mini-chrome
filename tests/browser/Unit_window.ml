@@ -98,6 +98,17 @@ let tests caps =
             Alcotest.(check string) "landed: the page, read and laid out on the tab's domain" "MiniChrome" (shown m);
             let m = wait 50 (tick caps (m.time +. 0.016) m) in
             Alcotest.(check bool) "the key kept was given when the tab came back: scrolled" true ((Window_layout.current_tab m).scroll > 0);
+            (* a press and its release on the page: the page hears the three, in order *)
+            let m = wait 100 m in
+            let script = Option.get (Window_layout.current_tab m).script in
+            (match Browser_script.eval script "var order = [];\n['mousedown', 'mouseup', 'click'].forEach(function (t) { document.addEventListener(t, function () { order.push(t) }) })" with
+            | Ok _ -> ()
+            | Error e -> Alcotest.fail e.message);
+            let over = { m with mouse = (0., Window_layout.area_top m -. 100.) } in
+            let m = wait 100 (tick caps (over.time +. 0.016) (after caps (Window_update.update caps Click over))) in
+            let m = wait 100 (tick caps (m.time +. 0.016) (after caps (Window_update.update caps Mouse_up m))) in
+            let m = wait 100 (tick caps (m.time +. 0.016) m) in
+            Alcotest.(check string) "mousedown, mouseup, click" {|["mousedown", "mouseup", "click"]|} (match Browser_script.eval script "order" with Ok v -> Js_value.display v | Error e -> e.message);
             (* a scroll is made at once, whatever the tab does *)
             let before = (Window_layout.current_tab m).scroll in
             let m' = after caps (Window_update.update caps (Wheel (-1.)) m) in

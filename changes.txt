@@ -1239,6 +1239,18 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- tabs=domains: a click or a key is told to the page's scripts on
+  the tab's domain, and the window does not wait: what the browser
+  does of it itself (the link followed, the page scrolled) comes back
+  as a message once the scripts have answered and prevented nothing
+  (Told, Clicked). They ran in the window's domain: an async function
+  of the page, a thread of the tab's domain, was woken from the wrong
+  one, a release's click found the tab away after its mouseup and was
+  told to nobody (a row of Gmail's list did nothing), and then, waited
+  for, a click's work froze the window. The clicks and keys kept for
+  a tab that is away are given in their order, in the Tick itself; a
+  scroll shown at once leaves the tab's scripts alone. With a handler
+  of three seconds running, Ctrl+T opens a tab and its page comes
 - more of the machine used (OCaml 5): the network's pool is sixteen
   workers at most (it was eight), a tab keeps twelve requests in
   flight (six), and tabs=domains gives the tabs sixteen domains at

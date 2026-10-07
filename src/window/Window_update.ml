@@ -85,6 +85,17 @@ let task (network : < Cap.network ; .. >) (m : model) (f : Browser_script.t -> b
   match (current_tab m).script with
   (* (a tab away on its domain: its scripts are not the window's to run) *)
   | Some _ when Tab_jobs.away m.current -> (m, Cmd.none, false)
+  | Some s when Tab_jobs.enabled () ->
+      (* with tabs=domains: on the tab's domain, where its scripts live,
+       * and what the task leaves (a layout owed, requests) with it --
+       * all waited for, the tab never away when this returns: a
+       * button's release is two tasks, the mouseup then the click, and
+       * the first sent the tab away for its layout, so the click was
+       * told to nobody (a row of Gmail's list, clicked, did nothing) *)
+      let cfg = config m m.current and tab = current_tab m in
+      let r, after = Tab_jobs.wait m.current (fun () -> let r = f s in (r, Browser_tab.after_task cfg network tab)) in
+      let m, cmd = now m m.current (fun _ _ -> after) in
+      (m, cmd, r)
   | Some s ->
       let r = f s in
       let m, cmd = on_current m (fun cfg tab -> Browser_tab.after_task cfg network tab) in
@@ -115,7 +126,43 @@ let form (network : < Cap.network ; .. >) ~(keep_focus : bool) (outcome : Browse
   let m, cmd = on_current m (fun cfg tab -> Browser_tab.form_effect cfg network ~keep_focus outcome tab) in
   (m, Cmd.batch [ told; cmd ])
 
+(* a click's own part, the browser's: the control or the link under the
+ * pointer, a form's button, a <details> -- once the page's scripts
+ * were told of the click and did not prevent it *)
+let click_default (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t =
+  match ((current_tab m).state, page_point m) with
+  | Shown p, Some (x, y) -> (
+      let control = pointed_control m and link = hovered m and element = Hit.element_at p.layout ~x ~y in
+      match (control, link) with
+      | Some e, _ -> form network ~keep_focus:false (Browser_forms.click p e) m
+      | _, Some href -> visit network (resolve p.url href) m
+      (* a <button> of a form: the form sent *)
+      | None, None when Option.bind element (Forms.submitting p.tree) <> None ->
+          let f, button = Option.get (Option.bind element (Forms.submitting p.tree)) in
+          form network ~keep_focus:false (Browser_forms.submit p f ~submitter:(Some button)) m
+      | _ ->
+          (* a <details>'s summary: opened or closed; else the field
+           * typed into gives up the keys *)
+          on_current m (fun cfg tab ->
+              match Option.bind element (fun e -> Browser_tab.details cfg network e tab) with
+              | Some opened -> opened
+              | None -> ({ tab with focus = None }, Cmd.none)))
+  | _ -> (m, Cmd.none)
+
 let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t =
+  match ((current_tab m).state, page_point m) with
+  (* with tabs=domains the page's scripts are told on their domain, and
+   * the window does not wait: the browser's own part comes back as a
+   * message (Clicked) if they did not prevent it. A tab that is away
+   * is told when its turn comes *)
+  | Shown p, Some (x, y) when Tab_jobs.enabled () && (not m.inspecting) && (current_tab m).script <> None ->
+      let element = Hit.element_at p.layout ~x ~y and scroll = float_of_int (current_tab m).scroll in
+      Logs.info (fun f -> f "click on %s, told to the page's scripts" (match element with Some e -> "<" ^ e.name ^ (match Dom.attribute "class" e with Some c -> " class=\"" ^ c ^ "\"" | None -> "") ^ ">" | None -> "nothing"));
+      on_current m (fun cfg tab ->
+          let prevented = match (tab.script, element) with Some s, Some e -> Browser_script.click ~at:(x, y -. scroll) s e | _ -> false in
+          let tab, cmd = Browser_tab.after_task cfg network tab in
+          (tab, if prevented then cmd else Cmd.batch [ cmd; Cmd.Msg Clicked ]))
+  | _ ->
   match ((current_tab m).state, page_point m) with
   | Shown p, Some (x, y) when m.inspecting -> ({ m with inspecting = false; selected = Hit.element_at p.layout ~x ~y }, Cmd.none)
   (* a player: played or paused *)
@@ -146,22 +193,7 @@ let click_page (network : < Cap.network ; .. >) (m : model) : model * msg Cmd.t 
             (if prevented then ", taken by the page's script" else ""));
       if prevented then (m, cmd)
       else
-        let m, cmd2 =
-          match (control, link, (current_tab m).state) with
-          | Some e, _, Shown p -> form network ~keep_focus:false (Browser_forms.click p e) m
-          | _, Some href, Shown p -> visit network (resolve p.url href) m
-          (* a <button> of a form: the form sent *)
-          | None, None, Shown p when Option.bind element (Forms.submitting p.tree) <> None ->
-              let f, button = Option.get (Option.bind element (Forms.submitting p.tree)) in
-              form network ~keep_focus:false (Browser_forms.submit p f ~submitter:(Some button)) m
-          | _ ->
-              (* a <details>'s summary: opened or closed; else the field
-               * typed into gives up the keys *)
-              on_current m (fun cfg tab ->
-                  match Option.bind element (fun e -> Browser_tab.details cfg network e tab) with
-                  | Some opened -> opened
-                  | None -> ({ tab with focus = None }, Cmd.none))
-        in
+        let m, cmd2 = click_default network m in
         (m, Cmd.batch [ cmd; cmd2 ]))
   | _ -> (m, Cmd.none)
 
@@ -236,14 +268,13 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
         | (Click | Mouse_up | Mouse_move _ | Wheel _), Shown p, Some (x, y) -> Hit.element_at p.layout ~x ~y
         | _ -> None
       in
-      let m, cmd, prevented =
-        task network m (fun s ->
-            (match twin typ with
-            | Some pointer ->
-                let more = [ ("pointerId", Js_value.Number 1.); ("pointerType", Js_value.String "mouse"); ("isPrimary", Js_value.Bool true); ("width", Js_value.Number 1.); ("height", Js_value.Number 1.); ("pressure", Js_value.Number (if typ = "mouseup" then 0. else 0.5)) ] in
-                ignore (Browser_script.window_event ?at s pointer (fields @ more))
-            | None -> ());
-            Browser_script.window_event ?at s typ fields)
+      let tell (s : Browser_script.t) : bool =
+        (match twin typ with
+        | Some pointer ->
+            let more = [ ("pointerId", Js_value.Number 1.); ("pointerType", Js_value.String "mouse"); ("isPrimary", Js_value.Bool true); ("width", Js_value.Number 1.); ("height", Js_value.Number 1.); ("pressure", Js_value.Number (if typ = "mouseup" then 0. else 0.5)) ] in
+            ignore (Browser_script.window_event ?at s pointer (fields @ more))
+        | None -> ());
+        Browser_script.window_event ?at s typ fields
       in
       (* a page told of the button going down is told its click when it
        * comes up, after the mouseup -- mousedown, mouseup, click, the
@@ -252,14 +283,25 @@ let rec step (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (
        * no click at all). A page that listens for neither has its click
        * at the press, as the browser's own things do *)
       let was_pressed = m.pressed in
-      let m = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
+      let pressed (m : model) = match msg with Click -> { m with pressed = true } | Mouse_up -> { m with pressed = false } | _ -> m in
       (* what went down, until the page's next frame ([update]) *)
-      let m = match msg with Key k -> { m with fresh = String.lowercase_ascii k :: m.fresh } | Click -> { m with fresh = "mouse" :: m.fresh } | _ -> m in
-      if prevented && msg <> Mouse_up then (m, cmd)
+      let fresh (m : model) = match msg with Key k -> { m with fresh = String.lowercase_ascii k :: m.fresh } | Click -> { m with fresh = "mouse" :: m.fresh } | _ -> m in
+      if Tab_jobs.enabled () then
+        (* told on the tab's domain, the window not waiting: what the
+         * browser does of it itself comes back as a message (Told), if
+         * the scripts did not prevent it *)
+        on_current (fresh (pressed m)) (fun cfg tab ->
+            let prevented = match tab.script with Some s -> tell s | None -> false in
+            let tab, cmd = Browser_tab.after_task cfg network tab in
+            (tab, if prevented && msg <> Mouse_up then cmd else Cmd.batch [ cmd; Cmd.Msg (Told (msg, was_pressed)) ]))
       else
-        let m, cmd' = update_browser ~page_click:(msg <> Click) caps msg m in
-        let m, cmd'' = if msg = Mouse_up && was_pressed && page_point m <> None then click_page network m else (m, Cmd.none) in
-        (m, Cmd.batch [ cmd; cmd'; cmd'' ])
+        let m, cmd, prevented = task network m tell in
+        let m = fresh (pressed m) in
+        if prevented && msg <> Mouse_up then (m, cmd)
+        else
+          let m, cmd' = update_browser ~page_click:(msg <> Click) caps msg m in
+          let m, cmd'' = if msg = Mouse_up && was_pressed && page_point m <> None then click_page network m else (m, Cmd.none) in
+          (m, Cmd.batch [ cmd; cmd'; cmd'' ])
   (* (a page that heard the press and does not listen for the release: its click all the same) *)
   | _ when msg = Mouse_up && m.pressed ->
       let m, cmd = update_browser caps msg { m with pressed = false } in
@@ -280,12 +322,14 @@ and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (ms
    * taken -- is kept until it is back, its scripts not being the
    * window's to tell meanwhile. The window's own things answer: the
    * strip, the toolbar, the omnibox, the wheel *)
+  (* (once one is kept, those after it are too, the tab back or not:
+   * a button's release given before its press would be no click) *)
   let for_page =
-    Tab_jobs.away m.current
+    (Tab_jobs.away m.current || Tab_jobs.holding ())
     &&
     match msg with
     | Click | Right_click -> m.menu = None && suggestion_at m = None && page_point m <> None && Gui_scrollbar.at (scrollbar m) m.mouse = None
-    | Mouse_up -> m.pressed
+    | Mouse_up -> m.pressed || Tab_jobs.holding ()
     (* (Ctrl and Shift are the window's to know of: Ctrl+T, Ctrl+W, with the page away) *)
     | Key k | Key_up k when List.exists (fun w -> List.mem w (String.split_on_char ' ' (String.lowercase_ascii k))) [ "ctrl"; "shift"; "alt" ] -> false
     | Key _ | Key_up _ | Typed _ -> m.omnibox = None && not m.ctrl
@@ -294,6 +338,12 @@ and update (caps : < Cap.network ; Cap.open_out ; Cap.exec ; Cap.env ; .. >) (ms
   if for_page then (Tab_jobs.hold msg; (m, Cmd.none))
   else
   match msg with
+  (* the browser's own part of a message its page's scripts were told of, on their domain *)
+  | Told (told, was_pressed) ->
+      let m, cmd = update_browser ~page_click:(told <> Click) caps told m in
+      let m, cmd' = if told = Mouse_up && was_pressed && page_point m <> None then click_page (caps :> < Cap.network >) m else (m, Cmd.none) in
+      (m, Cmd.batch [ cmd; cmd' ])
+  | Clicked -> click_default (caps :> < Cap.network >) m
   | Key_up k when List.mem (String.lowercase_ascii k) m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
   | Mouse_up when List.mem "mouse" m.fresh -> ({ m with late = m.late @ [ msg ] }, Cmd.none)
   | Tick _ when m.fresh <> [] ->
@@ -400,7 +450,13 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
       let cmd = Cmd.batch [ early; cmd ] in
       let cmd = Cmd.batch [ back; cmd ] in
       (* the clicks and keys kept for the shown tab while it was away *)
-      let cmd = if release then Cmd.batch (cmd :: List.map (fun msg -> Cmd.Msg msg) (Tab_jobs.held ())) else cmd in
+      (* (given here and now, in their order: as messages of their own
+       * they came after what the platform had sent meanwhile -- a
+       * button's release before its press, and no click) *)
+      let m, cmd =
+        if release then List.fold_left (fun (m, cmd) kept -> let m, c = update caps kept m in (m, Cmd.batch [ cmd; c ])) (m, cmd) (Tab_jobs.held ())
+        else (m, cmd)
+      in
       (* the layouts owed since the frame before, one a tab (one that is away: when it is back) *)
       let m, cmd =
         List.fold_left
@@ -553,3 +609,5 @@ and update_browser ?(page_click = true) (caps : < Cap.network ; Cap.open_out ; C
       | "f12" -> (toggle_panel m, Cmd.none)
       | "backspace" -> on_current m (fun cfg tab -> Browser_tab.back cfg network tab)
       | _ -> (m, Cmd.none))
+  (* ([update]'s, with tabs=domains) *)
+  | Told _ | Clicked -> (m, Cmd.none)

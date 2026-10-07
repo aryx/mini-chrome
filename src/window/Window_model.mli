@@ -59,6 +59,12 @@ and msg =
   | Start_fetch of msg Fetch.request (* a tab's request, to start *)
   | Socket of int * Script_types.socket_ask (* a tab's script's WebSocket: opened, sent to, closed *)
   | Got_socket of int * int * Websocket_client.event (* what it said: the tab, the socket's number *)
+  (* tabs=domains: the page's scripts were told of a message, on their
+   * domain, and did not prevent it: the browser's own part of it, now
+   * (and whether the button was down before, for a release's click);
+   * and the same of a click *)
+  | Told of msg * bool
+  | Clicked
   | Tick of float
   | Key of string
   | Key_up of string
