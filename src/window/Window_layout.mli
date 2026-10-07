@@ -98,6 +98,11 @@ val pointed_control : model -> Dom.element option
 (* [near x y w h m]: the pointer is in the box from [x], [w] wide, [h]
  * high around the line [y] *)
 val near : float -> float -> float -> float -> model -> bool
+(* the strip's end: the memory held and which program this is; the
+   width that takes, the memory's graph counted *)
+val runtime : model -> string
+val runtime_width : model -> float
+
 val on_omnibox : model -> bool
 
 (* the star's place in the omnibox; the bookmarks' bar (of no height

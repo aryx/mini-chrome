@@ -994,6 +994,14 @@
   format read
 
 *** the window and its chrome
+- the memory the browser holds is said at the tab strip's end: its
+  megabytes in RAM (the system's count, the pictures' pixels in it),
+  read every two seconds, and a minute of them as a small graph
+  (Browser_memory, new, in src/chrome). about:memory says where it
+  goes as far as the browser knows -- each tab's pages kept for Back,
+  its pictures decoded and their megabytes, OCaml's heap -- and what
+  is on disk (the answers kept, the profile). memory=off: not read;
+  nor in a frame dumped with no screen, unless memory=on
 - bookmarks (Bookmarks, new, in src/chrome): a star at the omnibox's
   end, yellow when the page shown is kept; a click on it, or Ctrl+D,
   keeps the page or lets it go. Those kept are in a bar under the

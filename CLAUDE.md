@@ -60,7 +60,7 @@ their names are `flag_names` in `Window_update`, to keep up to date):
 script's long run freezes the window), `cache=off` (no answer kept on
 disk), `timings=on` (where the time
 went, by stage, said at the end: `Stopwatch`), `profile=DIR|off`, `scale=N`,
-`opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
+`memory=off|on`, `opti=off`, `js=walk` (a script's functions walked by `Js_eval`, not
 compiled by `Js_compile`), `letters=segments` (a letter as its pen's strokes, not one
 picture: `docs/plans/plan_performance.md`, step 4b), `pdf=strokes` (a
 PDF's text in our own letters; and `-gradients`, `-clips`,
@@ -141,6 +141,13 @@ recently used going first) in `~/.cache/mini-chrome` (`XDG_CACHE_HOME`;
 frame waits for the disk; Reload asks the network again. `cache=off`
 and `profile=off` keep none: the dumps of this file, made with
 `profile=off`, always ask the network. `about:cache` lists the copies.
+
+The memory held is said there too, before it (`Browser_memory`:
+megabytes in RAM from `/proc/self/statm`, read by the main every two
+seconds into the model's `memory`, a minute of them drawn as bars;
+`about:memory` tells the tabs' share and the disk's). Not read under
+SDL's dummy driver, so a dump stays the same on every machine, unless
+`memory=on`; `memory=off` never reads it.
 
 Which program is running is said at the end of the tab strip
 (`Browser_version.label`: "OCaml 5.5.1, 8 domains", "OCaml 4.14.2, 8

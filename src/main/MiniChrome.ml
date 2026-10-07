@@ -194,11 +194,22 @@ let save_places (caps : < Cap.open_out ; .. >) ?(now = false) (dir : string opti
       (match Places.save caps ~dir places with Ok () -> () | Error why -> Logs.warn (fun m -> m "the pages seen are not saved: %s" why))
   | _ -> ()
 
+(* the memory held, read every two seconds into the model (the strip's
+ * graph, about:memory): not when a frame is dumped with no screen, a
+ * dump being the same on every machine -- unless memory=on *)
+let measured : float ref = ref 0.
+
+let with_memory (caps : < Cap.open_in ; .. >) ~(on : bool) (m : Window_model.model) : Window_model.model =
+  if on && Unix.gettimeofday () -. !measured >= 2. then (
+    measured := Unix.gettimeofday ();
+    { m with memory = Browser_memory.resident caps :: List.filteri (fun i _ -> i < 29) m.memory })
+  else m
+
 (* a long run's result when it ends, and the messages kept until then *)
 let result : (Window_model.model * Window_model.msg Cmd.t) option ref = ref None
 let queued : Window_model.msg list ref = ref []
 
-let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(places : Places.t) ~(cache : Http_cache.store option) ~(desktop : float) ~(window : int * int) =
+let app (caps : < Cap.network ; Cap.open_out ; Cap.open_in ; .. >) (profile : Browser_profile.t * string option) ~(jar : Cookie_jar.t) ~(places : Places.t) ~(memory : bool) ~(cache : Http_cache.store option) ~(desktop : float) ~(window : int * int) =
   {
     Playground.init = Window_update.init caps ~jar ~places ?cache profile ~desktop ~window;
     update =
@@ -208,7 +219,7 @@ let app (caps : < Cap.network ; Cap.open_out ; .. >) (profile : Browser_profile.
            * the pointer moved, the page scrolled or came (asking for the one shown costs nothing) *)
           (match msg with Tick _ -> save_cookies caps m.profile_dir jar; save_places caps m.profile_dir m.places | _ -> Playground_platform.set_cursor (Window_layout.cursor_of m));
           unsaved := (match m.profile_dir with Some dir when m.profile <> m.saved -> Some (dir, m.profile) | _ -> None);
-          (m, cmd)
+          ((match msg with Tick _ -> with_memory caps ~on:memory m | _ -> m), cmd)
         in
         (* a message's work is a run that may be long, a page's script
          * in it (Js_slice): when a slice of it is over the window is
@@ -375,4 +386,4 @@ let main = Program.main __MODULE__ (fun () ->
        * is not drawn again (Window_view.view gives it back when the
        * window has nothing new to show) *)
       Playground_platform.run_app ~flags
-        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~places ~cache ~desktop ~window)))
+        ~window:{ Playground.default_window with screen_size = Some window; follows_window = true; skip_same_view = true } (app caps (profile, profile_dir) ~jar ~places ~memory:(match List.assoc_opt "memory" flags with Some v -> v <> "off" | None -> Sys.getenv_opt "SDL_VIDEODRIVER" <> Some "dummy") ~cache ~desktop ~window)))

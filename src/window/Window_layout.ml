@@ -126,13 +126,20 @@ let buttons (m : model) : Gui_toolbar.t =
   { left = button_x m 0; y = toolbar_y m;
     buttons = [ (Back, tab.history.behind <> []); (Forward, tab.history.ahead <> []); ((if loading tab then Stop else Reload), true) ] }
 
+(* the strip's end: the memory held, then which program this is *)
+let runtime (m : model) : string =
+  (match m.memory with mb :: _ -> Printf.sprintf "%d MB   " mb | [] -> "") ^ Browser_version.label ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers
+
+(* what the strip's end takes: the label, and the memory's graph before it *)
+let runtime_width (m : model) : float = Gui_text.width (runtime m) +. if m.memory = [] then 0. else Browser_memory.graph_width +. 10.
+
 let strip (m : model) : int Gui_tabs.t =
   let title (t : Browser_tab.t) = match t.state with Shown p when p.title <> "" -> p.title | Shown p -> p.url | Loading _ -> "Loading..." in
   (* the page's icon, among the tab's pictures once it has come (Browser_tab.icon_url) *)
   let icon (t : Browser_tab.t) =
     match Option.bind (Browser_tab.icon_url t) (fun u -> List.assoc_opt u t.pictures) with Some (Arrived img) -> Browser_picture.drawn 16. 16. img | _ -> []
   in
-  { left = tab_left m; y = tab_y m; room = width m -. 60. -. Gui_text.width (Browser_version.label ~threads:(Fetch.threads m.fetches) ~workers:Fetch.workers); current = m.current;
+  { left = tab_left m; y = tab_y m; room = width m -. 60. -. runtime_width m; current = m.current;
     tabs = List.map (fun t -> { Gui_tabs.value = t.id; title = title t.tab; busy = loading t.tab; icon = icon t.tab }) m.tabs }
 
 let near (x0 : float) (y0 : float) (w : float) (h : float) (m : model) : bool = Gui_kit.near x0 y0 w h m.mouse
