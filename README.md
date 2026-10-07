@@ -237,6 +237,11 @@ libs/gui              the chrome's pieces that know no browser, as values
                       a point (Gui_menu), a line typed into (Gui_field),
                       a scrollbar (Gui_scrollbar), the desktop's scale
                       (Gui_scale)
+libs/crypto           the cryptography born of the web and its protocols:
+                      HMAC and HKDF, ChaCha20-Poly1305 as one cipher,
+                      X25519 (copies, told here), and the exchange over
+                      NIST's P-256 (written here); the hashes, AES, RSA
+                      and the big numbers are elm-playground's
 libs/compression      Brotli, the web's own compression (Content-
                       Encoding: br), decoded, with its dictionary of
                       the web's words; gzip and Zstandard are

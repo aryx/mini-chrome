@@ -224,7 +224,7 @@ order: `libs/dom` (the `Dom` tree alone, a library of its own under
 the languages, since HTML and XML are both read into it and CSS
 matches on it) → `languages/` (html,
 xml, css, javascript, json) → `libs/` (gui, richtext,
-network, images, video, audio, compression, fonts, pdf) → `src/` (url, layout, display, www, dom, viewers, about,
+crypto, network, images, video, audio, compression, fonts, pdf) → `src/` (url, layout, display, www, dom, viewers, about,
 chrome, window, main). Nothing in `languages/` or `libs/` depends on
 `src/`; a language may use a library (the `Dom`) and a library a
 language (`libs/images`' `Svg` reads its files with `Xml`). `tools/` has the small programs beside the
@@ -471,7 +471,7 @@ which returns the messages of the requests answered (`Got`,
 browser's own name, but for the sites of its table, each with its
 reason -- empty: Google was in it for a day, and why it is not is
 told there);
-`https://` is the blocking `Http_client` over our TLS (1.3, `Tls13`, whose client goes on by `Tls12` when the server's hello says the older version: ECDHE over X25519 or P-256 -- `P256`, written here over `tiny_libs`' `Bignum` -- and AEAD suites alone), on `Worker`'s
+`https://` is the blocking `Http_client` over our TLS (1.3, `Tls13`, whose client goes on by `Tls12` when the server's hello says the older version: ECDHE over X25519 or P-256 -- and AEAD suites alone), on `Worker`'s
 pool of eight workers -- threads under OCaml 4.14, domains under
 OCaml 5 (`Worker_spawn`, one of `libs/network/spawn/*.ml.in` copied
 by dune on the compiler's version): under 5 a job really runs beside
@@ -720,6 +720,14 @@ a test that the two agree. The comments start `opti:` and give the numbers measu
   each page near poppler's picture of it (`data/make.sh`);
   `tests/pdf/Dump.exe` prints a file's pages, renders one, or prints
   a glyph.
+- `libs/crypto` has the cryptography born of the web and of the
+  internet's protocols: `Hmac`, `Hkdf`, `Chacha20_poly1305` (the two
+  of Bernstein's made one cipher for Chrome) and `X25519`, copies told
+  here, and `P256`, written here (the exchange over NIST's curve,
+  which TLS 1.2's old servers ask). Wrapped (`Mini_crypto`), its
+  users saying `(flags (:standard -open Mini_crypto))`: the hashes,
+  AES and GCM, RSA, ECDSA and `Bignum` stay `tiny_libs.crypto`'s,
+  linked beside it, and came from elsewhere.
 - A copy must not meet its original in the program: two modules of
   one name do not link. `tiny_libs.graphics_svg` is simply not linked.
   The Playground itself links `tiny_libs`' `Png` (textures, a frame

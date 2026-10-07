@@ -72,10 +72,10 @@ libraries. By what they are, with the modules the browser names:
 
 | Library | Modules | Used for | By |
 |---|---|---|---|
-| `crypto` | `X25519` | the key exchange | `libs/network` |
-| | `Hkdf`, `Hmac`, `Sha256`, `Sha512` | the key schedule, the transcript's hash | `libs/network` |
-| | `Chacha20_poly1305`, `Gcm` (AES) | the records' encryption | `libs/network` |
-| | `Rsa`, `Ecdsa`, `Bignum` | a certificate's signature checked | `libs/network` |
+| `crypto` | `Sha256`, `Sha512` | the transcript's hash, HMAC's | `libs/network`, `libs/crypto` |
+| | `Chacha20`, `Poly1305`, `Gcm` (AES) | the records' encryption | `libs/network`, `libs/crypto` |
+| | `Rsa`, `Ecdsa` | a certificate's signature checked | `libs/network` |
+| | `Bignum` | the curves' arithmetic (X25519, P-256) | `libs/crypto` |
 | | `Sha1` | WebSocket's handshake proof | `libs/network` |
 
 ### Small things
@@ -140,7 +140,9 @@ grow, or written here; each is told in its `.mli`.
 |---|---|---|
 | `languages/html`, `css`, `javascript`, `json` | the page's languages | a fork of its `languages/` and browser kit |
 | `languages/xml`, `libs/dom` | XML's reader, the document's tree | out of its `Svg`, out of `languages/html` |
-| `libs/network` | URLs, HTTP/1.1, cookies, TLS 1.3, TLS 1.2 (`Tls12`, with the P-256 exchange, `P256`, written here over `Bignum`), X.509, WebSocket | a copy of its `libs/networking` (wrapped: the Playground links the original) |
+| `libs/network` | URLs, HTTP/1.1, cookies, TLS 1.3, TLS 1.2 (`Tls12`), X.509, WebSocket | a copy of its `libs/networking` (wrapped: the Playground links the original) |
+| `libs/crypto` | `Hmac`, `Hkdf`, `Chacha20_poly1305`, `X25519` | copies (wrapped, `Mini_crypto`: `tiny_libs.crypto`, linked for the rest, has them too) |
+| | `P256`: the key exchange over NIST's curve | written here |
 | `libs/compression` | Brotli and its dictionary | a copy; split out there so the two do not meet |
 | `libs/images` | PNG, SVG | copies (wrapped: the Playground links its `Png`) |
 | | WebP: `Webp`, `Vp8l`, `Vp8` | written here |

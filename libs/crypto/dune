@@ -1,0 +1,19 @@
+; the cryptography born of the web and of the internet's protocols,
+; told here: HMAC (Hmac) and HKDF (Hkdf), made for them; ChaCha20 and
+; Poly1305 as one cipher (Chacha20_poly1305), put together for Chrome;
+; X25519, which the web made the usual key exchange -- copies of
+; elm-playground's, to be told here and to grow -- and P256, written
+; here: the exchange over NIST's curve that TLS 1.2's old servers ask.
+; What came from elsewhere stays tiny_libs.crypto's and is used from
+; it: the hashes (SHA-1, SHA-2), AES and GCM, ChaCha20 and Poly1305
+; themselves, RSA, ECDSA, the big numbers. Pure OCaml.
+;
+; Wrapped, as Mini_crypto (libs/images and libs/network are, for the
+; same reason): tiny_libs.crypto, linked for the rest, has modules of
+; these names. Never written, though: a library using it says
+; (flags (:standard -open Mini_crypto)), and its code Hmac.sha256.
+(library
+ (name mini_crypto)
+ (wrapped true)
+ (libraries
+   tiny_libs.crypto)) ; Sha256, Sha512 (Hmac); Chacha20, Poly1305; Bignum (X25519, P256)

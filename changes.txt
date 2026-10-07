@@ -1192,6 +1192,13 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- libs/crypto, new: the cryptography born of the web and of its
+  protocols, told here as the pictures' formats are -- HMAC (1996,
+  made for IPsec and SSL), HKDF (2010, TLS 1.3's key schedule),
+  ChaCha20-Poly1305 as one cipher (Google's, 2013, for Chrome on
+  phones), X25519 (which the web made the usual exchange): copies of
+  elm-playground's with their history, and P256, moved there. The
+  hashes, AES, RSA and the big numbers stay elm-playground's
 - with -v, what a page asks for that is not here is said, once a name
   a page ("missing: HTMLElement.form", "missing: document.open()"): a
   property read on the window, the document or an element that

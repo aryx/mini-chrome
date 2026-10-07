@@ -21,6 +21,7 @@
 (library
  (name network)
  (wrapped true)
+ (flags (:standard -open Mini_crypto)) ; ours before tiny_libs.crypto's of the same names (libs/crypto/dune)
  (libraries
    unix
    threads.posix ; Worker's pool
@@ -28,6 +29,7 @@
    caps ; Cap.network, which every function opening a socket takes
    logs ; -v: the roots' file read
    tiny_libs.crypto ; the hashes, ciphers and signatures of TLS
+   mini_crypto ; ours: Hmac, Hkdf, Chacha20_poly1305, X25519, P256 (libs/crypto)
    tiny_libs.compression ; Gzip, Zstd: a body with Content-Encoding: gzip, zstd
    mini_compression ; Brotli and its dictionary: Content-Encoding: br
    tiny_libs.core)) ; Base64 (PEM), Civil and Clock (certificates' dates)
