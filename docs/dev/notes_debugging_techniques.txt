@@ -20,6 +20,14 @@ A page looks wrong, no scripts involved:
 Read the PNG; cut the page down to ten lines that still show it;
 several variants side by side in one page (sections 2, 25).
 
+A page looks wrong and says no error: what it asked for that is not here
+
+  ./bin/mini-chrome -v url=... 2>&1 | grep missing:
+
+each name once ("missing: HTMLElement.form", "missing: document.open()"):
+most are a page asking before it uses, one may be the cause. Read it
+before any guess.
+
 A page's scripts stop, or the page is blank with them:
 
   ./bin/mini-chrome -v url=... 2>&1 | tee /tmp/site.log     # console:, each request, each click

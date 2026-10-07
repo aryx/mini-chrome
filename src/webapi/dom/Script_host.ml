@@ -76,6 +76,18 @@ let style_object (t : t) (n : node) : value =
       show = (fun () -> "CSSStyleDeclaration");
     }
 
+(* what a page asked for that is not here, said once a page with -v
+ * ("missing: Window.indexedDB"): a property read that neither the
+ * object nor its prototypes have, a function that is there to do
+ * nothing. Most are a page asking before it uses (and doing without);
+ * the one that matters is in the list, when a page looks wrong *)
+let missed_names : (string, unit) Hashtbl.t = Hashtbl.create 64
+
+let missed (name : string) : unit =
+  if not (Hashtbl.mem missed_names name) then (
+    Hashtbl.add missed_names name ();
+    Logs.info (fun m -> m "missing: %s" name))
+
 let rec wrap (t : t) (n : node) : value =
   match n.wrapper with
   | Some v -> v

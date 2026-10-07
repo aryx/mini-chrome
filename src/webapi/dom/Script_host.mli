@@ -36,6 +36,12 @@ val method_ : string -> (value list -> value) -> value
 
 (* a node's host object, made once; the node a host object stands for
  * (a TypeError thrown for anything else) *)
+(* what a page asked for that is not here, said once a page with -v
+   ("missing: Window.indexedDB"); the names said so far, forgotten at
+   each new page *)
+val missed : string -> unit
+val missed_names : (string, unit) Hashtbl.t
+
 val wrap : t -> node -> value
 val node_of : t -> value -> node
 

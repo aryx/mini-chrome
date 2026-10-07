@@ -135,6 +135,8 @@ let verify_scheme (cert : t) ~(scheme : int) ~(message : string) ~(signature : s
   | 0x0806, Rsa (n, e) -> Rsa.verify_pss ~n ~e Rsa.Sha512 ~message ~signature
   | 0x0401, Rsa (n, e) -> Rsa.verify_pkcs1 ~n ~e Rsa.Sha256 ~message ~signature
   | 0x0501, Rsa (n, e) -> Rsa.verify_pkcs1 ~n ~e Rsa.Sha384 ~message ~signature
+  (* (offered since the start, and what a TLS 1.2 server of OpenSSL's picks first) *)
+  | 0x0601, Rsa (n, e) -> Rsa.verify_pkcs1 ~n ~e Rsa.Sha512 ~message ~signature
   | _ -> false
 
 (*****************************************************************************)

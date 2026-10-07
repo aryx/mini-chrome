@@ -56,7 +56,7 @@ let run (caps : < Cap.network ; Cap.open_out ; Cap.stdout ; Cap.stderr ; .. >) ?
     (if o.verbose then
        match Http_client.prepare ?post ~jar ?agent:(Option.map (fun a _ -> a) o.agent) url with
        | Ok (host, port, bytes) ->
-           complain (Printf.sprintf "* %s, port %d%s" host port (if url.scheme = Some "https" then ", TLS 1.3" else ""));
+           complain (Printf.sprintf "* %s, port %d%s" host port (if url.scheme = Some "https" then ", TLS" else ""));
            List.iter (fun l -> complain ("> " ^ l)) (request_lines bytes)
        | Error _ -> ());
     let* (r : Http.response) = Http_client.once ?post ~jar ?agent:(Option.map (fun a _ -> a) o.agent) caps url in

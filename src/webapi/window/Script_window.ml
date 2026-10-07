@@ -167,6 +167,8 @@ let install (t : t) ~(viewport : float * float) (define : string -> value -> uni
   define "CSS" (object_of [ ("supports", fn "supports" (fun _ -> Bool true)); ("escape", fn "escape" (fun args -> arg args 0)) ]);
   (* new Image(): an <img> in no tree *)
   define "Image" (fn "Image" (fun _ -> wrap t (make "img")));
+  (* a function of the prelude's that is there to do nothing, called: said (Script_host.missed) *)
+  define "__missed" (fn "__missed" (fun args -> Script_host.missed (to_string (arg args 0) ^ "()"); Undefined));
   (* JS_MISSING=1: each name asked of the window that it has not, said
    * once -- what a page looks for and this browser lacks (a page that
    * waits without an error: docs/dev/notes_debugging_techniques.txt) *)

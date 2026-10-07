@@ -267,6 +267,11 @@ let number_to_string (f : float) : string = if f = 0. then "0" else Js_ast.numbe
  * or "default". None: the object has none, or no engine runs *)
 let own_primitive : (value -> string -> value option) ref = ref (fun _ _ -> None)
 
+(* told of a property read on a host's object that it has not, nor its
+ * prototypes: its class and the name (a browser's list of what a page
+ * looked for and did not find); None, nobody is told *)
+let missing : (string -> string -> unit) option ref = ref None
+
 let rec to_string (v : value) : string =
   match v with
   | Undefined -> "undefined"

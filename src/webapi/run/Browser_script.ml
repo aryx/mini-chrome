@@ -169,6 +169,7 @@ let page_seconds = 60.
 
 let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.) ?(viewport = (1000., 768.))
     ?(cookies = ((fun () -> ""), fun (_ : string) -> ())) (tree : Dom.element) : t =
+  Js_value.missing := None;
   let lines = ref (fun (_ : string) -> ()) in
   let clock = ref (fun () -> epoch) in
   let engine = Js_eval.create ~log:(fun l -> !lines l) ~seed ~now:(fun () -> !clock ()) () in
@@ -222,6 +223,14 @@ let create ?(seed = 1) ?(log = fun _ -> ()) ?(base = "about:blank") ?(epoch = 0.
   (* the small web APIs written in JavaScript *)
   (match Js_eval.run engine (Lazy.force prelude) with Ok _ -> () | Error e -> log (Printf.sprintf "data/prelude/web/, line %d: %s" e.line e.message));
   Script_url.install t (Js_eval.define engine);
+  (* with -v, what this page looks for and does not find is said, once
+   * a name: not the marks a library keeps on a node (_x, $x, __x), nor
+   * what every promise and every JSON asks of any object *)
+  Hashtbl.reset Script_host.missed_names;
+  Js_value.missing :=
+    (if Logs.level () = Some Logs.Info || Logs.level () = Some Logs.Debug then
+       Some (fun cls k -> if k <> "" && (match k.[0] with 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false) && not (List.mem k [ "then"; "toJSON"; "nodeType"; "window"; "jquery"; "event"; "attributeChangedCallback"; "connectedCallback"; "disconnectedCallback"; "adoptedCallback" ]) then Script_host.missed (cls ^ "." ^ k))
+     else None);
   t
 
 let eval (t : t) (text : string) : (value, Js_eval.error) result =

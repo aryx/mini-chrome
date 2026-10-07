@@ -5,6 +5,17 @@
 # (with direction from me)
 
 ** networking (its own)
+- TLS 1.2 (Tls12, new, in libs/network/tls), for the servers that
+  have no 1.3: the ClientHello offers both, and a ServerHello of the
+  older version goes on by its own handshake -- ECDHE, the server's key
+  signed by its certificate (RSA or ECDSA), the PRF's master secret
+  (the extended one when the server has it), AES-128-GCM or
+  ChaCha20-Poly1305 records. The exchange is over X25519 or NIST's
+  P-256 (P256, new: the curve's arithmetic over tiny_libs' Bignum),
+  which the servers set up long ago offer alone; RSA signatures with
+  SHA-512 are checked. Not done, and refused: the RSA key exchange,
+  CBC, resumption. www.diku.dk and badssl's 1.2-only server answered
+  alert 40 ("network error"); they answer now
 - a cache on disk (RFC 9111): an answer its server lets be used again
   is kept (Cache-Control's max-age and immutable, Expires; not
   no-store, not one that varies by a request header), given back
@@ -589,6 +600,12 @@
   now parse, and Preact runs
 
 *** the web's APIs: the DOM, the window, the network a script asks
+- what GitHub's page asked for and did not find (the new "missing:"
+  list): a control's form (the one around it, or the one its form=
+  names), an event's handler not set as null and known to "in"
+  (el.oninput, "onclick" in el: a host object's prototypes are now
+  looked at by the in operator), document.prerendering,
+  popoverTargetElement
 - document.write, from a script that runs as its page is read (it did
   nothing): the HTML written is put after the script, each write
   after the one before, and a script written is run
@@ -1175,6 +1192,16 @@
   Playground's flags, the names of xix's programs)
 
 *** the program's shape
+- with -v, what a page asks for that is not here is said, once a name
+  a page ("missing: HTMLElement.form", "missing: document.open()"): a
+  property read on the window, the document or an element that
+  neither it nor its prototypes have (the engine tells: Js_value.
+  missing), and a function of the prelude's that is there to do
+  nothing, when it is called (stub, in data/prelude/web/start.js:
+  document.open, element.scrollTo, elementFromPoint, execCommand, a
+  canvas's context, a range). Most are a page asking before it uses;
+  the one that matters is in the list when a page looks wrong, before
+  any guess. A page with none says nothing
 - a recording replayed (MINI_REPLAY) has a clock of its own, a tenth
   of a second a frame: two runs of it ask the same things in the
   same order

@@ -29,7 +29,7 @@ What is in it:
   expects: the DOM and its events, `fetch` and `XMLHttpRequest` under
   the same-origin policy and CORS, `WebSocket`, timers and the event
   loop, `localStorage`.
-- **The network.** HTTP/1.1 over its own TLS 1.3 client (X.509
+- **The network.** HTTP/1.1 over its own TLS client (1.3, and 1.2 for the servers that have no other; X.509
   certificates checked), cookies, WebSocket; bodies in gzip, Brotli
   and Zstandard.
 - **Pictures.** PNG, WebP (lossy and lossless) and SVG, written or
@@ -269,7 +269,7 @@ libs/pdf              a PDF file read (Pdf: objects, the table of where
 libs/opti             the switch between an optimized function and the
                       simple one kept beside it (Mini_opti; opti=off)
 libs/richtext         a look (Style): what the pen drawing a letter is told
-libs/network          URLs, HTTP/1.1, cookies, TLS 1.3 and the sockets: a
+libs/network          URLs, HTTP/1.1, cookies, TLS 1.3 and 1.2, and the sockets: a
                       GET that never blocks, stepped each frame
                       (Http_request); WebSocket, its handshake and
                       frames (Websocket) and a connection stepped

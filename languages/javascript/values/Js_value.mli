@@ -225,6 +225,10 @@ val to_primitive : ?hint:string -> value -> value
  * valueOf, its toString, written in JavaScript), asked of the engine
  * that is running: Js_eval sets it, [to_primitive] asks it for a plain
  * object. [hint]: "number", "string" or "default" *)
+(* told of a property read on a host's object that neither it nor its
+   prototypes have: its class, the name. None (the default): not told *)
+val missing : (string -> string -> unit) option ref
+
 val own_primitive : (value -> string -> value option) ref
 val to_string : value -> string
 val to_number : value -> float

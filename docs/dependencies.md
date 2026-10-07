@@ -68,7 +68,7 @@ libraries. By what they are, with the modules the browser names:
 | | `Zlib`, `Inflate`, `Crc32` | PNG's pixels and its checksums | `libs/images` |
 | | `Huffman` | the prefix codes of Brotli and of lossless WebP | `libs/compression`, `libs/images` |
 
-### Cryptography (all of it for TLS 1.3 and its certificates, but one)
+### Cryptography (all of it for TLS 1.3, 1.2 and their certificates, but one)
 
 | Library | Modules | Used for | By |
 |---|---|---|---|
@@ -140,7 +140,7 @@ grow, or written here; each is told in its `.mli`.
 |---|---|---|
 | `languages/html`, `css`, `javascript`, `json` | the page's languages | a fork of its `languages/` and browser kit |
 | `languages/xml`, `libs/dom` | XML's reader, the document's tree | out of its `Svg`, out of `languages/html` |
-| `libs/network` | URLs, HTTP/1.1, cookies, TLS 1.3, X.509, WebSocket | a copy of its `libs/networking` (wrapped: the Playground links the original) |
+| `libs/network` | URLs, HTTP/1.1, cookies, TLS 1.3, TLS 1.2 (`Tls12`, with the P-256 exchange, `P256`, written here over `Bignum`), X.509, WebSocket | a copy of its `libs/networking` (wrapped: the Playground links the original) |
 | `libs/compression` | Brotli and its dictionary | a copy; split out there so the two do not meet |
 | `libs/images` | PNG, SVG | copies (wrapped: the Playground links its `Png`) |
 | | WebP: `Webp`, `Vp8l`, `Vp8` | written here |

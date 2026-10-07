@@ -72,8 +72,8 @@
     g.__created = upgrade;
   })();
   global("DOMException", class DOMException extends Error { constructor(message, name) { super(message); this.name = name || "Error"; } });
-  method(E, "scrollTo", nothing);
-  method(E, "scrollBy", nothing);
+  method(E, "scrollTo", stub("element.scrollTo"));
+  method(E, "scrollBy", stub("element.scrollBy"));
   reflects(E, "role", "role");
   reflects(E, "nonce", "nonce");
   reflects(E, "slot", "slot");

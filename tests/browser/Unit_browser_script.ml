@@ -267,6 +267,28 @@ let tests =
           in
           Alcotest.(check string) "the link after its script, the writes in order; the paragraph after its own, the script after it run"
             "[\"script link metax metay title\", \"script\", \"written\", \"string\", \"script\"]" (value t "said"));
+      Testo.create "what a page asks for that is not here is told: a property not found, a function that does nothing" (fun () ->
+          let t = page "<body><p id=p></p>" in
+          let asked = ref [] in
+          Js_value.missing := Some (fun cls k -> asked := (cls ^ "." ^ k) :: !asked);
+          let r = Browser_script.eval t "var p = document.getElementById('p'); [typeof document.zork, typeof p.frobnicate, typeof window.nope, typeof document.title, typeof p.cells, typeof p.insertRow]" in
+          Js_value.missing := None;
+          Alcotest.(check string) "the page itself goes on" {|["undefined", "undefined", "undefined", "string", "undefined", "function"]|} (match r with Ok v -> Js_value.display v | Error e -> e.message);
+          Alcotest.(check (list string)) "the three not found, and a table's cells, which a paragraph has not; not what is there"
+            [ "HTMLDocument.zork"; "HTMLElement.frobnicate"; "Window.nope" ] (List.rev !asked);
+          Hashtbl.reset Script_host.missed_names;
+          ignore (Browser_script.eval t "document.open(); document.open(); p.scrollTo(0, 10)");
+          Alcotest.(check (list string)) "called, said once each" [ "document.open()"; "element.scrollTo()" ] (List.sort compare (List.of_seq (Hashtbl.to_seq_keys Script_host.missed_names))));
+      Testo.create "a control's form; an event's handler not set is null" (fun () ->
+          let t =
+            page
+              "<body><form id=f><input id=i><button id=b></button></form><form id=g></form><input id=o form=g><p id=p></p><script>\n\
+               var get = function (id) { return document.getElementById(id) }, i = get(\"i\"), p = get(\"p\");\n\
+               var before = [i.oninput, \"onclick\" in p, p.onclick];\n\
+               p.onclick = function () {};\n\
+               var said = [i.form === get(\"f\"), get(\"b\").form.id, get(\"o\").form.id, typeof p.form, before, typeof p.onclick, document.prerendering]</script>"
+          in
+          Alcotest.(check string) "the form around, or the one named; null until set" "[true, \"f\", \"g\", \"undefined\", [null, true, null], \"function\", false]" (value t "said"));
       Testo.create "a table's rows and cells put in and taken out" (fun () ->
           let t =
             page

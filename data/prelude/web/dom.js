@@ -60,9 +60,9 @@
   method(D, "adoptNode", function (node) { return node; });
   method(D, "getSelection", function () { return getSelection(); });
   method(D, "hasFocus", function () { return true; });
-  method(D, "elementFromPoint", function () { return null; });
-  method(D, "elementsFromPoint", function () { return []; });
-  method(D, "execCommand", function () { return false; });
+  method(D, "elementFromPoint", stub("document.elementFromPoint", null));
+  method(D, "elementsFromPoint", stub("document.elementsFromPoint", []));
+  method(D, "execCommand", stub("document.execCommand", false));
   // document.write, from a script that runs as its page is read: the
   // text is HTML put where the script is, each write after the one
   // before (how a page chose its style sheet, or wrote its date, since
@@ -90,7 +90,7 @@
   }
   method(D, "write", function () { written(Array.prototype.join.call(arguments, "")); });
   method(D, "writeln", function () { written(Array.prototype.join.call(arguments, "") + "\n"); });
-  method(D, "open", nothing);
+  method(D, "open", stub("document.open"));
   method(D, "close", nothing);
   // the nodes under a root, one after the other in the document's
   // order, those a filter keeps: a walk a script steps through
@@ -149,6 +149,7 @@
   method(D, "createNodeIterator", D && D.createTreeWalker);
   method(D, "createRange", function () {
     var doc = this;
+    if (typeof __missed === "function") __missed("document.createRange (a range that selects nothing)");
     return {
       collapsed: true, startContainer: doc, endContainer: doc, startOffset: 0, endOffset: 0, commonAncestorContainer: doc,
       setStart: nothing, setEnd: nothing, setStartBefore: nothing, setEndAfter: nothing, selectNode: nothing, selectNodeContents: nothing,
@@ -166,6 +167,23 @@
   });
 
   var E = typeof Element === "undefined" ? null : Element.prototype;
+  // A control's form: the one it is in, or the one its form= names.
+  getter(E, "form", function () {
+    if (["input", "select", "textarea", "button", "label", "fieldset", "output", "option", "object"].indexOf(this.localName) < 0) return undefined;
+    var id = this.getAttribute("form");
+    return (id && document.getElementById(id)) || this.closest("form");
+  });
+  // An event's handler not set is null, not undefined ("oninput" in
+  // el, el.onclick === null: how a library asks whether an event is
+  // known here); one set is the host's.
+  ["abort", "blur", "change", "click", "close", "contextmenu", "dblclick", "error", "focus", "input", "invalid", "keydown", "keypress", "keyup",
+   "load", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout", "mouseover", "mouseup", "reset", "resize", "scroll", "select",
+   "submit", "toggle", "wheel", "pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "touchend", "animationend",
+   "transitionend", "beforeinput", "paste", "copy", "cut", "dragstart", "drop"].forEach(function (name) {
+    getter(E, "on" + name, function () { return null; });
+  });
+  getter(E, "popoverTargetElement", function () { return null; });
+  getter(D, "prerendering", function () { return false; });
   method(E, "isSameNode", function (other) { return this === other; });
   method(E, "isEqualNode", function (other) { return !!other && this.outerHTML === other.outerHTML; });
   method(E, "checkVisibility", function () { return true; });

@@ -71,7 +71,10 @@ let rec from_chain (ps : Js_builtins.protos) (o : obj) (k : string) : value =
           match page o.proto with
           (* but what a script put on the object itself comes before its class's *)
           | Some v -> if h.get (Js_builtins.own_query ^ k) = Bool true then h.get k else v
-          | None -> ( match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v))
+          | None -> (
+              let found = match (h.get k, o.proto) with Undefined, Some p -> from_chain ps p k | v, _ -> v in
+              (match (found, !missing) with Undefined, Some told -> told h.class_name k | _ -> ());
+              found))
       | _ -> ( match proto_of ps o with Some p -> from_chain ps p k | None -> Undefined))
 
 let rec get (ps : Js_builtins.protos) (target : value) (k : string) : value =
@@ -119,7 +122,9 @@ let rec has (ps : Js_builtins.protos) (o : obj) (k : string) : bool =
   match o.kind with
   | Proxy (t, _) -> has ps t k
   | Array a -> k = "length" || (match index_of_key k with Some i -> i < a.length | None -> false) || inherited ps o k
-  | Host_object h -> h.get k <> Undefined
+  (* what the host has, or its prototypes: a getter there that gives
+   * null ("oninput" in el: how a library asks whether an event is known) *)
+  | Host_object h -> h.get k <> Undefined || (match o.proto with Some p -> has ps p k | None -> false)
   | _ -> inherited ps o k
 
 and inherited (ps : Js_builtins.protos) (o : obj) (k : string) : bool = match proto_of ps o with Some p -> has ps p k | None -> false

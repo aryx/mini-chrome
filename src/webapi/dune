@@ -31,6 +31,7 @@
    lang_html lang_css javascript
    browser_url
    mini_opti ; Stopwatch: the scripts' time
+   logs ; -v: what a page asked for that is not here (Script_host.missed)
    network)) ; Urlencoded, a URL's query
 
 ; the small web APIs written in JavaScript (data/prelude/web/*.js:

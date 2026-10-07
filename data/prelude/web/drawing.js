@@ -53,6 +53,7 @@
   // its picture is empty (docs/plans/plan_tinybox.md, "later")
   method(E, "getContext", function () {
     var canvas = this, context = { canvas: canvas };
+    if (typeof __missed === "function") __missed("canvas.getContext (nothing is drawn)");
     ["putImageData", "drawImage", "fillRect", "clearRect", "strokeRect", "beginPath", "closePath", "moveTo", "lineTo", "arc", "rect", "fill", "stroke",
      "fillText", "strokeText", "save", "restore", "translate", "rotate", "scale", "setTransform", "clip"].forEach(function (k) { context[k] = nothing; });
     context.measureText = function (text) { return { width: 8 * String(text).length }; };

@@ -160,3 +160,7 @@ val close : t -> t * string
 (* the server's certificates, once received; the cipher chosen *)
 val certificates : t -> X509.t list
 val cipher : t -> cipher option
+
+(* "TLS 1.3", or "TLS 1.2" when the server's hello said so and the
+   handshake went on by Tls12 *)
+val version : t -> string

@@ -471,7 +471,7 @@ which returns the messages of the requests answered (`Got`,
 browser's own name, but for the sites of its table, each with its
 reason -- empty: Google was in it for a day, and why it is not is
 told there);
-`https://` is the blocking `Http_client` over our TLS, on `Worker`'s
+`https://` is the blocking `Http_client` over our TLS (1.3, `Tls13`, whose client goes on by `Tls12` when the server's hello says the older version: ECDHE over X25519 or P-256 -- `P256`, written here over `tiny_libs`' `Bignum` -- and AEAD suites alone), on `Worker`'s
 pool of eight workers -- threads under OCaml 4.14, domains under
 OCaml 5 (`Worker_spawn`, one of `libs/network/spawn/*.ml.in` copied
 by dune on the compiler's version): under 5 a job really runs beside
@@ -554,7 +554,13 @@ site's or a script's colour, change its cell, and the date.
 `scripts/js/Page_scripts.exe` a saved page's own, with no window: the
 way to find what a real site's script stops on (`mini-curl -o` the
 page, run it, read the first error; `-v` on the browser itself says
-the same console). A session that needs an account is recorded once by
+the same console). With `-v` a page also says what it asked for that is not here
+(`missing: Window.indexedDB`, `missing: document.open()`:
+`Script_host.missed`, told by the engine of a host object's property
+not found and by the prelude's `stub`s when called): read that list
+first when a page looks wrong. A function put in a prelude only so
+that a page does not stop is made with `stub("name", value)`, not a
+silent one. A session that needs an account is recorded once by
 the person (`MINI_DUMP_PAGE`, `MINI_DUMP_ANSWERS`) and given again to
 the whole browser with no network (`MINI_REPLAY=DIR`,
 `Browser_replay`): `docs/dev/notes_debugging_techniques.txt` has the

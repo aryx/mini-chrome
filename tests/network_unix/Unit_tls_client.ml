@@ -35,12 +35,12 @@ let certificate (kind : string) : string * string =
 let port = ref (21000 + (Unix.getpid () mod 9000))
 
 (* [with_server kind suite f]: f the port and the server's certificate *)
-let with_server ?(extra = [||]) (kind : string) (suite : string) (f : int -> X509.t -> unit) : unit =
+let with_server ?(extra = [||]) ?(older = false) (kind : string) (suite : string) (f : int -> X509.t -> unit) : unit =
   let key, cert = certificate kind in
   incr port;
   let p = !port in
   let server =
-    quiet (Array.append [| "openssl"; "s_server"; "-quiet"; "-www"; "-tls1_3"; "-ciphersuites"; suite; "-accept"; string_of_int p; "-cert"; cert; "-key"; key |] extra)
+    quiet (Array.append [| "openssl"; "s_server"; "-quiet"; "-www"; (if older then "-tls1_2" else "-tls1_3"); (if older then "-cipher" else "-ciphersuites"); suite; "-accept"; string_of_int p; "-cert"; cert; "-key"; key |] extra)
   in
   Fun.protect
     ~finally:(fun () ->
@@ -74,6 +74,18 @@ let tests (caps : < Cap.network ; Cap.open_in ; Cap.exec ; .. >) =
         "a server asking for our certificate: an empty one (Gmail's SMTP)" (fun () ->
           with_server ~extra:[| "-verify"; "1" |] "ec" "TLS_CHACHA20_POLY1305_SHA256" (fun p cert ->
               Alcotest.(check (result string string)) "200" (Ok "HTTP/1.0 200 ok") (page caps ~trust:[ cert ] ~host:"localhost" p)));
+      (* TLS 1.2 (Tls12), for the servers that have no 1.3 *)
+      Testo.create "TLS 1.2: a page over AES-128-GCM, the key exchanged over P-256, signed by RSA" (fun () ->
+          with_server ~older:true ~extra:[| "-groups"; "P-256" |] "rsa" "ECDHE-RSA-AES128-GCM-SHA256" (fun p cert ->
+              Alcotest.(check (result string string)) "200" (Ok "HTTP/1.0 200 ok") (page caps ~trust:[ cert ] ~host:"localhost" p)));
+      Testo.create "TLS 1.2: a page over ChaCha20-Poly1305, the key exchanged over X25519, signed by ECDSA" (fun () ->
+          with_server ~older:true ~extra:[| "-groups"; "X25519" |] "ec" "ECDHE-ECDSA-CHACHA20-POLY1305" (fun p cert ->
+              Alcotest.(check (result string string)) "200" (Ok "HTTP/1.0 200 ok") (page caps ~trust:[ cert ] ~host:"localhost" p)));
+      Testo.create "TLS 1.2, refused: a server with the RSA key exchange alone; a root not trusted" (fun () ->
+          with_server ~older:true "rsa" "AES128-GCM-SHA256" (fun p cert ->
+              Alcotest.(check bool) "no suite of ours" true (Result.is_error (page caps ~trust:[ cert ] ~host:"localhost" p)));
+          with_server ~older:true "rsa" "ECDHE-RSA-AES128-GCM-SHA256" (fun p _ ->
+              Alcotest.(check bool) "no roots" true (Result.is_error (page caps ~trust:[] ~host:"localhost" p))));
       Testo.create "refused: a root not trusted, another name" (fun () ->
           with_server "ec" "TLS_CHACHA20_POLY1305_SHA256" (fun p cert ->
               Alcotest.(check bool) "no roots" true (Result.is_error (page caps ~trust:[] ~host:"localhost" p));
